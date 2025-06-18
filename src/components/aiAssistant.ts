@@ -1,0 +1,173 @@
+// src/components/aiAssistant.ts
+import { FilterFieldSchema } from '../framework/filters';
+import { FilterFormState, filterStateFromJSON, buildInitialFormState } from './FilterForm';
+
+// --- Shared prompt and serialization helpers ---
+export interface AIApi {
+    sendPrompt(
+        filterSchema: FilterFieldSchema,
+        userPrompt: string,
+        setFormState: (state: FilterFormState[]) => void
+    ): Promise<void>;
+}
+
+function sanitizeFilterExpr(expr: any): any {
+    if (expr.type === 'and' || expr.type === 'or') {
+        return {
+            type: expr.type,
+            filters: expr.filters.map(sanitizeFilterExpr)
+        };
+    } else {
+        // For dropdown and multiselect, include items
+        if ((expr.value?.type === 'dropdown' || expr.value?.type === 'multiselect') && Array.isArray(expr.value.items)) {
+            return {
+                type: expr.type,
+                key: expr.key,
+                items: expr.value.items
+            };
+        }
+        return {
+            type: expr.type,
+            key: expr.key
+        };
+    }
+}
+
+function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): any {
+    return filterSchema.map((field: FilterFieldSchema[number]) => ({
+        label: field.label,
+        expression: sanitizeFilterExpr(field.expression)
+    }));
+}
+
+function buildAiPrompt(filterSchema: FilterFieldSchema, userPrompt: string): string {
+    const filterFormStateType = `type FilterFormState =
+  | { type: 'leaf'; key: string; value: any; }
+  | { type: 'and' | 'or'; children: FilterFormState[]; }
+  | { type: 'not'; child: FilterFormState; };`;
+    const sanitizedSchema = sanitizeFilterSchemaForAI(filterSchema);
+    const schemaStr = JSON.stringify(sanitizedSchema, null, 2);
+    return `Given the following filter schema (in JSON):\n${schemaStr}\n\nAnd the following type definition for FilterFormState:\n${filterFormStateType}\n\nGenerate a valid array of FilterFormState (as JSON) that matches a user request.\nUser request: ${userPrompt}\n\nFor any filter in the schema that is not set based on the user request, include it in the output with an empty value (e.g., empty string, null, or empty array as appropriate). For date filters, always send the value as a plain string in standard date-time string format. Output only the FilterFormState array, don't wrap it in an and expression.`;
+}
+
+// Helper to generate an empty FilterFormState array from schema
+function emptyStateFromSchema(filterSchema: FilterFieldSchema): FilterFormState[] {
+    return filterSchema.map(field => buildInitialFormState(field.expression));
+}
+
+// Recursively copy only the value from aiState into emptyState, assuming same shape/order
+function mergeStateByKey(emptyState: FilterFormState, aiState: any): FilterFormState {
+    if (!aiState) return emptyState;
+    if (emptyState.type === 'leaf' && aiState.type === 'leaf') {
+        return {
+            ...emptyState,
+            value: aiState.value
+        };
+    }
+    if ((emptyState.type === 'and' || emptyState.type === 'or') && (aiState.type === 'and' || aiState.type === 'or')) {
+        return {
+            ...emptyState,
+            children: mergeStateArrayByKey(emptyState.children, aiState.children)
+        };
+    }
+    if (emptyState.type === 'not' && aiState.type === 'not') {
+        return {
+            ...emptyState,
+            child: mergeStateByKey(emptyState.child, aiState.child)
+        };
+    }
+    return emptyState;
+}
+
+function mergeStateArrayByKey(emptyArr: FilterFormState[], aiArr: any[]): FilterFormState[] {
+    return emptyArr.map((emptyItem, i) => mergeStateByKey(emptyItem, aiArr?.[i]));
+}
+
+// --- DeepSeek implementation ---
+const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
+
+export const DeepSeekApi: AIApi = {
+    async sendPrompt(filterSchema: FilterFieldSchema, userPrompt: string, setFormState: (state: FilterFormState[]) => void) {
+        const prompt = buildAiPrompt(filterSchema, userPrompt);
+        try {
+            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [
+                        { role: 'system', content: 'You are a helpful assistant that generates valid FilterFormState arrays for a filter form.' },
+                        { role: 'user', content: prompt }
+                    ]
+                })
+            });
+            if (!response.ok) throw new Error('DeepSeek API error');
+            const data = await response.json();
+            const aiContent = data.choices?.[0]?.message?.content || '';
+            const match = aiContent.match(/\[.*\]/s);
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                setFormState(filterStateFromJSON(parsed, filterSchema));
+                console.log(parsed)
+            } else {
+                alert('Could not parse FilterFormState from DeepSeek response. Check the console.');
+                console.log('DeepSeek response:', data);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to get response from DeepSeek API.');
+        }
+    }
+};
+
+// --- Gemini Flash-Lite implementation ---
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+export const GeminiApi: AIApi = {
+    async sendPrompt(filterSchema, userPrompt, setFormState) {
+        const prompt = buildAiPrompt(filterSchema, userPrompt);
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+                    })
+                }
+            );
+            if (!response.ok) throw new Error('Gemini API error');
+            const data = await response.json();
+            const aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const match = aiContent.match(/\[.*\]/s);
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                const emptyState = emptyStateFromSchema(filterSchema);
+                const merged = mergeStateArrayByKey(emptyState, parsed);
+                setFormState(filterStateFromJSON(merged, filterSchema));
+                console.log('AI parsed:', parsed);
+                console.log('Merged state:', merged);
+            } else {
+                alert('Could not parse FilterFormState from Gemini response. Check the console.');
+                console.log('Gemini response:', data);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to get response from Gemini API.');
+        }
+    }
+};
+
+export function generateFilterWithAI(
+    filterSchema: FilterFieldSchema,
+    userPrompt: string,
+    setFormState: (state: FilterFormState[]) => void,
+    apiImpl: AIApi
+): Promise<void> {
+    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState);
+}
