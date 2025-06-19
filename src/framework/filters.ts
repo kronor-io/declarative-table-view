@@ -1,11 +1,11 @@
 export type FilterControl =
-    | { type: 'text'; label?: string; placeholder?: string }
-    | { type: 'number'; label?: string; placeholder?: string }
-    | { type: 'date'; label?: string; placeholder?: string }
-    | { type: 'dropdown'; label?: string; items: { label: string; value: any }[] }
-    | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean }
-    | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }
-    | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string };
+    | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'date'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
+    | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
+    | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
+    | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
     | { type: 'equals'; key: string; value: FilterControl; transform?: { toQuery?: (input: any) => any; fromQuery?: (input: any) => any } }
@@ -41,8 +41,8 @@ export const SUPPORTED_OPERATORS = [
 // Helper functions for building FilterControl values
 export const filterControl = {
     text: (options?: { label?: string; placeholder?: string }): FilterControl => ({ type: 'text', ...options }),
-    number: (options?: { label?: string; placeholder?: string }): FilterControl => ({ type: 'number', ...options }),
-    date: (options?: { label?: string; placeholder?: string }): FilterControl => ({ type: 'date', ...options }),
+    number: (options?: { label?: string; placeholder?: string; initialValue?: any }): FilterControl => ({ type: 'number', ...options }),
+    date: (options?: { label?: string; placeholder?: string; initialValue?: any }): FilterControl => ({ type: 'date', ...options }),
     dropdown: (options: { label?: string; items: { label: string; value: any }[] }): FilterControl => ({ type: 'dropdown', ...options }),
     multiselect: (options: { label?: string; items: { label: string; value: any }[], filterable?: boolean }): FilterControl => ({ type: 'multiselect', ...options }),
     customOperator: (options: { label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }): FilterControl => ({ type: 'customOperator', ...options }),

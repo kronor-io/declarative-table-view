@@ -101,7 +101,16 @@ const filterSchema: FilterFieldSchema = [
     },
     {
         label: 'Placed At',
-        expression: Filter.range('createdAt', Control.date)
+        expression: Filter.and([
+            Filter.greaterThanOrEqual(
+                'createdAt',
+                Control.date({ placeholder: 'from', initialValue: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d; })() })
+            ),
+            Filter.lessThanOrEqual(
+                'createdAt',
+                Control.date({ placeholder: 'to', initialValue: new Date() })
+            )
+        ])
     },
     {
         label: 'Currency',

@@ -32,7 +32,7 @@ export function buildInitialFormState(expr: FilterExpr): FilterFormState {
         return {
             type: 'leaf',
             key: expr.key,
-            value: '',
+            value: 'initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '',
             control: expr.value,
             filterType: expr.type,
             transform: expr.transform,
