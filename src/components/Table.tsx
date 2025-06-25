@@ -5,6 +5,7 @@ import { ColumnDefinition } from '../framework/column-definition';
 type TableProps = {
   columns: ColumnDefinition[];
   data: Record<string, any>[];
+  noDataRowsComponent: React.ReactNode;
 };
 
 // Helper to extract values for a column from a row
@@ -21,9 +22,9 @@ const getColumnValues = (row: Record<string, any>, column: ColumnDefinition) => 
   return values;
 };
 
-function Table({ columns, data }: TableProps) {
+function Table({ columns, data, noDataRowsComponent }: TableProps) {
   return (
-    <DataTable value={data} tableStyle={{ minWidth: '50rem' }} showGridlines size='small'>
+    <DataTable value={data} tableStyle={{ minWidth: '50rem' }} showGridlines size='small' emptyMessage={noDataRowsComponent}>
       {columns.map((column, colIdx) => (
         <Column
           key={colIdx}

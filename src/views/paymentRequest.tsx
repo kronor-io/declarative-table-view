@@ -7,6 +7,7 @@ import { View } from "../framework/view";
 import { Mapping } from "../components/Mapping";
 import { PaymentStatusTag } from '../components/PaymentStatusTag';
 import { PhoneNumberFilter } from "../components/PhoneNumberFilter";
+import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
 
 export type PaymentRequest = {
     transactionId: string;
@@ -220,6 +221,7 @@ const PaymentRequestView: View<PaymentRequest, QueryResponse> = {
     getResponseRows: (response: QueryResponse) => response[collectionName],
     QueryResponseType: {} as QueryResponse,
     paginationKey: 'createdAt',
+    noRowsComponent: NoRowsExtendDateRange
 };
 
 export default PaymentRequestView;

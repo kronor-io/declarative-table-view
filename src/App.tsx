@@ -269,7 +269,15 @@ function App({ graphqlHost, graphqlToken }: AppProps) {
           fetchData(undefined, null, rows);
         }}
       />
-      <Table columns={selectedView.columnDefinitions} data={data} />
+      <Table
+        columns={selectedView.columnDefinitions}
+        data={data}
+        noDataRowsComponent={
+          selectedView.noRowsComponent
+            ? selectedView.noRowsComponent({ filterState, setFilterState, fetchData })
+            : null
+        }
+      />
       {data.length > 0 && (
         <TablePagination
           onPageChange={handleNextPage}
