@@ -48,7 +48,22 @@ function buildAiPrompt(filterSchema: FilterFieldSchema, userPrompt: string): str
   | { type: 'not'; child: FilterFormState; };`;
     const sanitizedSchema = sanitizeFilterSchemaForAI(filterSchema);
     const schemaStr = JSON.stringify(sanitizedSchema, null, 2);
-    return `Given the following filter schema (in JSON):\n${schemaStr}\n\nAnd the following type definition for FilterFormState:\n${filterFormStateType}\n\nGenerate a valid array of FilterFormState (as JSON) that matches a user request.\nUser request: ${userPrompt}\n\nFor any filter in the schema that is not set based on the user request, include it in the output with an empty value (e.g., empty string, null, or empty array as appropriate). For date filters, always send the value as a plain string in standard date-time string format. Output only the FilterFormState array, don't wrap it in an and expression.`;
+    const currentDate = new Date().toString();
+    return [
+        `Given the following filter schema (in JSON):`,
+        schemaStr,
+        '',
+        `And the following type definition for FilterFormState:`,
+        filterFormStateType,
+        '',
+        `The current date is: ${currentDate}`,
+        '',
+        `Generate a valid array of FilterFormState (as JSON) that matches a user request.`,
+        `User request: ${userPrompt}`,
+        '',
+        `For any filter in the schema that is not set based on the user request, include it in the output with an empty value (e.g., empty string, null, or empty array as appropriate). For date filters, always send the value as a plain string in standard date-time string format.`,
+        `Output only the FilterFormState array, don't wrap it in an and expression.`
+    ].join('\n');
 }
 
 // Helper to generate an empty FilterFormState array from schema
