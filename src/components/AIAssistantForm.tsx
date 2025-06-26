@@ -11,6 +11,7 @@ interface AIAssistantFormProps {
     setFilterState: (state: FilterFormState[]) => void;
     setPagination: (p: any) => void;
     selectedView: any;
+    geminiApiKey: string
 }
 
 export default function AIAssistantForm({
@@ -19,7 +20,8 @@ export default function AIAssistantForm({
     setFilterSchema,
     setFilterState,
     setPagination,
-    selectedView
+    selectedView,
+    geminiApiKey
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState('authorized payments in euro or danish krona in the first week of april 2025');
     const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
@@ -39,7 +41,7 @@ export default function AIAssistantForm({
                         setAiLoading(true);
                         try {
                             const { generateFilterWithAI, GeminiApi } = await import('./aiAssistant');
-                            await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi);
+                            await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey);
                         } finally {
                             setAiLoading(false);
                         }
@@ -79,7 +81,7 @@ export default function AIAssistantForm({
                             const template = `You are an expert TypeScript assistant.\n\nHere are the type definitions for FilterControl and FilterExpr:\n\n${filterControlType}\n\n${filterExprType}\n\nAvailable data keys:\n${JSON.stringify(allKeys, null, 2)}\n\nCurrent filter schema (including control configuration, dropdown/multiselect values, etc.):\n${filterSchemaJson}\n\nUser prompt:\n${aiFilterExprInput}\n\nInstructions:\n- Generate a valid FilterExpr as JSON, using only the available data keys.\n- When generating a filter for a field, use the control configuration from the filter schema (e.g. use the same dropdown/multiselect values for matching data keys).\n- Only use supported FilterControl types (text, number, date, dropdown, multiselect).\n- Do not use custom or transformation functions.\n- Output only the JSON for the FilterExpr, nothing else.\n- The JSON must be valid and parseable.\n`;
                             let aiContent = '';
                             try {
-                                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=AIzaSyBuQBBeuvtY35QytWYL8qBlznJoq8JY9IA', {
+                                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({

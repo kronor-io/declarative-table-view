@@ -7,7 +7,8 @@ export interface AIApi {
     sendPrompt(
         filterSchema: FilterFieldSchema,
         userPrompt: string,
-        setFormState: (state: FilterFormState[]) => void
+        setFormState: (state: FilterFormState[]) => void,
+        apiKey: string
     ): Promise<void>;
 }
 
@@ -83,54 +84,12 @@ function mergeStateArrayByKey(emptyArr: FilterFormState[], aiArr: any[]): Filter
     return emptyArr.map((emptyItem, i) => mergeStateByKey(emptyItem, aiArr?.[i]));
 }
 
-// --- DeepSeek implementation ---
-const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
-
-export const DeepSeekApi: AIApi = {
-    async sendPrompt(filterSchema: FilterFieldSchema, userPrompt: string, setFormState: (state: FilterFormState[]) => void) {
-        const prompt = buildAiPrompt(filterSchema, userPrompt);
-        try {
-            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: 'You are a helpful assistant that generates valid FilterFormState arrays for a filter form.' },
-                        { role: 'user', content: prompt }
-                    ]
-                })
-            });
-            if (!response.ok) throw new Error('DeepSeek API error');
-            const data = await response.json();
-            const aiContent = data.choices?.[0]?.message?.content || '';
-            const match = aiContent.match(/\[.*\]/s);
-            if (match) {
-                const parsed = JSON.parse(match[0]);
-                setFormState(filterStateFromJSON(parsed, filterSchema));
-                console.log(parsed)
-            } else {
-                alert('Could not parse FilterFormState from DeepSeek response. Check the console.');
-                console.log('DeepSeek response:', data);
-            }
-        } catch (err) {
-            console.error(err);
-            alert('Failed to get response from DeepSeek API.');
-        }
-    }
-};
-
 // --- Gemini Flash-Lite implementation ---
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
 export const GeminiApi: AIApi = {
-    async sendPrompt(filterSchema, userPrompt, setFormState) {
+    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey) {
         const prompt = buildAiPrompt(filterSchema, userPrompt);
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
                 {
                     method: 'POST',
                     headers: {
@@ -167,7 +126,8 @@ export function generateFilterWithAI(
     filterSchema: FilterFieldSchema,
     userPrompt: string,
     setFormState: (state: FilterFormState[]) => void,
-    apiImpl: AIApi
+    apiImpl: AIApi,
+    geminiApiKey: string
 ): Promise<void> {
-    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState);
+    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey);
 }

@@ -6,6 +6,7 @@ import App from './App.tsx'
 export interface RenderTableViewOptions {
   graphqlHost: string;
   graphqlToken: string;
+  geminiApiKey: string;
 }
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
@@ -13,7 +14,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
   if (!el) throw new Error('Target element not found');
   createRoot(el).render(
     <StrictMode>
-      <App graphqlHost={options.graphqlHost} graphqlToken={options.graphqlToken} />
+      <App graphqlHost={options.graphqlHost} graphqlToken={options.graphqlToken} geminiApiKey={options.geminiApiKey} />
     </StrictMode>
   );
 }
@@ -29,6 +30,7 @@ if (import.meta.env.DEV) {
     renderTableView(rootEl, {
       graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
       graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
+      geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
     });
   }
 }

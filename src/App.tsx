@@ -22,6 +22,7 @@ import AIAssistantForm from './components/AIAssistantForm'; // Import the new co
 interface AppProps {
   graphqlHost: string;
   graphqlToken: string;
+  geminiApiKey: string;
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView];
@@ -32,7 +33,7 @@ interface PaginationState {
   cursors: (string | number | null)[];
 }
 
-function App({ graphqlHost, graphqlToken }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey }: AppProps) {
   // Get initial view from URL query parameter or default to first view
   const getInitialViewIndex = () => {
     const params = new URLSearchParams(window.location.search);
@@ -254,6 +255,7 @@ function App({ graphqlHost, graphqlToken }: AppProps) {
             setFilterState={setFilterState}
             setPagination={setPagination}
             selectedView={selectedView}
+            geminiApiKey={geminiApiKey}
           />
         </div>
       )}
