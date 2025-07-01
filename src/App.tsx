@@ -18,6 +18,7 @@ interface AppProps {
   graphqlHost: string;
   graphqlToken: string;
   geminiApiKey: string;
+  showViewsMenu: boolean;
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView];
@@ -28,7 +29,7 @@ interface PaginationState {
   cursors: (string | number | null)[];
 }
 
-function App({ graphqlHost, graphqlToken, geminiApiKey }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProps) {
   // Get initial view from URL query parameter or default to first view
   const getInitialViewIndex = () => {
     const params = new URLSearchParams(window.location.search);
@@ -203,7 +204,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey }: AppProps) {
     <div className="p-4">
       <Menubar
         model={[
-          {
+          ...(showViewsMenu ? [{
             label: 'Views',
             icon: 'pi pi-eye',
             items: views.map((view, viewIndex) => ({
@@ -211,7 +212,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey }: AppProps) {
               icon: 'pi pi-table',
               command: () => handleViewChange(viewIndex)
             }))
-          },
+          }] : []),
           {
             label: 'Saved Filters',
             icon: 'pi pi-file-import',
