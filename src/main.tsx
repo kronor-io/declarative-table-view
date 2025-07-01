@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import style from './index.css?inline'
 import App from './App.tsx'
+import { PrimeReactProvider } from 'primereact/api';
 
 export interface RenderTableViewOptions {
   graphqlHost: string;
@@ -12,10 +13,30 @@ export interface RenderTableViewOptions {
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
   const el = typeof target === 'string' ? document.getElementById(target) : target;
   if (!el) throw new Error('Target element not found');
-  createRoot(el).render(
-    <StrictMode>
-      <App graphqlHost={options.graphqlHost} graphqlToken={options.graphqlToken} geminiApiKey={options.geminiApiKey} />
-    </StrictMode>
+
+  const shadowRoot = el.attachShadow({ mode: 'open' });
+
+  const reactContainer = document.createElement('div');
+  reactContainer.id = 'react-root';
+  shadowRoot.appendChild(reactContainer);
+
+  const primeReactOptions = {
+    styleContainer: shadowRoot
+  };
+
+  createRoot(reactContainer).render(
+    <>
+      <style>{style}</style>
+      <StrictMode>
+        <PrimeReactProvider value={primeReactOptions}>
+          <App
+            graphqlHost={options.graphqlHost}
+            graphqlToken={options.graphqlToken}
+            geminiApiKey={options.geminiApiKey}
+          />
+        </PrimeReactProvider>
+      </StrictMode>
+    </>
   );
 }
 

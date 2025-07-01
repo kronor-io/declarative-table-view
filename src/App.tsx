@@ -3,7 +3,7 @@ import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import PaymentRequestView from './views/paymentRequest';
 import RequestLogView from './views/requestLog';
-import SimpleTestView from './views/simpleTestView'; // Import the new view
+import SimpleTestView from './views/simpleTestView';
 import { buildHasuraConditions } from './framework/graphql';
 import FilterForm, { FilterFormState, buildInitialFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
@@ -12,7 +12,7 @@ import { Button } from 'primereact/button';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import TablePagination from './components/TablePagination';
-import AIAssistantForm from './components/AIAssistantForm'; // Import the new component
+import AIAssistantForm from './components/AIAssistantForm';
 
 interface AppProps {
   graphqlHost: string;
