@@ -1,5 +1,5 @@
 import { View } from "../framework/view";
-import { ColumnDefinition, defaultCellRenderer } from "../framework/column-definition";
+import { ColumnDefinition, field, defaultCellRenderer } from "../framework/column-definition";
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
 
 // Define a simple data type for this view
@@ -16,12 +16,12 @@ type QueryResponse = {
 
 export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
     {
-        data: ['testField'],
+        data: ['testField'].map(field),
         name: 'Test Column Header', // This is what the test will look for
         cellRenderer: defaultCellRenderer,
     },
     {
-        data: ['amount'],
+        data: ['amount'].map(field),
         name: 'Amount',
         cellRenderer: defaultCellRenderer,
     },

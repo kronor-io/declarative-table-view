@@ -1,36 +1,36 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
-import { ColumnDefinition } from "../framework/column-definition";
+import { ColumnDefinition, field } from "../framework/column-definition";
 import { generateGraphQLQuery } from "../framework/graphql";
 import { DateTime, Left } from "../components/LayoutHelpers";
 import { View } from "../framework/view";
 
 const columnDefinitions: ColumnDefinition[] = [
     {
-        data: ['merchantId'],
+        data: ['merchantId'].map(field),
         name: 'Merchant',
         cellRenderer: ({ data: { merchantId } }) =>
             (({ 1: 'Boozt', 2: 'Boozt Dev' } as any)[merchantId])
     },
     {
-        data: ['createdAt'],
+        data: ['createdAt'].map(field),
         name: 'Date',
         cellRenderer: ({ data: { createdAt } }) =>
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
     },
     {
-        data: ['idempotencyKey'],
+        data: ['idempotencyKey'].map(field),
         name: 'Idempotency Key',
         cellRenderer: ({ data: { idempotencyKey } }) =>
             <div className="whitespace-pre-wrap">{idempotencyKey}</div>
     },
     {
-        data: ['namespace'],
+        data: ['namespace'].map(field),
         name: 'Namespace',
         cellRenderer: ({ data: { namespace } }) =>
             <div className="whitespace-pre-wrap">{namespace}</div>
     },
     {
-        data: ['requestParams'],
+        data: ['requestParams'].map(field),
         name: 'Request',
         cellRenderer: ({ data: { requestParams } }) =>
             <Left>
@@ -38,7 +38,7 @@ const columnDefinitions: ColumnDefinition[] = [
             </Left>
     },
     {
-        data: ['responseBody'],
+        data: ['responseBody'].map(field),
         name: 'Response',
         cellRenderer: ({ data: { responseBody } }) =>
             <Left>

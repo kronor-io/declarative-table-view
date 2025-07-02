@@ -14,7 +14,7 @@ type PaymentMethodEnum =
 
 
 interface Props {
-    cardType: string
+    cardType: string[]
     paymentMethod?: PaymentMethodEnum;
     darkmode: boolean;
 }
@@ -144,10 +144,10 @@ export const PaymentMethod: React.FC<Props> = ({ cardType, paymentMethod, darkmo
                 </HStack>
             );
         case "CREDIT_CARD":
-            if (!cardType) {
+            if (cardType.length === 0) {
                 return <HStack align="center" justify="center">CREDIT CARD</HStack>;
             }
-            return <HStack align="center" justify="center">{cardImage(cardType)}</HStack>;
+            return <HStack align="center" justify="center">{cardImage(cardType[0])}</HStack>;
 
         case "P24":
             return (

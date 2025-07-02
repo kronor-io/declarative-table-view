@@ -1,5 +1,5 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
-import { ColumnDefinition, defaultCellRenderer } from "../framework/column-definition";
+import { ColumnDefinition, field, defaultCellRenderer, queryConfigs } from "../framework/column-definition";
 import { generateGraphQLQuery } from "../framework/graphql";
 import { CurrencyAmount, DateTime, Left, Right, VStack } from "../components/LayoutHelpers";
 import { PaymentMethod } from "./PaymentMethod";
@@ -33,32 +33,38 @@ export type PaymentRequest = {
 
 const columnDefinitions: ColumnDefinition[] = [
     {
-        data: ['transactionId', 'waitToken'],
+        data: ['transactionId', 'waitToken'].map(field),
         name: 'Transaction',
         cellRenderer: ({ data: { transactionId, waitToken } }) =>
             <a className="underline" href={`/${waitToken}`}>{transactionId}</a>
     },
     {
-        data: ['merchantId'],
+        data: ['merchantId'].map(field),
         name: 'Merchant',
         cellRenderer: ({ data: { merchantId } }) =>
             <Mapping value={merchantId} map={{ 1: 'Boozt', 2: 'Boozt Dev' }} />
     },
     {
-        data: ['createdAt'],
+        data: ['createdAt'].map(field),
         name: 'Placed At',
         cellRenderer: ({ data: { createdAt } }) =>
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
     },
-    { data: ['reference'], name: 'Reference', cellRenderer: defaultCellRenderer },
+    { data: ['reference'].map(field), name: 'Reference', cellRenderer: defaultCellRenderer },
     {
-        data: ['paymentProvider', 'attempts.cardType'],
+        data: [
+            field('paymentProvider'),
+            queryConfigs([
+                { data: 'attempts', limit: 1, orderBy: { key: 'createdAt', direction: 'DESC' } },
+                { data: 'cardType' }
+            ])
+        ],
         name: 'Provider',
         cellRenderer: ({ data }) =>
             <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />
     },
     {
-        data: ['customer.name', 'customer.email'],
+        data: ['customer.name', 'customer.email'].map(field),
         name: 'Initiated By',
         cellRenderer: ({ data }) =>
             <Left>
@@ -69,12 +75,12 @@ const columnDefinitions: ColumnDefinition[] = [
             </Left>
     },
     {
-        data: ['currentStatus'],
+        data: ['currentStatus'].map(field),
         name: 'Status',
         cellRenderer: ({ data }) => <PaymentStatusTag status={data.currentStatus} />
     },
     {
-        data: ['currency', 'amount'],
+        data: ['currency', 'amount'].map(field),
         name: 'Amount',
         cellRenderer: ({ data: { currency, amount } }) =>
             <Right>
