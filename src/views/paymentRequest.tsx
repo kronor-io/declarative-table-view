@@ -146,8 +146,16 @@ const filterSchema: FilterFieldSchema = [
     },
     {
         label: 'Customer Email',
-        expression: Filter.equals('customer.email', Control.customOperator({ operators: [{ label: 'equals', value: '_eq' }, { label: 'not equals', value: '_neq' }], valueControl: Control.text() }))
-        // expression: Filter.equals('customer.email', Control.customOperator({ operators: Filter.allOperators, valueControl: Control.text() }))
+        expression: Filter.equals(
+            'customer.email',
+            Control.customOperator({
+                operators: [
+                    { label: 'equals', value: '_eq' },
+                    { label: 'not equals', value: '_neq' }
+                ],
+                valueControl: Control.text()
+            })
+        )
     },
     {
         label: 'Merchant',
@@ -194,6 +202,25 @@ const filterSchema: FilterFieldSchema = [
                 { label: 'PayPal', value: 'PAYPAL' },
                 { label: 'Swish', value: 'SWISH' },
                 { label: 'Vipps', value: 'VIPPS' }
+            ]
+        }))
+    },
+    {
+        label: 'Card Type',
+        expression: Filter.in('attempts.cardType', Control.multiselect({
+            items: [
+                { label: 'American Express', value: 'amex' },
+                { label: 'China Union Pay', value: 'china_union_pay' },
+                { label: 'Dankort', value: 'dankort' },
+                { label: 'Diners', value: 'diners' },
+                { label: 'Discover', value: 'discover' },
+                { label: 'Forbrugsforeningen', value: 'ffk' },
+                { label: 'JCB', value: 'jcb' },
+                { label: 'Maestro', value: 'maestro' },
+                { label: 'MasterCard', value: 'mc' },
+                { label: 'Visa Electron', value: 'visa_elec' },
+                { label: 'Visa-DK', value: 'visa_dk' },
+                { label: 'Visa', value: 'visa' }
             ]
         }))
     },
