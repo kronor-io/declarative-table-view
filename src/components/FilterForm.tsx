@@ -115,21 +115,20 @@ function renderInput(control: FilterControl, value: any, setValue: (v: any) => v
             );
         case 'customOperator': {
             const operator = value?.operator ?? control.operators[0]?.value;
-            const isMulti = operator === '_in' || operator === '_nin';
-            const val = value?.value ?? (isMulti ? [] : '');
+            const valueOrDefault = value?.value ?? '';
             return (
                 <div className="flex gap-2">
                     <Dropdown
                         className="min-w-[90px]"
                         value={operator}
                         options={control.operators}
-                        onChange={e => setValue({ operator: e.value, value: (e.value === '_in' || e.value === '_nin') ? [] : '' })}
+                        onChange={e => setValue({ operator: e.value, value: valueOrDefault })}
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="Op"
+                        placeholder="operator"
                     />
                     <div className="flex-1">
-                        {!isMulti && renderInput(control.valueControl, val, v => setValue({ operator, value: v }))}
+                        {renderInput(control.valueControl, valueOrDefault, v => setValue({ operator, value: v }))}
                     </div>
                 </div>
             );
@@ -186,7 +185,7 @@ function renderFilterFormState(
         // Apply transform.fromQuery if present when displaying value
         let displayValue = state.value;
         if (displayValue && state.transform && typeof state.transform.fromQuery === 'function') {
-            displayValue = state.transform.fromQuery(state.value).toString();
+            displayValue = state.transform.fromQuery(state.value);
         }
         return (
             <div className="flex flex-col min-w-[220px] mb-2">

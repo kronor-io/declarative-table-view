@@ -51,6 +51,7 @@ const columnDefinitions: ColumnDefinition[] = [
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
     },
     { data: ['reference'].map(field), name: 'Reference', cellRenderer: defaultCellRenderer },
+    // { data: ['merchantReference2'].map(field), name: 'Reference 2', cellRenderer: defaultCellRenderer },
     {
         data: [
             field('paymentProvider'),
@@ -87,13 +88,63 @@ const columnDefinitions: ColumnDefinition[] = [
                 <CurrencyAmount amount={Number(amount) / 100} currency={currency} />
             </Right>
     }
-    // { data: ['customer.packedPhoneNumber'], name: 'Customer Phone', cellRenderer: defaultCellRenderer }
-    // { data: ['customer.device.fingerprint'], name: 'Device Fingerprint', cellRenderer: defaultCellRenderer },
-    // { data: ['payment.paymentRefundStatus'], name: 'Refund Status', cellRenderer: defaultCellRenderer }
 ];
 
 const filterSchema: FilterFieldSchema = [
-    { label: 'Transaction ID', expression: Filter.equals('transactionId', Control.text()) },
+    {
+        label: 'Reference',
+        expression: Filter.equals(
+            'reference',
+            Control.customOperator({
+                operators: [
+                    { label: 'equals', value: '_eq' },
+                    { label: 'starts with', value: '_like' }
+                ],
+                valueControl: Control.text()
+            }),
+            {
+                fromQuery: (input: any) => {
+                    if (input.operator === '_like') {
+                        return { ...input, value: input.value.replace(/%$/, '') }; // Remove trailing % for display
+                    }
+                    return input;
+                },
+                toQuery: (input: any) => {
+                    if (input.operator === '_like') {
+                        return { ...input, value: `${input.value}%` };
+                    }
+                    return input;
+                }
+            }
+        )
+    },
+    {
+        label: 'Reference 2',
+        expression: Filter.equals(
+            'merchantReference2',
+            Control.customOperator({
+                operators: [
+                    { label: 'equals', value: '_eq' },
+                    { label: 'starts with', value: '_like' }
+                ],
+                valueControl: Control.text()
+            }),
+            {
+                fromQuery: (input: any) => {
+                    if (input.operator === '_like') {
+                        return { ...input, value: input.value.replace(/%$/, '') }; // Remove trailing % for display
+                    }
+                    return input;
+                },
+                toQuery: (input: any) => {
+                    if (input.operator === '_like') {
+                        return { ...input, value: `${input.value}%` };
+                    }
+                    return input;
+                }
+            }
+        )
+    },
     {
         label: 'Amount',
         expression:
