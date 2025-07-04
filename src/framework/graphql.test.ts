@@ -1,5 +1,6 @@
-import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST } from "./graphql";
+import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST, buildHasuraConditions } from "./graphql";
 import { ColumnDefinition } from "./column-definition";
+import { FilterFormState } from '../components/FilterForm';
 
 describe("renderGraphQLQuery", () => {
     it("renders a simple query with variables and selection set", () => {
@@ -164,5 +165,156 @@ describe("generateGraphQLQueryAST", () => {
                 ],
             },
         ]);
+    });
+});
+
+describe('buildHasuraConditions', () => {
+    it('should return an empty object for no conditions', () => {
+        expect(buildHasuraConditions([])).toEqual({});
+    });
+
+    it('should handle a single condition', () => {
+        const formState: FilterFormState[] = [
+            { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({ name: { _eq: 'test' } });
+    });
+
+    it('should handle multiple conditions with an implicit AND', () => {
+        const formState: FilterFormState[] = [
+            { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
+            { type: 'leaf', key: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            _and: [
+                { name: { _eq: 'test' } },
+                { age: { _gt: 20 } }
+            ]
+        });
+    });
+
+    it('should handle nested fields', () => {
+        const formState: FilterFormState[] = [
+            { type: 'leaf', key: 'user.name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            user: { name: { _eq: 'test' } }
+        });
+    });
+
+    it('should handle deeply nested fields', () => {
+        const formState: FilterFormState[] = [
+            { type: 'leaf', key: 'a.b.c.d', filterType: 'equals', value: 'deep', control: { type: 'text' } }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            a: { b: { c: { d: { _eq: 'deep' } } } }
+        });
+    });
+
+    it('should handle explicit AND/OR conditions', () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'or',
+                filterType: 'or',
+                children: [
+                    { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
+                    { type: 'leaf', key: 'name', filterType: 'equals', value: 'another', control: { type: 'text' } }
+                ]
+            }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            _or: [
+                { name: { _eq: 'test' } },
+                { name: { _eq: 'another' } }
+            ]
+        });
+    });
+
+    it('should handle NOT conditions', () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'not',
+                filterType: 'not',
+                child: { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+            }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            _not: { name: { _eq: 'test' } }
+        });
+    });
+
+    it('should handle complex nested structures', () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'and',
+                filterType: 'and',
+                children: [
+                    { type: 'leaf', key: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } },
+                    {
+                        type: 'or',
+                        filterType: 'or',
+                        children: [
+                            { type: 'leaf', key: 'user.name', filterType: 'iLike', value: '%test%', control: { type: 'text' } },
+                            {
+                                type: 'not',
+                                filterType: 'not',
+                                child: { type: 'leaf', key: 'user.role', filterType: 'equals', value: 'admin', control: { type: 'text' } }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            _and: [
+                { age: { _gt: 20 } },
+                {
+                    _or: [
+                        { user: { name: { _ilike: '%test%' } } },
+                        { _not: { user: { role: { _eq: 'admin' } } } }
+                    ]
+                }
+            ]
+        });
+    });
+
+    it('should ignore empty or invalid values', () => {
+        const formState: FilterFormState[] = [
+            { type: 'leaf', key: 'name', filterType: 'equals', value: '', control: { type: 'text' } },
+            { type: 'leaf', key: 'age', filterType: 'greaterThan', value: undefined, control: { type: 'number' } },
+            { type: 'leaf', key: 'tags', filterType: 'in', value: [], control: { type: 'multiselect', items: [] } },
+            { type: 'leaf', key: 'valid', filterType: 'equals', value: 'good', control: { type: 'text' } }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({ valid: { _eq: 'good' } });
+    });
+
+    it('should handle custom operators', () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                key: 'custom_field',
+                filterType: 'equals', // This is not used for custom operators, but required by the type
+                value: { operator: '_custom_op', value: 'some_value' },
+                control: { type: 'customOperator', operators: [{ label: 'Custom Op', value: '_custom_op' }], valueControl: { type: 'text' } }
+            }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            custom_field: { _custom_op: 'some_value' }
+        });
+    });
+
+    it('should handle custom operators with nested fields', () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                key: 'user.name',
+                filterType: 'equals', // This is not used for custom operators, but required by the type
+                value: { operator: '_ilike', value: '%test%' },
+                control: { type: 'customOperator', operators: [{ label: 'iLike', value: '_ilike' }], valueControl: { type: 'text' } }
+            }
+        ];
+        expect(buildHasuraConditions(formState)).toEqual({
+            user: { name: { _ilike: '%test%' } }
+        });
     });
 });

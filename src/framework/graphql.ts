@@ -32,6 +32,13 @@ export type HasuraCondition =
 export function buildHasuraConditions(
     formStates: FilterFormState[]
 ): HasuraCondition {
+    // Support dot-separated keys by building nested objects
+    function buildNestedKey(key: string, cond: any): any {
+        if (!key.includes('.')) return { [key]: cond };
+        const parts = key.split('.');
+        return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
+    }
+
     // Recursively convert FilterFormState to HasuraCondition
     function stateToCondition(state: FilterFormState): HasuraCondition | null {
         if (state.type === 'and' || state.type === 'or') {
@@ -50,7 +57,7 @@ export function buildHasuraConditions(
             if (state.control && state.control.type === 'customOperator') {
                 const opVal = state.value;
                 if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
-                return { [state.key]: { [opVal.operator]: opVal.value } };
+                return buildNestedKey(state.key, { [opVal.operator]: opVal.value });
             }
             if (state.value === undefined || state.value === '' || state.value === null || (Array.isArray(state.value) && state.value.length === 0)) return null;
             // Map filterType to Hasura operator
@@ -70,11 +77,6 @@ export function buildHasuraConditions(
             const op = opMap[state.filterType];
             if (!op) return null;
             // Support dot-separated keys by building nested objects
-            function buildNestedKey(key: string, cond: any): any {
-                if (!key.includes('.')) return { [key]: cond };
-                const parts = key.split('.');
-                return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
-            }
             return buildNestedKey(state.key, { [op]: state.value });
         }
         return null;
