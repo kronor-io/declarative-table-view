@@ -4,7 +4,6 @@ import Table from './components/Table';
 import PaymentRequestView from './views/paymentRequest';
 import RequestLogView from './views/requestLog';
 import SimpleTestView from './views/simpleTestView';
-import { buildHasuraConditions } from './framework/graphql';
 import FilterForm, { FilterFormState, buildInitialFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
@@ -13,6 +12,7 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
+import { fetchData } from './framework/data';
 
 interface AppProps {
   graphqlHost: string;
@@ -92,49 +92,37 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
     setSavedFilters(updatedFilters);
   };
 
-  // Fetch data function, only called on submit or view/preset change
-  const fetchData = async (customFilterState?: FilterFormState[], cursor?: string | number | null, customRows?: number): Promise<any[]> => {
-    try {
-      let effectiveFilter: FilterFormState[];
-      if (customFilterState) {
-        effectiveFilter = customFilterState;
-      } else {
-        effectiveFilter = filterState;
-      }
-      let conditions = buildHasuraConditions(effectiveFilter);
-      if (cursor != null) {
-        const pagKey = selectedView.paginationKey;
-        const pagCond = { [pagKey]: { _lt: cursor } };
-        // Always wrap in _and for pagination
-        conditions = { _and: [conditions, pagCond] };
-      }
-      const variables = {
-        conditions,
-        limit: customRows ?? rows,
-        orderBy: [{ [selectedView.paginationKey]: 'DESC' }],
-      };
-      const response = await client.request(selectedView.query, variables);
-      const rowsFetched = selectedView.getResponseRows(response as any);
-      setData(rowsFetched);
-      return rowsFetched;
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      return [];
-    }
-  };
+  const client = new GraphQLClient(graphqlHost, {
+    headers: {
+      contentType: 'application/json',
+      Authorization: `Bearer ${graphqlToken}`
+    },
+  });
+
+  const fetchDataWrapper = (customFilterState?: FilterFormState[], cursor?: string | number | null, customRows?: number): Promise<any[]> => {
+    return fetchData({
+      client,
+      selectedView,
+      filterState,
+      rows,
+      customFilterState,
+      cursor,
+      customRows
+    });
+  }
 
   // Fetch data on first render and when view changes (with default filter values)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      fetchData();
+      fetchDataWrapper().then(data => setData(data));
     } else {
       // When view changes, reset filter schema and filter state and fetch data with default values
       setFilterSchema(selectedView.filterSchema);
       const initialState = selectedView.filterSchema.map(f => buildInitialFormState(f.expression));
       setFilterState(initialState);
       setData([]);
-      fetchData(initialState);
+      fetchDataWrapper(initialState).then(data => setData(data));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedViewIndex]);
@@ -152,7 +140,6 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
   const handleFilterLoad = (filterStateToLoad: FilterFormState[]) => {
     setFilterState(filterStateToLoad);
     setPagination({ page: 0, cursors: [] });
-    setTimeout(() => fetchData(filterStateToLoad, null, rows), 0);
   };
 
   // Filter filterSchema by search, get indices
@@ -169,36 +156,29 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
     .filter(i => i !== -1);
 
   // Next page handler
-  const handleNextPage = () => {
+  const handleNextPage = async () => {
     const cursor = data.length > 0 ? data[data.length - 1][selectedView.paginationKey] : null
-    fetchData(undefined, cursor, rows).then(() => {
-      setPagination(prev => ({
-        page: prev.page + 1,
-        cursors: [...prev.cursors, cursor]
-      }));
-    });
+    const newData = await fetchDataWrapper(undefined, cursor, rows);
+    setData(newData);
+    setPagination(prev => ({
+      page: prev.page + 1,
+      cursors: [...prev.cursors, cursor]
+    }));
   };
 
   // Previous page handler
-  const handlePrevPage = () => {
+  const handlePrevPage = async () => {
     if (pagination.page === 0) return;
     const prevCursors = pagination.cursors.slice(0, -1)
     const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-    fetchData(undefined, prevCursor, rows).then(() => {
-      setPagination(prev => ({
-        cursor: prevCursor,
-        page: prev.page - 1,
-        cursors: prevCursors
-      }));
-    });
+    const newData = await fetchDataWrapper(undefined, prevCursor, rows)
+    setData(newData);
+    setPagination(prev => ({
+      cursor: prevCursor,
+      page: prev.page - 1,
+      cursors: prevCursors
+    }));
   };
-
-  const client = new GraphQLClient(graphqlHost, {
-    headers: {
-      contentType: 'application/json',
-      Authorization: `Bearer ${graphqlToken}`
-    },
-  });
 
   return (
     <div className="p-4">
@@ -262,9 +242,10 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
         setFormState={setFilterState}
         onSaveFilter={handleSaveFilter}
         visibleIndices={visibleIndices}
-        onSubmit={() => {
+        onSubmit={async () => {
           setPagination({ page: 0, cursors: [] });
-          fetchData(undefined, null, rows);
+          const data = await fetchDataWrapper(undefined, null, rows);
+          setData(data);
         }}
       />
       <Table
@@ -272,7 +253,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
         data={data}
         noDataRowsComponent={
           selectedView.noRowsComponent
-            ? selectedView.noRowsComponent({ filterState, setFilterState, fetchData })
+            ? selectedView.noRowsComponent({ filterState, setFilterState, fetchData: (cf) => fetchDataWrapper(cf).then(d => { setData(d); return d; }) })
             : null
         }
       />
