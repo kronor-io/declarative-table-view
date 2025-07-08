@@ -118,6 +118,7 @@ const filterSchema: FilterFieldSchema = [
             }
         )
     },
+    { label: 'Payment ID', expression: Filter.equals('resultingPaymentId', Control.text()) },
     {
         label: 'Reference 2',
         expression: Filter.equals(
@@ -208,6 +209,7 @@ const filterSchema: FilterFieldSchema = [
             })
         )
     },
+    { label: 'Customer Name', expression: Filter.iLike('customer.name', Control.text()) },
     {
         label: 'Merchant',
         expression: Filter.in('merchantId', Control.multiselect(
