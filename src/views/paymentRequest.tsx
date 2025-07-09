@@ -29,6 +29,8 @@ const columnDefinitions: ColumnDefinition[] = [
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
     },
     { data: ['reference'].map(field), name: 'Reference', cellRenderer: defaultCellRenderer },
+    // { data: ['customer.device.fingerprint'].map(field), name: 'Fingerprint', cellRenderer: defaultCellRenderer },
+    // { data: ['payment.paymentRefundStatus'].map(field), name: 'Payment Refund Status', cellRenderer: defaultCellRenderer },
     // {
     //     data: [
     //         queryConfigs([
@@ -80,6 +82,54 @@ const columnDefinitions: ColumnDefinition[] = [
 
 const filterSchema: FilterFieldSchema = [
     {
+        label: 'Merchant',
+        expression: Filter.in('merchantId', Control.multiselect(
+            {
+                items: [
+                    { label: 'Boozt', value: 1 },
+                    { label: 'Boozt Dev', value: 2 }
+                ]
+            }
+        ))
+    },
+    {
+        label: 'Payment Provider',
+        expression: Filter.in('paymentProvider', Control.multiselect({
+            items: [
+                { label: 'Bank Transfer', value: 'BANK_TRANSFER' },
+                { label: 'Credit Card', value: 'CREDIT_CARD' },
+                { label: 'Direct Debit', value: 'DIRECT_DEBIT' },
+                { label: 'MobilePay', value: 'MOBILEPAY' },
+                { label: 'P24', value: 'P24' },
+                { label: 'PayPal', value: 'PAYPAL' },
+                { label: 'Swish', value: 'SWISH' },
+                { label: 'Vipps', value: 'VIPPS' }
+            ]
+        }))
+    },
+    {
+        label: 'Payment Status',
+        expression: Filter.in('currentStatus', Control.multiselect({
+            items: [
+                { label: 'Cancelled', value: 'CANCELLED' },
+                { label: 'Paid', value: 'PAID' },
+                { label: 'Error', value: 'ERROR' },
+                { label: 'Declined', value: 'DECLINED' },
+                { label: 'Preflight Check', value: 'PRE_FLIGHT_CHECK' },
+                { label: 'Initializing', value: 'INITIALIZING' },
+                { label: 'Waiting', value: 'WAITING_FOR_PAYMENT' },
+                { label: 'Promoting', value: 'WAITING_FOR_PROMOTION' },
+                { label: 'Cancelling', value: 'CANCELLING' },
+                { label: 'Flow Completed', value: 'FLOW_COMPLETED' },
+                { label: 'Authorized', value: 'AUTHORIZED' },
+                { label: 'Partially Captured', value: 'PARTIALLY_CAPTURED' },
+                { label: 'Capture Declined', value: 'CAPTURE_DECLINED' },
+                { label: 'Payment Released', value: 'RELEASED' },
+            ],
+            filterable: true
+        }))
+    },
+    {
         label: 'Reference',
         expression: Filter.equals(
             'reference',
@@ -107,6 +157,33 @@ const filterSchema: FilterFieldSchema = [
         )
     },
     { label: 'Payment ID', expression: Filter.equals('resultingPaymentId', Control.text()) },
+    {
+        label: 'Customer Email',
+        expression: Filter.equals(
+            'customer.email',
+            Control.customOperator({
+                operators: [
+                    { label: 'equals', value: '_eq' },
+                    { label: 'not equals', value: '_neq' }
+                ],
+                valueControl: Control.text()
+            })
+        )
+    },
+    { label: 'Customer Name', expression: Filter.iLike('customer.name', Control.text()) },
+    {
+        label: 'Placed At',
+        expression: Filter.and([
+            Filter.greaterThanOrEqual(
+                'createdAt',
+                Control.date({ placeholder: 'from', initialValue: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d; })() })
+            ),
+            Filter.lessThanOrEqual(
+                'createdAt',
+                Control.date({ placeholder: 'to', initialValue: new Date() })
+            )
+        ])
+    },
     {
         label: 'Reference 2',
         expression: Filter.equals(
@@ -147,19 +224,6 @@ const filterSchema: FilterFieldSchema = [
             )
     },
     {
-        label: 'Placed At',
-        expression: Filter.and([
-            Filter.greaterThanOrEqual(
-                'createdAt',
-                Control.date({ placeholder: 'from', initialValue: (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d; })() })
-            ),
-            Filter.lessThanOrEqual(
-                'createdAt',
-                Control.date({ placeholder: 'to', initialValue: new Date() })
-            )
-        ])
-    },
-    {
         label: 'Currency',
         expression:
             Filter.in(
@@ -185,66 +249,18 @@ const filterSchema: FilterFieldSchema = [
             )
     },
     {
-        label: 'Customer Email',
-        expression: Filter.equals(
-            'customer.email',
-            Control.customOperator({
-                operators: [
-                    { label: 'equals', value: '_eq' },
-                    { label: 'not equals', value: '_neq' }
-                ],
-                valueControl: Control.text()
-            })
-        )
-    },
-    { label: 'Customer Name', expression: Filter.iLike('customer.name', Control.text()) },
-    {
-        label: 'Merchant',
-        expression: Filter.in('merchantId', Control.multiselect(
-            {
-                items: [
-                    { label: 'Boozt', value: 1 },
-                    { label: 'Boozt Dev', value: 2 }
-                ]
-            }
-        ))
-    },
-    {
-        label: 'Payment Status',
-        expression: Filter.in('currentStatus', Control.multiselect({
+        label: 'Refund Status',
+        expression: Filter.in('payment.paymentRefundStatus', Control.multiselect({
             items: [
-                { label: 'Cancelled', value: 'CANCELLED' },
-                { label: 'Paid', value: 'PAID' },
-                { label: 'Error', value: 'ERROR' },
-                { label: 'Declined', value: 'DECLINED' },
-                { label: 'Preflight Check', value: 'PRE_FLIGHT_CHECK' },
-                { label: 'Initializing', value: 'INITIALIZING' },
-                { label: 'Waiting', value: 'WAITING_FOR_PAYMENT' },
-                { label: 'Promoting', value: 'WAITING_FOR_PROMOTION' },
-                { label: 'Cancelling', value: 'CANCELLING' },
-                { label: 'Flow Completed', value: 'FLOW_COMPLETED' },
-                { label: 'Authorized', value: 'AUTHORIZED' },
-                { label: 'Partially Captured', value: 'PARTIALLY_CAPTURED' },
-                { label: 'Capture Declined', value: 'CAPTURE_DECLINED' },
-                { label: 'Payment Released', value: 'RELEASED' },
-            ],
-            filterable: true
-        }))
-    },
-    {
-        label: 'Payment Provider',
-        expression: Filter.in('paymentProvider', Control.multiselect({
-            items: [
-                { label: 'Bank Transfer', value: 'BANK_TRANSFER' },
-                { label: 'Credit Card', value: 'CREDIT_CARD' },
-                { label: 'Direct Debit', value: 'DIRECT_DEBIT' },
-                { label: 'MobilePay', value: 'MOBILEPAY' },
-                { label: 'P24', value: 'P24' },
-                { label: 'PayPal', value: 'PAYPAL' },
-                { label: 'Swish', value: 'SWISH' },
-                { label: 'Vipps', value: 'VIPPS' }
+                { label: 'Fully Refunded Payments', value: 'FULLY_REFUNDED' },
+                { label: 'Partially Refunded Payments', value: 'PARTIALLY_REFUNDED' },
+                { label: 'Payments With No Refunds', value: 'NO_REFUND' }
             ]
         }))
+    },
+    {
+        label: 'Device Fingerprint',
+        expression: Filter.equals('customer.device.fingerprint', Control.text())
     },
     {
         label: 'Card Type',
