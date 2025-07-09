@@ -81,7 +81,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
   const fetchDataWrapper = (cursor: string | number | null): Promise<any[]> => {
     return fetchData({
       client,
-      selectedView,
+      view: selectedView,
       filterState: state.filterState,
       rows: ROWS_PER_PAGE,
       cursor

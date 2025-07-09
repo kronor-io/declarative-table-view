@@ -9,28 +9,6 @@ import { PaymentStatusTag } from '../components/PaymentStatusTag';
 import { PhoneNumberFilter } from "../components/PhoneNumberFilter";
 import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
 
-export type PaymentRequest = {
-    transactionId: string;
-    waitToken: string;
-    merchantId: string;
-    amount: number;
-    currency: string;
-    paymentProvider: string;
-    reference: string;
-    createdAt: string;
-    customer: {
-        name: string;
-        email: string;
-        packedPhoneNumber: string;
-    };
-    payment?: {
-        paymentRefundStatus: string;
-    };
-    attempts: {
-        cardType: string;
-    }[];
-};
-
 const columnDefinitions: ColumnDefinition[] = [
     {
         data: ['transactionId', 'waitToken'].map(field),
@@ -51,7 +29,17 @@ const columnDefinitions: ColumnDefinition[] = [
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
     },
     { data: ['reference'].map(field), name: 'Reference', cellRenderer: defaultCellRenderer },
-    // { data: ['merchantReference2'].map(field), name: 'Reference 2', cellRenderer: defaultCellRenderer },
+    // {
+    //     data: [
+    //         queryConfigs([
+    //             { data: 'attempts', limit: 1, orderBy: { key: 'createdAt', direction: 'DESC' } },
+    //             { data: 'maskedCard' }
+    //         ])
+    //     ],
+    //     name: 'Provider',
+    //     cellRenderer: ({ data }) =>
+    //         data['attempts.maskedCard'][0]
+    // },
     {
         data: [
             field('paymentProvider'),
@@ -276,6 +264,13 @@ const filterSchema: FilterFieldSchema = [
                 { label: 'Visa', value: 'visa' }
             ]
         }))
+    },
+    {
+        label: 'Credit Card Number',
+        expression: Filter.iLike('attempts.maskedCard', Control.text(), {
+            toQuery: (input: any) => `%${input}%`,
+            fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
+        })
     },
     {
         label: 'Customer Phone',
