@@ -4,7 +4,7 @@ import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } fro
 
 // Define a simple data type for this view
 export type SimpleTestData = {
-    id: string;
+    id: number;
     testField: string;
     amount: number;
 };

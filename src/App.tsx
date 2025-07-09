@@ -12,7 +12,7 @@ import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
-import { fetchData } from './framework/data';
+import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
 
 interface AppProps {
@@ -20,13 +20,12 @@ interface AppProps {
   graphqlToken: string;
   geminiApiKey: string;
   showViewsMenu: boolean;
+  rowsPerPage?: number;
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView];
 
-const ROWS_PER_PAGE = 20;
-
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20 }: AppProps) {
 
   const client = useMemo(() => new GraphQLClient(graphqlHost, {
     headers: {
@@ -49,7 +48,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
   const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
 
   // Pagination state
-  const hasNextPage = state.dataRows.length === ROWS_PER_PAGE;
+  const hasNextPage = state.data.rows.length === rowsPerPage;
   const hasPrevPage = state.pagination.page > 0;
 
   // Load saved filters from localStorage on mount
@@ -78,12 +77,12 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
     setSavedFilters(updatedFilters);
   };
 
-  const fetchDataWrapper = (cursor: string | number | null): Promise<any[]> => {
+  const fetchDataWrapper = (cursor: string | number | null): Promise<FetchDataResult> => {
     return fetchData({
       client,
       view: selectedView,
       filterState: state.filterState,
-      rows: ROWS_PER_PAGE,
+      rows: rowsPerPage,
       cursor
     });
   }
@@ -121,7 +120,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
 
   // Next page handler
   const handleNextPage = async () => {
-    const cursor = state.dataRows.length > 0 ? state.dataRows[state.dataRows.length - 1][selectedView.paginationKey] : null
+    const cursor = state.data.rows.length > 0 ? state.data.rows[state.data.rows.length - 1][selectedView.paginationKey] : null
     const newData = await fetchDataWrapper(cursor);
     setDataRows(
       newData,
@@ -209,7 +208,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
       />
       <Table
         columns={selectedView.columnDefinitions}
-        data={state.dataRows}
+        data={state.data.flattenedRows}
         noDataRowsComponent={
           selectedView.noRowsComponent
             ? selectedView.noRowsComponent({
@@ -220,15 +219,15 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
             : null
         }
       />
-      {state.dataRows.length > 0 && (
+      {state.data.rows.length > 0 && (
         <TablePagination
           onPageChange={handleNextPage}
           onPrevPage={handlePrevPage}
           hasNextPage={hasNextPage}
           hasPrevPage={hasPrevPage}
           currentPage={state.pagination.page}
-          rowsPerPage={ROWS_PER_PAGE}
-          actualRows={state.dataRows.length}
+          rowsPerPage={rowsPerPage}
+          actualRows={state.data.rows.length}
         />
       )}
     </div>

@@ -33,7 +33,7 @@ describe('AppState', () => {
         expect(state.filterState).toEqual(
             mockViews[0].filterSchema.map(f => buildInitialFormState(f.expression))
         );
-        expect(state.dataRows).toEqual([]);
+        expect(state.data).toEqual({ rows: [], flattenedRows: [] });
     });
 
     it('setSelectedViewIndex updates selectedViewIndex, filterSchema, and filterState', () => {
@@ -46,12 +46,12 @@ describe('AppState', () => {
         );
     });
 
-    it('setDataRows updates dataRows and pagination', () => {
+    it('setDataRows updates data and pagination', () => {
         let state = createDefaultAppState(mockViews);
-        const rows = [{ id: 1 }, { id: 2 }];
+        const data = { rows: [{ id: 1 }, { id: 2 }], flattenedRows: [[{ id: 1 }], [{ id: 2 }]] };
         const pagination = { page: 2, cursors: ['a', 'b'] };
-        state = setDataRows(state, rows, pagination);
-        expect(state.dataRows).toBe(rows);
+        state = setDataRows(state, data, pagination);
+        expect(state.data).toBe(data);
         expect(state.pagination).toEqual(pagination);
     });
 

@@ -13,8 +13,8 @@ describe('flattenFields', () => {
         ];
         const result = flattenFields(rows, columns);
         expect(result).toEqual([
-            [ { id: 1 }, { name: 'Alice' } ],
-            [ { id: 2 }, { name: 'Bob' } ]
+            [{ id: 1 }, { name: 'Alice' }],
+            [{ id: 2 }, { name: 'Bob' }]
         ]);
     });
 
@@ -28,8 +28,8 @@ describe('flattenFields', () => {
         ];
         const result = flattenFields(rows, columns);
         expect(result).toEqual([
-            [ { 'user.profile.email': 'alice@example.com' } ],
-            [ { 'user.profile.email': 'bob@example.com' } ]
+            [{ 'user.profile.email': 'alice@example.com' }],
+            [{ 'user.profile.email': 'bob@example.com' }]
         ]);
     });
 

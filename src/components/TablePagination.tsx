@@ -22,14 +22,16 @@ const TablePagination: React.FC<TablePaginationProps> = ({ onPageChange, onPrevP
                 onClick={onPrevPage}
                 disabled={!hasPrevPage}
                 className="p-button-sm"
+                data-testid="pagination-prev"
             />
-            <span className="text-s text-gray-600 mx-3">{start}-{end}</span>
+            <span className="text-s text-gray-600 mx-3" data-testid="pagination-page">{start}-{end}</span>
             <Button
                 rounded
                 icon="pi pi-angle-right"
                 onClick={onPageChange}
                 disabled={!hasNextPage}
                 className="p-button-sm"
+                data-testid="pagination-next"
             />
         </div>
     );

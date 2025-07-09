@@ -4,6 +4,11 @@ import { buildHasuraConditions } from '../framework/graphql';
 import { View } from '../framework/view';
 import { ColumnDefinition, DataQuery } from '../framework/column-definition';
 
+export interface FetchDataResult {
+    rows: Record<string, any>[]; // Fetched rows from the query
+    flattenedRows: Record<string, any>[][]; // Rows flattened according to column definitions
+}
+
 export const fetchData = async ({
     client,
     view,
@@ -16,7 +21,7 @@ export const fetchData = async ({
     filterState: FilterFormState[];
     rows: number;
     cursor: string | number | null;
-}): Promise<Record<string, any>[][]> => {
+}): Promise<FetchDataResult> => {
     try {
         let conditions = buildHasuraConditions(filterState);
         if (cursor !== null) {
@@ -33,10 +38,13 @@ export const fetchData = async ({
         const response = await client.request(view.query, variables);
         const rowsFetched = view.getResponseRows(response as any);
         // Flatten the data before returning
-        return flattenFields(rowsFetched, view.columnDefinitions);
+        return {
+            rows: rowsFetched,
+            flattenedRows: flattenFields(rowsFetched, view.columnDefinitions)
+        }
     } catch (error) {
         console.error('Error fetching data:', error);
-        return [];
+        return { rows: [], flattenedRows: [] };
     }
 };
 

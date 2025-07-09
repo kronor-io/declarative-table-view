@@ -1,17 +1,15 @@
-// src/framework/state.ts
-// State management utilities for the view-dsl app
-
 import { useState } from "react";
 import { buildInitialFormState, FilterFormState } from "../components/FilterForm";
 import { FilterFieldSchema } from "./filters";
 import { View } from "./view";
+import { FetchDataResult } from "./data";
 
 // AppState data structure for app state
 export interface AppState {
     selectedViewIndex: number;
     views: View<any, any>[];
     filterSchema: FilterFieldSchema;
-    dataRows: any[];
+    data: FetchDataResult;
     filterState: FilterFormState[];
     pagination: PaginationState;
 }
@@ -56,7 +54,7 @@ export function createDefaultAppState(views: View<any, any>[]): AppState {
         views,
         selectedViewIndex,
         filterSchema,
-        dataRows: [],
+        data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
         pagination: defaultPagination
     };
@@ -78,10 +76,10 @@ function getSelectedView(state: AppState): View<any, any> {
     return state.views[state.selectedViewIndex];
 }
 
-function setDataRows(state: AppState, newRows: any[], pagination: PaginationState = defaultPagination): AppState {
+function setDataRows(state: AppState, newRows: FetchDataResult, pagination: PaginationState = defaultPagination): AppState {
     return {
         ...state,
-        dataRows: newRows,
+        data: newRows,
         pagination
     };
 }
@@ -107,7 +105,7 @@ export const useAppState = (views: View<any, any>[]) => {
         state: appState,
         selectedView: getSelectedView(appState),
         setSelectedViewIndex: (index: number) => setAppState(prev => setSelectedViewIndex(prev, index)),
-        setDataRows: (rows: any[], pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
+        setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
         setFilterSchema: (schema: FilterFieldSchema) => setAppState(prev => setFilterSchema(prev, schema)),
         setFilterState: (filterState: FilterFormState[]) => setAppState(prev => setFilterState(prev, filterState))
     };
