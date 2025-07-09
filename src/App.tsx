@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import PaymentRequestView from './views/paymentRequest';
 import RequestLogView from './views/requestLog';
 import SimpleTestView from './views/simpleTestView';
-import FilterForm, { FilterFormState, buildInitialFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
+import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -13,6 +13,7 @@ import { InputIcon } from 'primereact/inputicon';
 import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData } from './framework/data';
+import { useAppState } from './framework/state';
 
 interface AppProps {
   graphqlHost: string;
@@ -23,48 +24,33 @@ interface AppProps {
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView];
 
-// Pagination state type
-interface PaginationState {
-  page: number;
-  cursors: (string | number | null)[];
-}
+const ROWS_PER_PAGE = 20;
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProps) {
-  // Get initial view from URL query parameter or default to first view
-  const getInitialViewIndex = () => {
-    const params = new URLSearchParams(window.location.search);
-    const viewName = params.get('view');
-    if (viewName) {
-      const index = views.findIndex(v => v.routeName === viewName);
-      if (index !== -1) {
-        return index;
-      }
-    }
-    // Update URL if no view parameter or invalid viewName
-    const defaultViewName = views[0].routeName;
-    window.history.replaceState({}, '', `?view=${defaultViewName}`);
-    return 0;
-  };
 
-  const [selectedViewIndex, setSelectedViewIndex] = useState(getInitialViewIndex());
-  const selectedView = views[selectedViewIndex];
-  const [data, setData] = useState<any[]>([]);
-  // Filter schema state
-  const [filterSchema, setFilterSchema] = useState(selectedView.filterSchema);
-  const [filterState, setFilterState] = useState<FilterFormState[]>(
-    filterSchema.map(f => buildInitialFormState(f.expression))
-  );
-  const isFirstRender = useRef(true);
+  const client = useMemo(() => new GraphQLClient(graphqlHost, {
+    headers: {
+      contentType: 'application/json',
+      Authorization: `Bearer ${graphqlToken}`
+    },
+  }), [graphqlHost, graphqlToken]);
+
+  const {
+    state,
+    selectedView,
+    setSelectedViewIndex,
+    setFilterSchema,
+    setFilterState,
+    setDataRows
+  } = useAppState(views);
 
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [search, setSearch] = useState('');
   const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
 
   // Pagination state
-  const [pagination, setPagination] = useState<PaginationState>({ page: 0, cursors: [] });
-  const rows = 20;
-  const hasNextPage = data.length === rows;
-  const hasPrevPage = pagination.page > 0;
+  const hasNextPage = state.dataRows.length === ROWS_PER_PAGE;
+  const hasPrevPage = state.pagination.page > 0;
 
   // Load saved filters from localStorage on mount
   useEffect(() => {
@@ -92,59 +78,37 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
     setSavedFilters(updatedFilters);
   };
 
-  const client = new GraphQLClient(graphqlHost, {
-    headers: {
-      contentType: 'application/json',
-      Authorization: `Bearer ${graphqlToken}`
-    },
-  });
-
-  const fetchDataWrapper = (customFilterState?: FilterFormState[], cursor?: string | number | null, customRows?: number): Promise<any[]> => {
+  const fetchDataWrapper = (cursor: string | number | null): Promise<any[]> => {
     return fetchData({
       client,
       selectedView,
-      filterState,
-      rows,
-      customFilterState,
-      cursor,
-      customRows
+      filterState: state.filterState,
+      rows: ROWS_PER_PAGE,
+      cursor
     });
   }
 
-  // Fetch data on first render and when view changes (with default filter values)
+  // Fetch data when view changes
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      fetchDataWrapper().then(data => setData(data));
-    } else {
-      // When view changes, reset filter schema and filter state and fetch data with default values
-      setFilterSchema(selectedView.filterSchema);
-      const initialState = selectedView.filterSchema.map(f => buildInitialFormState(f.expression));
-      setFilterState(initialState);
-      setData([]);
-      fetchDataWrapper(initialState).then(data => setData(data));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedViewIndex]);
+    fetchDataWrapper(null).then(dataRows => setDataRows(dataRows));
+  }, [state.selectedViewIndex]);
 
   // When view changes, reset filter state and clear data
   const handleViewChange = (viewIndex: number) => {
     setSelectedViewIndex(viewIndex);
-    setPagination({ page: 0, cursors: [] });
     // Update URL with the new view's routeName
     const newViewName = views[viewIndex].routeName;
     window.history.pushState({}, '', `?view=${newViewName}`);
   };
 
-  // When filter is loaded, set filter state and fetch data
-  const handleFilterLoad = (filterStateToLoad: FilterFormState[]) => {
-    setFilterState(filterStateToLoad);
-    setPagination({ page: 0, cursors: [] });
+  // When filter is loaded, set filter state
+  const handleFilterLoad = (filterState: FilterFormState[]) => {
+    setFilterState(filterState);
   };
 
   // Filter filterSchema by search, get indices
-  const visibleIndices = filterSchema
-    .map((field, i) => {
+  const visibleIndices = state.filterSchema
+    .map((field: any, i: number) => {
       function treeHasMatch(expr: any): boolean {
         if (field.label.toLowerCase().includes(search.toLowerCase())) return true;
         if (expr.key && expr.key.toLowerCase().includes(search.toLowerCase())) return true;
@@ -153,31 +117,28 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
       }
       return treeHasMatch(field.expression) ? i : -1;
     })
-    .filter(i => i !== -1);
+    .filter((i: number) => i !== -1);
 
   // Next page handler
   const handleNextPage = async () => {
-    const cursor = data.length > 0 ? data[data.length - 1][selectedView.paginationKey] : null
-    const newData = await fetchDataWrapper(undefined, cursor, rows);
-    setData(newData);
-    setPagination(prev => ({
-      page: prev.page + 1,
-      cursors: [...prev.cursors, cursor]
-    }));
+    const cursor = state.dataRows.length > 0 ? state.dataRows[state.dataRows.length - 1][selectedView.paginationKey] : null
+    const newData = await fetchDataWrapper(cursor);
+    setDataRows(
+      newData,
+      { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor] }
+    );
   };
 
   // Previous page handler
   const handlePrevPage = async () => {
-    if (pagination.page === 0) return;
-    const prevCursors = pagination.cursors.slice(0, -1)
+    if (state.pagination.page === 0) return;
+    const prevCursors = state.pagination.cursors.slice(0, -1)
     const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-    const newData = await fetchDataWrapper(undefined, prevCursor, rows)
-    setData(newData);
-    setPagination(prev => ({
-      cursor: prevCursor,
-      page: prev.page - 1,
-      cursors: prevCursors
-    }));
+    const newData = await fetchDataWrapper(prevCursor)
+    setDataRows(
+      newData,
+      { page: state.pagination.page - 1, cursors: prevCursors }
+    );
   };
 
   return (
@@ -187,7 +148,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
           ...(showViewsMenu ? [{
             label: 'Views',
             icon: 'pi pi-eye',
-            items: views.map((view, viewIndex) => ({
+            items: views.map((view: any, viewIndex: number) => ({
               label: view.title,
               icon: 'pi pi-table',
               command: () => handleViewChange(viewIndex)
@@ -225,11 +186,10 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
       {showAIAssistantForm && (
         <div className="flex justify-center mb-6">
           <AIAssistantForm
-            filterSchema={filterSchema}
-            filterState={filterState}
+            filterSchema={state.filterSchema}
+            filterState={state.filterState}
             setFilterSchema={setFilterSchema}
             setFilterState={setFilterState}
-            setPagination={setPagination}
             selectedView={selectedView}
             geminiApiKey={geminiApiKey}
           />
@@ -237,35 +197,38 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu }: AppProp
       )}
 
       <FilterForm
-        filterSchema={filterSchema}
-        formState={filterState}
+        filterSchema={state.filterSchema}
+        formState={state.filterState}
         setFormState={setFilterState}
         onSaveFilter={handleSaveFilter}
         visibleIndices={visibleIndices}
         onSubmit={async () => {
-          setPagination({ page: 0, cursors: [] });
-          const data = await fetchDataWrapper(undefined, null, rows);
-          setData(data);
+          const data = await fetchDataWrapper(null);
+          setDataRows(data);
         }}
       />
       <Table
         columns={selectedView.columnDefinitions}
-        data={data}
+        data={state.dataRows}
         noDataRowsComponent={
           selectedView.noRowsComponent
-            ? selectedView.noRowsComponent({ filterState, setFilterState, fetchData: (cf) => fetchDataWrapper(cf).then(d => { setData(d); return d; }) })
+            ? selectedView.noRowsComponent({
+              filterState: state.filterState,
+              setFilterState,
+              fetchData: () => fetchDataWrapper(null).then((dataRows: any) => { setDataRows(dataRows); })
+            })
             : null
         }
       />
-      {data.length > 0 && (
+      {state.dataRows.length > 0 && (
         <TablePagination
           onPageChange={handleNextPage}
           onPrevPage={handlePrevPage}
           hasNextPage={hasNextPage}
           hasPrevPage={hasPrevPage}
-          currentPage={pagination.page}
-          rowsPerPage={rows}
-          actualRows={data.length}
+          currentPage={state.pagination.page}
+          rowsPerPage={ROWS_PER_PAGE}
+          actualRows={state.dataRows.length}
         />
       )}
     </div>

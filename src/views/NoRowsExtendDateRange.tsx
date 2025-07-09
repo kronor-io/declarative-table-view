@@ -22,7 +22,7 @@ const NoRowsExtendDateRange = ({ setFilterState, filterState, fetchData }: NoRow
             return filter;
         });
         setFilterState(newState);
-        fetchData(newState);
+        fetchData();
     };
     return (
         <Center className="py-8 text-gray-400 flex flex-col items-center gap-4">

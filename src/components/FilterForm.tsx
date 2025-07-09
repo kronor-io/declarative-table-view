@@ -51,7 +51,7 @@ interface FilterFormProps {
     setFormState: (state: FilterFormState[]) => void;
     onSaveFilter: (state: FilterFormState[]) => void;
     visibleIndices?: number[]; // indices of filters to display
-    onSubmit?: () => void;
+    onSubmit: () => void;
 }
 
 function renderInput(control: FilterControl, value: any, setValue: (v: any) => void): ReactNode {
@@ -293,7 +293,7 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visib
     const indices = filterSchema.map((_, i) => i);
     const visibleSet = visibleIndices ? new Set(visibleIndices) : null;
     return (
-        <form className="mb-4" onSubmit={e => { e.preventDefault(); onSubmit && onSubmit(); }}>
+        <form className="mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
             <div className="flex flex-wrap gap-4 items-start">
                 {indices.map(i => (
                     <div

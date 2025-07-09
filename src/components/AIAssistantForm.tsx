@@ -9,7 +9,6 @@ interface AIAssistantFormProps {
     filterState: FilterFormState[];
     setFilterSchema: (schema: any[]) => void;
     setFilterState: (state: FilterFormState[]) => void;
-    setPagination: (p: any) => void;
     selectedView: any;
     geminiApiKey: string
 }
@@ -19,7 +18,6 @@ export default function AIAssistantForm({
     filterState,
     setFilterSchema,
     setFilterState,
-    setPagination,
     selectedView,
     geminiApiKey
 }: AIAssistantFormProps) {
@@ -128,7 +126,6 @@ export default function AIAssistantForm({
                                 buildInitialFormState(filterExpr)
                             ];
                             setFilterState(formState);
-                            setPagination({ page: 0, cursors: [] });
                         } finally {
                             setAiLoading(false);
                         }

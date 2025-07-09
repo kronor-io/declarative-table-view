@@ -6,7 +6,7 @@ import { FilterFormState } from "../components/FilterForm";
 export type NoRowsComponentProps = {
     setFilterState: (state: FilterFormState[]) => void;
     filterState: FilterFormState[];
-    fetchData: (customFilterState?: FilterFormState[]) => void;
+    fetchData: () => void;
 };
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;

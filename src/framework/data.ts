@@ -8,27 +8,17 @@ export const fetchData = async ({
     selectedView,
     filterState,
     rows,
-    customFilterState,
-    cursor,
-    customRows,
+    cursor
 }: {
     client: GraphQLClient;
     selectedView: View<any, any>;
     filterState: FilterFormState[];
     rows: number;
-    customFilterState?: FilterFormState[];
-    cursor?: string | number | null;
-    customRows?: number;
+    cursor: string | number | null;
 }): Promise<any[]> => {
     try {
-        let effectiveFilter: FilterFormState[];
-        if (customFilterState) {
-            effectiveFilter = customFilterState;
-        } else {
-            effectiveFilter = filterState;
-        }
-        let conditions = buildHasuraConditions(effectiveFilter);
-        if (cursor != null) {
+        let conditions = buildHasuraConditions(filterState);
+        if (cursor !== null) {
             const pagKey = selectedView.paginationKey;
             const pagCond = { [pagKey]: { _lt: cursor } };
             // Always wrap in _and for pagination
@@ -36,7 +26,7 @@ export const fetchData = async ({
         }
         const variables = {
             conditions,
-            limit: customRows ?? rows,
+            limit: rows,
             orderBy: [{ [selectedView.paginationKey]: 'DESC' }],
         };
         const response = await client.request(selectedView.query, variables);
