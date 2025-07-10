@@ -21,11 +21,12 @@ interface AppProps {
   geminiApiKey: string;
   showViewsMenu: boolean;
   rowsPerPage?: number;
+  showViewTitle: boolean; // Option to show/hide view title
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView];
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20 }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle }: AppProps) {
 
   const client = useMemo(() => new GraphQLClient(graphqlHost, {
     headers: {
@@ -193,7 +194,9 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
           </div>
         }
       />
-      <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
+      {showViewTitle && (
+        <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
+      )}
 
       {showAIAssistantForm && (
         <div className="flex justify-center mb-6">

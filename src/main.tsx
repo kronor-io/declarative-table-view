@@ -9,6 +9,7 @@ export interface RenderTableViewOptions {
   graphqlToken: string;
   geminiApiKey: string;
   showViewsMenu?: boolean; // Controls whether the views menu is shown
+  showViewTitle?: boolean; // Option to show/hide view title
 }
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
@@ -35,6 +36,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
             graphqlToken={options.graphqlToken}
             geminiApiKey={options.geminiApiKey}
             showViewsMenu={options.showViewsMenu ?? false}
+            showViewTitle={options.showViewTitle ?? false}
           />
         </PrimeReactProvider>
       </StrictMode>
