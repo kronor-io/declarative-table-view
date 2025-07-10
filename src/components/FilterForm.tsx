@@ -7,6 +7,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
 import { ReactNode } from 'react';
+import { Panel } from 'primereact/panel';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
@@ -245,7 +246,7 @@ function collectDateKeysFromSchema(schema: FilterFieldSchema): Set<string> {
             dateKeys.add(expr.key);
         }
     }
-    schema.forEach(field => traverse(field.expression));
+    schema.filters.forEach(field => traverse(field.expression));
     return dateKeys;
 }
 
@@ -280,53 +281,90 @@ function deserializeNodeWithDates(node: any, dateKeys: Set<string>): FilterFormS
 function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visibleIndices, onSubmit }: FilterFormProps) {
     // Helper to reset a filter at index i
     function resetFilter(i: number) {
-        const initial = buildInitialFormState(filterSchema[i].expression);
+        const initial = buildInitialFormState(filterSchema.filters[i].expression);
         const newFormState = [...formState];
         newFormState[i] = initial;
         setFormState(newFormState);
     }
     // Helper to reset all filters
     function resetAllFilters() {
-        setFormState(filterSchema.map(f => buildInitialFormState(f.expression)));
+        setFormState(filterSchema.filters.map(f => buildInitialFormState(f.expression)));
     }
     // Use visibleIndices if provided, otherwise show all
-    const indices = filterSchema.map((_, i) => i);
     const visibleSet = visibleIndices ? new Set(visibleIndices) : null;
+    // Group filters by group name
+    const filtersWithIndex = filterSchema.filters.map((f, i) => ({ ...f, index: i }));
+    const defaultGroup = filterSchema.groups.find(g => g.name === 'default');
+    const defaultFilters = filtersWithIndex.filter(f => f.group === 'default' && (!visibleSet || visibleSet.has(f.index)));
+    const otherGroups = filterSchema.groups.filter(g => g.name !== 'default');
+    const filtersByGroup = otherGroups.map(group => ({
+        group,
+        filters: filtersWithIndex.filter(f => f.group === group.name && (!visibleSet || visibleSet.has(f.index)))
+    })).filter(g => g.filters.length > 0);
     return (
         <form className="mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
-            <div className="flex flex-wrap gap-4 items-start">
-                {indices.map(i => (
-                    <div
-                        key={i}
-                        className="flex flex-col min-w-[220px] mb-2"
-                        style={{ opacity: visibleSet && !visibleSet.has(i) ? 0.2 : 1 }}
-                    >
-                        <div className="flex items-center mb-1 max-h-[20px]">
-                            <label className="text-sm font-bold">{filterSchema[i].label}</label>
-                            <Button
-                                type="button"
-                                size='small'
-                                icon='pi pi-filter-slash'
-                                rounded
-                                text
-                                title="Reset filter"
-                                onClick={() => resetFilter(i)}
-                                visible={!isFilterEmpty(formState[i])}
-                            />
-                        </div>
-                        {
-                            renderFilterFormState(
-                                formState[i],
+            {/* Render default group filters above the dividers */}
+            {defaultGroup && defaultFilters.length > 0 && (
+                <div className="flex flex-wrap gap-4 items-start mb-4">
+                    {defaultFilters.map(f => (
+                        <div key={f.index} className="flex flex-col min-w-[220px] mb-2">
+                            <div className="flex items-center mb-1 max-h-[20px]">
+                                <label className="text-sm font-bold">{f.label}</label>
+                                <Button
+                                    type="button"
+                                    size='small'
+                                    icon='pi pi-filter-slash'
+                                    rounded
+                                    text
+                                    title="Reset filter"
+                                    onClick={() => resetFilter(f.index)}
+                                    visible={!isFilterEmpty(formState[f.index])}
+                                />
+                            </div>
+                            {renderFilterFormState(
+                                formState[f.index],
                                 newState => {
                                     const newFormState = [...formState];
-                                    newFormState[i] = newState;
+                                    newFormState[f.index] = newState;
                                     setFormState(newFormState);
                                 }
-                            )
-                        }
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {/* Render other groups with Panel and captions */}
+            {filtersByGroup.map(({ group, filters }) => (
+                <Panel key={group.name} header={group.label} className="w-full mb-4">
+                    <div className="flex flex-wrap gap-4 items-start">
+                        {filters.map(f => (
+                            <div key={f.index} className="flex flex-col min-w-[220px] mb-2">
+                                <div className="flex items-center mb-1 max-h-[20px]">
+                                    <label className="text-sm font-bold">{f.label}</label>
+                                    <Button
+                                        type="button"
+                                        size='small'
+                                        icon='pi pi-filter-slash'
+                                        rounded
+                                        text
+                                        title="Reset filter"
+                                        onClick={() => resetFilter(f.index)}
+                                        visible={!isFilterEmpty(formState[f.index])}
+                                    />
+                                </div>
+                                {renderFilterFormState(
+                                    formState[f.index],
+                                    newState => {
+                                        const newFormState = [...formState];
+                                        newFormState[f.index] = newState;
+                                        setFormState(newFormState);
+                                    }
+                                )}
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </Panel>
+            ))}
             <div className="flex gap-2 mb-3 justify-end">
                 <Button type="submit" size='small' label="Apply filter" icon='pi pi-filter' />
                 <Button type="button" size='small' outlined label="Reset All" icon='pi pi-filter-slash' onClick={resetAllFilters} className='p-button-secondary' />

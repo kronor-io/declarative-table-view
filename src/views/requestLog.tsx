@@ -47,12 +47,20 @@ const columnDefinitions: ColumnDefinition[] = [
     }
 ];
 
-const filterSchema: FilterFieldSchema = [
-    {
-        label: 'Date',
-        expression: Filter.range('createdAt', Control.date)
-    }
+const filterGroups = [
+    { name: 'default', label: 'Default Filters' }
 ];
+
+const filterSchema: FilterFieldSchema = {
+    groups: filterGroups,
+    filters: [
+        {
+            label: 'Date',
+            expression: Filter.range('createdAt', Control.date),
+            group: 'default'
+        }
+    ]
+};
 
 const collectionName = 'requestsLog';
 

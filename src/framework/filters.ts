@@ -131,7 +131,19 @@ function buildFieldCondition(key: string, cond: any): any {
     return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
 }
 
-export type FilterFieldSchema = { label: string, expression: FilterExpr }[]
+export type FilterFieldGroup = {
+    name: string;
+    label: string | null;
+};
+
+export type FilterFieldSchema = {
+    groups: FilterFieldGroup[];
+    filters: {
+        label: string;
+        expression: FilterExpr;
+        group: string; // group name
+    }[];
+};
 
 /**
  * Attempts to deserialize a plain JSON object into a FilterExpr.

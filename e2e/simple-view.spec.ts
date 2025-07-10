@@ -50,4 +50,23 @@ test.describe('Simple View Rendering', () => {
         await expect(table.getByText('Test 25', { exact: true })).not.toBeVisible();
         await expect(table.getByText('Test 24', { exact: true })).not.toBeVisible();
     });
+
+    test('should render filter group captions in the filter form', async ({ page }) => {
+        // Intercept the GraphQL request and mock the response
+        await page.route('**/v1/graphql', mockPaginationGraphQL);
+
+        // Navigate to the page with the simple test view
+        await page.goto('/?view=simple-test-view');
+
+        // Wait for the filter form to be present
+        const filterForm = page.locator('form');
+        await expect(filterForm).toBeVisible();
+
+        // Check for the presence of the new group label ("Extra Filters") as a Panel header
+        const extraFiltersPanel = page.locator('.p-panel-header', { hasText: 'Extra Filters' });
+        await expect(extraFiltersPanel).toBeVisible();
+
+        // Check that the filter label is present under the new group
+        await expect(page.getByText('Test Field', { exact: true })).toBeVisible();
+    });
 });

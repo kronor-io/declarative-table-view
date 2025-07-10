@@ -3,11 +3,12 @@ import { Button } from 'primereact/button';
 import SpeechInput from './SpeechInput';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { useState } from 'react';
+import { FilterFieldSchema } from '../framework/filters';
 
 interface AIAssistantFormProps {
-    filterSchema: any[];
+    filterSchema: FilterFieldSchema;
     filterState: FilterFormState[];
-    setFilterSchema: (schema: any[]) => void;
+    setFilterSchema: (schema: FilterFieldSchema) => void;
     setFilterState: (state: FilterFormState[]) => void;
     selectedView: any;
     geminiApiKey: string
@@ -116,10 +117,13 @@ export default function AIAssistantForm({
                                 setAiLoading(false);
                                 return;
                             }
-                            const newSchema = [
+                            const newSchema = {
                                 ...filterSchema,
-                                { label: 'AI Filter', expression: filterExpr }
-                            ];
+                                filters: [
+                                    ...filterSchema.filters,
+                                    { label: 'AI Filter', expression: filterExpr, group: 'default' }
+                                ]
+                            };
                             setFilterSchema(newSchema);
                             const formState = [
                                 ...filterState,

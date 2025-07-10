@@ -46,6 +46,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [search, setSearch] = useState('');
   const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
+  const [showFilterForm, setShowFilterForm] = useState(true);
 
   // Pagination state
   const hasNextPage = state.data.rows.length === rowsPerPage;
@@ -106,7 +107,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
   };
 
   // Filter filterSchema by search, get indices
-  const visibleIndices = state.filterSchema
+  const visibleIndices = state.filterSchema.filters
     .map((field: any, i: number) => {
       function treeHasMatch(expr: any): boolean {
         if (field.label.toLowerCase().includes(search.toLowerCase())) return true;
@@ -164,6 +165,18 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
           }
         ]}
         className="mb-4 border-b"
+        start={
+          <div className="flex gap-2 items-center">
+            <Button
+              type="button"
+              icon={showFilterForm ? 'pi pi-filter-slash' : 'pi pi-filter'}
+              outlined
+              size='small'
+              label={showFilterForm ? 'Hide Filters' : 'Show Filters'}
+              onClick={() => setShowFilterForm(v => !v)}
+            />
+          </div>
+        }
         end={
           <div className="flex gap-2">
             <IconField iconPosition="left">
@@ -195,17 +208,19 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         </div>
       )}
 
-      <FilterForm
-        filterSchema={state.filterSchema}
-        formState={state.filterState}
-        setFormState={setFilterState}
-        onSaveFilter={handleSaveFilter}
-        visibleIndices={visibleIndices}
-        onSubmit={async () => {
-          const data = await fetchDataWrapper(null);
-          setDataRows(data);
-        }}
-      />
+      {showFilterForm && (
+        <FilterForm
+          filterSchema={state.filterSchema}
+          formState={state.filterState}
+          setFormState={setFilterState}
+          onSaveFilter={handleSaveFilter}
+          visibleIndices={visibleIndices}
+          onSubmit={async () => {
+            const data = await fetchDataWrapper(null);
+            setDataRows(data);
+          }}
+        />
+      )}
       <Table
         columns={selectedView.columnDefinitions}
         data={state.data.flattenedRows}

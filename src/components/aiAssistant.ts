@@ -35,8 +35,10 @@ function sanitizeFilterExpr(expr: any): any {
 }
 
 function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): any {
-    return filterSchema.map((field: FilterFieldSchema[number]) => ({
+    // Adapt to new schema shape
+    return filterSchema.filters.map((field) => ({
         label: field.label,
+        group: field.group,
         expression: sanitizeFilterExpr(field.expression)
     }));
 }
@@ -68,7 +70,7 @@ function buildAiPrompt(filterSchema: FilterFieldSchema, userPrompt: string): str
 
 // Helper to generate an empty FilterFormState array from schema
 function emptyStateFromSchema(filterSchema: FilterFieldSchema): FilterFormState[] {
-    return filterSchema.map(field => buildInitialFormState(field.expression));
+    return filterSchema.filters.map(field => buildInitialFormState(field.expression));
 }
 
 // Recursively copy only the value from aiState into emptyState, assuming same shape/order

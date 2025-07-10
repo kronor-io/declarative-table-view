@@ -27,12 +27,26 @@ export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
     },
 ];
 
-const filterSchema: FilterFieldSchema = [
-    {
-        label: 'Amount',
-        expression: Filter.greaterThanOrEqual('amount', Control.number())
-    }
-]; // No filters for this simple view
+const filterGroups = [
+    { name: 'default', label: 'Default Filters' },
+    { name: 'extra', label: 'Extra Filters' }
+];
+
+const filterSchema: FilterFieldSchema = {
+    groups: filterGroups,
+    filters: [
+        {
+            label: 'Amount',
+            expression: Filter.greaterThanOrEqual('amount', Control.number()),
+            group: 'default'
+        },
+        {
+            label: 'Test Field',
+            expression: Filter.equals('testField', Control.text()),
+            group: 'extra'
+        }
+    ]
+}; // No filters for this simple view
 
 const collectionName = 'simpleTestDataCollection';
 

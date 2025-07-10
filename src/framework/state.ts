@@ -42,13 +42,13 @@ export function getInitialViewIndex(views: View<any, any>[]): number {
     return 0;
 }
 
-function createInitialFilterState(filterSchema: any[]): FilterFormState[] {
-    return filterSchema.map(filter => buildInitialFormState(filter.expression));
+function createInitialFilterState(filterSchema: FilterFieldSchema): FilterFormState[] {
+    return filterSchema.filters.map(filter => buildInitialFormState(filter.expression));
 }
 
 export function createDefaultAppState(views: View<any, any>[]): AppState {
     const selectedViewIndex = getInitialViewIndex(views);
-    const filterSchema = views[selectedViewIndex]?.filterSchema || [];
+    const filterSchema: FilterFieldSchema = views[selectedViewIndex].filterSchema;
     const initialFilterState = createInitialFilterState(filterSchema);
     return {
         views,
@@ -63,11 +63,12 @@ export function createDefaultAppState(views: View<any, any>[]): AppState {
 // Update selectedViewIndex
 function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
     const view = state.views[newIndex];
+    const filterSchema = view.filterSchema || { groups: [], filters: [] };
     return {
         ...state,
         selectedViewIndex: newIndex,
-        filterSchema: view.filterSchema || [],
-        filterState: createInitialFilterState(view.filterSchema || []),
+        filterSchema,
+        filterState: createInitialFilterState(filterSchema),
         pagination: defaultPagination
     };
 }

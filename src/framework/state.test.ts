@@ -11,14 +11,24 @@ const mockViews: View<any, any>[] = [
     {
         routeName: 'foo',
         title: 'Foo',
-        filterSchema: [{ label: 'A', expression: { type: 'isNull', key: 'a', value: {} } }],
+        filterSchema: {
+            groups: [{ name: 'default', label: 'Default' }],
+            filters: [
+                { label: 'A', expression: { type: 'isNull', key: 'a', value: {} }, group: 'default' }
+            ]
+        },
         columnDefinitions: [],
         paginationKey: 'id',
     } as any,
     {
         routeName: 'bar',
         title: 'Bar',
-        filterSchema: [{ label: 'B', expression: { type: 'isNull', key: 'b', value: {} } }],
+        filterSchema: {
+            groups: [{ name: 'default', label: 'Default' }],
+            filters: [
+                { label: 'B', expression: { type: 'isNull', key: 'b', value: {} }, group: 'default' }
+            ]
+        },
         columnDefinitions: [],
         paginationKey: 'id',
     } as any
@@ -31,7 +41,7 @@ describe('AppState', () => {
         expect(state.views).toBe(mockViews);
         expect(state.filterSchema).toEqual(mockViews[0].filterSchema);
         expect(state.filterState).toEqual(
-            mockViews[0].filterSchema.map(f => buildInitialFormState(f.expression))
+            mockViews[0].filterSchema.filters.map(f => buildInitialFormState(f.expression))
         );
         expect(state.data).toEqual({ rows: [], flattenedRows: [] });
     });
@@ -42,7 +52,7 @@ describe('AppState', () => {
         expect(state.selectedViewIndex).toBe(1);
         expect(state.filterSchema).toEqual(mockViews[1].filterSchema);
         expect(state.filterState).toEqual(
-            mockViews[1].filterSchema.map(f => buildInitialFormState(f.expression))
+            mockViews[1].filterSchema.filters.map(f => buildInitialFormState(f.expression))
         );
     });
 
@@ -57,7 +67,12 @@ describe('AppState', () => {
 
     it('setFilterSchema updates filterSchema', () => {
         let state = createDefaultAppState(mockViews);
-        const newSchema = [{ label: 'C', expression: { type: 'isNull', key: 'c', value: null } }];
+        const newSchema = {
+            groups: [{ name: 'default', label: 'Default' }],
+            filters: [
+                { label: 'C', expression: { type: 'isNull', key: 'c', value: null }, group: 'default' }
+            ]
+        };
         state = setFilterSchema(state, newSchema as any);
         expect(state.filterSchema).toBe(newSchema);
     });
