@@ -1,5 +1,5 @@
 import { FilterFormState } from '../components/FilterForm';
-import { ColumnDefinition, DataQuery, OrderByConfig } from './column-definition';
+import { ColumnDefinition, FieldQuery, OrderByConfig, QueryConfig } from './column-definition';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
@@ -113,12 +113,12 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
     return merged;
 }
 
-// Generates a GraphQL selection set from a DataQuery[] (tagged ADT)
+// Generates a GraphQL selection set from a FieldQuery[] (tagged ADT)
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
-    // Helper to process DataQuery recursively
-    function processDataQuery(dataQuery: DataQuery): GraphQLSelectionSetItem | null {
-        if (dataQuery.type === 'field') {
-            const parts = dataQuery.path.split('.');
+    // Helper to process FieldQuery recursively
+    function processFieldQuery(fieldQuery: FieldQuery): GraphQLSelectionSetItem | null {
+        if (fieldQuery.type === 'field') {
+            const parts = fieldQuery.path.split('.');
             const buildNested = (p: string[]): GraphQLSelectionSetItem => {
                 const [head, ...tail] = p;
                 const item: GraphQLSelectionSetItem = { field: head };
@@ -128,13 +128,13 @@ export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): Gr
                 return item;
             };
             return buildNested(parts);
-        } else if (dataQuery.type === 'queryConfigs') {
-            if (!dataQuery.configs.length) return null;
+        } else if (fieldQuery.type === 'queryConfigs') {
+            if (!fieldQuery.configs.length) return null;
 
             // Recursive helper to build nested selection items
-            const buildNestedItem = (configs: any[]): GraphQLSelectionSetItem => {
+            const buildNestedItem = (configs: QueryConfig[]): GraphQLSelectionSetItem => {
                 const [head, ...tail] = configs;
-                const item: GraphQLSelectionSetItem = { field: head.data };
+                const item: GraphQLSelectionSetItem = { field: head.field };
 
                 if (head.orderBy) {
                     const toHasuraOrderBy = (ob: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
@@ -157,12 +157,12 @@ export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): Gr
                 return item;
             };
 
-            return buildNestedItem(dataQuery.configs);
+            return buildNestedItem(fieldQuery.configs);
         }
         return null;
     }
-    // Build selection set for all columns and all DataQuery[]
-    const allSelections = columns.flatMap(col => col.data.map(processDataQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
+    // Build selection set for all columns and all FieldQuery[]
+    const allSelections = columns.flatMap(col => col.data.map(processFieldQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
 
     // Deep merge all generated selection sets
     return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => {

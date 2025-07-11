@@ -46,8 +46,8 @@ const columnDefinitions: ColumnDefinition[] = [
         data: [
             field('paymentProvider'),
             queryConfigs([
-                { data: 'attempts', limit: 1, orderBy: { key: 'createdAt', direction: 'DESC' } },
-                { data: 'cardType' }
+                { field: 'attempts', limit: 1, orderBy: { key: 'createdAt', direction: 'DESC' } },
+                { field: 'cardType' }
             ])
         ],
         name: 'Provider',

@@ -18,8 +18,8 @@ export type Field = {
     path: string; // dot-separated data path
 };
 
-type QueryConfig = {
-    data: string
+export type QueryConfig = {
+    field: string
     orderBy?: OrderByConfig | OrderByConfig[];
     limit?: number;
 }
@@ -29,10 +29,10 @@ export type QueryConfigs = {
     configs: QueryConfig[]
 };
 
-export type DataQuery = Field | QueryConfigs;
+export type FieldQuery = Field | QueryConfigs;
 
 export type ColumnDefinition = {
-    data: DataQuery[];
+    data: FieldQuery[];
     name: string; // column display name
     cellRenderer: CellRenderer;
 };
@@ -41,11 +41,11 @@ export type ColumnDefinition = {
 export const defaultCellRenderer: CellRenderer = ({ data }) => <Center>{Object.values(data)[0]}</Center>;
 
 // Helper to create a Field
-export function field(path: string): DataQuery {
+export function field(path: string): FieldQuery {
     return { type: 'field', path };
 }
 
 // Helper to create QueryConfigs
-export function queryConfigs(configs: QueryConfig[]): DataQuery {
+export function queryConfigs(configs: QueryConfig[]): FieldQuery {
     return { type: 'queryConfigs', configs };
 }

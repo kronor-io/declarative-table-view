@@ -2,7 +2,7 @@ import { GraphQLClient } from 'graphql-request';
 import { FilterFormState } from '../components/FilterForm';
 import { buildHasuraConditions } from '../framework/graphql';
 import { View } from '../framework/view';
-import { ColumnDefinition, DataQuery } from '../framework/column-definition';
+import { ColumnDefinition, FieldQuery } from '../framework/column-definition';
 
 export interface FetchDataResult {
     rows: Record<string, any>[]; // Fetched rows from the query
@@ -62,9 +62,9 @@ export const flattenFields = (
 export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefinition) => {
     const values: Record<string, any> = {};
 
-    const extractField = (dataQuery: DataQuery) => {
-        if (dataQuery.type === 'field') {
-            const path = dataQuery.path.split('.');
+    const extractField = (fieldQuery: FieldQuery) => {
+        if (fieldQuery.type === 'field') {
+            const path = fieldQuery.path.split('.');
             let value: any = row;
             for (const p of path) {
                 if (Array.isArray(value)) {
@@ -81,11 +81,11 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
                     value = value?.[p];
                 }
             }
-            values[dataQuery.path] = value;
-        } else if (dataQuery.type === 'queryConfigs') {
-            const pathKey = dataQuery.configs.map(c => c.data).join('.');
+            values[fieldQuery.path] = value;
+        } else if (fieldQuery.type === 'queryConfigs') {
+            const pathKey = fieldQuery.configs.map(c => c.field).join('.');
 
-            const extract = (currentValue: any, configs: (typeof dataQuery.configs)): any => {
+            const extract = (currentValue: any, configs: (typeof fieldQuery.configs)): any => {
                 if (configs.length === 0) {
                     return currentValue;
                 }
@@ -100,15 +100,15 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
                     return currentValue.map(item => extract(item, configs));
                 }
 
-                if (typeof currentValue === 'object' && currentConfig.data in currentValue) {
-                    const nextValue = currentValue[currentConfig.data];
+                if (typeof currentValue === 'object' && currentConfig.field in currentValue) {
+                    const nextValue = currentValue[currentConfig.field];
                     return extract(nextValue, remainingConfigs);
                 }
 
                 return undefined;
             };
 
-            values[pathKey] = extract(row, dataQuery.configs);
+            values[pathKey] = extract(row, fieldQuery.configs);
         }
     };
 

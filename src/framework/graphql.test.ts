@@ -94,12 +94,12 @@ describe("generateGraphQLQueryAST", () => {
                         type: "queryConfigs",
                         configs: [
                             {
-                                data: "posts",
+                                field: "posts",
                                 limit: 5,
                                 orderBy: { key: "createdAt", direction: "DESC" },
                             },
                             {
-                                data: "title",
+                                field: "title",
                             },
                         ],
                     },
