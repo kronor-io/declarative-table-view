@@ -31,15 +31,6 @@ export type QueryConfigs = {
 
 export type FieldQuery = Field | QueryConfigs;
 
-export type ColumnDefinition = {
-    data: FieldQuery[];
-    name: string; // column display name
-    cellRenderer: CellRenderer;
-};
-
-// Default function: returns the only value in the object
-export const defaultCellRenderer: CellRenderer = ({ data }) => <Center>{Object.values(data)[0]}</Center>;
-
 // Helper to create a Field
 export function field(path: string): FieldQuery {
     return { type: 'field', path };
@@ -49,3 +40,12 @@ export function field(path: string): FieldQuery {
 export function queryConfigs(configs: QueryConfig[]): FieldQuery {
     return { type: 'queryConfigs', configs };
 }
+
+export type ColumnDefinition = {
+    data: FieldQuery[];
+    name: string; // column display name
+    cellRenderer: CellRenderer;
+};
+
+// Default function: returns the only value in the object
+export const defaultCellRenderer: CellRenderer = ({ data }) => <Center>{Object.values(data)[0]}</Center>;

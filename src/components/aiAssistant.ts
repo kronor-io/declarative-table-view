@@ -126,11 +126,8 @@ export const GeminiApi: AIApi = {
                 const emptyState = emptyStateFromSchema(filterSchema);
                 const merged = mergeStateArrayByKey(emptyState, parsed);
                 setFormState(filterStateFromJSON(merged, filterSchema));
-                console.log('AI parsed:', parsed);
-                console.log('Merged state:', merged);
             } else {
                 alert('Could not parse FilterFormState from Gemini response. Check the console.');
-                console.log('Gemini response:', data);
             }
         } catch (err) {
             console.error(err);
