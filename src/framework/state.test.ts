@@ -7,7 +7,7 @@ import { buildInitialFormState, FilterFormState } from '../components/FilterForm
 import { View } from './view';
 
 // Mock view definitions
-const mockViews: View<any, any>[] = [
+const mockViews: View[] = [
     {
         routeName: 'foo',
         title: 'Foo',

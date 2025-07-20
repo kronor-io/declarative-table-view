@@ -321,11 +321,7 @@ const filterSchema: FilterFieldSchema = {
 
 const collectionName = 'paymentRequests';
 
-type QueryResponse = {
-    [_ in typeof collectionName]: PaymentRequest[];
-};
-
-const PaymentRequestView: View<PaymentRequest, QueryResponse> = {
+const PaymentRequestView: View = {
     title: 'Payment Requests',
     routeName: 'payment-requests',
     collectionName,
@@ -337,8 +333,6 @@ const PaymentRequestView: View<PaymentRequest, QueryResponse> = {
         "PaymentRequestBoolExp",
         "[PaymentRequestOrderBy!]"
     ),
-    getResponseRows: (response: QueryResponse) => response[collectionName],
-    QueryResponseType: {} as QueryResponse,
     paginationKey: 'createdAt',
     noRowsComponent: NoRowsExtendDateRange
 };

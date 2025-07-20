@@ -7,7 +7,7 @@ import { FetchDataResult } from "./data";
 // AppState data structure for app state
 export interface AppState {
     selectedViewIndex: number;
-    views: View<any, any>[];
+    views: View[];
     filterSchema: FilterFieldSchema;
     data: FetchDataResult;
     filterState: FilterFormState[];
@@ -25,11 +25,11 @@ const defaultPagination: PaginationState = {
 };
 
 // Utility to get initial view index from URL or default
-export function getInitialViewIndex(views: View<any, any>[]): number {
+export function getInitialViewIndex(views: View[]): number {
     const params = new URLSearchParams(window.location.search);
     const viewName = params.get('view');
     if (viewName) {
-        const index = views.findIndex((view: View<any, any>) => view.routeName === viewName);
+        const index = views.findIndex((view: View) => view.routeName === viewName);
         if (index !== -1) {
             return index;
         }
@@ -46,7 +46,7 @@ function createInitialFilterState(filterSchema: FilterFieldSchema): FilterFormSt
     return filterSchema.filters.map(filter => buildInitialFormState(filter.expression));
 }
 
-export function createDefaultAppState(views: View<any, any>[]): AppState {
+export function createDefaultAppState(views: View[]): AppState {
     const selectedViewIndex = getInitialViewIndex(views);
     const filterSchema: FilterFieldSchema = views[selectedViewIndex].filterSchema;
     const initialFilterState = createInitialFilterState(filterSchema);
@@ -73,7 +73,7 @@ function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
     };
 }
 
-function getSelectedView(state: AppState): View<any, any> {
+function getSelectedView(state: AppState): View {
     return state.views[state.selectedViewIndex];
 }
 
@@ -100,7 +100,7 @@ function setFilterState(state: AppState, newFilterState: FilterFormState[]): App
     };
 }
 
-export const useAppState = (views: View<any, any>[]) => {
+export const useAppState = (views: View[]) => {
     const [appState, setAppState] = useState<AppState>(() => createDefaultAppState(views));
     return {
         state: appState,

@@ -6,7 +6,7 @@ import { describe, it, expect } from '@jest/globals';
 import { View } from './view';
 
 describe('getInitialViewIndex', () => {
-    const views: View<any, any>[] = [
+    const views: View[] = [
         { routeName: 'foo', title: 'Foo', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any,
         { routeName: 'bar', title: 'Bar', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any
     ];

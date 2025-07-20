@@ -11,7 +11,7 @@ interface AIAssistantFormProps {
     filterState: FilterFormState[];
     setFilterSchema: (schema: FilterFieldSchema) => void;
     setFilterState: (state: FilterFormState[]) => void;
-    selectedView: View<any, any>;
+    selectedView: View;
     geminiApiKey: string
 }
 

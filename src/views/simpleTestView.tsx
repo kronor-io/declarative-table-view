@@ -9,11 +9,6 @@ export type SimpleTestData = {
     amount: number;
 };
 
-// Define a simple query response type
-type QueryResponse = {
-    simpleTestDataCollection: SimpleTestData[];
-};
-
 export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
     {
         data: ['testField'].map(field),
@@ -50,7 +45,7 @@ const filterSchema: FilterFieldSchema = {
 
 const collectionName = 'simpleTestDataCollection';
 
-const SimpleTestView: View<SimpleTestData, QueryResponse> = {
+const SimpleTestView: View = {
     title: 'Simple Test View',
     routeName: 'simple-test-view', // Route name for URL
     collectionName,
@@ -65,8 +60,6 @@ const SimpleTestView: View<SimpleTestData, QueryResponse> = {
             }
         }
     `,
-    getResponseRows: (response: QueryResponse) => response[collectionName] || [],
-    QueryResponseType: {} as QueryResponse,
     paginationKey: 'id',
 };
 

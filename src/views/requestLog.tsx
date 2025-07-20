@@ -64,11 +64,7 @@ const filterSchema: FilterFieldSchema = {
 
 const collectionName = 'requestsLog';
 
-type QueryResponse = {
-    [_ in typeof collectionName]: any[];
-};
-
-const RequestLogView: View<any, QueryResponse> = {
+const RequestLogView: View = {
     title: 'Requests',
     routeName: 'request-logs',
     collectionName,
@@ -80,8 +76,6 @@ const RequestLogView: View<any, QueryResponse> = {
         "RequestLogBoolExp",
         "[RequestLogOrderBy!]"
     ),
-    getResponseRows: (response: QueryResponse) => response[collectionName],
-    QueryResponseType: {} as QueryResponse,
     paginationKey: 'createdAt',
 };
 

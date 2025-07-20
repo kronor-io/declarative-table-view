@@ -123,6 +123,10 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
   // Next page handler
   const handleNextPage = async () => {
     const cursor = state.data.rows.length > 0 ? state.data.rows[state.data.rows.length - 1][selectedView.paginationKey] : null
+    if (typeof cursor !== 'string' && typeof cursor !== 'number') {
+      console.error('Invalid cursor type:', cursor);
+      return;
+    }
     const newData = await fetchDataWrapper(cursor);
     setDataRows(
       newData,

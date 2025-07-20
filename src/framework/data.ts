@@ -5,8 +5,12 @@ import { View } from '../framework/view';
 import { ColumnDefinition, FieldQuery } from '../framework/column-definition';
 
 export interface FetchDataResult {
-    rows: Record<string, any>[]; // Fetched rows from the query
-    flattenedRows: Record<string, any>[][]; // Rows flattened according to column definitions
+    rows: Record<string, unknown>[]; // Fetched rows from the query
+    flattenedRows: Record<string, unknown>[][]; // Rows flattened according to column definitions
+}
+
+function hasKey<K extends string | number | symbol, T extends { [key in K]: unknown[] }>(obj: unknown, key: K): obj is T {
+    return typeof obj === 'object' && obj !== null && key in obj && Array.isArray((obj as T)[key]);
 }
 
 export const fetchData = async ({
@@ -17,7 +21,7 @@ export const fetchData = async ({
     cursor
 }: {
     client: GraphQLClient;
-    view: View<any, any>;
+    view: View;
     filterState: FilterFormState[];
     rows: number;
     cursor: string | number | null;
@@ -36,11 +40,17 @@ export const fetchData = async ({
             orderBy: [{ [view.paginationKey]: 'DESC' }],
         };
         const response = await client.request(view.query, variables);
-        const rowsFetched = view.getResponseRows(response as any);
+        if (!hasKey(response, view.collectionName)) {
+            console.error('Error fetching data, unexpected response format:', response);
+            return { rows: [], flattenedRows: [] };
+        }
+
+        const rowsFetched = response[view.collectionName];
+
         // Flatten the data before returning
         return {
-            rows: rowsFetched,
-            flattenedRows: flattenFields(rowsFetched, view.columnDefinitions)
+            rows: rowsFetched as Record<string, any>[],
+            flattenedRows: flattenFields(rowsFetched as Record<string, any>[], view.columnDefinitions)
         }
     } catch (error) {
         console.error('Error fetching data:', error);
