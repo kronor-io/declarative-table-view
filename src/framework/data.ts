@@ -2,7 +2,7 @@ import { GraphQLClient } from 'graphql-request';
 import { FilterFormState } from '../components/FilterForm';
 import { buildHasuraConditions } from '../framework/graphql';
 import { View } from '../framework/view';
-import { ColumnDefinition, FieldQuery } from '../framework/column-definition';
+import { ColumnDefinition, FieldQuery, QueryConfig } from '../framework/column-definition';
 
 export interface FetchDataResult {
     rows: Record<string, unknown>[]; // Fetched rows from the query
@@ -95,7 +95,7 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
         } else if (fieldQuery.type === 'queryConfigs') {
             const pathKey = fieldQuery.configs.map(c => c.field).join('.');
 
-            const extract = (currentValue: any, configs: (typeof fieldQuery.configs)): any => {
+            const extract = (currentValue: any, configs: QueryConfig[]): any => {
                 if (configs.length === 0) {
                     return currentValue;
                 }

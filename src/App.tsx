@@ -14,6 +14,7 @@ import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
+import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
 
 interface AppProps {
   graphqlHost: string;
@@ -108,17 +109,15 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
   };
 
   // Filter filterSchema by search, get indices
-  const visibleIndices = state.filterSchema.filters
-    .map((field: any, i: number) => {
-      function treeHasMatch(expr: any): boolean {
-        if (field.label.toLowerCase().includes(search.toLowerCase())) return true;
-        if (expr.key && expr.key.toLowerCase().includes(search.toLowerCase())) return true;
-        if (expr.filters) return expr.filters.some(treeHasMatch);
-        return false;
+  const visibleIndices: number[] = state.filterSchema.filters
+    .flatMap((filter: FilterFieldSchemaFilter, index: number) => {
+      function stringMatchesSearchQuery(string: string) {
+        return string.toLowerCase().includes(search.toLowerCase());
       }
-      return treeHasMatch(field.expression) ? i : -1;
-    })
-    .filter((i: number) => i !== -1);
+      if (stringMatchesSearchQuery(filter.label)) return [index];
+      const keyFilterExprs = getKeyNodes(filter.expression);
+      return keyFilterExprs.some(expr => stringMatchesSearchQuery(expr.key)) ? [index] : []
+    });
 
   // Next page handler
   const handleNextPage = async () => {
@@ -153,7 +152,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
           ...(showViewsMenu ? [{
             label: 'Views',
             icon: 'pi pi-eye',
-            items: views.map((view: any, viewIndex: number) => ({
+            items: views.map((view, viewIndex) => ({
               label: view.title,
               icon: 'pi pi-table',
               command: () => handleViewChange(viewIndex)
@@ -236,7 +235,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             ? selectedView.noRowsComponent({
               filterState: state.filterState,
               setFilterState,
-              fetchData: () => fetchDataWrapper(null).then((dataRows: any) => { setDataRows(dataRows); })
+              fetchData: () => fetchDataWrapper(null).then(setDataRows)
             })
             : null
         }

@@ -23,6 +23,8 @@ export type FilterExpr =
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };
 
+
+
 // Predefined list of supported operators for customOperator controls
 export const SUPPORTED_OPERATORS = [
     { label: 'equals', value: '_eq' },
@@ -89,6 +91,25 @@ export function transformFilterExprValues(expr: FilterExpr, fn: (value: FilterCo
     }
 }
 
+export type FilterExprKeyNode = Extract<FilterExpr, { key: string; value: FilterControl }>;
+export type FilterExprFilterListNode = Extract<FilterExpr, { filters: FilterExpr[] }>;
+export type FilterExprNotNode = Extract<FilterExpr, { filter: FilterExpr }>;
+
+// Recursively get all key nodes from a FilterExpr tree
+export function getKeyNodes(expr: FilterExpr): FilterExprKeyNode[] {
+    const nodes: FilterExprKeyNode[] = [];
+    if (isLeaf(expr)) {
+        nodes.push(expr);
+    } else if (expr.type === 'and' || expr.type === 'or') {
+        for (const filter of expr.filters) {
+            nodes.push(...getKeyNodes(filter));
+        }
+    } else if (expr.type === 'not') {
+        nodes.push(...getKeyNodes(expr.filter));
+    }
+    return nodes;
+}
+
 export function buildHasuraConditionFromExpr(expr: FilterExpr): any {
     switch (expr.type) {
         case 'equals':
@@ -136,13 +157,15 @@ export type FilterFieldGroup = {
     label: string | null;
 };
 
+export type FilterFieldSchemaFilter = {
+    label: string;
+    expression: FilterExpr;
+    group: string; // group name
+};
+
 export type FilterFieldSchema = {
     groups: FilterFieldGroup[];
-    filters: {
-        label: string;
-        expression: FilterExpr;
-        group: string; // group name
-    }[];
+    filters: FilterFieldSchemaFilter[];
 };
 
 /**
