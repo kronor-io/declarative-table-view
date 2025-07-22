@@ -11,7 +11,17 @@ import { Panel } from 'primereact/panel';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
-    | { type: 'leaf'; key: string; value: any; control: FilterControl; filterType: Extract<FilterExpr, { key: string }>['type']; transform?: { toQuery?: (input: any) => any; fromQuery?: (input: any) => any } }
+    | {
+        type: 'leaf';
+        key: string;
+        value: any;
+        control: FilterControl;
+        filterType: Extract<FilterExpr, { key: string }>['type'];
+        transform?: {
+            toQuery?: (input: unknown) => unknown;
+            fromQuery?: (input: unknown) => unknown
+        }
+    }
     | { type: 'and' | 'or'; children: FilterFormState[]; filterType: 'and' | 'or' }
     | { type: 'not'; child: FilterFormState; filterType: 'not' };
 
@@ -55,7 +65,7 @@ interface FilterFormProps {
     onSubmit: () => void;
 }
 
-function renderInput(control: FilterControl, value: any, setValue: (v: any) => void): ReactNode {
+function renderInput(control: FilterControl, value: any, setValue: (v: unknown) => void): ReactNode {
     switch (control.type) {
         case 'text':
             return (
@@ -176,10 +186,10 @@ function renderFilterFormState(
         );
     } else if (state.type === 'leaf') {
         // Apply transform.toQuery if present when setting value
-        const handleSetValue = (v: any) => {
-            let newValue = v;
+        const handleSetValue = (value: unknown) => {
+            let newValue = value;
             if (newValue !== null && state.transform && typeof state.transform.toQuery === 'function') {
-                newValue = state.transform.toQuery(v);
+                newValue = state.transform.toQuery(value);
             }
             setState({ ...state, value: newValue });
         };

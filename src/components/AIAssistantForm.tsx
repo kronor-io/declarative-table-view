@@ -3,7 +3,7 @@ import { Button } from 'primereact/button';
 import SpeechInput from './SpeechInput';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { useState } from 'react';
-import { FilterFieldSchema } from '../framework/filters';
+import { filterExprFromJSON, FilterFieldSchema, getKeyNodes } from '../framework/filters';
 import { View } from '../framework/view';
 
 interface AIAssistantFormProps {
@@ -68,14 +68,14 @@ export default function AIAssistantForm({
                         setAiLoading(true);
                         try {
                             const filterSchemaJson = JSON.stringify(filterSchema, null, 2);
-                            function collectKeys(expr: any): string[] {
-                                if (!expr) return [];
-                                if ('key' in expr && typeof expr.key === 'string') return [expr.key];
-                                if (expr.filters && Array.isArray(expr.filters)) return expr.filters.flatMap(collectKeys);
-                                if (expr.filter) return collectKeys(expr.filter);
-                                return [];
-                            }
-                            const allKeys = Array.from(new Set(selectedView.filterSchema.filters.flatMap((f: any) => collectKeys(f.expression))));
+                            const allKeys = Array.from(
+                                new Set(
+                                    selectedView.filterSchema.filters
+                                        .flatMap(filter => getKeyNodes(filter.expression)
+                                            .map(node => node.key)
+                                        )
+                                )
+                            );
                             const filterControlType = `type FilterControl =\n  | { type: 'text'; label?: string; placeholder?: string }\n  | { type: 'number'; label?: string; placeholder?: string }\n  | { type: 'date'; label?: string; placeholder?: string }\n  | { type: 'dropdown'; label?: string; items: { label: string; value: any }[] }\n  | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean }\n  | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }\n  | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string };`;
                             const filterExprType = `type FilterExpr =\n  | { type: 'equals'; key: string; value: FilterControl }\n  | { type: 'notEquals'; key: string; value: FilterControl }\n  | { type: 'greaterThan'; key: string; value: FilterControl }\n  | { type: 'lessThan'; key: string; value: FilterControl }\n  | { type: 'greaterThanOrEqual'; key: string; value: FilterControl }\n  | { type: 'lessThanOrEqual'; key: string; value: FilterControl }\n  | { type: 'in'; key: string; value: FilterControl }\n  | { type: 'notIn'; key: string; value: FilterControl }\n  | { type: 'like'; key: string; value: FilterControl }\n  | { type: 'iLike'; key: string; value: FilterControl }\n  | { type: 'isNull'; key: string; value: FilterControl }\n  | { type: 'and'; filters: FilterExpr[] }\n  | { type: 'or'; filters: FilterExpr[] }\n  | { type: 'not'; filter: FilterExpr };`;
                             const template = `You are an expert TypeScript assistant.\n\nHere are the type definitions for FilterControl and FilterExpr:\n\n${filterControlType}\n\n${filterExprType}\n\nAvailable data keys:\n${JSON.stringify(allKeys, null, 2)}\n\nCurrent filter schema (including control configuration, dropdown/multiselect values, etc.):\n${filterSchemaJson}\n\nUser prompt:\n${aiFilterExprInput}\n\nInstructions:\n- Generate a valid FilterExpr as JSON, using only the available data keys.\n- When generating a filter for a field, use the control configuration from the filter schema (e.g. use the same dropdown/multiselect values for matching data keys).\n- Only use supported FilterControl types (text, number, date, dropdown, multiselect).\n- Do not use custom or transformation functions.\n- Output only the JSON for the FilterExpr, nothing else.\n- The JSON must be valid and parseable.\n`;
@@ -111,7 +111,6 @@ export default function AIAssistantForm({
                                 setAiLoading(false);
                                 return;
                             }
-                            const { filterExprFromJSON } = await import('../framework/filters');
                             const filterExpr = filterExprFromJSON(exprJson);
                             if (!filterExpr) {
                                 alert('Could not parse AI response as FilterExpr');

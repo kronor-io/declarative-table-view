@@ -1,5 +1,5 @@
 // src/components/aiAssistant.ts
-import { FilterFieldSchema } from '../framework/filters';
+import { FilterExpr, FilterFieldSchema } from '../framework/filters';
 import { FilterFormState, filterStateFromJSON, buildInitialFormState } from './FilterForm';
 
 // --- Shared prompt and serialization helpers ---
@@ -12,15 +12,20 @@ export interface AIApi {
     ): Promise<void>;
 }
 
-function sanitizeFilterExpr(expr: any): any {
+function sanitizeFilterExpr(expr: FilterExpr): object {
     if (expr.type === 'and' || expr.type === 'or') {
         return {
             type: expr.type,
             filters: expr.filters.map(sanitizeFilterExpr)
         };
+    } else if (expr.type === 'not') {
+        return {
+            type: expr.type,
+            child: sanitizeFilterExpr(expr.filter)
+        };
     } else {
         // For dropdown and multiselect, include items
-        if ((expr.value?.type === 'dropdown' || expr.value?.type === 'multiselect') && Array.isArray(expr.value.items)) {
+        if ((expr.value.type === 'dropdown' || expr.value.type === 'multiselect')) {
             return {
                 type: expr.type,
                 key: expr.key,
@@ -34,7 +39,7 @@ function sanitizeFilterExpr(expr: any): any {
     }
 }
 
-function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): any {
+function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): object[] {
     // Adapt to new schema shape
     return filterSchema.filters.map((field) => ({
         label: field.label,
