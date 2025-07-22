@@ -33,7 +33,7 @@ export function buildHasuraConditions(
     formStates: FilterFormState[]
 ): HasuraCondition {
     // Support dot-separated keys by building nested objects
-    function buildNestedKey(key: string, cond: any): any {
+    function buildNestedKey(key: string, cond: any): HasuraCondition {
         if (!key.includes('.')) return { [key]: cond };
         const parts = key.split('.');
         return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
@@ -247,14 +247,14 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
                     // Array of HasuraCondition or HasuraOperator
                     return `[${cond.map(renderWhere).join(", ")}]`;
                 } else if (typeof cond === 'object' && cond !== null) {
-                    if ('_and' in cond && Array.isArray((cond as any)._and)) {
-                        return `_and: [${(cond as any)._and.map(renderWhere).join(", ")}]`;
+                    if ('_and' in cond && Array.isArray(cond._and)) {
+                        return `_and: [${cond._and.map(renderWhere).join(", ")}]`;
                     }
-                    if ('_or' in cond && Array.isArray((cond as any)._or)) {
-                        return `_or: [${(cond as any)._or.map(renderWhere).join(", ")}]`;
+                    if ('_or' in cond && Array.isArray(cond._or)) {
+                        return `_or: [${cond._or.map(renderWhere).join(", ")}]`;
                     }
                     if ('_not' in cond) {
-                        return `_not: {${renderWhere((cond as any)._not)}}`;
+                        return `_not: {${renderWhere(cond._not)}}`;
                     }
                     // Field operators (HasuraOperator or HasuraOperator[])
                     return Object.entries(cond)
@@ -282,12 +282,12 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             args.push(`limit: ${item.limit}`);
         if (item.order_by) {
             // Custom rendering for orderBy to avoid quotes around asc/desc
-            const renderOrderBy = (orderBy: any): string => {
+            const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | undefined): string => {
                 if (Array.isArray(orderBy)) {
                     return (
                         '[' + orderBy.map(renderOrderBy).join(', ') + ']'
                     );
-                } else if (typeof orderBy === 'object' && orderBy !== null) {
+                } else if (typeof orderBy === 'object' && orderBy !== undefined) {
                     return (
                         '{' + Object.entries(orderBy)
                             .map(([k, v]) => `${k}: ${String(v).toUpperCase()}`)

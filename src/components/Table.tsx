@@ -4,7 +4,7 @@ import { ColumnDefinition } from '../framework/column-definition';
 
 type TableProps = {
   columns: ColumnDefinition[];
-  data: Record<string, any>[];
+  data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
   noDataRowsComponent: React.ReactNode;
 };
 

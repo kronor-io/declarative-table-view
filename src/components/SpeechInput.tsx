@@ -8,16 +8,15 @@ interface SpeechInputProps {
 
 function SpeechInput({ value, onChange }: SpeechInputProps) {
     const [isListening, setIsListening] = useState(false);
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
 
     useEffect(() => {
         if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = 'en-US';
-        recognitionRef.current.onresult = (event: any) => {
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
             const transcript = event.results[0][0].transcript;
             onChange(transcript);
             setIsListening(false);
