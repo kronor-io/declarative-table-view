@@ -1,54 +1,62 @@
-# React + TypeScript + Vite
+# Declarative Table View System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is a React + TypeScript monorepo for building schema-driven, declarative table views with advanced filtering, data fetching, and AI-assisted filter generation.
 
-Currently, two official plugins are available:
+## Project Overview
+- **Framework:** React, TypeScript, Vite
+- **Testing:** Jest (unit), Playwright (E2E)
+- **Core Domain:** Declarative, schema-driven table view system for filtering, displaying, and interacting with data collections.
+- **Key Directories:**
+  - `src/framework/`: Table/view schema, filter logic, state, and data fetching.
+  - `src/components/`: UI components, including filter forms, AI assistant, and table rendering.
+  - `src/views/`: View definitions, each exporting a `View` object with schema, columns, and query config.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Key Patterns & Conventions
+- **Filter Schema:** Filters are defined in `FilterFieldSchema` objects. Each filter requires an `aiGenerated: boolean` field. See `src/framework/filters.ts` for types and helpers.
+- **AI Integration:** The AI assistant (see `src/components/AIAssistantForm.tsx` and `src/components/aiAssistant.ts`) can generate filters, which must set `aiGenerated: true`.
+- **View Registration:** Each view (e.g., `paymentRequest.tsx`) exports a `View` object with a `filterSchema`, `columnDefinitions`, and a GraphQL query.
+- **Type Safety:** All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
 
-## Expanding the ESLint configuration
+## Integration & Data Flow
+- Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).
+- Views define their own GraphQL queries and filter schemas.
+- Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+### Install dependencies
+```sh
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
+Create a `.env.development` file in the project root to set environment variables for local development (e.g., API endpoints, feature flags, secrets).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+Example:
+```env
+VITE_GRAPHQL_HOST=https://your-graphql-host.example.com
+VITE_GRAPHQL_TOKEN=your-graphql-token-here
+VITE_GEMINI_API_KEY=your-gemini-api-key-here
 ```
+
+### Start development server
+```sh
+npm run dev
+```
+
+### Run unit tests
+```sh
+npm run test-unit
+```
+
+### Run E2E tests (Playwright)
+```sh
+npm test
+# or
+npm run test
+```
+
+## Examples
+- See `src/views/paymentRequest.tsx` for a full-featured view definition.
+- See `src/components/AIAssistantForm.tsx` for AI-driven filter generation.
+- See `src/framework/filters.ts` for filter schema/type definitions and utilities.
