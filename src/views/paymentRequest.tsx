@@ -98,7 +98,8 @@ const filterSchema: FilterFieldSchema = {
                     { label: 'Boozt Dev', value: 2 }
                 ]
             })),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Payment Provider',
@@ -114,7 +115,8 @@ const filterSchema: FilterFieldSchema = {
                     { label: 'Vipps', value: 'VIPPS' }
                 ]
             })),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Payment Status',
@@ -137,7 +139,8 @@ const filterSchema: FilterFieldSchema = {
                 ],
                 filterable: true
             })),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Reference',
@@ -165,9 +168,10 @@ const filterSchema: FilterFieldSchema = {
                     }
                 }
             ),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
-        { label: 'Payment ID', expression: Filter.equals('resultingPaymentId', Control.text()), group: 'default' },
+        { label: 'Payment ID', expression: Filter.equals('resultingPaymentId', Control.text()), group: 'default', aiGenerated: false },
         {
             label: 'Customer Email',
             expression: Filter.equals(
@@ -180,9 +184,10 @@ const filterSchema: FilterFieldSchema = {
                     valueControl: Control.text()
                 })
             ),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
-        { label: 'Customer Name', expression: Filter.iLike('customer.name', Control.text()), group: 'customer' },
+        { label: 'Customer Name', expression: Filter.iLike('customer.name', Control.text()), group: 'customer', aiGenerated: false },
         {
             label: 'Date Range',
             expression: Filter.and([
@@ -195,7 +200,8 @@ const filterSchema: FilterFieldSchema = {
                     Control.date({ placeholder: 'to', initialValue: new Date() })
                 )
             ]),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Reference 2',
@@ -223,7 +229,8 @@ const filterSchema: FilterFieldSchema = {
                     }
                 }
             ),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Amount',
@@ -236,7 +243,8 @@ const filterSchema: FilterFieldSchema = {
                         toQuery: (input: any) => input * 100
                     }
                 ),
-            group: 'additional'
+            group: 'additional',
+            aiGenerated: false
         },
         {
             label: 'Currency',
@@ -262,7 +270,8 @@ const filterSchema: FilterFieldSchema = {
                         }
                     )
                 ),
-            group: 'additional'
+            group: 'additional',
+            aiGenerated: false
         },
         {
             label: 'Refund Status',
@@ -273,12 +282,14 @@ const filterSchema: FilterFieldSchema = {
                     { label: 'Payments With No Refunds', value: 'NO_REFUND' }
                 ]
             })),
-            group: 'additional'
+            group: 'additional',
+            aiGenerated: false
         },
         {
             label: 'Device Fingerprint',
             expression: Filter.equals('customer.device.fingerprint', Control.text()),
-            group: 'additional'
+            group: 'additional',
+            aiGenerated: false
         },
         {
             label: 'Card Type',
@@ -298,7 +309,8 @@ const filterSchema: FilterFieldSchema = {
                     { label: 'Visa', value: 'visa' }
                 ]
             })),
-            group: 'credit-card'
+            group: 'credit-card',
+            aiGenerated: false
         },
         {
             label: 'Credit Card Number',
@@ -306,7 +318,8 @@ const filterSchema: FilterFieldSchema = {
                 toQuery: (input: any) => `%${input}%`,
                 fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
             }),
-            group: 'credit-card'
+            group: 'credit-card',
+            aiGenerated: false
         },
         {
             label: 'Customer Phone',
@@ -314,7 +327,8 @@ const filterSchema: FilterFieldSchema = {
                 'customer.packedPhoneNumber',
                 Control.custom(PhoneNumberFilter)
             ),
-            group: 'customer'
+            group: 'customer',
+            aiGenerated: false
         }
     ]
 };

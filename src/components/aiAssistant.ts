@@ -44,7 +44,8 @@ function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): object[] {
     return filterSchema.filters.map((field) => ({
         label: field.label,
         group: field.group,
-        expression: sanitizeFilterExpr(field.expression)
+        expression: sanitizeFilterExpr(field.expression),
+        aiGenerated: field.aiGenerated ?? false
     }));
 }
 

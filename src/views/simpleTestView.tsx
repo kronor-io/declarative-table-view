@@ -33,12 +33,14 @@ const filterSchema: FilterFieldSchema = {
         {
             label: 'Amount',
             expression: Filter.greaterThanOrEqual('amount', Control.number()),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         },
         {
             label: 'Test Field',
             expression: Filter.equals('testField', Control.text()),
-            group: 'extra'
+            group: 'extra',
+            aiGenerated: false
         }
     ]
 }; // No filters for this simple view

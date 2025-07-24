@@ -57,7 +57,8 @@ const filterSchema: FilterFieldSchema = {
         {
             label: 'Date',
             expression: Filter.range('createdAt', Control.date),
-            group: 'default'
+            group: 'default',
+            aiGenerated: false
         }
     ]
 };
