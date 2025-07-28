@@ -38,12 +38,12 @@ function SpeechInput({ value, onChange }: SpeechInputProps) {
     };
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
             <InputText
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder="Speak or type here..."
-                className="flex-1 min-w-6xl"
+                className="flex-1"
             />
             <button
                 type="button"

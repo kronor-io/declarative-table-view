@@ -29,7 +29,7 @@ export default function AIAssistantForm({
     return (
         <div className="flex flex-col gap-2 mb-3">
             <label className="text-sm font-semibold mb-1" htmlFor="ai-prompt">AI Prompt</label>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex gap-2">
                 <SpeechInput value={aiPrompt} onChange={setAiPrompt} />
                 <Button
                     type="button"
@@ -56,7 +56,7 @@ export default function AIAssistantForm({
                     value={aiFilterExprInput}
                     onChange={e => setAiFilterExprInput(e.target.value)}
                     placeholder="Describe filter in natural language..."
-                    className="flex-1 min-w-6xl"
+                    className="flex-1"
                 />
                 <Button
                     type="button"

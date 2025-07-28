@@ -202,7 +202,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
       )}
 
       {showAIAssistantForm && (
-        <div className="flex justify-center mb-6">
+        <div className="mb-6">
           <AIAssistantForm
             filterSchema={state.filterSchema}
             filterState={state.filterState}
