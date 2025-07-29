@@ -1,11 +1,12 @@
 import React from "react";
 import { Center } from "../components/LayoutHelpers";
 
-export type CellRendererProps = {
+export type CellRendererProps<TContext = unknown> = {
     data: Record<string, any>;
+    context?: TContext; // Optional context passed from the table
 };
 
-type CellRenderer = (props: CellRendererProps) => React.ReactNode;
+type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;
 
 export type OrderByConfig = {
     key: string; // data key to order by
@@ -41,10 +42,10 @@ export function queryConfigs(configs: QueryConfig[]): FieldQuery {
     return { type: 'queryConfigs', configs };
 }
 
-export type ColumnDefinition = {
+export type ColumnDefinition<CellRendererContext = unknown> = {
     data: FieldQuery[];
     name: string; // column display name
-    cellRenderer: CellRenderer;
+    cellRenderer: CellRenderer<CellRendererContext>;
 };
 
 // Default function: returns the only value in the object

@@ -11,11 +11,11 @@ export type NoRowsComponentProps = {
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
 
-export type View = {
+export type View<CellRendererContext = unknown> = {
     title: string;
     routeName: string;
     collectionName: string;
-    columnDefinitions: ColumnDefinition[];
+    columnDefinitions: ColumnDefinition<CellRendererContext>[];
     filterSchema: FilterFieldSchema;
     query: string;
     paginationKey: string; // Field to use for cursor-based pagination

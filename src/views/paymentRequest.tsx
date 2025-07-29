@@ -9,12 +9,20 @@ import { PaymentStatusTag } from '../components/PaymentStatusTag';
 import { PhoneNumberFilter } from "../components/PhoneNumberFilter";
 import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
 
-const columnDefinitions: ColumnDefinition[] = [
+interface KronorPortalContext {
+    portalHost: string
+}
+
+const columnDefinitions: ColumnDefinition<KronorPortalContext>[] = [
     {
         data: ['transactionId', 'waitToken'].map(field),
         name: 'Transaction',
-        cellRenderer: ({ data: { transactionId, waitToken } }) =>
-            <a className="underline" href={`/${waitToken}`}>{transactionId}</a>
+        cellRenderer: ({ data: { transactionId, waitToken }, context }) => {
+            const url = context?.portalHost
+                ? new URL(`/portal/payment-requests/${waitToken}`, context.portalHost).toString()
+                : `/portal/payment-requests/${waitToken}`;
+            return <a className="underline" href={url}>{transactionId}</a>;
+        }
     },
     {
         data: ['merchantId'].map(field),
@@ -335,7 +343,7 @@ const filterSchema: FilterFieldSchema = {
 
 const collectionName = 'paymentRequests';
 
-const PaymentRequestView: View = {
+const PaymentRequestView: View<KronorPortalContext> = {
     title: 'Payment Requests',
     routeName: 'payment-requests',
     collectionName,
@@ -343,7 +351,7 @@ const PaymentRequestView: View = {
     filterSchema,
     query: generateGraphQLQuery(
         collectionName,
-        columnDefinitions,
+        columnDefinitions as ColumnDefinition[],
         "PaymentRequestBoolExp",
         "[PaymentRequestOrderBy!]"
     ),

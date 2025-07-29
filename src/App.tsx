@@ -15,6 +15,7 @@ import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
 import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
+import { View } from './framework/view';
 
 interface AppProps {
   graphqlHost: string;
@@ -23,11 +24,12 @@ interface AppProps {
   showViewsMenu: boolean;
   rowsPerPage?: number;
   showViewTitle: boolean; // Option to show/hide view title
+  cellRendererContext?: unknown; // Context passed to all cell renderers
 }
 
-const views = [PaymentRequestView, RequestLogView, SimpleTestView];
+const views = [PaymentRequestView, RequestLogView, SimpleTestView] as const;
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext }: AppProps) {
 
   const client = useMemo(() => new GraphQLClient(graphqlHost, {
     headers: {
@@ -43,7 +45,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     setFilterSchema,
     setFilterState,
     setDataRows
-  } = useAppState(views);
+  } = useAppState(views as unknown as View[]);
 
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [search, setSearch] = useState('');
@@ -230,6 +232,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
       <Table
         columns={selectedView.columnDefinitions}
         data={state.data.flattenedRows}
+        cellRendererContext={cellRendererContext}
         noDataRowsComponent={
           selectedView.noRowsComponent
             ? selectedView.noRowsComponent({

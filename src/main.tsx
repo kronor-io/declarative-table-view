@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { PrimeReactProvider } from 'primereact/api';
 
 export interface RenderTableViewOptions {
   graphqlHost: string;
@@ -9,6 +10,7 @@ export interface RenderTableViewOptions {
   geminiApiKey: string;
   showViewsMenu?: boolean; // Controls whether the views menu is shown
   showViewTitle?: boolean; // Option to show/hide view title
+  cellRendererContext?: unknown; // Context passed to all cell renderers
 }
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
@@ -17,13 +19,16 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
 
   createRoot(reactContainer).render(
     <StrictMode>
-      <App
-        graphqlHost={options.graphqlHost}
-        graphqlToken={options.graphqlToken}
-        geminiApiKey={options.geminiApiKey}
-        showViewsMenu={options.showViewsMenu ?? false}
-        showViewTitle={options.showViewTitle ?? false}
-      />
+      <PrimeReactProvider value={{}}>
+        <App
+          graphqlHost={options.graphqlHost}
+          graphqlToken={options.graphqlToken}
+          geminiApiKey={options.geminiApiKey}
+          showViewsMenu={options.showViewsMenu ?? false}
+          showViewTitle={options.showViewTitle ?? false}
+          cellRendererContext={options.cellRendererContext}
+        />
+      </PrimeReactProvider>
     </StrictMode>
   );
 }
@@ -40,6 +45,7 @@ if (import.meta.env.DEV) {
       graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
       graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
       geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
+      cellRendererContext: { /* example context object */ }
     });
   }
 }
