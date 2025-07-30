@@ -26,7 +26,7 @@ export async function mockPaginationGraphQL(route: Route) {
         orderDir = order[orderKey];
     }
     // Sort allRows according to orderBy
-    let sortedRows = allRows.slice();
+    const sortedRows = allRows.slice();
     sortedRows.sort((a, b) => {
         if (a[orderKey] < b[orderKey]) return orderDir === 'ASC' ? -1 : 1;
         if (a[orderKey] > b[orderKey]) return orderDir === 'ASC' ? 1 : -1;

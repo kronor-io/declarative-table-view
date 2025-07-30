@@ -34,7 +34,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
 }
 
 // Make renderTableView available globally
-// @ts-ignore
+// @ts-expect-error Adding renderTableView to window object for global access
 window.renderTableView = renderTableView;
 
 // In development, auto-mount for hot reload if #root exists

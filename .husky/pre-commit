@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# test
+# Run linting first
+npm run lint
 
+# Run tests if linting passes
 npm test && npm run test-unit

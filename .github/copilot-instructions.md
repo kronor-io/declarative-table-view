@@ -15,12 +15,23 @@
 - **Type Safety**: All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
 - **Cell Renderers**: All cell renderers receive `setFilterState` as a required prop, allowing them to programmatically update filter state when users interact with table cells.
 
-## Testing
+## Testing & Code Quality
 - **Unit Tests**: Run with `npm run test-unit` (Jest)
 - **E2E Tests**: Run with `npm test` or `npm run test` (Playwright)
+- **Linting**: Run with `npm run lint` (ESLint with TypeScript)
 - E2E test files are located in `e2e/` directory
 - Unit test files use `.test.ts` or `.test.tsx` extensions
 - The file `COPILOT_TEST_COMMAND.txt` in the repo root also specifies the canonical unit test command for AI tools.
+
+### Linting & Code Standards
+- ESLint is configured with TypeScript, React hooks, and React refresh rules
+- Pre-commit hooks automatically run linting and tests before commits
+- CI pipeline runs linting, unit tests, and E2E tests on push/PR
+- Key rules:
+  - `@typescript-eslint/no-explicit-any` is disabled to allow `any` types when needed
+  - Use `@ts-expect-error` with descriptive comments instead of `@ts-ignore`
+  - React Hook dependency warnings can be suppressed with `// eslint-disable-next-line react-hooks/exhaustive-deps` when intentional
+  - Fast refresh warnings are acceptable (non-blocking) for files that export both components and utilities
 
 ## Integration & Data Flow
 - Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).

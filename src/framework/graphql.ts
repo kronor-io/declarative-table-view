@@ -265,11 +265,11 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
                             } else if (typeof op === 'object' && op !== null) {
                                 // Single HasuraOperator
                                 return `${field}: {${Object.entries(op)
-                                    .map(([k, v]) => `${k}: ${typeof v === 'string' ? `\"${v}\"` : JSON.stringify(v)}`)
+                                    .map(([k, v]) => `${k}: ${typeof v === 'string' ? `"${v}"` : JSON.stringify(v)}`)
                                     .join(", ")}}`;
                             } else {
                                 // Primitive value (should not happen for HasuraOperator, but fallback)
-                                return `${field}: ${typeof op === 'string' ? `\"${op}\"` : JSON.stringify(op)}`;
+                                return `${field}: ${typeof op === 'string' ? `"${op}"` : JSON.stringify(op)}`;
                             }
                         })
                         .join(", ");

@@ -141,7 +141,7 @@ export default function AIAssistantForm({
                                 if (!response.ok) throw new Error('Gemini API error');
                                 const data = await response.json();
                                 aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                            } catch (err) {
+                            } catch {
                                 alert('Failed to get response from Gemini API.');
                                 setAiLoading(false);
                                 return;

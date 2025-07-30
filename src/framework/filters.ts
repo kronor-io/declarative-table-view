@@ -186,7 +186,7 @@ export function filterExprFromJSON(json: any): FilterExpr | null {
         case 'notIn':
         case 'like':
         case 'iLike':
-        case 'isNull':
+        case 'isNull': {
             // Only support basic FilterControl types (text, number, date, dropdown, multiselect)
             if (!json.key || !json.value || typeof json.value !== 'object' || !json.value.type) return null;
             const allowedTypes = ['text', 'number', 'date', 'dropdown', 'multiselect'];
@@ -196,16 +196,19 @@ export function filterExprFromJSON(json: any): FilterExpr | null {
                 key: json.key,
                 value: json.value
             } as FilterExpr;
+        }
         case 'and':
-        case 'or':
+        case 'or': {
             if (!Array.isArray(json.filters)) return null;
             const children = json.filters.map(filterExprFromJSON).filter(Boolean) as FilterExpr[];
             return { type: json.type, filters: children };
-        case 'not':
+        }
+        case 'not': {
             if (!json.filter) return null;
             const child = filterExprFromJSON(json.filter);
             if (!child) return null;
             return { type: 'not', filter: child };
+        }
         default:
             return null;
     }

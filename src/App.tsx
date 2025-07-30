@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import PaymentRequestView from './views/paymentRequest';
@@ -82,7 +82,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     setSavedFilters(updatedFilters);
   };
 
-  const fetchDataWrapper = (cursor: string | number | null): Promise<FetchDataResult> => {
+  const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
     return fetchData({
       client,
       view: selectedView,
@@ -90,11 +90,12 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
       rows: rowsPerPage,
       cursor
     });
-  }
+  }, [client, selectedView, state.filterState, rowsPerPage]);
 
   // Fetch data when view changes
   useEffect(() => {
     fetchDataWrapper(null).then(dataRows => setDataRows(dataRows));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.selectedViewIndex]);
 
   // When view changes, reset filter state and clear data
