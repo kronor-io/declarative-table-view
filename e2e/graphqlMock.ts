@@ -5,7 +5,8 @@ import { Route } from '@playwright/test';
 const allRows = Array.from({ length: 30 }, (_, i) => ({
     id: i + 1,
     testField: `Test ${i + 1}`,
-    amount: (i + 1) * 10
+    amount: (i + 1) * 10,
+    email: `user${i + 1}@example.com`
 }));
 
 export async function mockPaginationGraphQL(route: Route) {
@@ -52,10 +53,10 @@ export async function mockPaginationGraphQL(route: Route) {
         }
         return undefined;
     }
-    // Apply additional filters (e.g. by amount)
+    // Apply additional filters (e.g. by amount, email)
     function applyFilters(rows: typeof allRows, conditions: any): typeof allRows {
         if (!conditions) return rows;
-        // Only handle simple _gte/_lte/_eq for 'amount' and 'id' for now
+        // Only handle simple _gte/_lte/_eq for 'amount', 'id', and 'email' for now
         return rows.filter(row => {
             let pass = true;
             if (conditions.amount) {
@@ -67,6 +68,9 @@ export async function mockPaginationGraphQL(route: Route) {
                 if (conditions.id._gte !== undefined) pass = pass && row.id >= conditions.id._gte;
                 if (conditions.id._lte !== undefined) pass = pass && row.id <= conditions.id._lte;
                 if (conditions.id._eq !== undefined) pass = pass && row.id === conditions.id._eq;
+            }
+            if (conditions.email) {
+                if (conditions.email._eq !== undefined) pass = pass && row.email === conditions.email._eq;
             }
             return pass;
         });

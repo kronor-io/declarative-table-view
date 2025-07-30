@@ -232,16 +232,11 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
       <Table
         columns={selectedView.columnDefinitions}
         data={state.data.flattenedRows}
+        noRowsComponent={selectedView.noRowsComponent}
         cellRendererContext={cellRendererContext}
-        noDataRowsComponent={
-          selectedView.noRowsComponent
-            ? selectedView.noRowsComponent({
-              filterState: state.filterState,
-              setFilterState,
-              fetchData: () => fetchDataWrapper(null).then(setDataRows)
-            })
-            : null
-        }
+        setFilterState={setFilterState}
+        filterState={state.filterState}
+        fetchData={() => fetchDataWrapper(null).then(setDataRows)}
       />
       {state.data.rows.length > 0 && (
         <TablePagination

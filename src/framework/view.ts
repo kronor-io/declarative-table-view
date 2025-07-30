@@ -4,7 +4,7 @@ import { FilterFieldSchema } from "./filters";
 import { FilterFormState } from "../components/FilterForm";
 
 export type NoRowsComponentProps = {
-    setFilterState: (state: FilterFormState[]) => void;
+    setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void;
     filterState: FilterFormState[];
     fetchData: () => void;
 };

@@ -1,9 +1,11 @@
 import React from "react";
 import { Center } from "../components/LayoutHelpers";
+import { FilterFormState } from "../components/FilterForm";
 
 export type CellRendererProps<TContext = unknown> = {
     data: Record<string, any>;
     context?: TContext; // Optional context passed from the table
+    setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
 };
 
 type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;

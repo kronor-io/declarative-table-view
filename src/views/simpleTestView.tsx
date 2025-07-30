@@ -7,6 +7,7 @@ export type SimpleTestData = {
     id: number;
     testField: string;
     amount: number;
+    email: string;
 };
 
 export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
@@ -19,6 +20,36 @@ export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
         data: ['amount'].map(field),
         name: 'Amount',
         cellRenderer: defaultCellRenderer,
+    },
+    {
+        data: ['email'].map(field),
+        name: 'Email',
+        cellRenderer: ({ data, setFilterState }) => {
+            const handleEmailClick = () => {
+                setFilterState(currentState =>
+                    currentState.map(filter => {
+                        // Find the email filter and update its value
+                        if (filter.type === 'leaf' && filter.key === 'email') {
+                            return {
+                                ...filter,
+                                value: data.email
+                            };
+                        }
+                        return filter;
+                    })
+                );
+            };
+
+            return (
+                <button
+                    className="text-blue-500 underline hover:text-blue-700 cursor-pointer"
+                    onClick={handleEmailClick}
+                    title={`Filter by email: ${data.email}`}
+                >
+                    {data.email}
+                </button>
+            );
+        }
     },
 ];
 
@@ -41,6 +72,12 @@ const filterSchema: FilterFieldSchema = {
             expression: Filter.equals('testField', Control.text()),
             group: 'extra',
             aiGenerated: false
+        },
+        {
+            label: 'Email',
+            expression: Filter.equals('email', Control.text()),
+            group: 'default',
+            aiGenerated: false
         }
     ]
 }; // No filters for this simple view
@@ -59,6 +96,7 @@ const SimpleTestView: View = {
                 id
                 testField
                 amount
+                email
             }
         }
     `,

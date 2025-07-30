@@ -13,13 +13,13 @@
 - **AI Integration**: The AI assistant (see `src/components/AIAssistantForm.tsx` and `src/components/aiAssistant.ts`) can generate filters, which must set `aiGenerated: true`.
 - **View Registration**: Each view (e.g., `paymentRequest.tsx`) exports a `View` object with a `filterSchema`, `columnDefinitions`, and a GraphQL query.
 - **Type Safety**: All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
-- **Test Command**: Run unit tests with:
+- **Cell Renderers**: All cell renderers receive `setFilterState` as a required prop, allowing them to programmatically update filter state when users interact with table cells.
 
-```
-npm run test-unit
-```
-
-- E2E tests use Playwright: `npm test` or `npm run test`.
+## Testing
+- **Unit Tests**: Run with `npm run test-unit` (Jest)
+- **E2E Tests**: Run with `npm test` or `npm run test` (Playwright)
+- E2E test files are located in `e2e/` directory
+- Unit test files use `.test.ts` or `.test.tsx` extensions
 - The file `COPILOT_TEST_COMMAND.txt` in the repo root also specifies the canonical unit test command for AI tools.
 
 ## Integration & Data Flow
@@ -31,7 +31,9 @@ npm run test-unit
 - Always update all usages of schema types when changing filter/view schema fields.
 - When adding new filters, ensure `aiGenerated` is set appropriately.
 - Use the helpers in `src/framework/filters.ts` for building filter expressions and controls.
+- All cell renderers must accept `setFilterState` as a required prop for programmatic filter updates.
 - For new E2E tests, add Playwright specs in `e2e/`.
+- For new unit tests, add Jest specs with `.test.ts` or `.test.tsx` extensions.
 
 ## Examples
 - See `src/views/paymentRequest.tsx` for a full-featured view definition.

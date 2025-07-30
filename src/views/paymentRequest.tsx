@@ -65,13 +65,37 @@ const columnDefinitions: ColumnDefinition<KronorPortalContext>[] = [
     {
         data: ['customer.name', 'customer.email'].map(field),
         name: 'Initiated By',
-        cellRenderer: ({ data }) =>
-            <Left>
-                <VStack align="start">
-                    <span className="font-bold">{data['customer.name']}</span>
-                    {data['customer.email']}
-                </VStack>
-            </Left>
+        cellRenderer: ({ data, setFilterState }) => {
+            const handleEmailClick = () => {
+                setFilterState(currentState =>
+                    currentState.map(filter => {
+                        // Find the customer email filter and update its value
+                        if (filter.type === 'leaf' && filter.key === 'customer.email') {
+                            return {
+                                ...filter,
+                                value: { operator: '_eq', value: data['customer.email'] }
+                            };
+                        }
+                        return filter;
+                    })
+                );
+            };
+
+            return (
+                <Left>
+                    <VStack align="start">
+                        <span className="font-bold">{data['customer.name']}</span>
+                        <button
+                            className="text-blue-500 underline hover:text-blue-700 cursor-pointer text-left"
+                            onClick={handleEmailClick}
+                            title={`Filter by email: ${data['customer.email']}`}
+                        >
+                            {data['customer.email']}
+                        </button>
+                    </VStack>
+                </Left>
+            );
+        }
     },
     {
         data: ['currentStatus'].map(field),
