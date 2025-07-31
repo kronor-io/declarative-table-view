@@ -24,6 +24,7 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       '@typescript-eslint/no-explicit-any': 'off',
+      'indent': ['error', 4, { 'SwitchCase': 1 }],
     },
   },
 )

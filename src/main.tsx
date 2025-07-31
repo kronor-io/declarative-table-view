@@ -14,23 +14,23 @@ export interface RenderTableViewOptions {
 }
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
-  const reactContainer = typeof target === 'string' ? document.getElementById(target) : target;
-  if (!reactContainer) throw new Error('Target element not found');
+    const reactContainer = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!reactContainer) throw new Error('Target element not found');
 
-  createRoot(reactContainer).render(
-    <StrictMode>
-      <PrimeReactProvider value={{}}>
-        <App
-          graphqlHost={options.graphqlHost}
-          graphqlToken={options.graphqlToken}
-          geminiApiKey={options.geminiApiKey}
-          showViewsMenu={options.showViewsMenu ?? false}
-          showViewTitle={options.showViewTitle ?? false}
-          cellRendererContext={options.cellRendererContext}
-        />
-      </PrimeReactProvider>
-    </StrictMode>
-  );
+    createRoot(reactContainer).render(
+        <StrictMode>
+            <PrimeReactProvider value={{}}>
+                <App
+                    graphqlHost={options.graphqlHost}
+                    graphqlToken={options.graphqlToken}
+                    geminiApiKey={options.geminiApiKey}
+                    showViewsMenu={options.showViewsMenu ?? false}
+                    showViewTitle={options.showViewTitle ?? false}
+                    cellRendererContext={options.cellRendererContext}
+                />
+            </PrimeReactProvider>
+        </StrictMode>
+    );
 }
 
 // Make renderTableView available globally
@@ -39,13 +39,13 @@ window.renderTableView = renderTableView;
 
 // In development, auto-mount for hot reload if #root exists
 if (import.meta.env.DEV) {
-  const rootEl = document.getElementById('root');
-  if (rootEl) {
-    renderTableView(rootEl, {
-      graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
-      graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
-      geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
-      cellRendererContext: { /* example context object */ }
-    });
-  }
+    const rootEl = document.getElementById('root');
+    if (rootEl) {
+        renderTableView(rootEl, {
+            graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
+            graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
+            geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
+            cellRendererContext: { /* example context object */ }
+        });
+    }
 }

@@ -3,9 +3,9 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  base: '/portal/static/assets/table-views',
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+    base: '/portal/static/assets/table-views',
+    plugins: [
+        react(),
+        tailwindcss(),
+    ],
 });
