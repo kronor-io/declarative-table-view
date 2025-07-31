@@ -18,13 +18,13 @@ import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
 import { View } from './framework/view';
 
 interface AppProps {
-  graphqlHost: string;
-  graphqlToken: string;
-  geminiApiKey: string;
-  showViewsMenu: boolean;
-  rowsPerPage?: number;
-  showViewTitle: boolean; // Option to show/hide view title
-  cellRendererContext?: unknown; // Context passed to all cell renderers
+    graphqlHost: string;
+    graphqlToken: string;
+    geminiApiKey: string;
+    showViewsMenu: boolean;
+    rowsPerPage?: number;
+    showViewTitle: boolean; // Option to show/hide view title
+    cellRendererContext?: unknown; // Context passed to all cell renderers
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView] as const;
@@ -95,7 +95,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     // Fetch data when view changes
     useEffect(() => {
         fetchDataWrapper(null).then(dataRows => setDataRows(dataRows));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedViewIndex]);
 
     // When view changes, reset filter state and clear data

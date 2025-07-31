@@ -5,12 +5,12 @@ import App from './App.tsx'
 import { PrimeReactProvider } from 'primereact/api';
 
 export interface RenderTableViewOptions {
-  graphqlHost: string;
-  graphqlToken: string;
-  geminiApiKey: string;
-  showViewsMenu?: boolean; // Controls whether the views menu is shown
-  showViewTitle?: boolean; // Option to show/hide view title
-  cellRendererContext?: unknown; // Context passed to all cell renderers
+    graphqlHost: string;
+    graphqlToken: string;
+    geminiApiKey: string;
+    showViewsMenu?: boolean; // Controls whether the views menu is shown
+    showViewTitle?: boolean; // Option to show/hide view title
+    cellRendererContext?: unknown; // Context passed to all cell renderers
 }
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
