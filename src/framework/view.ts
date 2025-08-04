@@ -21,3 +21,10 @@ export type View<CellRendererContext = unknown> = {
     paginationKey: string; // Field to use for cursor-based pagination
     noRowsComponent?: NoRowsComponent;
 };
+
+
+// JSON Schema types for view definitions
+// These types represent the serializable structure for views that can be stored in JSON
+
+export type { ColumnDefinitionJson, ViewJson } from './view-parser';
+export { parseColumnDefinitionJson } from './view-parser';

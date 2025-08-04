@@ -8,7 +8,7 @@ export type CellRendererProps<TContext = unknown> = {
     setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
 };
 
-type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;
+export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;
 
 export type OrderByConfig = {
     key: string; // data key to order by

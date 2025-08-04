@@ -1,13 +1,10 @@
-import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
-import { ColumnDefinition, field, defaultCellRenderer, queryConfigs } from "../framework/column-definition";
-import { generateGraphQLQuery } from "../framework/graphql";
-import { CurrencyAmount, DateTime, Left, Right, VStack } from "../components/LayoutHelpers";
-import { PaymentMethod } from "./PaymentMethod";
-import { View } from "../framework/view";
-import { Mapping } from "../components/Mapping";
-import { PaymentStatusTag } from '../components/PaymentStatusTag';
-import { PhoneNumberFilter } from "../components/PhoneNumberFilter";
-import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
+import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../../framework/filters";
+import { ColumnDefinition, field, queryConfigs } from "../../framework/column-definition";
+import { generateGraphQLQuery } from "../../framework/graphql";
+import { View } from "../../framework/view";
+import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
+import NoRowsExtendDateRange from "../NoRowsExtendDateRange";
+import { paymentRequestsRuntime } from "./runtime";
 
 interface KronorPortalContext {
     portalHost: string
@@ -17,39 +14,23 @@ const columnDefinitions: ColumnDefinition<KronorPortalContext>[] = [
     {
         data: ['transactionId', 'waitToken'].map(field),
         name: 'Transaction',
-        cellRenderer: ({ data: { transactionId, waitToken }, context }) => {
-            const url = context?.portalHost
-                ? new URL(`/portal/payment-requests/${waitToken}`, context.portalHost).toString()
-                : `/portal/payment-requests/${waitToken}`;
-            return <a className="underline" href={url}>{transactionId}</a>;
-        }
+        cellRenderer: paymentRequestsRuntime.cellRenderers.transaction
     },
     {
         data: ['merchantId'].map(field),
         name: 'Merchant',
-        cellRenderer: ({ data: { merchantId } }) =>
-            <Mapping value={merchantId} map={{ 1: 'Boozt', 2: 'Boozt Dev' }} />
+        cellRenderer: paymentRequestsRuntime.cellRenderers.merchant
     },
     {
         data: ['createdAt'].map(field),
         name: 'Placed At',
-        cellRenderer: ({ data: { createdAt } }) =>
-            <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />
+        cellRenderer: paymentRequestsRuntime.cellRenderers.placedAt
     },
-    { data: ['reference'].map(field), name: 'Reference', cellRenderer: defaultCellRenderer },
-    // { data: ['customer.device.fingerprint'].map(field), name: 'Fingerprint', cellRenderer: defaultCellRenderer },
-    // { data: ['payment.paymentRefundStatus'].map(field), name: 'Payment Refund Status', cellRenderer: defaultCellRenderer },
-    // {
-    //     data: [
-    //         queryConfigs([
-    //             { data: 'attempts', limit: 1, orderBy: { key: 'createdAt', direction: 'DESC' } },
-    //             { data: 'maskedCard' }
-    //         ])
-    //     ],
-    //     name: 'Provider',
-    //     cellRenderer: ({ data }) =>
-    //         data['attempts.maskedCard'][0]
-    // },
+    {
+        data: ['reference'].map(field),
+        name: 'Reference',
+        cellRenderer: paymentRequestsRuntime.cellRenderers.reference
+    },
     {
         data: [
             field('paymentProvider'),
@@ -59,56 +40,22 @@ const columnDefinitions: ColumnDefinition<KronorPortalContext>[] = [
             ])
         ],
         name: 'Provider',
-        cellRenderer: ({ data }) =>
-            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />
+        cellRenderer: paymentRequestsRuntime.cellRenderers.paymentProvider
     },
     {
         data: ['customer.name', 'customer.email'].map(field),
         name: 'Initiated By',
-        cellRenderer: ({ data, setFilterState }) => {
-            const handleEmailClick = () => {
-                setFilterState(currentState =>
-                    currentState.map(filter => {
-                        // Find the customer email filter and update its value
-                        if (filter.type === 'leaf' && filter.key === 'customer.email') {
-                            return {
-                                ...filter,
-                                value: { operator: '_eq', value: data['customer.email'] }
-                            };
-                        }
-                        return filter;
-                    })
-                );
-            };
-
-            return (
-                <Left>
-                    <VStack align="start">
-                        <span className="font-bold">{data['customer.name']}</span>
-                        <button
-                            className="text-blue-500 underline hover:text-blue-700 cursor-pointer text-left"
-                            onClick={handleEmailClick}
-                            title={`Filter by email: ${data['customer.email']}`}
-                        >
-                            {data['customer.email']}
-                        </button>
-                    </VStack>
-                </Left>
-            );
-        }
+        cellRenderer: paymentRequestsRuntime.cellRenderers.initiatedBy
     },
     {
         data: ['currentStatus'].map(field),
         name: 'Status',
-        cellRenderer: ({ data }) => <PaymentStatusTag status={data.currentStatus} />
+        cellRenderer: paymentRequestsRuntime.cellRenderers.status
     },
     {
         data: ['currency', 'amount'].map(field),
         name: 'Amount',
-        cellRenderer: ({ data: { currency, amount } }) =>
-            <Right>
-                <CurrencyAmount amount={Number(amount) / 100} currency={currency} />
-            </Right>
+        cellRenderer: paymentRequestsRuntime.cellRenderers.amount
     }
 ];
 

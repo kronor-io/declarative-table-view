@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
-import PaymentRequestView from './views/paymentRequest';
+import PaymentRequestView from './views/payment-requests/view';
 import RequestLogView from './views/requestLog';
 import SimpleTestView from './views/simpleTestView';
 import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';

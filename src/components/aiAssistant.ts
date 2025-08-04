@@ -103,7 +103,7 @@ function mergeStateByKey(emptyState: FilterFormState, aiState: any): FilterFormS
     return emptyState;
 }
 
-function mergeStateArrayByKey(emptyArr: FilterFormState[], aiArr: any[]): FilterFormState[] {
+function mergeStateArrayByKey(emptyArr: FilterFormState[], aiArr: unknown[]): FilterFormState[] {
     return emptyArr.map((emptyItem, i) => mergeStateByKey(emptyItem, aiArr?.[i]));
 }
 
