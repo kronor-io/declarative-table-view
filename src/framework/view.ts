@@ -27,4 +27,4 @@ export type View<CellRendererContext = unknown> = {
 // These types represent the serializable structure for views that can be stored in JSON
 
 export type { ColumnDefinitionJson, ViewJson } from './view-parser';
-export { parseColumnDefinitionJson } from './view-parser';
+export { parseColumnDefinitionJson, parseViewJson } from './view-parser';

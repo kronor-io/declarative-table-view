@@ -132,20 +132,7 @@ const filterSchema: FilterFieldSchema = {
                     ],
                     valueControl: Control.text()
                 }),
-                {
-                    fromQuery: (input: any) => {
-                        if (input.operator === '_like') {
-                            return { ...input, value: input.value.replace(/%$/, '') };
-                        }
-                        return input;
-                    },
-                    toQuery: (input: any) => {
-                        if (input.operator === '_like') {
-                            return { ...input, value: `${input.value}%` };
-                        }
-                        return input;
-                    }
-                }
+                paymentRequestsRuntime.queryTransforms.reference
             ),
             group: 'default',
             aiGenerated: false
@@ -193,20 +180,7 @@ const filterSchema: FilterFieldSchema = {
                     ],
                     valueControl: Control.text()
                 }),
-                {
-                    fromQuery: (input: any) => {
-                        if (input.operator === '_like') {
-                            return { ...input, value: input.value.replace(/%$/, '') };
-                        }
-                        return input;
-                    },
-                    toQuery: (input: any) => {
-                        if (input.operator === '_like') {
-                            return { ...input, value: `${input.value}%` };
-                        }
-                        return input;
-                    }
-                }
+                paymentRequestsRuntime.queryTransforms.reference
             ),
             group: 'default',
             aiGenerated: false
@@ -217,10 +191,7 @@ const filterSchema: FilterFieldSchema = {
                 Filter.range(
                     'amount',
                     Control.number,
-                    {
-                        fromQuery: (input: any) => input / 100,
-                        toQuery: (input: any) => input * 100
-                    }
+                    paymentRequestsRuntime.queryTransforms.amount
                 ),
             group: 'additional',
             aiGenerated: false
@@ -293,10 +264,7 @@ const filterSchema: FilterFieldSchema = {
         },
         {
             label: 'Credit Card Number',
-            expression: Filter.iLike('attempts.maskedCard', Control.text(), {
-                toQuery: (input: any) => `%${input}%`,
-                fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
-            }),
+            expression: Filter.iLike('attempts.maskedCard', Control.text(), paymentRequestsRuntime.queryTransforms.creditCardNumber),
             group: 'credit-card',
             aiGenerated: false
         },

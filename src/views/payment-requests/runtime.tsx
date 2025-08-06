@@ -6,6 +6,8 @@ import { PaymentMethod } from "../PaymentMethod";
 import { Mapping } from "../../components/Mapping";
 import { PaymentStatusTag } from '../../components/PaymentStatusTag';
 import { defaultCellRenderer } from "../../framework/column-definition";
+import { NoRowsComponent } from "../../framework/view";
+import NoRowsExtendDateRange from "../NoRowsExtendDateRange";
 
 interface KronorPortalContext {
     portalHost: string;
@@ -22,6 +24,23 @@ export type PaymentRequestsRuntime = {
         initiatedBy: CellRenderer<KronorPortalContext>;
         status: CellRenderer<KronorPortalContext>;
         amount: CellRenderer<KronorPortalContext>;
+    };
+    queryTransforms: {
+        reference: {
+            fromQuery: (input: any) => any;
+            toQuery: (input: any) => any;
+        };
+        amount: {
+            fromQuery: (input: any) => any;
+            toQuery: (input: any) => any;
+        };
+        creditCardNumber: {
+            fromQuery: (input: any) => any;
+            toQuery: (input: any) => any;
+        };
+    };
+    noRowsComponents: {
+        noRowsExtendDateRange: NoRowsComponent;
     };
 };
 
@@ -92,5 +111,41 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             <Right>
                 <CurrencyAmount amount={Number(amount) / 100} currency={currency} />
             </Right>
+    },
+
+    // Transform functions for filter values
+    queryTransforms: {
+        // Transform for Reference filter (starts with functionality)
+        reference: {
+            fromQuery: (input: any) => {
+                if (input.operator === '_like') {
+                    return { ...input, value: input.value.replace(/%$/, '') };
+                }
+                return input;
+            },
+            toQuery: (input: any) => {
+                if (input.operator === '_like') {
+                    return { ...input, value: `${input.value}%` };
+                }
+                return input;
+            }
+        },
+
+        // Transform for Amount filter (convert between display and storage format)
+        amount: {
+            fromQuery: (input: any) => input / 100,
+            toQuery: (input: any) => input * 100
+        },
+
+        // Transform for Credit Card Number filter (add wildcards)
+        creditCardNumber: {
+            toQuery: (input: any) => `%${input}%`,
+            fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
+        }
+    },
+
+    // No-rows components
+    noRowsComponents: {
+        noRowsExtendDateRange: NoRowsExtendDateRange
     }
 };

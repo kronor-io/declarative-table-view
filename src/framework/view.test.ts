@@ -1,4 +1,4 @@
-import { parseColumnDefinitionJson } from './view-parser';
+import { parseColumnDefinitionJson, parseFilterFieldSchemaJson, parseViewJson } from './view-parser';
 
 // Test runtime type
 type TestRuntime = {
@@ -473,6 +473,822 @@ describe('parseColumnDefinitionJson', () => {
                 cellRendererKey: 'name'
             });
             expect('extraProperty' in result).toBe(false);
+        });
+    });
+});
+
+describe('parseFilterFieldSchemaJson', () => {
+    // Test runtime type with query transforms
+    type FilterTestRuntime = {
+        queryTransforms: {
+            reference: {
+                fromQuery: (input: any) => any;
+                toQuery: (input: any) => any;
+            };
+            amount: {
+                fromQuery: (input: any) => any;
+                toQuery: (input: any) => any;
+            };
+            creditCard: {
+                fromQuery: (input: any) => any;
+                toQuery: (input: any) => any;
+            };
+        };
+    };
+
+    const testRuntime: FilterTestRuntime = {
+        queryTransforms: {
+            reference: {
+                fromQuery: (input: any) => input.replace(/%$/, ''),
+                toQuery: (input: any) => `${input}%`
+            },
+            amount: {
+                fromQuery: (input: any) => input / 100,
+                toQuery: (input: any) => input * 100
+            },
+            creditCard: {
+                fromQuery: (input: any) => input.replace(/%/g, ''),
+                toQuery: (input: any) => `%${input}%`
+            }
+        }
+    };
+
+    describe('successful parsing', () => {
+        it('should parse valid FilterFieldSchema with basic filters', () => {
+            const json = {
+                groups: [
+                    { name: 'default', label: null },
+                    { name: 'advanced', label: 'Advanced Filters' }
+                ],
+                filters: [
+                    {
+                        label: 'Name',
+                        expression: {
+                            type: 'equals',
+                            key: 'name',
+                            value: { type: 'text' }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    },
+                    {
+                        label: 'Status',
+                        expression: {
+                            type: 'in',
+                            key: 'status',
+                            value: {
+                                type: 'multiselect',
+                                items: [
+                                    { label: 'Active', value: 'active' },
+                                    { label: 'Inactive', value: 'inactive' }
+                                ]
+                            }
+                        },
+                        group: 'advanced',
+                        aiGenerated: true
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime);
+
+            expect(result.groups).toHaveLength(2);
+            expect(result.groups[0]).toEqual({ name: 'default', label: null });
+            expect(result.groups[1]).toEqual({ name: 'advanced', label: 'Advanced Filters' });
+
+            expect(result.filters).toHaveLength(2);
+            expect(result.filters[0]).toEqual({
+                label: 'Name',
+                expression: {
+                    type: 'equals',
+                    key: 'name',
+                    value: { type: 'text' }
+                },
+                group: 'default',
+                aiGenerated: false
+            });
+            expect(result.filters[1].label).toBe('Status');
+            expect(result.filters[1].expression.type).toBe('in');
+            expect(result.filters[1].aiGenerated).toBe(true);
+        });
+
+        it('should parse filters with transform keys', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Reference',
+                        expression: {
+                            type: 'equals',
+                            key: 'reference',
+                            value: { type: 'text' },
+                            transformKey: 'reference'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    },
+                    {
+                        label: 'Amount',
+                        expression: {
+                            type: 'greaterThan',
+                            key: 'amount',
+                            value: { type: 'number' },
+                            transformKey: 'amount'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime);
+
+            expect(result.filters).toHaveLength(2);
+
+            // Check that transforms are resolved
+            const referenceFilter = result.filters[0];
+            expect(referenceFilter.label).toBe('Reference');
+            expect('transform' in referenceFilter.expression).toBe(true);
+            expect((referenceFilter.expression as any).transform).toBe(testRuntime.queryTransforms.reference);
+
+            const amountFilter = result.filters[1];
+            expect(amountFilter.label).toBe('Amount');
+            expect('transform' in amountFilter.expression).toBe(true);
+            expect((amountFilter.expression as any).transform).toBe(testRuntime.queryTransforms.amount);
+        });
+
+        it('should parse complex expressions with and/or/not', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Complex Filter',
+                        expression: {
+                            type: 'and',
+                            filters: [
+                                {
+                                    type: 'equals',
+                                    key: 'status',
+                                    value: { type: 'text' }
+                                },
+                                {
+                                    type: 'or',
+                                    filters: [
+                                        {
+                                            type: 'greaterThan',
+                                            key: 'amount',
+                                            value: { type: 'number' },
+                                            transformKey: 'amount'
+                                        },
+                                        {
+                                            type: 'not',
+                                            filter: {
+                                                type: 'equals',
+                                                key: 'disabled',
+                                                value: { type: 'text' }
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.expression.type).toBe('and');
+
+            const andExpr = filter.expression as any;
+            expect(andExpr.filters).toHaveLength(2);
+            expect(andExpr.filters[0].type).toBe('equals');
+            expect(andExpr.filters[1].type).toBe('or');
+
+            const orExpr = andExpr.filters[1];
+            expect(orExpr.filters).toHaveLength(2);
+            expect(orExpr.filters[0].type).toBe('greaterThan');
+            expect('transform' in orExpr.filters[0]).toBe(true);
+            expect(orExpr.filters[1].type).toBe('not');
+        });
+
+        it('should parse filters with customOperator controls', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Search',
+                        expression: {
+                            type: 'equals',
+                            key: 'search',
+                            value: {
+                                type: 'customOperator',
+                                operators: [
+                                    { label: 'equals', value: '_eq' },
+                                    { label: 'starts with', value: '_like' }
+                                ],
+                                valueControl: { type: 'text' }
+                            },
+                            transformKey: 'reference'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.expression.type).toBe('equals');
+            expect((filter.expression as any).value.type).toBe('customOperator');
+            expect('transform' in filter.expression).toBe(true);
+        });
+    });
+
+    describe('error handling', () => {
+        it('should throw error for invalid JSON structure', () => {
+            expect(() => parseFilterFieldSchemaJson(null, testRuntime))
+                .toThrow('Invalid FilterFieldSchema: Expected an object');
+
+            expect(() => parseFilterFieldSchemaJson([], testRuntime))
+                .toThrow('Invalid FilterFieldSchema: Expected an object');
+
+            expect(() => parseFilterFieldSchemaJson('string', testRuntime))
+                .toThrow('Invalid FilterFieldSchema: Expected an object');
+        });
+
+        it('should throw error for missing or invalid groups', () => {
+            expect(() => parseFilterFieldSchemaJson({ filters: [] }, testRuntime))
+                .toThrow('Invalid FilterFieldSchema: "groups" must be an array');
+
+            expect(() => parseFilterFieldSchemaJson({ groups: 'not-array', filters: [] }, testRuntime))
+                .toThrow('Invalid FilterFieldSchema: "groups" must be an array');
+        });
+
+        it('should throw error for invalid group structure', () => {
+            const invalidGroup = {
+                groups: [{ label: 'Missing name' }],
+                filters: []
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidGroup, testRuntime))
+                .toThrow('Invalid group[0]: "name" must be a string');
+
+            const invalidGroupLabel = {
+                groups: [{ name: 'test', label: 123 }],
+                filters: []
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidGroupLabel, testRuntime))
+                .toThrow('Invalid group[0]: "label" must be a string or null');
+        });
+
+        it('should throw error for missing or invalid filters', () => {
+            expect(() => parseFilterFieldSchemaJson({ groups: [] }, testRuntime))
+                .toThrow('Invalid FilterFieldSchema: "filters" must be an array');
+
+            expect(() => parseFilterFieldSchemaJson({ groups: [], filters: 'not-array' }, testRuntime))
+                .toThrow('Invalid FilterFieldSchema: "filters" must be an array');
+        });
+
+        it('should throw error for invalid filter structure', () => {
+            const invalidFilter = {
+                groups: [{ name: 'default', label: null }],
+                filters: [{ expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidFilter, testRuntime))
+                .toThrow('Invalid filter[0]: "label" must be a string');
+
+            const missingGroup = {
+                groups: [{ name: 'default', label: null }],
+                filters: [{ label: 'Test', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(missingGroup, testRuntime))
+                .toThrow('Invalid filter[0]: "group" must be a string');
+
+            const missingAiGenerated = {
+                groups: [{ name: 'default', label: null }],
+                filters: [{ label: 'Test', group: 'default', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(missingAiGenerated, testRuntime))
+                .toThrow('Invalid filter[0]: "aiGenerated" must be a boolean');
+        });
+
+        it('should throw error for missing expression', () => {
+            const missingExpression = {
+                groups: [{ name: 'default', label: null }],
+                filters: [{ label: 'Test', group: 'default', aiGenerated: false }]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(missingExpression, testRuntime))
+                .toThrow('Invalid filter[0]: "expression" is required');
+        });
+
+        it('should throw error for invalid transform key', () => {
+            const invalidTransformKey = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'equals',
+                            key: 'test',
+                            value: { type: 'text' },
+                            transformKey: 'nonExistentTransform'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidTransformKey, testRuntime))
+                .toThrow('Invalid transformKey: "nonExistentTransform". Valid keys are: reference, amount, creditCard');
+        });
+
+        it('should throw error for invalid expression structure', () => {
+            const invalidExpression = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'invalidType',
+                            key: 'test',
+                            value: { type: 'text' }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidExpression, testRuntime))
+                .toThrow('Invalid FilterExpr type: "invalidType"');
+        });
+
+        it('should throw error for invalid composite expression', () => {
+            const invalidAnd = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'and',
+                            filters: 'not-array'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidAnd, testRuntime))
+                .toThrow('Invalid and FilterExpr: "filters" must be an array');
+
+            const invalidNot = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'not',
+                            filter: 'not-object'
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidNot, testRuntime))
+                .toThrow('Invalid not FilterExpr: "filter" must be an object');
+        });
+    });
+});
+
+describe('parseViewJson', () => {
+    const mockNoRowsComponent = () => null;
+
+    const testRuntime = {
+        cellRenderers: {
+            text: () => 'text-renderer',
+            number: () => 'number-renderer',
+            custom: () => 'custom-renderer'
+        },
+        queryTransforms: {
+            reference: {
+                fromQuery: (input: any) => input.replace(/%$/, ''),
+                toQuery: (input: any) => `${input}%`
+            },
+            amount: {
+                fromQuery: (input: any) => input / 100,
+                toQuery: (input: any) => input * 100
+            },
+            creditCardNumber: {
+                fromQuery: (input: any) => input.replace(/%/g, ''),
+                toQuery: (input: any) => `%${input}%`
+            }
+        },
+        noRowsComponents: {
+            noRowsExtendDateRange: mockNoRowsComponent
+        }
+    };
+
+    describe('successful parsing', () => {
+        it('should parse valid ViewJson with all required fields', () => {
+            const validJson = {
+                title: 'Test View',
+                routeName: 'test-view',
+                collectionName: 'testCollection',
+                paginationKey: 'createdAt',
+                query: 'query TestQuery { test }',
+                columns: [
+                    {
+                        data: [{ type: 'field', path: 'id' }],
+                        name: 'ID',
+                        cellRendererKey: 'text'
+                    }
+                ],
+                filterSchema: {
+                    groups: [{ name: 'default', label: null }],
+                    filters: [
+                        {
+                            label: 'Test Filter',
+                            expression: {
+                                type: 'equals',
+                                key: 'test',
+                                value: { type: 'text' }
+                            },
+                            group: 'default',
+                            aiGenerated: false
+                        }
+                    ]
+                }
+            };
+
+            const result = parseViewJson(validJson, testRuntime);
+
+            expect(result.title).toBe('Test View');
+            expect(result.routeName).toBe('test-view');
+            expect(result.collectionName).toBe('testCollection');
+            expect(result.paginationKey).toBe('createdAt');
+            expect(result.query).toBe('query TestQuery { test }');
+            expect(result.columnDefinitions).toHaveLength(1);
+            expect(result.filterSchema.groups).toHaveLength(1);
+            expect(result.filterSchema.filters).toHaveLength(1);
+            expect(result.noRowsComponent).toBeUndefined();
+        });
+
+        it('should parse ViewJson with noRowsComponent', () => {
+            const validJson = {
+                title: 'Test View',
+                routeName: 'test-view',
+                collectionName: 'testCollection',
+                paginationKey: 'createdAt',
+                query: 'query TestQuery { test }',
+                noRowsComponent: 'noRowsExtendDateRange',
+                columns: [
+                    {
+                        data: [{ type: 'field', path: 'id' }],
+                        name: 'ID',
+                        cellRendererKey: 'text'
+                    }
+                ],
+                filterSchema: {
+                    groups: [{ name: 'default', label: null }],
+                    filters: []
+                }
+            };
+
+            const result = parseViewJson(validJson, testRuntime);
+
+            expect(result.noRowsComponent).toBe(mockNoRowsComponent);
+        });
+
+        it('should parse ViewJson with multiple columns and complex filters', () => {
+            const complexJson = {
+                title: 'Complex View',
+                routeName: 'complex-view',
+                collectionName: 'complexCollection',
+                paginationKey: 'updatedAt',
+                query: 'query ComplexQuery { complex { id name } }',
+                columns: [
+                    {
+                        data: [{ type: 'field', path: 'id' }],
+                        name: 'ID',
+                        cellRendererKey: 'text'
+                    },
+                    {
+                        data: [
+                            { type: 'field', path: 'amount' },
+                            {
+                                type: 'queryConfigs',
+                                configs: [
+                                    { field: 'currency', limit: 1 }
+                                ]
+                            }
+                        ],
+                        name: 'Amount',
+                        cellRendererKey: 'number'
+                    }
+                ],
+                filterSchema: {
+                    groups: [
+                        { name: 'default', label: null },
+                        { name: 'advanced', label: 'Advanced Filters' }
+                    ],
+                    filters: [
+                        {
+                            label: 'Reference',
+                            expression: {
+                                type: 'equals',
+                                key: 'reference',
+                                value: { type: 'text' },
+                                transformKey: 'reference'
+                            },
+                            group: 'default',
+                            aiGenerated: false
+                        },
+                        {
+                            label: 'Complex Filter',
+                            expression: {
+                                type: 'and',
+                                filters: [
+                                    {
+                                        type: 'greaterThan',
+                                        key: 'amount',
+                                        value: { type: 'number' }
+                                    },
+                                    {
+                                        type: 'in',
+                                        key: 'status',
+                                        value: {
+                                            type: 'multiselect',
+                                            config: {
+                                                items: [
+                                                    { label: 'Active', value: 'active' },
+                                                    { label: 'Inactive', value: 'inactive' }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            group: 'advanced',
+                            aiGenerated: true
+                        }
+                    ]
+                }
+            };
+
+            const result = parseViewJson(complexJson, testRuntime);
+
+            expect(result.columnDefinitions).toHaveLength(2);
+            expect(result.filterSchema.groups).toHaveLength(2);
+            expect(result.filterSchema.filters).toHaveLength(2);
+            expect(result.filterSchema.filters[0].expression.type).toBe('equals');
+            expect(result.filterSchema.filters[1].expression.type).toBe('and');
+            expect(result.filterSchema.filters[1].aiGenerated).toBe(true);
+        });
+    });
+
+    describe('error handling', () => {
+        it('should throw error for invalid JSON structure', () => {
+            expect(() => parseViewJson(null, testRuntime))
+                .toThrow('View JSON must be a non-null object');
+
+            expect(() => parseViewJson([], testRuntime))
+                .toThrow('View JSON must be a non-null object');
+
+            expect(() => parseViewJson('string', testRuntime))
+                .toThrow('View JSON must be a non-null object');
+
+            expect(() => parseViewJson(123, testRuntime))
+                .toThrow('View JSON must be a non-null object');
+        });
+
+        it('should throw error for missing or invalid title', () => {
+            const noTitle = {
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noTitle, testRuntime))
+                .toThrow('View "title" must be a string');
+
+            const invalidTitle = { ...noTitle, title: 123 };
+            expect(() => parseViewJson(invalidTitle, testRuntime))
+                .toThrow('View "title" must be a string');
+        });
+
+        it('should throw error for missing or invalid routeName', () => {
+            const noRouteName = {
+                title: 'Test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noRouteName, testRuntime))
+                .toThrow('View "routeName" must be a string');
+
+            const invalidRouteName = { ...noRouteName, routeName: null };
+            expect(() => parseViewJson(invalidRouteName, testRuntime))
+                .toThrow('View "routeName" must be a string');
+        });
+
+        it('should throw error for missing or invalid collectionName', () => {
+            const noCollectionName = {
+                title: 'Test',
+                routeName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noCollectionName, testRuntime))
+                .toThrow('View "collectionName" must be a string');
+
+            const invalidCollectionName = { ...noCollectionName, collectionName: {} };
+            expect(() => parseViewJson(invalidCollectionName, testRuntime))
+                .toThrow('View "collectionName" must be a string');
+        });
+
+        it('should throw error for missing or invalid paginationKey', () => {
+            const noPaginationKey = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noPaginationKey, testRuntime))
+                .toThrow('View "paginationKey" must be a string');
+
+            const invalidPaginationKey = { ...noPaginationKey, paginationKey: [] };
+            expect(() => parseViewJson(invalidPaginationKey, testRuntime))
+                .toThrow('View "paginationKey" must be a string');
+        });
+
+        it('should throw error for missing or invalid query', () => {
+            const noQuery = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noQuery, testRuntime))
+                .toThrow('View "query" must be a string');
+
+            const invalidQuery = { ...noQuery, query: 123 };
+            expect(() => parseViewJson(invalidQuery, testRuntime))
+                .toThrow('View "query" must be a string');
+        });
+
+        it('should throw error for missing or invalid columns', () => {
+            const noColumns = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noColumns, testRuntime))
+                .toThrow('View "columns" must be an array');
+
+            const invalidColumns = { ...noColumns, columns: 'not-array' };
+            expect(() => parseViewJson(invalidColumns, testRuntime))
+                .toThrow('View "columns" must be an array');
+        });
+
+        it('should throw error for missing filterSchema', () => {
+            const noFilterSchema = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: []
+            };
+
+            expect(() => parseViewJson(noFilterSchema, testRuntime))
+                .toThrow('View "filterSchema" is required');
+        });
+
+        it('should throw error for invalid column in columns array', () => {
+            const invalidColumn = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [
+                    {
+                        data: [],
+                        name: 'Test',
+                        cellRendererKey: 'nonexistent'
+                    }
+                ],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(invalidColumn, testRuntime))
+                .toThrow('Invalid column[0]:');
+        });
+
+        it('should throw error for invalid filterSchema', () => {
+            const invalidFilterSchema = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: {
+                    groups: 'not-array',
+                    filters: []
+                }
+            };
+
+            expect(() => parseViewJson(invalidFilterSchema, testRuntime))
+                .toThrow('Invalid filterSchema:');
+        });
+
+        it('should throw error for invalid noRowsComponent', () => {
+            const invalidNoRowsComponent = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                noRowsComponent: 123
+            };
+
+            expect(() => parseViewJson(invalidNoRowsComponent, testRuntime))
+                .toThrow('View "noRowsComponent" must be a string');
+        });
+
+        it('should throw error for missing noRowsComponent in runtime', () => {
+            const missingNoRowsComponent = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                noRowsComponent: 'nonexistent'
+            };
+
+            expect(() => parseViewJson(missingNoRowsComponent, testRuntime))
+                .toThrow('No-rows component "nonexistent" not found in runtime.noRowsComponents');
+        });
+
+        it('should throw error when runtime has no noRowsComponents', () => {
+            const runtimeWithoutNoRows = {
+                ...testRuntime,
+                noRowsComponents: undefined
+            };
+
+            const withNoRowsComponent = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                query: 'query',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                noRowsComponent: 'anything'
+            };
+
+            expect(() => parseViewJson(withNoRowsComponent, runtimeWithoutNoRows))
+                .toThrow('No-rows component "anything" not found in runtime.noRowsComponents');
         });
     });
 });

@@ -2,12 +2,49 @@
 // Separated from view.ts to avoid React import issues in tests
 
 import type { CellRenderer, FieldQuery, QueryConfig, OrderByConfig, Field, QueryConfigs } from './column-definition';
+import type { FilterControl, FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
+import { View } from './view';
 
 // JSON Schema types - these are just aliases since the original types are already JSON-friendly
 export type FieldJson = Field;
 export type QueryConfigJson = QueryConfig;
 export type QueryConfigsJson = QueryConfigs;
 export type FieldQueryJson = FieldQuery;
+
+// JSON Schema types for FilterControl (already JSON-friendly)
+export type FilterControlJson = FilterControl;
+
+// JSON Schema types for FilterExpr with transform as string key
+export type FilterExprJson =
+    | { type: 'equals'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'notEquals'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'greaterThan'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'lessThan'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'greaterThanOrEqual'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'lessThanOrEqual'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'in'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'notIn'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'like'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'iLike'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'isNull'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'and'; filters: FilterExprJson[] }
+    | { type: 'or'; filters: FilterExprJson[] }
+    | { type: 'not'; filter: FilterExprJson };
+
+// JSON Schema types for FilterFieldSchema components
+export type FilterFieldGroupJson = FilterFieldGroup;
+
+export type FilterFieldSchemaFilterJson = {
+    label: string;
+    expression: FilterExprJson;
+    group: string;
+    aiGenerated: boolean;
+};
+
+export type FilterFieldSchemaJson = {
+    groups: FilterFieldGroupJson[];
+    filters: FilterFieldSchemaFilterJson[];
+};
 
 // JSON Schema types for view definitions
 export type ColumnDefinitionJson<Runtime extends { cellRenderers: Record<string, CellRenderer> }> = {
@@ -22,7 +59,9 @@ export type ViewJson<Runtime extends { cellRenderers: Record<string, CellRendere
     collectionName: string;
     paginationKey: string;
     columns: ColumnDefinitionJson<Runtime>[];
-    // TODO: Add filter schema, query config, etc.
+    filterSchema: FilterFieldSchemaJson;
+    query: string;
+    noRowsComponent?: string; // Optional key to reference no-rows component from runtime
 };
 
 // Conversion functions from JSON types to actual types
@@ -192,5 +231,263 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
         data: parsedData,
         name: obj.name,
         cellRendererKey: obj.cellRendererKey as keyof Runtime['cellRenderers']
+    };
+}
+
+// Parser function for FilterExprJson to FilterExpr
+export function parseFilterExprJson<Runtime extends { queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }> }>(
+    json: unknown,
+    runtime: Runtime
+): FilterExpr {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('Invalid FilterExpr: Expected an object');
+    }
+
+    const expr = json as Record<string, unknown>;
+
+    if (typeof expr.type !== 'string') {
+        throw new Error('Invalid FilterExpr: "type" must be a string');
+    }
+
+    // Handle composite expressions (and, or, not)
+    if (expr.type === 'and' || expr.type === 'or') {
+        if (!Array.isArray(expr.filters)) {
+            throw new Error(`Invalid ${expr.type} FilterExpr: "filters" must be an array`);
+        }
+        return {
+            type: expr.type as 'and' | 'or',
+            filters: expr.filters.map(filter => parseFilterExprJson(filter, runtime))
+        };
+    }
+
+    if (expr.type === 'not') {
+        if (!expr.filter || typeof expr.filter !== 'object') {
+            throw new Error('Invalid not FilterExpr: "filter" must be an object');
+        }
+        return {
+            type: 'not',
+            filter: parseFilterExprJson(expr.filter, runtime)
+        };
+    }
+
+    // Handle leaf expressions
+    const validLeafTypes = ['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual', 'in', 'notIn', 'like', 'iLike', 'isNull'];
+    if (!validLeafTypes.includes(expr.type)) {
+        throw new Error(`Invalid FilterExpr type: "${expr.type}". Valid types are: ${validLeafTypes.join(', ')}, and, or, not`);
+    }
+
+    if (typeof expr.key !== 'string') {
+        throw new Error('Invalid FilterExpr: "key" must be a string');
+    }
+
+    if (!expr.value || typeof expr.value !== 'object') {
+        throw new Error('Invalid FilterExpr: "value" must be a FilterControl object');
+    }
+
+    // Build the result FilterExpr
+    const result: FilterExpr = {
+        type: expr.type as any,
+        key: expr.key,
+        value: expr.value as FilterControl
+    };
+
+    // Handle transform key if present
+    if (expr.transformKey) {
+        if (typeof expr.transformKey !== 'string') {
+            throw new Error('Invalid FilterExpr: "transformKey" must be a string');
+        }
+
+        const transformKeys = Object.keys(runtime.queryTransforms);
+        if (!transformKeys.includes(expr.transformKey)) {
+            throw new Error(
+                `Invalid transformKey: "${expr.transformKey}". Valid keys are: ${transformKeys.join(', ')}`
+            );
+        }
+
+        (result as any).transform = runtime.queryTransforms[expr.transformKey];
+    }
+
+    return result;
+}
+
+// Parser function for FilterFieldSchemaJson
+export function parseFilterFieldSchemaJson<Runtime extends { queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }> }>(
+    json: unknown,
+    runtime: Runtime
+): FilterFieldSchema {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('Invalid FilterFieldSchema: Expected an object');
+    }
+
+    const schema = json as Record<string, unknown>;
+
+    // Validate groups
+    if (!Array.isArray(schema.groups)) {
+        throw new Error('Invalid FilterFieldSchema: "groups" must be an array');
+    }
+
+    const groups: FilterFieldGroup[] = schema.groups.map((group, index) => {
+        if (!group || typeof group !== 'object' || Array.isArray(group)) {
+            throw new Error(`Invalid group[${index}]: Expected an object`);
+        }
+
+        const g = group as Record<string, unknown>;
+
+        if (typeof g.name !== 'string') {
+            throw new Error(`Invalid group[${index}]: "name" must be a string`);
+        }
+
+        if (g.label !== null && typeof g.label !== 'string') {
+            throw new Error(`Invalid group[${index}]: "label" must be a string or null`);
+        }
+
+        return {
+            name: g.name,
+            label: g.label as string | null
+        };
+    });
+
+    // Validate filters
+    if (!Array.isArray(schema.filters)) {
+        throw new Error('Invalid FilterFieldSchema: "filters" must be an array');
+    }
+
+    const filters: FilterFieldSchemaFilter[] = schema.filters.map((filter, index) => {
+        if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+            throw new Error(`Invalid filter[${index}]: Expected an object`);
+        }
+
+        const f = filter as Record<string, unknown>;
+
+        if (typeof f.label !== 'string') {
+            throw new Error(`Invalid filter[${index}]: "label" must be a string`);
+        }
+
+        if (typeof f.group !== 'string') {
+            throw new Error(`Invalid filter[${index}]: "group" must be a string`);
+        }
+
+        if (typeof f.aiGenerated !== 'boolean') {
+            throw new Error(`Invalid filter[${index}]: "aiGenerated" must be a boolean`);
+        }
+
+        if (!f.expression) {
+            throw new Error(`Invalid filter[${index}]: "expression" is required`);
+        }
+
+        let expression: FilterExpr;
+        try {
+            expression = parseFilterExprJson(f.expression, runtime);
+        } catch (error) {
+            throw new Error(`Invalid filter[${index}] expression: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
+        return {
+            label: f.label,
+            expression,
+            group: f.group,
+            aiGenerated: f.aiGenerated
+        };
+    });
+
+    return {
+        groups,
+        filters
+    };
+}
+
+// Parse ViewJson into a View object
+export function parseViewJson<Runtime extends {
+    cellRenderers: Record<string, CellRenderer>;
+    queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any; }>;
+    noRowsComponents?: Record<string, any>;
+}>(
+    json: unknown,
+    runtime: Runtime
+): View {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('View JSON must be a non-null object');
+    }
+
+    const view = json as Record<string, unknown>;
+
+    // Validate required string fields
+    if (typeof view.title !== 'string') {
+        throw new Error('View "title" must be a string');
+    }
+
+    if (typeof view.routeName !== 'string') {
+        throw new Error('View "routeName" must be a string');
+    }
+
+    if (typeof view.collectionName !== 'string') {
+        throw new Error('View "collectionName" must be a string');
+    }
+
+    if (typeof view.paginationKey !== 'string') {
+        throw new Error('View "paginationKey" must be a string');
+    }
+
+    if (typeof view.query !== 'string') {
+        throw new Error('View "query" must be a string');
+    }
+
+    // Validate columns array
+    if (!Array.isArray(view.columns)) {
+        throw new Error('View "columns" must be an array');
+    }
+
+    // Validate filterSchema
+    if (!view.filterSchema) {
+        throw new Error('View "filterSchema" is required');
+    }
+    // Parse columns
+    const columnDefinitions = view.columns.map((col, index) => {
+        let colJson;
+        try {
+            colJson = parseColumnDefinitionJson(col, runtime);
+        } catch (error) {
+            throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
+        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRendererKey to cellRenderer
+        return {
+            data: colJson.data.map(fieldQueryJsonToFieldQuery),
+            name: colJson.name,
+            cellRenderer: runtime.cellRenderers[colJson.cellRendererKey as string]
+        };
+    });
+
+    // Parse filter schema
+    let filterSchema;
+    try {
+        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, runtime);
+    } catch (error) {
+        throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Parse optional noRowsComponent
+    let noRowsComponent;
+    if (view.noRowsComponent !== undefined) {
+        if (typeof view.noRowsComponent !== 'string') {
+            throw new Error('View "noRowsComponent" must be a string');
+        }
+
+        if (!runtime.noRowsComponents || !runtime.noRowsComponents[view.noRowsComponent]) {
+            throw new Error(`No-rows component "${view.noRowsComponent}" not found in runtime.noRowsComponents`);
+        }
+
+        noRowsComponent = runtime.noRowsComponents[view.noRowsComponent];
+    }
+
+    return {
+        title: view.title,
+        routeName: view.routeName,
+        collectionName: view.collectionName,
+        columnDefinitions,
+        filterSchema,
+        query: view.query,
+        paginationKey: view.paginationKey,
+        noRowsComponent
     };
 }
