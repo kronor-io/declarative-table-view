@@ -1,6 +1,5 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../../framework/filters";
 import { ColumnDefinition, field, queryConfigs } from "../../framework/column-definition";
-import { generateGraphQLQuery } from "../../framework/graphql";
 import { View } from "../../framework/view";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import NoRowsExtendDateRange from "../NoRowsExtendDateRange";
@@ -288,12 +287,8 @@ const PaymentRequestView: View<KronorPortalContext> = {
     collectionName,
     columnDefinitions,
     filterSchema,
-    query: generateGraphQLQuery(
-        collectionName,
-        columnDefinitions as ColumnDefinition[],
-        "PaymentRequestBoolExp",
-        "[PaymentRequestOrderBy!]"
-    ),
+    boolExpType: 'PaymentRequestBoolExp',
+    orderByType: '[PaymentRequestOrderBy!]',
     paginationKey: 'createdAt',
     noRowsComponent: NoRowsExtendDateRange
 };

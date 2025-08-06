@@ -911,7 +911,8 @@ describe('parseViewJson', () => {
                 routeName: 'test-view',
                 collectionName: 'testCollection',
                 paginationKey: 'createdAt',
-                query: 'query TestQuery { test }',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
@@ -942,7 +943,8 @@ describe('parseViewJson', () => {
             expect(result.routeName).toBe('test-view');
             expect(result.collectionName).toBe('testCollection');
             expect(result.paginationKey).toBe('createdAt');
-            expect(result.query).toBe('query TestQuery { test }');
+            expect(result.boolExpType).toBe('TestBoolExp');
+            expect(result.orderByType).toBe('[TestOrderBy!]');
             expect(result.columnDefinitions).toHaveLength(1);
             expect(result.filterSchema.groups).toHaveLength(1);
             expect(result.filterSchema.filters).toHaveLength(1);
@@ -955,7 +957,8 @@ describe('parseViewJson', () => {
                 routeName: 'test-view',
                 collectionName: 'testCollection',
                 paginationKey: 'createdAt',
-                query: 'query TestQuery { test }',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 noRowsComponent: 'noRowsExtendDateRange',
                 columns: [
                     {
@@ -981,7 +984,8 @@ describe('parseViewJson', () => {
                 routeName: 'complex-view',
                 collectionName: 'complexCollection',
                 paginationKey: 'updatedAt',
-                query: 'query ComplexQuery { complex { id name } }',
+                boolExpType: 'ComplexBoolExp',
+                orderByType: '[ComplexOrderBy!]',
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
@@ -1082,7 +1086,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] }
             };
@@ -1100,7 +1105,8 @@ describe('parseViewJson', () => {
                 title: 'Test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] }
             };
@@ -1118,7 +1124,8 @@ describe('parseViewJson', () => {
                 title: 'Test',
                 routeName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] }
             };
@@ -1136,7 +1143,8 @@ describe('parseViewJson', () => {
                 title: 'Test',
                 routeName: 'test',
                 collectionName: 'test',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] }
             };
@@ -1149,22 +1157,32 @@ describe('parseViewJson', () => {
                 .toThrow('View "paginationKey" must be a string');
         });
 
-        it('should throw error for missing or invalid query', () => {
-            const noQuery = {
+        it('should throw error for missing or invalid GraphQL types', () => {
+            const noBoolExpType = {
                 title: 'Test',
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noQuery, testRuntime))
-                .toThrow('View "query" must be a string');
+            expect(() => parseViewJson(noBoolExpType, testRuntime))
+                .toThrow('View "boolExpType" must be a string');
 
-            const invalidQuery = { ...noQuery, query: 123 };
-            expect(() => parseViewJson(invalidQuery, testRuntime))
-                .toThrow('View "query" must be a string');
+            const noOrderByType = {
+                title: 'Test',
+                routeName: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(noOrderByType, testRuntime))
+                .toThrow('View "orderByType" must be a string');
         });
 
         it('should throw error for missing or invalid columns', () => {
@@ -1173,7 +1191,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 filterSchema: { groups: [], filters: [] }
             };
 
@@ -1191,7 +1210,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: []
             };
 
@@ -1205,7 +1225,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [
                     {
                         data: [],
@@ -1226,7 +1247,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: {
                     groups: 'not-array',
@@ -1244,7 +1266,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
                 noRowsComponent: 123
@@ -1260,7 +1283,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
                 noRowsComponent: 'nonexistent'
@@ -1281,7 +1305,8 @@ describe('parseViewJson', () => {
                 routeName: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
-                query: 'query',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
                 noRowsComponent: 'anything'

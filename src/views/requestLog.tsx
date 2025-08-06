@@ -1,6 +1,5 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
 import { ColumnDefinition, field } from "../framework/column-definition";
-import { generateGraphQLQuery } from "../framework/graphql";
 import { DateTime, Left } from "../components/LayoutHelpers";
 import { View } from "../framework/view";
 
@@ -71,12 +70,8 @@ const RequestLogView: View = {
     collectionName,
     columnDefinitions,
     filterSchema,
-    query: generateGraphQLQuery(
-        collectionName,
-        columnDefinitions,
-        "RequestLogBoolExp",
-        "[RequestLogOrderBy!]"
-    ),
+    boolExpType: 'RequestLogBoolExp',
+    orderByType: '[RequestLogOrderBy!]',
     paginationKey: 'createdAt',
 };
 

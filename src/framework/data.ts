@@ -16,12 +16,14 @@ function hasKey<K extends string | number | symbol, T extends { [key in K]: unkn
 export const fetchData = async ({
     client,
     view,
+    query,
     filterState,
     rows,
     cursor
 }: {
     client: GraphQLClient;
     view: View;
+    query: string;
     filterState: FilterFormState[];
     rows: number;
     cursor: string | number | null;
@@ -39,7 +41,7 @@ export const fetchData = async ({
             limit: rows,
             orderBy: [{ [view.paginationKey]: 'DESC' }],
         };
-        const response = await client.request(view.query, variables);
+        const response = await client.request(query, variables);
         if (!hasKey(response, view.collectionName)) {
             console.error('Error fetching data, unexpected response format:', response);
             return { rows: [], flattenedRows: [] };

@@ -90,16 +90,8 @@ const SimpleTestView: View = {
     collectionName,
     columnDefinitions: simpleTestViewColumnDefinitions, // Use the exported definitions
     filterSchema,
-    query: `
-        query GetSimpleTestData($conditions: SimpleTestBoolExp, $orderBy: [SimpleTestOrderBy!], $limit: Int) {
-            ${collectionName}(where: $conditions, orderBy: $orderBy, limit: $limit) {
-                id
-                testField
-                amount
-                email
-            }
-        }
-    `,
+    boolExpType: 'SimpleTestBoolExp',
+    orderByType: '[SimpleTestOrderBy!]',
     paginationKey: 'id',
 };
 

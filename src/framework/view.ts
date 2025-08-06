@@ -17,7 +17,8 @@ export type View<CellRendererContext = unknown> = {
     collectionName: string;
     columnDefinitions: ColumnDefinition<CellRendererContext>[];
     filterSchema: FilterFieldSchema;
-    query: string;
+    boolExpType: string; // GraphQL boolean expression type for this view
+    orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination
     noRowsComponent?: NoRowsComponent;
 };

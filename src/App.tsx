@@ -16,6 +16,8 @@ import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
 import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
 import { View } from './framework/view';
+import { generateGraphQLQuery } from './framework/graphql';
+import { ColumnDefinition } from './framework/column-definition';
 
 interface AppProps {
     graphqlHost: string;
@@ -46,6 +48,16 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         setFilterState,
         setDataRows
     } = useAppState(views as unknown as View[]);
+
+    // Memoized GraphQL query generation for the selected view
+    const memoizedQuery = useMemo(() => {
+        return generateGraphQLQuery(
+            selectedView.collectionName,
+            selectedView.columnDefinitions as ColumnDefinition[],
+            selectedView.boolExpType,
+            selectedView.orderByType
+        );
+    }, [selectedView]);
 
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
@@ -86,11 +98,12 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         return fetchData({
             client,
             view: selectedView,
+            query: memoizedQuery,
             filterState: state.filterState,
             rows: rowsPerPage,
             cursor
         });
-    }, [client, selectedView, state.filterState, rowsPerPage]);
+    }, [client, selectedView, memoizedQuery, state.filterState, rowsPerPage]);
 
     // Fetch data when view changes
     useEffect(() => {

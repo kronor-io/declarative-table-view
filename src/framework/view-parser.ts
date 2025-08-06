@@ -60,7 +60,8 @@ export type ViewJson<Runtime extends { cellRenderers: Record<string, CellRendere
     paginationKey: string;
     columns: ColumnDefinitionJson<Runtime>[];
     filterSchema: FilterFieldSchemaJson;
-    query: string;
+    boolExpType: string; // GraphQL boolean expression type for this view
+    orderByType: string; // GraphQL order by type for this view
     noRowsComponent?: string; // Optional key to reference no-rows component from runtime
 };
 
@@ -428,8 +429,12 @@ export function parseViewJson<Runtime extends {
         throw new Error('View "paginationKey" must be a string');
     }
 
-    if (typeof view.query !== 'string') {
-        throw new Error('View "query" must be a string');
+    if (typeof view.boolExpType !== 'string') {
+        throw new Error('View "boolExpType" must be a string');
+    }
+
+    if (typeof view.orderByType !== 'string') {
+        throw new Error('View "orderByType" must be a string');
     }
 
     // Validate columns array
@@ -486,7 +491,8 @@ export function parseViewJson<Runtime extends {
         collectionName: view.collectionName,
         columnDefinitions,
         filterSchema,
-        query: view.query,
+        boolExpType: view.boolExpType as string,
+        orderByType: view.orderByType as string,
         paginationKey: view.paginationKey,
         noRowsComponent
     };
