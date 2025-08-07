@@ -4,6 +4,9 @@ import Table from './components/Table';
 import PaymentRequestView from './views/payment-requests/view';
 import RequestLogView from './views/requestLog';
 import SimpleTestView from './views/simpleTestView';
+import { requestLogViewRuntime } from './views/request-log/runtime';
+import { simpleTestViewRuntime } from './views/simple-test-view/runtime';
+import { paymentRequestsRuntime } from './views/payment-requests/runtime';
 import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
@@ -30,6 +33,13 @@ interface AppProps {
 }
 
 const views = [PaymentRequestView, RequestLogView, SimpleTestView] as const;
+
+// Hardcoded runtimes dictionary
+export const runtimes = {
+    paymentRequests: paymentRequestsRuntime,
+    requestLog: requestLogViewRuntime,
+    simpleTestView: simpleTestViewRuntime
+} as const;
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext }: AppProps) {
 

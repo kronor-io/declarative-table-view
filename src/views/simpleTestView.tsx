@@ -92,7 +92,7 @@ const SimpleTestView: View = {
     filterSchema,
     boolExpType: 'SimpleTestBoolExp',
     orderByType: '[SimpleTestOrderBy!]',
-    paginationKey: 'id',
+    paginationKey: 'id'
 };
 
 export default SimpleTestView;

@@ -398,13 +398,13 @@ export function parseFilterFieldSchemaJson<Runtime extends { queryTransforms: Re
 }
 
 // Parse ViewJson into a View object
-export function parseViewJson<Runtime extends {
+export function parseViewJson<Runtimes extends Record<string, {
     cellRenderers: Record<string, CellRenderer>;
     queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any; }>;
     noRowsComponents?: Record<string, any>;
-}>(
+}>>(
     json: unknown,
-    runtime: Runtime
+    runtimes: Runtimes
 ): View {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('View JSON must be a non-null object');
@@ -436,6 +436,19 @@ export function parseViewJson<Runtime extends {
     if (typeof view.orderByType !== 'string') {
         throw new Error('View "orderByType" must be a string');
     }
+
+    if (typeof view.runtimeKey !== 'string') {
+        throw new Error('View "runtimeKey" must be a string');
+    }
+
+    // Validate that the runtimeKey exists in the runtimes dictionary
+    const runtimeKeys = Object.keys(runtimes);
+    if (!runtimeKeys.includes(view.runtimeKey)) {
+        throw new Error(`Invalid runtimeKey: "${view.runtimeKey}". Valid keys are: ${runtimeKeys.join(', ')}`);
+    }
+
+    // Get the specific runtime for this view
+    const runtime = runtimes[view.runtimeKey as keyof Runtimes];
 
     // Validate columns array
     if (!Array.isArray(view.columns)) {

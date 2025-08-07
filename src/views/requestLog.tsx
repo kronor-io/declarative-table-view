@@ -72,7 +72,7 @@ const RequestLogView: View = {
     filterSchema,
     boolExpType: 'RequestLogBoolExp',
     orderByType: '[RequestLogOrderBy!]',
-    paginationKey: 'createdAt',
+    paginationKey: 'createdAt'
 };
 
 export default RequestLogView;
