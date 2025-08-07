@@ -11,7 +11,11 @@
 ## Key Patterns & Conventions
 - **Filter Schema**: Filters are defined in `FilterFieldSchema` objects, with each filter requiring an `aiGenerated: boolean` field. See `src/framework/filters.ts` for types and helpers.
 - **AI Integration**: The AI assistant (see `src/components/AIAssistantForm.tsx` and `src/components/aiAssistant.ts`) can generate filters, which must set `aiGenerated: true`.
-- **View Registration**: Each view (e.g., `paymentRequest.tsx`) exports a `View` object with a `filterSchema`, `columnDefinitions`, and a GraphQL query.
+- **View Registration**: Views can be defined in two formats:
+  - **TSX Format** (legacy): Each view exports a `View` object with schema, columns, and query config
+  - **JSON Format** (new): Views are organized in folders with `view.json` (schema) and `runtime.tsx` (cell renderers)
+  - See `src/views/simple-test-view/` and `src/views/request-log/` for JSON format examples
+  - See `src/views/payment-requests/` for TSX format example
 - **Type Safety**: All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
 - **Cell Renderers**: All cell renderers receive `setFilterState` as a required prop, allowing them to programmatically update filter state when users interact with table cells.
 
@@ -27,6 +31,11 @@
 - ESLint is configured with TypeScript, React hooks, and React refresh rules
 - Pre-commit hooks automatically run linting and tests before commits
 - CI pipeline runs linting, unit tests, and E2E tests on push/PR
+- **EditorConfig**: Follow `.editorconfig` formatting rules for all files:
+  - Use 4 spaces for indentation (TypeScript, TSX, JSON)
+  - UTF-8 encoding with LF line endings
+  - Insert final newline and trim trailing whitespace
+  - When generating or editing JSON files, always use 4-space indentation to match project standards
 - Key rules:
   - `@typescript-eslint/no-explicit-any` is disabled to allow `any` types when needed
   - Use `@ts-expect-error` with descriptive comments instead of `@ts-ignore`

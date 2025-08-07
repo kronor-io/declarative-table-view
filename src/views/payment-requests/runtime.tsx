@@ -2,12 +2,12 @@
 import React from "react";
 import { CellRenderer } from "../../framework/column-definition";
 import { CurrencyAmount, DateTime, Left, Right, VStack } from "../../components/LayoutHelpers";
-import { PaymentMethod } from "../PaymentMethod";
+import { PaymentMethod } from "./PaymentMethod";
 import { Mapping } from "../../components/Mapping";
 import { PaymentStatusTag } from '../../components/PaymentStatusTag';
 import { defaultCellRenderer } from "../../framework/column-definition";
 import { NoRowsComponent } from "../../framework/view";
-import NoRowsExtendDateRange from "../NoRowsExtendDateRange";
+import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
 
 interface KronorPortalContext {
     portalHost: string;

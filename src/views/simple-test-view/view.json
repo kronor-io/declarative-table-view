@@ -1,0 +1,90 @@
+{
+    "title": "Simple Test View",
+    "routeName": "simple-test-view",
+    "collectionName": "simpleTestDataCollection",
+    "paginationKey": "id",
+    "boolExpType": "SimpleTestBoolExp",
+    "orderByType": "[SimpleTestOrderBy!]",
+    "columns": [
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "testField"
+                }
+            ],
+            "name": "Test Column Header",
+            "cellRendererKey": "defaultCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "amount"
+                }
+            ],
+            "name": "Amount",
+            "cellRendererKey": "defaultCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "email"
+                }
+            ],
+            "name": "Email",
+            "cellRendererKey": "emailCellRenderer"
+        }
+    ],
+    "filterSchema": {
+        "groups": [
+            {
+                "name": "default",
+                "label": "Default Filters"
+            },
+            {
+                "name": "extra",
+                "label": "Extra Filters"
+            }
+        ],
+        "filters": [
+            {
+                "label": "Amount",
+                "expression": {
+                    "type": "greaterThanOrEqual",
+                    "key": "amount",
+                    "value": {
+                        "type": "number"
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "label": "Test Field",
+                "expression": {
+                    "type": "equals",
+                    "key": "testField",
+                    "value": {
+                        "type": "text"
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
+            },
+            {
+                "label": "Email",
+                "expression": {
+                    "type": "equals",
+                    "key": "email",
+                    "value": {
+                        "type": "text"
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            }
+        ]
+    }
+}

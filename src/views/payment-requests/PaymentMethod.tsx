@@ -1,5 +1,5 @@
 import React from "react";
-import { HStack } from "../components/LayoutHelpers";
+import { HStack } from "../../components/LayoutHelpers";
 
 type PaymentMethodEnum =
     | "SWISH"

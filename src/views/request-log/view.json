@@ -1,0 +1,104 @@
+{
+    "title": "Requests",
+    "routeName": "request-logs",
+    "collectionName": "requestsLog",
+    "paginationKey": "createdAt",
+    "boolExpType": "RequestLogBoolExp",
+    "orderByType": "[RequestLogOrderBy!]",
+    "columns": [
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "merchantId"
+                }
+            ],
+            "name": "Merchant",
+            "cellRendererKey": "merchantCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "createdAt"
+                }
+            ],
+            "name": "Date",
+            "cellRendererKey": "dateCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "idempotencyKey"
+                }
+            ],
+            "name": "Idempotency Key",
+            "cellRendererKey": "idempotencyKeyCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "namespace"
+                }
+            ],
+            "name": "Namespace",
+            "cellRendererKey": "namespaceCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "requestParams"
+                }
+            ],
+            "name": "Request",
+            "cellRendererKey": "jsonCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "responseBody"
+                }
+            ],
+            "name": "Response",
+            "cellRendererKey": "jsonResponseCellRenderer"
+        }
+    ],
+    "filterSchema": {
+        "groups": [
+            {
+                "name": "default",
+                "label": "Default Filters"
+            }
+        ],
+        "filters": [
+            {
+                "label": "Date",
+                "expression": {
+                    "type": "and",
+                    "filters": [
+                        {
+                            "type": "greaterThanOrEqual",
+                            "key": "createdAt",
+                            "value": {
+                                "type": "date"
+                            }
+                        },
+                        {
+                            "type": "lessThanOrEqual",
+                            "key": "createdAt",
+                            "value": {
+                                "type": "date"
+                            }
+                        }
+                    ]
+                },
+                "group": "default",
+                "aiGenerated": false
+            }
+        ]
+    }
+}

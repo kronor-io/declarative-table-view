@@ -2,7 +2,7 @@ import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } fro
 import { ColumnDefinition, field, queryConfigs } from "../../framework/column-definition";
 import { View } from "../../framework/view";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
-import NoRowsExtendDateRange from "../NoRowsExtendDateRange";
+import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
 import { paymentRequestsRuntime } from "./runtime";
 
 interface KronorPortalContext {
