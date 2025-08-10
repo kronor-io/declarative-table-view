@@ -6,9 +6,10 @@ export { requestLogViewRuntime } from "./request-log";
 // View JSON imports - use specific names to avoid conflicts
 export { default as simpleTestViewJson } from "./simple-test-view/view.json";
 export { default as requestLogViewJson } from "./request-log/view.json";
+export { default as paymentRequestsViewJson } from "./payment-requests/view.json";
 
 // Payment requests exports (contains PaymentMethod and NoRowsExtendDateRange)
-export { paymentRequestsRuntime } from "./payment-requests/runtime";
+export { paymentRequestsRuntime } from "./payment-requests";
 
 // Legacy exports for backward compatibility
 export { default as SimpleTestView } from "./simpleTestView";

@@ -3,6 +3,30 @@ import { simpleTestViewColumnDefinitions } from '../src/views/simpleTestView'; /
 import { mockPaginationGraphQL } from './graphqlMock';
 
 test.describe('Simple View Rendering', () => {
+
+    test('should filter by phone using a custom filter component', async ({ page }) => {
+        // Intercept the GraphQL request and mock the response
+        await page.route('**/v1/graphql', mockPaginationGraphQL);
+
+        // Navigate to the page with the simple test view
+        await page.goto('/?view=simple-test-view');
+
+        // Wait for the table to be present and visible
+        const table = page.getByRole('table');
+        await expect(table).toBeVisible();
+
+        // Find the phone filter input (by placeholder or input type)
+        const phoneInput = page.locator('input[placeholder="Phone number"]');
+
+        const phoneNumber = '+46700000025';
+        await phoneInput.fill(phoneNumber);
+
+        // Submit the filter form (by aria-label)
+        await page.getByLabel('Apply filter').click();
+
+        // Wait for the table to update and check that results are filtered
+        await expect(table.getByText(phoneNumber)).toBeVisible();
+    });
     test('should render a view with a single column header and data', async ({ page }) => {
         // Intercept the GraphQL request and mock the response
         await page.route('**/v1/graphql', mockPaginationGraphQL);

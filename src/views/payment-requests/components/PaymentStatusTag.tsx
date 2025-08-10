@@ -1,6 +1,6 @@
 import { Tag } from 'primereact/tag';
 import React from 'react';
-import { Center } from './LayoutHelpers';
+import { Center } from '../../../components/LayoutHelpers';
 
 export const paymentStatusEnumToText = (status: string): string => {
     switch (status) {

@@ -5,6 +5,7 @@
     "paginationKey": "createdAt",
     "boolExpType": "RequestLogBoolExp",
     "orderByType": "[RequestLogOrderBy!]",
+    "runtimeKey": "requestLog",
     "columns": [
         {
             "data": [

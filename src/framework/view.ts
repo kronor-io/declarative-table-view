@@ -21,6 +21,8 @@ export type View<CellRendererContext = unknown> = {
     orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination
     noRowsComponent?: NoRowsComponent;
+    customComponents?: Record<string, any>; // Legacy: Custom filter components resolved from runtime
+    customFilterComponents?: Record<string, any>; // New: Custom filter components resolved from runtime
 };
 
 

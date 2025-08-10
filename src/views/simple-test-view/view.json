@@ -5,6 +5,7 @@
     "paginationKey": "id",
     "boolExpType": "SimpleTestBoolExp",
     "orderByType": "[SimpleTestOrderBy!]",
+    "runtimeKey": "simpleTestView",
     "columns": [
         {
             "data": [
@@ -35,8 +36,21 @@
             ],
             "name": "Email",
             "cellRendererKey": "emailCellRenderer"
+        },
+        {
+            "data": [
+                {
+                    "type": "field",
+                    "path": "phone"
+                }
+            ],
+            "name": "Phone",
+            "cellRendererKey": "defaultCellRenderer"
         }
     ],
+    "customFilterComponents": {
+        "PhoneNumberFilter": "PhoneNumberFilter"
+    },
     "filterSchema": {
         "groups": [
             {
@@ -83,6 +97,19 @@
                     }
                 },
                 "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "label": "Phone",
+                "expression": {
+                    "type": "equals",
+                    "key": "phone",
+                    "value": {
+                        "type": "custom",
+                        "component": "PhoneNumberFilter"
+                    }
+                },
+                "group": "extra",
                 "aiGenerated": false
             }
         ]

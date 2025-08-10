@@ -39,23 +39,26 @@ export interface PhoneNumberFilterProps {
     onChange?: (value: string) => void;
 }
 
-export const PhoneNumberFilter: React.FC<PhoneNumberFilterProps> = ({ value, onChange }) => {
-    // Parse value into code/number for UI
-    const parsed = React.useMemo(() => {
-        if (!value) return { code: COUNTRY_CODES[0].value, number: '' };
-        if (value.startsWith('+')) {
-            // Try to match the longest code from COUNTRY_CODES
-            const match = COUNTRY_CODES
-                .map(c => c.value)
-                .sort((a, b) => b.length - a.length) // longest first
-                .find(code => value.startsWith(code));
-            if (match) {
-                return { code: match, number: value.slice(match.length) };
-            }
-            // fallback: treat as unknown code
-            return { code: null, number: value };
+function parsePhoneNumber(value: string | undefined): { code: string | null; number: string } {
+    if (!value) return { code: COUNTRY_CODES[0].value, number: '' };
+    if (value.startsWith('+')) {
+        // Try to match the longest code from COUNTRY_CODES
+        const match = COUNTRY_CODES
+            .map(c => c.value)
+            .sort((a, b) => b.length - a.length) // longest first
+            .find(code => value.startsWith(code));
+        if (match) {
+            return { code: match, number: value.slice(match.length) };
         }
-        return { code: COUNTRY_CODES[0].value, number: value };
+        // fallback: treat as unknown code
+        return { code: null, number: value };
+    }
+    return { code: COUNTRY_CODES[0].value, number: value };
+}
+
+export const PhoneNumberFilter: React.FC<PhoneNumberFilterProps> = ({ value, onChange }) => {
+    const parsed = React.useMemo(() => {
+        return parsePhoneNumber(value);
     }, [value]);
 
     const numberStartsWithPlus = parsed.number.trim().startsWith('+');
@@ -74,7 +77,8 @@ export const PhoneNumberFilter: React.FC<PhoneNumberFilterProps> = ({ value, onC
         emitChange(e.value, parsed.number);
     };
     const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        emitChange(parsed.code, e.target.value);
+        const parsedNewValue = parsePhoneNumber(e.target.value);
+        emitChange(parsedNewValue.code ?? parsed.code, parsedNewValue.number);
     };
 
     return (

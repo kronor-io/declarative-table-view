@@ -6,7 +6,8 @@ const allRows = Array.from({ length: 30 }, (_, i) => ({
     id: i + 1,
     testField: `Test ${i + 1}`,
     amount: (i + 1) * 10,
-    email: `user${i + 1}@example.com`
+    email: `user${i + 1}@example.com`,
+    phone: `+467000000${(i + 1).toString().padStart(2, '0')}`
 }));
 
 export async function mockPaginationGraphQL(route: Route) {
@@ -71,6 +72,9 @@ export async function mockPaginationGraphQL(route: Route) {
             }
             if (conditions.email) {
                 if (conditions.email._eq !== undefined) pass = pass && row.email === conditions.email._eq;
+            }
+            if (conditions.phone) {
+                if (conditions.phone._eq !== undefined) pass = pass && row.phone === conditions.phone._eq;
             }
             return pass;
         });

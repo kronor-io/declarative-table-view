@@ -4,14 +4,18 @@ import './index.css'
 import App from './App.tsx'
 import { PrimeReactProvider } from 'primereact/api';
 
+
+
 export interface RenderTableViewOptions {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
+    viewsJson: string[]; // Array of JSON strings for all views
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
     cellRendererContext?: unknown; // Context passed to all cell renderers
 }
+
 
 function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
     const reactContainer = typeof target === 'string' ? document.getElementById(target) : target;
@@ -27,6 +31,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
                     cellRendererContext={options.cellRendererContext}
+                    viewsJson={options.viewsJson}
                 />
             </PrimeReactProvider>
         </StrictMode>
@@ -37,15 +42,27 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
 // @ts-expect-error Adding renderTableView to window object for global access
 window.renderTableView = renderTableView;
 
-// In development, auto-mount for hot reload if #root exists
+// In development, preload all views dynamically and auto-mount for hot reload if #root exists
 if (import.meta.env.DEV) {
     const rootEl = document.getElementById('root');
     if (rootEl) {
-        renderTableView(rootEl, {
-            graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
-            graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
-            geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
-            cellRendererContext: { /* example context object */ }
-        });
+        (async () => {
+            const [paymentRequests, requestLog, simpleTestView] = await Promise.all([
+                import('./views/payment-requests/view.json?raw'),
+                import('./views/request-log/view.json?raw'),
+                import('./views/simple-test-view/view.json?raw')
+            ]);
+            renderTableView(rootEl, {
+                graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
+                graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
+                geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
+                cellRendererContext: { /* example context object */ },
+                viewsJson: [
+                    paymentRequests.default,
+                    requestLog.default,
+                    simpleTestView.default
+                ]
+            });
+        })();
     }
 }

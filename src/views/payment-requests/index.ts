@@ -1,0 +1,1 @@
+export { paymentRequestsRuntime } from "./runtime";

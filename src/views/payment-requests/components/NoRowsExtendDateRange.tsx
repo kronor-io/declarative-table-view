@@ -1,6 +1,6 @@
-import { Center } from "../../components/LayoutHelpers";
+import { Center } from "../../../components/LayoutHelpers";
 import { Button } from "primereact/button";
-import { NoRowsComponentProps } from "../../framework/view";
+import { NoRowsComponentProps } from "../../../framework/view";
 
 const NoRowsExtendDateRange = ({ setFilterState, fetchData }: Pick<NoRowsComponentProps, 'setFilterState' | 'fetchData'>) => {
     const handleExtend = () => {

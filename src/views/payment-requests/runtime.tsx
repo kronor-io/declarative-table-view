@@ -2,12 +2,13 @@
 import React from "react";
 import { CellRenderer } from "../../framework/column-definition";
 import { CurrencyAmount, DateTime, Left, Right, VStack } from "../../components/LayoutHelpers";
-import { PaymentMethod } from "./PaymentMethod";
+import { PaymentMethod } from "./components/PaymentMethod";
 import { Mapping } from "../../components/Mapping";
-import { PaymentStatusTag } from '../../components/PaymentStatusTag';
+import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { defaultCellRenderer } from "../../framework/column-definition";
 import { NoRowsComponent } from "../../framework/view";
-import NoRowsExtendDateRange from "./NoRowsExtendDateRange";
+import NoRowsExtendDateRange from "./components/NoRowsExtendDateRange";
+import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 
 interface KronorPortalContext {
     portalHost: string;
@@ -42,6 +43,8 @@ export type PaymentRequestsRuntime = {
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsComponent;
     };
+    customComponents?: Record<string, any>;
+    customFilterComponents?: Record<string, any>;
 };
 
 // Static object of cell renderers for payment requests
@@ -147,5 +150,8 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     // No-rows components
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsExtendDateRange
+    },
+    customFilterComponents: {
+        PhoneNumberFilter
     }
 };

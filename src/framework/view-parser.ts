@@ -63,6 +63,7 @@ export type ViewJson<Runtime extends { cellRenderers: Record<string, CellRendere
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     noRowsComponent?: string; // Optional key to reference no-rows component from runtime
+    customFilterComponents?: Record<string, string>; // Map of custom filter component keys to runtime keys
 };
 
 // Conversion functions from JSON types to actual types
@@ -236,7 +237,10 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
 }
 
 // Parser function for FilterExprJson to FilterExpr
-export function parseFilterExprJson<Runtime extends { queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }> }>(
+export function parseFilterExprJson<Runtime extends {
+    queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }>;
+    customFilterComponents?: Record<string, any>;
+}>(
     json: unknown,
     runtime: Runtime
 ): FilterExpr {
@@ -285,11 +289,24 @@ export function parseFilterExprJson<Runtime extends { queryTransforms: Record<st
         throw new Error('Invalid FilterExpr: "value" must be a FilterControl object');
     }
 
+
+    // If the value is a custom filter control, resolve the component from runtime.customFilterComponents
+    let value: FilterControl = expr.value as FilterControl;
+    if (value && value.type === 'custom' && typeof value.component === 'string') {
+        if (!runtime.customFilterComponents || !(value.component in runtime.customFilterComponents)) {
+            throw new Error(`Custom filter component "${value.component}" not found in runtime.customFilterComponents`);
+        }
+        value = {
+            ...value,
+            component: runtime.customFilterComponents[value.component]
+        };
+    }
+
     // Build the result FilterExpr
     const result: FilterExpr = {
         type: expr.type as any,
         key: expr.key,
-        value: expr.value as FilterControl
+        value
     };
 
     // Handle transform key if present
@@ -402,6 +419,7 @@ export function parseViewJson<Runtimes extends Record<string, {
     cellRenderers: Record<string, CellRenderer>;
     queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any; }>;
     noRowsComponents?: Record<string, any>;
+    customFilterComponents?: Record<string, any>;
 }>>(
     json: unknown,
     runtimes: Runtimes
@@ -484,18 +502,35 @@ export function parseViewJson<Runtimes extends Record<string, {
         throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
+
     // Parse optional noRowsComponent
     let noRowsComponent;
     if (view.noRowsComponent !== undefined) {
         if (typeof view.noRowsComponent !== 'string') {
             throw new Error('View "noRowsComponent" must be a string');
         }
-
         if (!runtime.noRowsComponents || !runtime.noRowsComponents[view.noRowsComponent]) {
             throw new Error(`No-rows component "${view.noRowsComponent}" not found in runtime.noRowsComponents`);
         }
-
         noRowsComponent = runtime.noRowsComponents[view.noRowsComponent];
+    }
+
+    // Parse optional customFilterComponents for filters
+    let customFilterComponents: Record<string, any> | undefined = undefined;
+    if (view.customFilterComponents) {
+        if (typeof view.customFilterComponents !== 'object' || Array.isArray(view.customFilterComponents)) {
+            throw new Error('View "customFilterComponents" must be an object');
+        }
+        if (!runtime.customFilterComponents) {
+            throw new Error('Runtime does not provide customFilterComponents');
+        }
+        customFilterComponents = {};
+        for (const [jsonKey, runtimeKey] of Object.entries(view.customFilterComponents)) {
+            if (!(runtimeKey in runtime.customFilterComponents)) {
+                throw new Error(`Custom filter component "${runtimeKey}" not found in runtime.customFilterComponents`);
+            }
+            customFilterComponents[jsonKey] = runtime.customFilterComponents[runtimeKey];
+        }
     }
 
     return {
@@ -507,6 +542,7 @@ export function parseViewJson<Runtimes extends Record<string, {
         boolExpType: view.boolExpType as string,
         orderByType: view.orderByType as string,
         paginationKey: view.paginationKey,
-        noRowsComponent
+        noRowsComponent,
+        customFilterComponents
     };
 }

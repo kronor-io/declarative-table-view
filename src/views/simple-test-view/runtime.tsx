@@ -1,4 +1,5 @@
 import { CellRenderer, defaultCellRenderer } from "../../framework/column-definition";
+import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 
 // Define a simple data type for this view
 export type SimpleTestData = {
@@ -6,6 +7,7 @@ export type SimpleTestData = {
     testField: string;
     amount: number;
     email: string;
+    phone?: string;
 };
 
 // Email cell renderer that allows filtering by email
@@ -43,5 +45,8 @@ export const simpleTestViewRuntime = {
         emailCellRenderer
     },
     queryTransforms: {},
-    noRowsComponents: {}
+    noRowsComponents: {},
+    customFilterComponents: {
+        PhoneNumberFilter
+    }
 };

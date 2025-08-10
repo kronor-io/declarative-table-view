@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
-import PaymentRequestView from './views/payment-requests/view';
-import RequestLogView from './views/requestLog';
-import SimpleTestView from './views/simpleTestView';
 import { requestLogViewRuntime } from './views/request-log/runtime';
 import { simpleTestViewRuntime } from './views/simple-test-view/runtime';
 import { paymentRequestsRuntime } from './views/payment-requests/runtime';
@@ -18,6 +15,7 @@ import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
 import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
+import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { ColumnDefinition } from './framework/column-definition';
@@ -26,13 +24,12 @@ interface AppProps {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
+    viewsJson: string[];
     showViewsMenu: boolean;
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
     cellRendererContext?: unknown; // Context passed to all cell renderers
 }
-
-const views = [PaymentRequestView, RequestLogView, SimpleTestView] as const;
 
 // Hardcoded runtimes dictionary
 export const runtimes = {
@@ -41,7 +38,8 @@ export const runtimes = {
     simpleTestView: simpleTestViewRuntime
 } as const;
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson }: AppProps) {
+    const views = useMemo(() => viewsJson.map(view => parseViewJson(JSON.parse(view), runtimes as any)), [viewsJson]);
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {
@@ -172,7 +170,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     return (
-        <div className="p-4">
+        <div className='p-2'>
             <Menubar
                 model={[
                     ...(showViewsMenu ? [{
@@ -223,36 +221,42 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     </div>
                 }
             />
-            {showViewTitle && (
-                <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
-            )}
+            {
+                showViewTitle && (
+                    <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
+                )
+            }
 
-            {showAIAssistantForm && (
-                <div className="mb-6">
-                    <AIAssistantForm
+            {
+                showAIAssistantForm && (
+                    <div className="mb-6">
+                        <AIAssistantForm
+                            filterSchema={state.filterSchema}
+                            filterState={state.filterState}
+                            setFilterSchema={setFilterSchema}
+                            setFilterState={setFilterState}
+                            selectedView={selectedView}
+                            geminiApiKey={geminiApiKey}
+                        />
+                    </div>
+                )
+            }
+
+            {
+                showFilterForm && (
+                    <FilterForm
                         filterSchema={state.filterSchema}
-                        filterState={state.filterState}
-                        setFilterSchema={setFilterSchema}
-                        setFilterState={setFilterState}
-                        selectedView={selectedView}
-                        geminiApiKey={geminiApiKey}
+                        formState={state.filterState}
+                        setFormState={setFilterState}
+                        onSaveFilter={handleSaveFilter}
+                        visibleIndices={visibleIndices}
+                        onSubmit={async () => {
+                            const data = await fetchDataWrapper(null);
+                            setDataRows(data);
+                        }}
                     />
-                </div>
-            )}
-
-            {showFilterForm && (
-                <FilterForm
-                    filterSchema={state.filterSchema}
-                    formState={state.filterState}
-                    setFormState={setFilterState}
-                    onSaveFilter={handleSaveFilter}
-                    visibleIndices={visibleIndices}
-                    onSubmit={async () => {
-                        const data = await fetchDataWrapper(null);
-                        setDataRows(data);
-                    }}
-                />
-            )}
+                )
+            }
             <Table
                 columns={selectedView.columnDefinitions}
                 data={state.data.flattenedRows}
@@ -262,17 +266,19 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 filterState={state.filterState}
                 fetchData={() => fetchDataWrapper(null).then(setDataRows)}
             />
-            {state.data.rows.length > 0 && (
-                <TablePagination
-                    onPageChange={handleNextPage}
-                    onPrevPage={handlePrevPage}
-                    hasNextPage={hasNextPage}
-                    hasPrevPage={hasPrevPage}
-                    currentPage={state.pagination.page}
-                    rowsPerPage={rowsPerPage}
-                    actualRows={state.data.rows.length}
-                />
-            )}
+            {
+                state.data.rows.length > 0 && (
+                    <TablePagination
+                        onPageChange={handleNextPage}
+                        onPrevPage={handlePrevPage}
+                        hasNextPage={hasNextPage}
+                        hasPrevPage={hasPrevPage}
+                        currentPage={state.pagination.page}
+                        rowsPerPage={rowsPerPage}
+                        actualRows={state.data.rows.length}
+                    />
+                )
+            }
         </div>
     );
 }
