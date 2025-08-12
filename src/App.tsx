@@ -24,7 +24,7 @@ interface AppProps {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
-    viewsJson: string[];
+    viewsJson: string;
     showViewsMenu: boolean;
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
@@ -39,7 +39,10 @@ export const runtimes = {
 } as const;
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson }: AppProps) {
-    const views = useMemo(() => viewsJson.map(view => parseViewJson(JSON.parse(view), runtimes as any)), [viewsJson]);
+    const views = useMemo(() => {
+        const viewDefinitions = JSON.parse(viewsJson);
+        return viewDefinitions.map((view: unknown) => parseViewJson(view, runtimes as any));
+    }, [viewsJson]) as View[];
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {
@@ -55,7 +58,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         setFilterSchema,
         setFilterState,
         setDataRows
-    } = useAppState(views as unknown as View[]);
+    } = useAppState(views);
 
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
@@ -176,7 +179,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     ...(showViewsMenu ? [{
                         label: 'Views',
                         icon: 'pi pi-eye',
-                        items: views.map((view, viewIndex) => ({
+                        items: views.map((view: View, viewIndex: number) => ({
                             label: view.title,
                             icon: 'pi pi-table',
                             command: () => handleViewChange(viewIndex)

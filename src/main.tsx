@@ -10,7 +10,7 @@ export interface RenderTableViewOptions {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
-    viewsJson: string[]; // Array of JSON strings for all views
+    viewsJson: string; // JSON string containing array of view definitions
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
     cellRendererContext?: unknown; // Context passed to all cell renderers
@@ -57,11 +57,11 @@ if (import.meta.env.DEV) {
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
                 geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
                 cellRendererContext: { /* example context object */ },
-                viewsJson: [
-                    paymentRequests.default,
-                    requestLog.default,
-                    simpleTestView.default
-                ]
+                viewsJson: JSON.stringify([
+                    JSON.parse(paymentRequests.default),
+                    JSON.parse(requestLog.default),
+                    JSON.parse(simpleTestView.default)
+                ])
             });
         })();
     }

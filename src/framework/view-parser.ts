@@ -142,7 +142,7 @@ function parseQueryConfigJson(obj: unknown): QueryConfigJson {
         field: config.field
     };
 
-    if (config.orderBy !== undefined) {
+    if (config.orderBy !== undefined && config.orderBy !== null) {
         if (Array.isArray(config.orderBy)) {
             result.orderBy = config.orderBy.map(parseOrderByConfig);
         } else {
@@ -150,7 +150,7 @@ function parseQueryConfigJson(obj: unknown): QueryConfigJson {
         }
     }
 
-    if (config.limit !== undefined) {
+    if (config.limit !== undefined && config.limit !== null) {
         if (typeof config.limit !== 'number' || config.limit < 0 || !Number.isInteger(config.limit)) {
             throw new Error('Invalid QueryConfig: "limit" must be a non-negative integer');
         }

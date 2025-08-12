@@ -142,6 +142,64 @@ describe('parseColumnDefinitionJson', () => {
                 ]
             }]);
         });
+
+        it('should handle null orderBy and limit in queryConfigs', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'posts',
+                            limit: null,
+                            orderBy: null
+                        },
+                        { field: 'title' }
+                    ]
+                }],
+                name: 'Posts with null values',
+                cellRendererKey: 'name'
+            };
+
+            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            expect(result.data).toEqual([{
+                type: 'queryConfigs',
+                configs: [
+                    { field: 'posts' }, // null values should be omitted
+                    { field: 'title' }
+                ]
+            }]);
+        });
+
+        it('should handle mixed null and valid values in queryConfigs', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'posts',
+                            limit: 5,
+                            orderBy: null // null orderBy should be ignored
+                        },
+                        {
+                            field: 'comments',
+                            limit: null, // null limit should be ignored
+                            orderBy: { key: 'createdAt', direction: 'ASC' }
+                        }
+                    ]
+                }],
+                name: 'Mixed null values',
+                cellRendererKey: 'name'
+            };
+
+            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            expect(result.data).toEqual([{
+                type: 'queryConfigs',
+                configs: [
+                    { field: 'posts', limit: 5 },
+                    { field: 'comments', orderBy: { key: 'createdAt', direction: 'ASC' } }
+                ]
+            }]);
+        });
     });
 
     describe('input validation errors', () => {
