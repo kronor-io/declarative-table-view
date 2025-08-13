@@ -5,13 +5,13 @@ import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
 
 type TableProps<CellRendererContext = unknown> = {
-  columns: ColumnDefinition<CellRendererContext>[];
-  data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
-  noRowsComponent?: NoRowsComponent; // The noRowsComponent function
-  cellRendererContext?: CellRendererContext; // Context passed to all cell renderers
-  setFilterState: (filterState: FilterFormState[]) => void; // Function to update filter state
-  filterState: FilterFormState[]; // Current filter state
-  fetchData: () => void; // Function to fetch data
+    columns: ColumnDefinition<CellRendererContext>[];
+    data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
+    noRowsComponent?: NoRowsComponent; // The noRowsComponent function
+    cellRendererContext?: CellRendererContext; // Context passed to all cell renderers
+    setFilterState: (filterState: FilterFormState[]) => void; // Function to update filter state
+    filterState: FilterFormState[]; // Current filter state
+    triggerRefetch: () => void; // Function to trigger data refetch
 };
 
 function Table<CellRendererContext = unknown>({
@@ -21,7 +21,7 @@ function Table<CellRendererContext = unknown>({
     cellRendererContext,
     setFilterState,
     filterState,
-    fetchData
+    triggerRefetch
 }: TableProps<CellRendererContext>) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterFormState[]) => FilterFormState[]) => {
@@ -34,7 +34,7 @@ function Table<CellRendererContext = unknown>({
         ? noRowsComponent({
             filterState,
             setFilterState: wrappedSetFilterState,
-            fetchData
+            applyFilters: triggerRefetch
         })
         : null;
 
@@ -47,7 +47,8 @@ function Table<CellRendererContext = unknown>({
                     body={rowData => column.cellRenderer({
                         data: rowData[columnIndex],
                         context: cellRendererContext,
-                        setFilterState: wrappedSetFilterState
+                        setFilterState: wrappedSetFilterState,
+                        applyFilters: triggerRefetch
                     })}
                 />
             ))}

@@ -2,7 +2,7 @@ import { Center } from "../../../components/LayoutHelpers";
 import { Button } from "primereact/button";
 import { NoRowsComponentProps } from "../../../framework/view";
 
-const NoRowsExtendDateRange = ({ setFilterState, fetchData }: Pick<NoRowsComponentProps, 'setFilterState' | 'fetchData'>) => {
+const NoRowsExtendDateRange = ({ setFilterState, applyFilters }: Pick<NoRowsComponentProps, 'setFilterState' | 'applyFilters'>) => {
     const handleExtend = () => {
         // Extend the 'from' date 1 month further back immutably
         setFilterState(currentState =>
@@ -23,7 +23,7 @@ const NoRowsExtendDateRange = ({ setFilterState, fetchData }: Pick<NoRowsCompone
                 return filter;
             })
         );
-        fetchData();
+        applyFilters();
     };
     return (
         <Center className="py-8 text-gray-400 flex flex-col items-center gap-4">

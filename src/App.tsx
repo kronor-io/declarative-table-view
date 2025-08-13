@@ -73,7 +73,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
-    const [showFilterForm, setShowFilterForm] = useState(true);
+    const [showFilterForm, setShowFilterForm] = useState(false);
+    const [refetchTrigger, setRefetchTrigger] = useState(0);
 
     // Pagination state
     const hasNextPage = state.data.rows.length === rowsPerPage;
@@ -116,11 +117,11 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         });
     }, [client, selectedView, memoizedQuery, state.filterState, rowsPerPage]);
 
-    // Fetch data when view changes
+    // Fetch data when view changes or refetch is triggered
     useEffect(() => {
         fetchDataWrapper(null).then(dataRows => setDataRows(dataRows));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedViewIndex]);
+    }, [state.selectedViewIndex, refetchTrigger]);
 
     // When view changes, reset filter state and clear data
     const handleViewChange = (viewIndex: number) => {
@@ -253,9 +254,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         setFormState={setFilterState}
                         onSaveFilter={handleSaveFilter}
                         visibleIndices={visibleIndices}
-                        onSubmit={async () => {
-                            const data = await fetchDataWrapper(null);
-                            setDataRows(data);
+                        onSubmit={() => {
+                            setRefetchTrigger(prev => prev + 1);
                         }}
                     />
                 )
@@ -267,7 +267,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 cellRendererContext={cellRendererContext}
                 setFilterState={setFilterState}
                 filterState={state.filterState}
-                fetchData={() => fetchDataWrapper(null).then(setDataRows)}
+                triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
             />
             {
                 state.data.rows.length > 0 && (

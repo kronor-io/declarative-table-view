@@ -11,7 +11,7 @@ export type SimpleTestData = {
 };
 
 // Email cell renderer that allows filtering by email
-const emailCellRenderer: CellRenderer = ({ data, setFilterState }) => {
+const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters }) => {
     const handleEmailClick = () => {
         setFilterState(currentState =>
             currentState.map(filter => {
@@ -25,6 +25,7 @@ const emailCellRenderer: CellRenderer = ({ data, setFilterState }) => {
                 return filter;
             })
         );
+        applyFilters();
     };
 
     return (

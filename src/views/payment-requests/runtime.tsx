@@ -74,7 +74,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />,
 
         // Initiated By cell renderer
-        initiatedBy: ({ data, setFilterState }) => {
+        initiatedBy: ({ data, setFilterState, applyFilters }) => {
             const handleEmailClick = () => {
                 setFilterState(currentState =>
                     currentState.map(filter => {
@@ -88,6 +88,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                         return filter;
                     })
                 );
+                applyFilters();
             };
 
             return (

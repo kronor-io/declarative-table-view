@@ -15,6 +15,9 @@ test.describe('Simple View Rendering', () => {
         const table = page.getByRole('table');
         await expect(table).toBeVisible();
 
+        // Show filters first
+        await page.getByText('Show Filters').click();
+
         // Find the phone filter input (by placeholder or input type)
         const phoneInput = page.locator('input[placeholder="Phone number"]');
 
@@ -61,6 +64,9 @@ test.describe('Simple View Rendering', () => {
         await expect(table.getByText('250', { exact: true })).toBeVisible();
         await expect(table.getByText('240', { exact: true })).toBeVisible();
 
+        // Show filters first
+        await page.getByText('Show Filters').click();
+
         // Use the filter to only show rows with amount >= 30
         // Find the Amount label, then its parent, then the sibling div, then the input inside
         const amountLabel = page.getByText('Amount', { exact: true });
@@ -81,6 +87,9 @@ test.describe('Simple View Rendering', () => {
 
         // Navigate to the page with the simple test view
         await page.goto('/?view=simple-test-view');
+
+        // Show filters first
+        await page.getByText('Show Filters').click();
 
         // Wait for the filter form to be present
         const filterForm = page.locator('form');
