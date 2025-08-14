@@ -43,8 +43,7 @@ export type PaymentRequestsRuntime = {
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsComponent;
     };
-    customComponents?: Record<string, any>;
-    customFilterComponents?: Record<string, any>;
+    customFilterComponents: Record<string, any>;
 };
 
 // Static object of cell renderers for payment requests

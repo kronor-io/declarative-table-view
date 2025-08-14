@@ -25,7 +25,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'user.name' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -33,7 +33,7 @@ describe('parseColumnDefinitionJson', () => {
             expect(result).toEqual({
                 data: [{ type: 'field', path: 'user.name' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             });
         });
 
@@ -43,8 +43,8 @@ describe('parseColumnDefinitionJson', () => {
                     { type: 'field', path: 'user.firstName' },
                     { type: 'field', path: 'user.lastName' }
                 ],
-                name: 'Full Name',
-                cellRendererKey: 'name'
+                name: 'Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -54,27 +54,48 @@ describe('parseColumnDefinitionJson', () => {
                     { type: 'field', path: 'user.firstName' },
                     { type: 'field', path: 'user.lastName' }
                 ],
-                name: 'Full Name',
-                cellRendererKey: 'name'
+                name: 'Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             });
         });
 
         it('should parse valid JSON with different cell renderer keys', () => {
             const testCases = [
-                { cellRendererKey: 'email', expected: 'email' },
-                { cellRendererKey: 'status', expected: 'status' },
-                { cellRendererKey: 'amount', expected: 'amount' }
+                { cellRenderer: { section: 'cellRenderers', key: 'email' }, expected: 'email' },
+                { cellRenderer: { section: 'cellRenderers', key: 'status' }, expected: 'status' },
+                { cellRenderer: { section: 'cellRenderers', key: 'amount' }, expected: 'amount' }
             ];
 
-            testCases.forEach(({ cellRendererKey, expected }) => {
+            testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
                     data: [{ type: 'field', path: 'field' }],
                     name: 'Test',
-                    cellRendererKey
+                    cellRenderer
                 };
 
                 const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-                expect(result.cellRendererKey).toBe(expected);
+                expect(result.cellRenderer.section).toBe('cellRenderers');
+                expect(result.cellRenderer.key).toBe(expected);
+            });
+        });
+
+        it('should parse valid JSON with different cell renderer keys (new format)', () => {
+            const testCases = [
+                { cellRenderer: { section: 'cellRenderers', key: 'email' }, expected: 'email' },
+                { cellRenderer: { section: 'cellRenderers', key: 'status' }, expected: 'status' },
+                { cellRenderer: { section: 'cellRenderers', key: 'amount' }, expected: 'amount' }
+            ];
+
+            testCases.forEach(({ cellRenderer, expected }) => {
+                const json = {
+                    data: [{ type: 'field', path: 'field' }],
+                    name: 'Test',
+                    cellRenderer
+                };
+
+                const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                expect(result.cellRenderer.section).toBe('cellRenderers');
+                expect(result.cellRenderer.key).toBe(expected);
             });
         });
 
@@ -82,11 +103,13 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [],
                 name: 'Empty',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
             expect(result.data).toEqual([]);
+            expect(result.cellRenderer.section).toBe('cellRenderers');
+            expect(result.cellRenderer.key).toBe('name');
         });
 
         it('should parse JSON with queryConfigs data', () => {
@@ -99,7 +122,7 @@ describe('parseColumnDefinitionJson', () => {
                     ]
                 }],
                 name: 'Posts',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -126,7 +149,7 @@ describe('parseColumnDefinitionJson', () => {
                     ]
                 }],
                 name: 'Recent Posts',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -157,7 +180,7 @@ describe('parseColumnDefinitionJson', () => {
                     ]
                 }],
                 name: 'Posts with null values',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -188,7 +211,7 @@ describe('parseColumnDefinitionJson', () => {
                     ]
                 }],
                 name: 'Mixed null values',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -238,7 +261,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for missing data field', () => {
             const json = {
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -250,7 +273,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: null,
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -262,7 +285,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: 'not an array',
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -274,7 +297,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: { field: 'value' },
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -287,7 +310,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for missing name field', () => {
             const json = {
                 data: ['field'],
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -299,7 +322,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: ['field'],
                 name: 123,
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -311,7 +334,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: ['field'],
                 name: null,
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -323,7 +346,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: ['field'],
                 name: { value: 'Name' },
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -335,7 +358,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: ['field'],
                 name: ['Name'],
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -344,8 +367,8 @@ describe('parseColumnDefinitionJson', () => {
         });
     });
 
-    describe('cellRendererKey field validation', () => {
-        it('should throw error for missing cellRendererKey field', () => {
+    describe('cellRenderer field validation', () => {
+        it('should throw error for missing cellRenderer field', () => {
             const json = {
                 data: ['field'],
                 name: 'Name'
@@ -353,43 +376,31 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid JSON: "cellRendererKey" field must be a string');
+            }).toThrow('Invalid JSON: "cellRenderer" field is required');
         });
 
-        it('should throw error for number cellRendererKey field', () => {
+        it('should throw error for number cellRenderer field', () => {
             const json = {
                 data: ['field'],
                 name: 'Name',
-                cellRendererKey: 123
+                cellRenderer: { section: 'cellRenderers', key: 123 }
             };
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid JSON: "cellRendererKey" field must be a string');
+            }).toThrow('Invalid RuntimeReference: "key" must be a string');
         });
 
-        it('should throw error for null cellRendererKey field', () => {
+        it('should throw error for null cellRenderer field', () => {
             const json = {
                 data: ['field'],
                 name: 'Name',
-                cellRendererKey: null
+                cellRenderer: { section: 'cellRenderers', key: null }
             };
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid JSON: "cellRendererKey" field must be a string');
-        });
-
-        it('should throw error for object cellRendererKey field', () => {
-            const json = {
-                data: ['field'],
-                name: 'Name',
-                cellRendererKey: { key: 'name' }
-            };
-
-            expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid JSON: "cellRendererKey" field must be a string');
+            }).toThrow('Invalid RuntimeReference: "key" must be a string');
         });
     });
 
@@ -398,7 +409,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'valid' }, 123, { type: 'field', path: 'valid2' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -410,7 +421,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'valid' }, null, { type: 'field', path: 'valid2' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -422,7 +433,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'valid' }, { field: 'value' }, { type: 'field', path: 'valid2' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -434,7 +445,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'valid' }, ['nested'], { type: 'field', path: 'valid2' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -446,7 +457,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'valid' }, undefined, { type: 'field', path: 'valid2' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
@@ -456,40 +467,40 @@ describe('parseColumnDefinitionJson', () => {
     });
 
     describe('runtime key validation', () => {
-        it('should throw error for invalid cellRendererKey', () => {
+        it('should throw error for invalid cellRenderer reference', () => {
             const json = {
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
-                cellRendererKey: 'invalidKey'
+                cellRenderer: { section: 'cellRenderers', key: 'invalidKey' }
             };
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid cellRendererKey: "invalidKey". Valid keys are: name, email, status, amount');
+            }).toThrow('Invalid cellRenderer reference: "invalidKey". Valid keys are: name, email, status, amount');
         });
 
-        it('should throw error for empty string cellRendererKey', () => {
+        it('should throw error for empty string cellRenderer reference', () => {
             const json = {
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
-                cellRendererKey: ''
+                cellRenderer: { section: 'cellRenderers', key: '' }
             };
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid cellRendererKey: "". Valid keys are: name, email, status, amount');
+            }).toThrow('Invalid cellRenderer reference: "". Valid keys are: name, email, status, amount');
         });
 
         it('should throw error for case-sensitive mismatch', () => {
             const json = {
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
-                cellRendererKey: 'NAME' // Wrong case
+                cellRenderer: { section: 'cellRenderers', key: 'NAME' } // Wrong case
             };
 
             expect(() => {
                 parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
-            }).toThrow('Invalid cellRendererKey: "NAME". Valid keys are: name, email, status, amount');
+            }).toThrow('Invalid cellRenderer reference: "NAME". Valid keys are: name, email, status, amount');
         });
     });
 
@@ -498,7 +509,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: '' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -509,7 +520,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'field' }],
                 name: '',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
@@ -520,7 +531,7 @@ describe('parseColumnDefinitionJson', () => {
             const json = {
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
-                cellRendererKey: 'name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' },
                 extraProperty: 'ignored'
             };
 
@@ -528,7 +539,7 @@ describe('parseColumnDefinitionJson', () => {
             expect(result).toEqual({
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
-                cellRendererKey: 'name'
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
             });
             expect('extraProperty' in result).toBe(false);
         });
@@ -630,7 +641,7 @@ describe('parseFilterFieldSchemaJson', () => {
             expect(result.filters[1].aiGenerated).toBe(true);
         });
 
-        it('should parse filters with transform keys', () => {
+        it('should parse filters with transform references', () => {
             const json = {
                 groups: [{ name: 'default', label: null }],
                 filters: [
@@ -640,7 +651,7 @@ describe('parseFilterFieldSchemaJson', () => {
                             type: 'equals',
                             key: 'reference',
                             value: { type: 'text' },
-                            transformKey: 'reference'
+                            transform: { section: 'queryTransforms', key: 'reference' }
                         },
                         group: 'default',
                         aiGenerated: false
@@ -651,7 +662,7 @@ describe('parseFilterFieldSchemaJson', () => {
                             type: 'greaterThan',
                             key: 'amount',
                             value: { type: 'number' },
-                            transformKey: 'amount'
+                            transform: { section: 'queryTransforms', key: 'amount' }
                         },
                         group: 'default',
                         aiGenerated: false
@@ -696,7 +707,7 @@ describe('parseFilterFieldSchemaJson', () => {
                                             type: 'greaterThan',
                                             key: 'amount',
                                             value: { type: 'number' },
-                                            transformKey: 'amount'
+                                            transform: { section: 'queryTransforms', key: 'amount' }
                                         },
                                         {
                                             type: 'not',
@@ -751,7 +762,7 @@ describe('parseFilterFieldSchemaJson', () => {
                                 ],
                                 valueControl: { type: 'text' }
                             },
-                            transformKey: 'reference'
+                            transform: { section: 'queryTransforms', key: 'reference' }
                         },
                         group: 'default',
                         aiGenerated: false
@@ -851,8 +862,8 @@ describe('parseFilterFieldSchemaJson', () => {
                 .toThrow('Invalid filter[0]: "expression" is required');
         });
 
-        it('should throw error for invalid transform key', () => {
-            const invalidTransformKey = {
+        it('should throw error for invalid transform reference', () => {
+            const invalidTransformReference = {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
@@ -861,7 +872,7 @@ describe('parseFilterFieldSchemaJson', () => {
                             type: 'equals',
                             key: 'test',
                             value: { type: 'text' },
-                            transformKey: 'nonExistentTransform'
+                            transform: { section: 'queryTransforms', key: 'nonExistentTransform' }
                         },
                         group: 'default',
                         aiGenerated: false
@@ -869,8 +880,8 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidTransformKey, testRuntime))
-                .toThrow('Invalid transformKey: "nonExistentTransform". Valid keys are: reference, amount, creditCard');
+            expect(() => parseFilterFieldSchemaJson(invalidTransformReference, testRuntime))
+                .toThrow('Invalid filter[0] expression: Invalid transform reference: "nonExistentTransform". Valid keys are: reference, amount, creditCard');
         });
 
         it('should throw error for invalid expression structure', () => {
@@ -980,7 +991,7 @@ describe('parseViewJson', () => {
                     {
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
-                        cellRendererKey: 'text'
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
                     }
                 ],
                 filterSchema: {
@@ -1023,12 +1034,12 @@ describe('parseViewJson', () => {
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
                 runtimeKey: 'testRuntime',
-                noRowsComponent: 'noRowsExtendDateRange',
+                noRowsComponent: { section: 'noRowsComponents', key: 'noRowsExtendDateRange' },
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
-                        cellRendererKey: 'text'
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
                     }
                 ],
                 filterSchema: {
@@ -1055,7 +1066,7 @@ describe('parseViewJson', () => {
                     {
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
-                        cellRendererKey: 'text'
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
                     },
                     {
                         data: [
@@ -1068,7 +1079,7 @@ describe('parseViewJson', () => {
                             }
                         ],
                         name: 'Amount',
-                        cellRendererKey: 'number'
+                        cellRenderer: { section: 'cellRenderers', key: 'number' }
                     }
                 ],
                 filterSchema: {
@@ -1083,7 +1094,7 @@ describe('parseViewJson', () => {
                                 type: 'equals',
                                 key: 'reference',
                                 value: { type: 'text' },
-                                transformKey: 'reference'
+                                transform: { section: 'queryTransforms', key: 'reference' }
                             },
                             group: 'default',
                             aiGenerated: false
@@ -1299,7 +1310,7 @@ describe('parseViewJson', () => {
                     {
                         data: [],
                         name: 'Test',
-                        cellRendererKey: 'nonexistent'
+                        cellRenderer: { section: 'cellRenderers', key: 'nonexistent' }
                     }
                 ],
                 filterSchema: { groups: [], filters: [] }
@@ -1329,24 +1340,6 @@ describe('parseViewJson', () => {
                 .toThrow('Invalid filterSchema:');
         });
 
-        it('should throw error for invalid noRowsComponent', () => {
-            const invalidNoRowsComponent = {
-                title: 'Test',
-                routeName: 'test',
-                collectionName: 'test',
-                paginationKey: 'id',
-                boolExpType: 'TestBoolExp',
-                orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
-                columns: [],
-                filterSchema: { groups: [], filters: [] },
-                noRowsComponent: 123
-            };
-
-            expect(() => parseViewJson(invalidNoRowsComponent, testRuntimes))
-                .toThrow('View "noRowsComponent" must be a string');
-        });
-
         it('should throw error for missing noRowsComponent in runtime', () => {
             const missingNoRowsComponent = {
                 title: 'Test',
@@ -1358,7 +1351,7 @@ describe('parseViewJson', () => {
                 runtimeKey: 'testRuntime',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
-                noRowsComponent: 'nonexistent'
+                noRowsComponent: { section: 'noRowsComponents', key: 'nonexistent' }
             };
 
             expect(() => parseViewJson(missingNoRowsComponent, testRuntimes))
@@ -1385,7 +1378,7 @@ describe('parseViewJson', () => {
                 runtimeKey: 'testRuntime',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
-                noRowsComponent: 'anything'
+                noRowsComponent: { section: 'noRowsComponents', key: 'anything' }
             };
 
             expect(() => parseViewJson(withNoRowsComponent, runtimesDictWithoutNoRows))

@@ -5,28 +5,41 @@ import type { CellRenderer, FieldQuery, QueryConfig, OrderByConfig, Field, Query
 import type { FilterControl, FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
 import { View } from './view';
 
+// Runtime reference type for referencing components/functions from runtime
+export type RuntimeReference = {
+    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms';
+    key: string;
+};
+
 // JSON Schema types - these are just aliases since the original types are already JSON-friendly
 export type FieldJson = Field;
 export type QueryConfigJson = QueryConfig;
 export type QueryConfigsJson = QueryConfigs;
 export type FieldQueryJson = FieldQuery;
 
-// JSON Schema types for FilterControl (already JSON-friendly)
-export type FilterControlJson = FilterControl;
+// JSON Schema types for FilterControl with RuntimeReference support for custom components
+export type FilterControlJson =
+    | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'date'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
+    | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
+    | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControlJson; initialValue?: any }
+    | { type: 'custom'; component: RuntimeReference; props?: Record<string, any>; label?: string; initialValue?: any };
 
-// JSON Schema types for FilterExpr with transform as string key
+// JSON Schema types for FilterExpr with transform as RuntimeReference
 export type FilterExprJson =
-    | { type: 'equals'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'notEquals'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'greaterThan'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'lessThan'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'greaterThanOrEqual'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'lessThanOrEqual'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'in'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'notIn'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'like'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'iLike'; key: string; value: FilterControlJson; transformKey?: string }
-    | { type: 'isNull'; key: string; value: FilterControlJson; transformKey?: string }
+    | { type: 'equals'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notEquals'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThan'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThan'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThanOrEqual'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThanOrEqual'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'in'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notIn'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'like'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'iLike'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'isNull'; key: string; value: FilterControlJson; transform?: RuntimeReference }
     | { type: 'and'; filters: FilterExprJson[] }
     | { type: 'or'; filters: FilterExprJson[] }
     | { type: 'not'; filter: FilterExprJson };
@@ -47,26 +60,51 @@ export type FilterFieldSchemaJson = {
 };
 
 // JSON Schema types for view definitions
-export type ColumnDefinitionJson<Runtime extends { cellRenderers: Record<string, CellRenderer> }> = {
+export type ColumnDefinitionJson = {
     data: FieldQueryJson[]; // Array of FieldQuery objects
     name: string;   // Column display name
-    cellRendererKey: keyof Runtime['cellRenderers']; // String key to reference cell renderer from runtime
+    cellRenderer: RuntimeReference; // Reference to cell renderer from runtime
 };
 
-export type ViewJson<Runtime extends { cellRenderers: Record<string, CellRenderer> }> = {
+export type ViewJson = {
     title: string;
     routeName: string;
     collectionName: string;
     paginationKey: string;
-    columns: ColumnDefinitionJson<Runtime>[];
+    columns: ColumnDefinitionJson[];
     filterSchema: FilterFieldSchemaJson;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
-    noRowsComponent?: string; // Optional key to reference no-rows component from runtime
-    customFilterComponents?: Record<string, string>; // Map of custom filter component keys to runtime keys
+    noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
 };
 
 // Conversion functions from JSON types to actual types
+export function parseRuntimeReference(json: unknown): RuntimeReference {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('Invalid RuntimeReference: Expected an object');
+    }
+
+    const obj = json as Record<string, unknown>;
+
+    if (typeof obj.section !== 'string') {
+        throw new Error('Invalid RuntimeReference: "section" must be a string');
+    }
+
+    if (typeof obj.key !== 'string') {
+        throw new Error('Invalid RuntimeReference: "key" must be a string');
+    }
+
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms'];
+    if (!validSections.includes(obj.section as RuntimeReference['section'])) {
+        throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
+    }
+
+    return {
+        section: obj.section as RuntimeReference['section'],
+        key: obj.key
+    };
+}
+
 export function fieldQueryJsonToFieldQuery(json: FieldQueryJson): FieldQuery {
     if (json.type === 'field') {
         return {
@@ -192,7 +230,7 @@ function parseFieldQueryJson(obj: unknown): FieldQueryJson {
 export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Record<string, CellRenderer> }>(
     json: unknown,
     runtime: Runtime
-): ColumnDefinitionJson<Runtime> {
+): ColumnDefinitionJson {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid JSON: Expected an object');
     }
@@ -208,8 +246,14 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
         throw new Error('Invalid JSON: "name" field must be a string');
     }
 
-    if (typeof obj.cellRendererKey !== 'string') {
-        throw new Error('Invalid JSON: "cellRendererKey" field must be a string');
+    // Parse cellRenderer as RuntimeReference
+    if (!obj.cellRenderer) {
+        throw new Error('Invalid JSON: "cellRenderer" field is required');
+    }
+
+    const cellRenderer = parseRuntimeReference(obj.cellRenderer);
+    if (cellRenderer.section !== 'cellRenderers') {
+        throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
     }
 
     // Parse and validate data array as FieldQuery objects
@@ -221,18 +265,18 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
         }
     });
 
-    // Extract runtime keys and validate that cellRendererKey is valid
-    const runtimeKeys = Object.keys(runtime.cellRenderers) as (keyof Runtime['cellRenderers'])[];
-    if (!runtimeKeys.includes(obj.cellRendererKey as keyof Runtime['cellRenderers'])) {
+    // Validate that cellRenderer key exists in runtime
+    const runtimeKeys = Object.keys(runtime.cellRenderers);
+    if (!runtimeKeys.includes(cellRenderer.key)) {
         throw new Error(
-            `Invalid cellRendererKey: "${obj.cellRendererKey}". Valid keys are: ${runtimeKeys.join(', ')}`
+            `Invalid cellRenderer reference: "${cellRenderer.key}". Valid keys are: ${runtimeKeys.join(', ')}`
         );
     }
 
     return {
         data: parsedData,
         name: obj.name,
-        cellRendererKey: obj.cellRendererKey as keyof Runtime['cellRenderers']
+        cellRenderer
     };
 }
 
@@ -292,13 +336,20 @@ export function parseFilterExprJson<Runtime extends {
 
     // If the value is a custom filter control, resolve the component from runtime.customFilterComponents
     let value: FilterControl = expr.value as FilterControl;
-    if (value && value.type === 'custom' && typeof value.component === 'string') {
-        if (!runtime.customFilterComponents || !(value.component in runtime.customFilterComponents)) {
-            throw new Error(`Custom filter component "${value.component}" not found in runtime.customFilterComponents`);
+    if (value && value.type === 'custom') {
+        // RuntimeReference-based component reference
+        const componentRef = parseRuntimeReference(value.component);
+        if (componentRef.section !== 'customFilterComponents') {
+            throw new Error('Invalid custom filter component: section must be "customFilterComponents"');
         }
+
+        if (!runtime.customFilterComponents || !(componentRef.key in runtime.customFilterComponents)) {
+            throw new Error(`Custom filter component "${componentRef.key}" not found in runtime.customFilterComponents`);
+        }
+
         value = {
             ...value,
-            component: runtime.customFilterComponents[value.component]
+            component: runtime.customFilterComponents[componentRef.key]
         };
     }
 
@@ -309,20 +360,21 @@ export function parseFilterExprJson<Runtime extends {
         value
     };
 
-    // Handle transform key if present
-    if (expr.transformKey) {
-        if (typeof expr.transformKey !== 'string') {
-            throw new Error('Invalid FilterExpr: "transformKey" must be a string');
+    // Handle transform reference if present
+    if (expr.transform) {
+        const transformRef = parseRuntimeReference(expr.transform);
+        if (transformRef.section !== 'queryTransforms') {
+            throw new Error('Invalid transform: section must be "queryTransforms"');
         }
 
         const transformKeys = Object.keys(runtime.queryTransforms);
-        if (!transformKeys.includes(expr.transformKey)) {
+        if (!transformKeys.includes(transformRef.key)) {
             throw new Error(
-                `Invalid transformKey: "${expr.transformKey}". Valid keys are: ${transformKeys.join(', ')}`
+                `Invalid transform reference: "${transformRef.key}". Valid keys are: ${transformKeys.join(', ')}`
             );
         }
 
-        (result as any).transform = runtime.queryTransforms[expr.transformKey];
+        (result as any).transform = runtime.queryTransforms[transformRef.key];
     }
 
     return result;
@@ -486,11 +538,11 @@ export function parseViewJson<Runtimes extends Record<string, {
             throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
-        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRendererKey to cellRenderer
+        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRenderer to actual cellRenderer
         return {
             data: colJson.data.map(fieldQueryJsonToFieldQuery),
             name: colJson.name,
-            cellRenderer: runtime.cellRenderers[colJson.cellRendererKey as string]
+            cellRenderer: runtime.cellRenderers[colJson.cellRenderer.key]
         };
     });
 
@@ -506,31 +558,15 @@ export function parseViewJson<Runtimes extends Record<string, {
     // Parse optional noRowsComponent
     let noRowsComponent;
     if (view.noRowsComponent !== undefined) {
-        if (typeof view.noRowsComponent !== 'string') {
-            throw new Error('View "noRowsComponent" must be a string');
+        const noRowsRef = parseRuntimeReference(view.noRowsComponent);
+        if (noRowsRef.section !== 'noRowsComponents') {
+            throw new Error('Invalid noRowsComponent: section must be "noRowsComponents"');
         }
-        if (!runtime.noRowsComponents || !runtime.noRowsComponents[view.noRowsComponent]) {
-            throw new Error(`No-rows component "${view.noRowsComponent}" not found in runtime.noRowsComponents`);
-        }
-        noRowsComponent = runtime.noRowsComponents[view.noRowsComponent];
-    }
 
-    // Parse optional customFilterComponents for filters
-    let customFilterComponents: Record<string, any> | undefined = undefined;
-    if (view.customFilterComponents) {
-        if (typeof view.customFilterComponents !== 'object' || Array.isArray(view.customFilterComponents)) {
-            throw new Error('View "customFilterComponents" must be an object');
+        if (!runtime.noRowsComponents || !runtime.noRowsComponents[noRowsRef.key]) {
+            throw new Error(`No-rows component "${noRowsRef.key}" not found in runtime.noRowsComponents`);
         }
-        if (!runtime.customFilterComponents) {
-            throw new Error('Runtime does not provide customFilterComponents');
-        }
-        customFilterComponents = {};
-        for (const [jsonKey, runtimeKey] of Object.entries(view.customFilterComponents)) {
-            if (!(runtimeKey in runtime.customFilterComponents)) {
-                throw new Error(`Custom filter component "${runtimeKey}" not found in runtime.customFilterComponents`);
-            }
-            customFilterComponents[jsonKey] = runtime.customFilterComponents[runtimeKey];
-        }
+        noRowsComponent = runtime.noRowsComponents[noRowsRef.key];
     }
 
     return {
@@ -542,7 +578,6 @@ export function parseViewJson<Runtimes extends Record<string, {
         boolExpType: view.boolExpType as string,
         orderByType: view.orderByType as string,
         paginationKey: view.paginationKey,
-        noRowsComponent,
-        customFilterComponents
+        noRowsComponent
     };
 }

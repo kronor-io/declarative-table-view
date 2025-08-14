@@ -6,7 +6,10 @@
     "boolExpType": "PaymentRequestBoolExp",
     "orderByType": "[PaymentRequestOrderBy!]",
     "runtimeKey": "paymentRequests",
-    "noRowsComponent": "noRowsExtendDateRange",
+    "noRowsComponent": {
+        "section": "noRowsComponents",
+        "key": "noRowsExtendDateRange"
+    },
     "columns": [
         {
             "data": [
@@ -20,7 +23,10 @@
                 }
             ],
             "name": "Transaction",
-            "cellRendererKey": "transaction"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "transaction"
+            }
         },
         {
             "data": [
@@ -30,7 +36,10 @@
                 }
             ],
             "name": "Merchant",
-            "cellRendererKey": "merchant"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "merchant"
+            }
         },
         {
             "data": [
@@ -40,7 +49,10 @@
                 }
             ],
             "name": "Placed At",
-            "cellRendererKey": "placedAt"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "placedAt"
+            }
         },
         {
             "data": [
@@ -50,7 +62,10 @@
                 }
             ],
             "name": "Reference",
-            "cellRendererKey": "reference"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "reference"
+            }
         },
         {
             "data": [
@@ -76,7 +91,10 @@
                 }
             ],
             "name": "Provider",
-            "cellRendererKey": "paymentProvider"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "paymentProvider"
+            }
         },
         {
             "data": [
@@ -90,7 +108,10 @@
                 }
             ],
             "name": "Initiated By",
-            "cellRendererKey": "initiatedBy"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "initiatedBy"
+            }
         },
         {
             "data": [
@@ -100,7 +121,10 @@
                 }
             ],
             "name": "Status",
-            "cellRendererKey": "status"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "status"
+            }
         },
         {
             "data": [
@@ -114,12 +138,12 @@
                 }
             ],
             "name": "Amount",
-            "cellRendererKey": "amount"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "amount"
+            }
         }
     ],
-    "customComponents": {
-        "PhoneNumberFilter": "PhoneNumberFilter"
-    },
     "filterSchema": {
         "groups": [
             {
@@ -616,7 +640,10 @@
                     "key": "customer.packedPhoneNumber",
                     "value": {
                         "type": "custom",
-                        "component": "PhoneNumberFilter"
+                        "component": {
+                            "section": "customFilterComponents",
+                            "key": "PhoneNumberFilter"
+                        }
                     }
                 },
                 "group": "customer",

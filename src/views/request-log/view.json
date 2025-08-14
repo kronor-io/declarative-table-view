@@ -15,7 +15,7 @@
                 }
             ],
             "name": "Merchant",
-            "cellRendererKey": "merchantCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "merchantCellRenderer"}
         },
         {
             "data": [
@@ -25,7 +25,7 @@
                 }
             ],
             "name": "Date",
-            "cellRendererKey": "dateCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "dateCellRenderer"}
         },
         {
             "data": [
@@ -35,7 +35,7 @@
                 }
             ],
             "name": "Idempotency Key",
-            "cellRendererKey": "idempotencyKeyCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "idempotencyKeyCellRenderer"}
         },
         {
             "data": [
@@ -45,7 +45,7 @@
                 }
             ],
             "name": "Namespace",
-            "cellRendererKey": "namespaceCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "namespaceCellRenderer"}
         },
         {
             "data": [
@@ -55,7 +55,7 @@
                 }
             ],
             "name": "Request",
-            "cellRendererKey": "jsonCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "jsonCellRenderer"}
         },
         {
             "data": [
@@ -65,7 +65,7 @@
                 }
             ],
             "name": "Response",
-            "cellRendererKey": "jsonResponseCellRenderer"
+            "cellRenderer": {"section": "cellRenderers", "key": "jsonResponseCellRenderer"}
         }
     ],
     "filterSchema": {

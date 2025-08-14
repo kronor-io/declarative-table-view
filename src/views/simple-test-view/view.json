@@ -15,7 +15,10 @@
                 }
             ],
             "name": "Test Column Header",
-            "cellRendererKey": "defaultCellRenderer"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "defaultCellRenderer"
+            }
         },
         {
             "data": [
@@ -25,7 +28,10 @@
                 }
             ],
             "name": "Amount",
-            "cellRendererKey": "defaultCellRenderer"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "defaultCellRenderer"
+            }
         },
         {
             "data": [
@@ -35,7 +41,10 @@
                 }
             ],
             "name": "Email",
-            "cellRendererKey": "emailCellRenderer"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "emailCellRenderer"
+            }
         },
         {
             "data": [
@@ -45,12 +54,12 @@
                 }
             ],
             "name": "Phone",
-            "cellRendererKey": "defaultCellRenderer"
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "defaultCellRenderer"
+            }
         }
     ],
-    "customFilterComponents": {
-        "PhoneNumberFilter": "PhoneNumberFilter"
-    },
     "filterSchema": {
         "groups": [
             {
@@ -106,7 +115,10 @@
                     "key": "phone",
                     "value": {
                         "type": "custom",
-                        "component": "PhoneNumberFilter"
+                        "component": {
+                            "section": "customFilterComponents",
+                            "key": "PhoneNumberFilter"
+                        }
                     }
                 },
                 "group": "extra",
