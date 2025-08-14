@@ -324,7 +324,10 @@
                             "type": "text"
                         }
                     },
-                    "transformKey": "reference"
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "reference"
+                    }
                 },
                 "group": "default",
                 "aiGenerated": false
@@ -425,7 +428,10 @@
                             "type": "text"
                         }
                     },
-                    "transformKey": "reference"
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "reference"
+                    }
                 },
                 "group": "default",
                 "aiGenerated": false
@@ -442,7 +448,10 @@
                                 "type": "number",
                                 "placeholder": "from"
                             },
-                            "transformKey": "amount"
+                            "transform": {
+                                "section": "queryTransforms",
+                                "key": "amount"
+                            }
                         },
                         {
                             "type": "lessThanOrEqual",
@@ -451,7 +460,10 @@
                                 "type": "number",
                                 "placeholder": "to"
                             },
-                            "transformKey": "amount"
+                            "transform": {
+                                "section": "queryTransforms",
+                                "key": "amount"
+                            }
                         }
                     ]
                 },
@@ -628,7 +640,10 @@
                     "value": {
                         "type": "text"
                     },
-                    "transformKey": "creditCardNumber"
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "creditCardNumber"
+                    }
                 },
                 "group": "credit-card",
                 "aiGenerated": false
