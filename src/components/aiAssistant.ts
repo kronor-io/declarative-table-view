@@ -66,7 +66,7 @@ function buildAiPrompt(filterSchema: FilterFieldSchema, userPrompt: string): str
         '',
         `The current date is: ${currentDate}`,
         '',
-        `Generate a valid array of FilterFormState (as JSON) that matches a user request.`,
+        `Generate a valid array of FilterFormState (as JSON) that matches a user request. Follow the order of filters in the schema exactly.`,
         `User request: ${userPrompt}`,
         '',
         `For any filter in the schema that is not set based on the user request, include it in the output with an empty value (e.g., empty string, null, or empty array as appropriate). For date filters, always send the value as a plain string in standard date-time string format.`,
@@ -83,9 +83,17 @@ function emptyStateFromSchema(filterSchema: FilterFieldSchema): FilterFormState[
 function mergeStateByKey(emptyState: FilterFormState, aiState: any): FilterFormState {
     if (!aiState) return emptyState;
     if (emptyState.type === 'leaf' && aiState.type === 'leaf') {
+        let value = aiState.value;
+
+        // Patch customOperator values: if we get a plain string, wrap it into an object { value: s }
+        if (emptyState.control?.type === 'customOperator' && typeof value === 'string') {
+            const defaultOperator = emptyState.control.operators[0]?.value;
+            value = { operator: defaultOperator, value: value };
+        }
+
         return {
             ...emptyState,
-            value: aiState.value
+            value: value
         };
     }
     if ((emptyState.type === 'and' || emptyState.type === 'or') && (aiState.type === 'and' || aiState.type === 'or')) {
