@@ -4,6 +4,7 @@ import Table from './components/Table';
 import { requestLogViewRuntime } from './views/request-log/runtime';
 import { simpleTestViewRuntime } from './views/simple-test-view/runtime';
 import { paymentRequestsRuntime } from './views/payment-requests/runtime';
+import { nativeComponentsRuntime } from './framework/nativeComponents';
 import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
@@ -35,7 +36,8 @@ interface AppProps {
 export const runtimes = {
     paymentRequests: paymentRequestsRuntime,
     requestLog: requestLogViewRuntime,
-    simpleTestView: simpleTestViewRuntime
+    simpleTestView: simpleTestViewRuntime,
+    nativeComponents: nativeComponentsRuntime
 } as const;
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson }: AppProps) {
