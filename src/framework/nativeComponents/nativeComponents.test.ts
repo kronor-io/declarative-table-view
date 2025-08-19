@@ -3,18 +3,21 @@ import { nativeComponentsRuntime } from './index';
 
 describe('nativeComponents', () => {
     describe('nativeComponentsRuntime', () => {
-        it('has the correct structure', () => {
-            expect(nativeComponentsRuntime).toHaveProperty('components');
-            expect(nativeComponentsRuntime.components).toHaveProperty('Link');
+        it('has the correct ViewRuntime structure', () => {
+            expect(nativeComponentsRuntime).toHaveProperty('cellRenderers');
+            expect(nativeComponentsRuntime.cellRenderers).toHaveProperty('Link');
         });
 
-        it('exports Link component in runtime', () => {
-            expect(nativeComponentsRuntime.components.Link).toBeDefined();
-            expect(typeof nativeComponentsRuntime.components.Link).toBe('function');
+        it('exports Link component in cellRenderers', () => {
+            expect(nativeComponentsRuntime.cellRenderers.Link).toBeDefined();
+            expect(typeof nativeComponentsRuntime.cellRenderers.Link).toBe('function');
         });
 
-        it('does not export cell renderers', () => {
-            expect(nativeComponentsRuntime).not.toHaveProperty('cellRenderers');
+        it('has all required runtime sections', () => {
+            expect(nativeComponentsRuntime).toHaveProperty('cellRenderers');
+            expect(nativeComponentsRuntime).toHaveProperty('queryTransforms');
+            expect(nativeComponentsRuntime).toHaveProperty('noRowsComponents');
+            expect(nativeComponentsRuntime).toHaveProperty('customFilterComponents');
         });
     });
 });

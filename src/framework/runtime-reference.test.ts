@@ -1,4 +1,5 @@
 import { parseRuntimeReference, parseColumnDefinitionJson } from './view-parser';
+import { Runtime } from './runtime';
 
 describe('RuntimeReference', () => {
     describe('parseRuntimeReference', () => {
@@ -70,11 +71,14 @@ describe('RuntimeReference', () => {
     });
 
     describe('ColumnDefinitionJson with RuntimeReference', () => {
-        const testRuntime = {
+        const testRuntime: Runtime = {
             cellRenderers: {
                 myRenderer: () => 'test',
                 otherRenderer: () => 'other'
-            }
+            },
+            queryTransforms: {},
+            noRowsComponents: {},
+            customFilterComponents: {}
         };
 
         it('should parse column with RuntimeReference format', () => {
@@ -87,7 +91,7 @@ describe('RuntimeReference', () => {
                 }
             };
 
-            const result = parseColumnDefinitionJson(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.cellRenderer.section).toBe('cellRenderers');
             expect(result.cellRenderer.key).toBe('myRenderer');
         });
@@ -100,7 +104,7 @@ describe('RuntimeReference', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "cellRenderer" field is required');
         });
 
@@ -115,7 +119,7 @@ describe('RuntimeReference', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer: section must be "cellRenderers"');
         });
 
@@ -130,13 +134,16 @@ describe('RuntimeReference', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer reference: "nonExistentRenderer". Valid keys are: myRenderer, otherRenderer');
         });
     });
 
     describe('Custom Filter Component RuntimeReference', () => {
-        const testRuntime = {
+        const testRuntime: Runtime = {
+            cellRenderers: {},
+            queryTransforms: {},
+            noRowsComponents: {},
             customFilterComponents: {
                 phoneNumberFilter: () => 'PhoneNumberFilter',
                 emailFilter: () => 'EmailFilter'

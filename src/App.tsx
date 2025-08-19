@@ -20,6 +20,7 @@ import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { ColumnDefinition } from './framework/column-definition';
+import { Runtime } from './framework/runtime';
 
 interface AppProps {
     graphqlHost: string;
@@ -30,21 +31,24 @@ interface AppProps {
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
     cellRendererContext?: unknown; // Context passed to all cell renderers
+    externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
 }
 
-// Hardcoded runtimes dictionary
-export const runtimes = {
+// Built-in runtimes dictionary
+const builtInRuntimes = {
     paymentRequests: paymentRequestsRuntime,
     requestLog: requestLogViewRuntime,
     simpleTestView: simpleTestViewRuntime,
     nativeComponents: nativeComponentsRuntime
-} as const;
+};
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson, externalRuntime }: AppProps) {
+
+
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
-        return viewDefinitions.map((view: unknown) => parseViewJson(view, runtimes as any));
-    }, [viewsJson]) as View[];
+        return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntimes, externalRuntime));
+    }, [viewsJson, externalRuntime]) as View[];
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {

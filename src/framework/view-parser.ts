@@ -1,15 +1,44 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { CellRenderer, FieldQuery, QueryConfig, OrderByConfig, Field, QueryConfigs } from './column-definition';
+import type { FieldQuery, QueryConfig, OrderByConfig, Field, QueryConfigs } from './column-definition';
 import type { FilterControl, FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
 import { View } from './view';
+import type { Runtime } from './runtime';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
     section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms';
     key: string;
 };
+
+// Helper function to resolve a runtime reference with external runtime precedence
+export function resolveRuntimeReference<T>(
+    reference: RuntimeReference,
+    externalRuntime: Runtime | undefined,
+    builtInRuntime: Runtime
+): T {
+    const { section, key } = reference;
+
+    // First check external runtime if available
+    if (externalRuntime && externalRuntime[section] && externalRuntime[section][key]) {
+        return externalRuntime[section][key] as T;
+    }
+
+    // Fall back to built-in runtime
+    if (builtInRuntime[section] && builtInRuntime[section][key]) {
+        return builtInRuntime[section][key] as T;
+    }
+
+    // Component not found in either runtime
+    const externalKeys = externalRuntime ? Object.keys(externalRuntime[section] || {}) : [];
+    const builtInKeys = Object.keys(builtInRuntime[section] || {});
+    const availableKeys = [...new Set([...externalKeys, ...builtInKeys])];
+
+    throw new Error(
+        `Component "${key}" not found in ${section}. Available keys: ${availableKeys.join(', ')}`
+    );
+}
 
 // JSON Schema types - these are just aliases since the original types are already JSON-friendly
 export type FieldJson = Field;
@@ -227,9 +256,10 @@ function parseFieldQueryJson(obj: unknown): FieldQueryJson {
 }
 
 // Parser function for ColumnDefinitionJson
-export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Record<string, CellRenderer> }>(
+export function parseColumnDefinitionJson(
     json: unknown,
-    runtime: Runtime
+    builtInRuntime: Runtime,
+    externalRuntime?: Runtime
 ): ColumnDefinitionJson {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid JSON: Expected an object');
@@ -265,11 +295,14 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
         }
     });
 
-    // Validate that cellRenderer key exists in runtime
-    const runtimeKeys = Object.keys(runtime.cellRenderers);
-    if (!runtimeKeys.includes(cellRenderer.key)) {
+    // Validate that cellRenderer key exists in at least one runtime
+    const externalKeys = externalRuntime ? Object.keys(externalRuntime.cellRenderers || {}) : [];
+    const builtInKeys = Object.keys(builtInRuntime.cellRenderers || {});
+    const allKeys = [...new Set([...externalKeys, ...builtInKeys])];
+
+    if (!allKeys.includes(cellRenderer.key)) {
         throw new Error(
-            `Invalid cellRenderer reference: "${cellRenderer.key}". Valid keys are: ${runtimeKeys.join(', ')}`
+            `Invalid cellRenderer reference: "${cellRenderer.key}". Valid keys are: ${allKeys.join(', ')}`
         );
     }
 
@@ -281,12 +314,10 @@ export function parseColumnDefinitionJson<Runtime extends { cellRenderers: Recor
 }
 
 // Parser function for FilterExprJson to FilterExpr
-export function parseFilterExprJson<Runtime extends {
-    queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }>;
-    customFilterComponents?: Record<string, any>;
-}>(
+export function parseFilterExprJson(
     json: unknown,
-    runtime: Runtime
+    builtInRuntime: Runtime,
+    externalRuntime?: Runtime
 ): FilterExpr {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid FilterExpr: Expected an object');
@@ -305,7 +336,7 @@ export function parseFilterExprJson<Runtime extends {
         }
         return {
             type: expr.type as 'and' | 'or',
-            filters: expr.filters.map(filter => parseFilterExprJson(filter, runtime))
+            filters: expr.filters.map(filter => parseFilterExprJson(filter, builtInRuntime, externalRuntime))
         };
     }
 
@@ -315,7 +346,7 @@ export function parseFilterExprJson<Runtime extends {
         }
         return {
             type: 'not',
-            filter: parseFilterExprJson(expr.filter, runtime)
+            filter: parseFilterExprJson(expr.filter, builtInRuntime, externalRuntime)
         };
     }
 
@@ -333,8 +364,7 @@ export function parseFilterExprJson<Runtime extends {
         throw new Error('Invalid FilterExpr: "value" must be a FilterControl object');
     }
 
-
-    // If the value is a custom filter control, resolve the component from runtime.customFilterComponents
+    // If the value is a custom filter control, resolve the component from runtimes
     let value: FilterControl = expr.value as FilterControl;
     if (value && value.type === 'custom') {
         // RuntimeReference-based component reference
@@ -343,13 +373,15 @@ export function parseFilterExprJson<Runtime extends {
             throw new Error('Invalid custom filter component: section must be "customFilterComponents"');
         }
 
-        if (!runtime.customFilterComponents || !(componentRef.key in runtime.customFilterComponents)) {
-            throw new Error(`Custom filter component "${componentRef.key}" not found in runtime.customFilterComponents`);
-        }
+        const component = resolveRuntimeReference<any>(
+            componentRef,
+            externalRuntime,
+            builtInRuntime
+        );
 
         value = {
             ...value,
-            component: runtime.customFilterComponents[componentRef.key]
+            component
         };
     }
 
@@ -367,23 +399,23 @@ export function parseFilterExprJson<Runtime extends {
             throw new Error('Invalid transform: section must be "queryTransforms"');
         }
 
-        const transformKeys = Object.keys(runtime.queryTransforms);
-        if (!transformKeys.includes(transformRef.key)) {
-            throw new Error(
-                `Invalid transform reference: "${transformRef.key}". Valid keys are: ${transformKeys.join(', ')}`
-            );
-        }
+        const transform = resolveRuntimeReference<any>(
+            transformRef,
+            externalRuntime,
+            builtInRuntime
+        );
 
-        (result as any).transform = runtime.queryTransforms[transformRef.key];
+        (result as any).transform = transform;
     }
 
     return result;
 }
 
 // Parser function for FilterFieldSchemaJson
-export function parseFilterFieldSchemaJson<Runtime extends { queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any }> }>(
+export function parseFilterFieldSchemaJson(
     json: unknown,
-    runtime: Runtime
+    builtInRuntime: Runtime,
+    externalRuntime?: Runtime
 ): FilterFieldSchema {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid FilterFieldSchema: Expected an object');
@@ -447,7 +479,7 @@ export function parseFilterFieldSchemaJson<Runtime extends { queryTransforms: Re
 
         let expression: FilterExpr;
         try {
-            expression = parseFilterExprJson(f.expression, runtime);
+            expression = parseFilterExprJson(f.expression, builtInRuntime, externalRuntime);
         } catch (error) {
             throw new Error(`Invalid filter[${index}] expression: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -466,15 +498,11 @@ export function parseFilterFieldSchemaJson<Runtime extends { queryTransforms: Re
     };
 }
 
-// Parse ViewJson into a View object
-export function parseViewJson<Runtimes extends Record<string, {
-    cellRenderers: Record<string, CellRenderer>;
-    queryTransforms: Record<string, { fromQuery: (input: any) => any; toQuery: (input: any) => any; }>;
-    noRowsComponents?: Record<string, any>;
-    customFilterComponents?: Record<string, any>;
-}>>(
+// Parse ViewJson into a View object with separate built-in and external runtimes
+export function parseViewJson(
     json: unknown,
-    runtimes: Runtimes
+    builtInRuntimes: Record<string, Runtime>,
+    externalRuntime?: Runtime
 ): View {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('View JSON must be a non-null object');
@@ -511,14 +539,20 @@ export function parseViewJson<Runtimes extends Record<string, {
         throw new Error('View "runtimeKey" must be a string');
     }
 
-    // Validate that the runtimeKey exists in the runtimes dictionary
-    const runtimeKeys = Object.keys(runtimes);
-    if (!runtimeKeys.includes(view.runtimeKey)) {
-        throw new Error(`Invalid runtimeKey: "${view.runtimeKey}". Valid keys are: ${runtimeKeys.join(', ')}`);
+    // Get the built-in runtime by key
+    const builtInRuntime = builtInRuntimes[view.runtimeKey];
+    if (!builtInRuntime && !externalRuntime) {
+        const availableKeys = Object.keys(builtInRuntimes);
+        throw new Error(`Invalid runtimeKey: "${view.runtimeKey}". Available built-in runtime keys are: ${availableKeys.join(', ')}`);
     }
 
-    // Get the specific runtime for this view
-    const runtime = runtimes[view.runtimeKey as keyof Runtimes];
+    // Use empty runtime if built-in runtime is not found but external runtime exists
+    const effectiveBuiltInRuntime = builtInRuntime || {
+        cellRenderers: {},
+        queryTransforms: {},
+        noRowsComponents: {},
+        customFilterComponents: {}
+    };
 
     // Validate columns array
     if (!Array.isArray(view.columns)) {
@@ -529,33 +563,39 @@ export function parseViewJson<Runtimes extends Record<string, {
     if (!view.filterSchema) {
         throw new Error('View "filterSchema" is required');
     }
-    // Parse columns
+
+    // Parse columns with runtime resolution
     const columnDefinitions = view.columns.map((col, index) => {
         let colJson;
         try {
-            colJson = parseColumnDefinitionJson(col, runtime);
+            colJson = parseColumnDefinitionJson(col, effectiveBuiltInRuntime, externalRuntime);
         } catch (error) {
             throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
-        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRenderer to actual cellRenderer
+        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRenderer
+        const cellRenderer = resolveRuntimeReference<any>(
+            colJson.cellRenderer,
+            externalRuntime,
+            effectiveBuiltInRuntime
+        );
+
         return {
             data: colJson.data.map(fieldQueryJsonToFieldQuery),
             name: colJson.name,
-            cellRenderer: runtime.cellRenderers[colJson.cellRenderer.key]
+            cellRenderer
         };
     });
 
-    // Parse filter schema
+    // Parse filter schema with runtime resolution
     let filterSchema;
     try {
-        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, runtime);
+        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, effectiveBuiltInRuntime, externalRuntime);
     } catch (error) {
         throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-
-    // Parse optional noRowsComponent
+    // Parse optional noRowsComponent with runtime resolution
     let noRowsComponent;
     if (view.noRowsComponent !== undefined) {
         const noRowsRef = parseRuntimeReference(view.noRowsComponent);
@@ -563,10 +603,11 @@ export function parseViewJson<Runtimes extends Record<string, {
             throw new Error('Invalid noRowsComponent: section must be "noRowsComponents"');
         }
 
-        if (!runtime.noRowsComponents || !runtime.noRowsComponents[noRowsRef.key]) {
-            throw new Error(`No-rows component "${noRowsRef.key}" not found in runtime.noRowsComponents`);
-        }
-        noRowsComponent = runtime.noRowsComponents[noRowsRef.key];
+        noRowsComponent = resolveRuntimeReference<any>(
+            noRowsRef,
+            externalRuntime,
+            builtInRuntime
+        );
     }
 
     return {

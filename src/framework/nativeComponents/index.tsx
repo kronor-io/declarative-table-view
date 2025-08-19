@@ -1,7 +1,8 @@
 import { Link } from './components/Link';
+import { Runtime } from '../runtime';
 
-export type NativeComponentsRuntime = {
-    components: {
+export type NativeComponentsRuntime = Runtime & {
+    cellRenderers: {
         Link: typeof Link;
     };
 };
@@ -11,9 +12,12 @@ export type NativeComponentsRuntime = {
  * for use across different views in the application
  */
 export const nativeComponentsRuntime: NativeComponentsRuntime = {
-    components: {
+    cellRenderers: {
         Link
-    }
+    },
+    queryTransforms: {},
+    noRowsComponents: {},
+    customFilterComponents: {}
 };
 
 // Export components for direct usage

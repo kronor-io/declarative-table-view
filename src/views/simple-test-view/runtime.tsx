@@ -1,5 +1,6 @@
 import { CellRenderer, defaultCellRenderer } from "../../framework/column-definition";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
+import { Runtime } from "../../framework/runtime";
 
 // Define a simple data type for this view
 export type SimpleTestData = {
@@ -40,7 +41,7 @@ const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters })
 };
 
 // Runtime configuration for simple test view
-export const simpleTestViewRuntime = {
+export const simpleTestViewRuntime: Runtime = {
     cellRenderers: {
         defaultCellRenderer,
         emailCellRenderer

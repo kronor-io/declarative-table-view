@@ -1,23 +1,17 @@
 import { parseColumnDefinitionJson, parseFilterFieldSchemaJson, parseViewJson } from './view-parser';
-
-// Test runtime type
-type TestRuntime = {
-    cellRenderers: {
-        name: () => string;
-        email: () => string;
-        status: () => string;
-        amount: () => string;
-    };
-};
+import { Runtime } from './runtime';
 
 describe('parseColumnDefinitionJson', () => {
-    const testRuntime: TestRuntime = {
+    const testRuntime: Runtime = {
         cellRenderers: {
             name: () => 'test',
             email: () => 'test',
             status: () => 'test',
             amount: () => 'test'
-        }
+        },
+        queryTransforms: {},
+        noRowsComponents: {},
+        customFilterComponents: {}
     };
 
     describe('successful parsing', () => {
@@ -28,7 +22,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
 
             expect(result).toEqual({
                 data: [{ type: 'field', path: 'user.name' }],
@@ -47,7 +41,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
 
             expect(result).toEqual({
                 data: [
@@ -73,7 +67,7 @@ describe('parseColumnDefinitionJson', () => {
                     cellRenderer
                 };
 
-                const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                const result = parseColumnDefinitionJson(json, testRuntime, undefined);
                 expect(result.cellRenderer.section).toBe('cellRenderers');
                 expect(result.cellRenderer.key).toBe(expected);
             });
@@ -93,7 +87,7 @@ describe('parseColumnDefinitionJson', () => {
                     cellRenderer
                 };
 
-                const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                const result = parseColumnDefinitionJson(json, testRuntime, undefined);
                 expect(result.cellRenderer.section).toBe('cellRenderers');
                 expect(result.cellRenderer.key).toBe(expected);
             });
@@ -106,7 +100,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([]);
             expect(result.cellRenderer.section).toBe('cellRenderers');
             expect(result.cellRenderer.key).toBe('name');
@@ -125,7 +119,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
                 type: 'queryConfigs',
                 configs: [
@@ -152,7 +146,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
                 type: 'queryConfigs',
                 configs: [
@@ -183,7 +177,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
                 type: 'queryConfigs',
                 configs: [
@@ -214,7 +208,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
                 type: 'queryConfigs',
                 configs: [
@@ -228,31 +222,31 @@ describe('parseColumnDefinitionJson', () => {
     describe('input validation errors', () => {
         it('should throw error for null input', () => {
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(null, testRuntime);
+                parseColumnDefinitionJson(null, testRuntime, undefined);
             }).toThrow('Invalid JSON: Expected an object');
         });
 
         it('should throw error for undefined input', () => {
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(undefined, testRuntime);
+                parseColumnDefinitionJson(undefined, testRuntime, undefined);
             }).toThrow('Invalid JSON: Expected an object');
         });
 
         it('should throw error for string input', () => {
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>('invalid', testRuntime);
+                parseColumnDefinitionJson('invalid', testRuntime, undefined);
             }).toThrow('Invalid JSON: Expected an object');
         });
 
         it('should throw error for number input', () => {
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(123, testRuntime);
+                parseColumnDefinitionJson(123, testRuntime, undefined);
             }).toThrow('Invalid JSON: Expected an object');
         });
 
         it('should throw error for array input', () => {
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>([1, 2, 3], testRuntime);
+                parseColumnDefinitionJson([1, 2, 3], testRuntime, undefined);
             }).toThrow('Invalid JSON: Expected an object');
         });
     });
@@ -265,7 +259,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "data" field must be an array of FieldQuery objects');
         });
 
@@ -277,7 +271,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "data" field must be an array of FieldQuery objects');
         });
 
@@ -289,7 +283,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "data" field must be an array of FieldQuery objects');
         });
 
@@ -301,7 +295,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "data" field must be an array of FieldQuery objects');
         });
     });
@@ -314,7 +308,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "name" field must be a string');
         });
 
@@ -326,7 +320,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "name" field must be a string');
         });
 
@@ -338,7 +332,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "name" field must be a string');
         });
 
@@ -350,7 +344,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "name" field must be a string');
         });
 
@@ -362,7 +356,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "name" field must be a string');
         });
     });
@@ -375,7 +369,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid JSON: "cellRenderer" field is required');
         });
 
@@ -387,7 +381,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid RuntimeReference: "key" must be a string');
         });
 
@@ -399,7 +393,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid RuntimeReference: "key" must be a string');
         });
     });
@@ -413,7 +407,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
         });
 
@@ -425,7 +419,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
         });
 
@@ -437,7 +431,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: "type" must be "field" or "queryConfigs"');
         });
 
@@ -449,7 +443,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
         });
 
@@ -461,7 +455,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
         });
     });
@@ -475,7 +469,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer reference: "invalidKey". Valid keys are: name, email, status, amount');
         });
 
@@ -487,7 +481,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer reference: "". Valid keys are: name, email, status, amount');
         });
 
@@ -499,7 +493,7 @@ describe('parseColumnDefinitionJson', () => {
             };
 
             expect(() => {
-                parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+                parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer reference: "NAME". Valid keys are: name, email, status, amount');
         });
     });
@@ -512,7 +506,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{ type: 'field', path: '' }]);
         });
 
@@ -523,7 +517,7 @@ describe('parseColumnDefinitionJson', () => {
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.name).toBe('');
         });
 
@@ -535,7 +529,7 @@ describe('parseColumnDefinitionJson', () => {
                 extraProperty: 'ignored'
             };
 
-            const result = parseColumnDefinitionJson<TestRuntime>(json, testRuntime);
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result).toEqual({
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
@@ -547,25 +541,10 @@ describe('parseColumnDefinitionJson', () => {
 });
 
 describe('parseFilterFieldSchemaJson', () => {
-    // Test runtime type with query transforms
-    type FilterTestRuntime = {
-        queryTransforms: {
-            reference: {
-                fromQuery: (input: any) => any;
-                toQuery: (input: any) => any;
-            };
-            amount: {
-                fromQuery: (input: any) => any;
-                toQuery: (input: any) => any;
-            };
-            creditCard: {
-                fromQuery: (input: any) => any;
-                toQuery: (input: any) => any;
-            };
-        };
-    };
-
-    const testRuntime: FilterTestRuntime = {
+    const testRuntime: Runtime = {
+        cellRenderers: {},
+        noRowsComponents: {},
+        customFilterComponents: {},
         queryTransforms: {
             reference: {
                 fromQuery: (input: any) => input.replace(/%$/, ''),
@@ -619,7 +598,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            const result = parseFilterFieldSchemaJson(json, testRuntime);
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
             expect(result.groups).toHaveLength(2);
             expect(result.groups[0]).toEqual({ name: 'default', label: null });
@@ -670,7 +649,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            const result = parseFilterFieldSchemaJson(json, testRuntime);
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
             expect(result.filters).toHaveLength(2);
 
@@ -727,7 +706,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            const result = parseFilterFieldSchemaJson(json, testRuntime);
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
             expect(result.filters).toHaveLength(1);
             const filter = result.filters[0];
@@ -770,7 +749,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            const result = parseFilterFieldSchemaJson(json, testRuntime);
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
             expect(result.filters).toHaveLength(1);
             const filter = result.filters[0];
@@ -782,18 +761,18 @@ describe('parseFilterFieldSchemaJson', () => {
 
     describe('error handling', () => {
         it('should throw error for invalid JSON structure', () => {
-            expect(() => parseFilterFieldSchemaJson(null, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(null, testRuntime, undefined))
                 .toThrow('Invalid FilterFieldSchema: Expected an object');
 
-            expect(() => parseFilterFieldSchemaJson([], testRuntime))
+            expect(() => parseFilterFieldSchemaJson([], testRuntime, undefined))
                 .toThrow('Invalid FilterFieldSchema: Expected an object');
 
-            expect(() => parseFilterFieldSchemaJson('string', testRuntime))
+            expect(() => parseFilterFieldSchemaJson('string', testRuntime, undefined))
                 .toThrow('Invalid FilterFieldSchema: Expected an object');
         });
 
         it('should throw error for missing or invalid groups', () => {
-            expect(() => parseFilterFieldSchemaJson({ filters: [] }, testRuntime))
+            expect(() => parseFilterFieldSchemaJson({ filters: [] }, testRuntime, undefined))
                 .toThrow('Invalid FilterFieldSchema: "groups" must be an array');
 
             expect(() => parseFilterFieldSchemaJson({ groups: 'not-array', filters: [] }, testRuntime))
@@ -806,7 +785,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: []
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidGroup, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidGroup, testRuntime, undefined))
                 .toThrow('Invalid group[0]: "name" must be a string');
 
             const invalidGroupLabel = {
@@ -814,12 +793,12 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: []
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidGroupLabel, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidGroupLabel, testRuntime, undefined))
                 .toThrow('Invalid group[0]: "label" must be a string or null');
         });
 
         it('should throw error for missing or invalid filters', () => {
-            expect(() => parseFilterFieldSchemaJson({ groups: [] }, testRuntime))
+            expect(() => parseFilterFieldSchemaJson({ groups: [] }, testRuntime, undefined))
                 .toThrow('Invalid FilterFieldSchema: "filters" must be an array');
 
             expect(() => parseFilterFieldSchemaJson({ groups: [], filters: 'not-array' }, testRuntime))
@@ -832,7 +811,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: [{ expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidFilter, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidFilter, testRuntime, undefined))
                 .toThrow('Invalid filter[0]: "label" must be a string');
 
             const missingGroup = {
@@ -840,7 +819,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: [{ label: 'Test', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
             };
 
-            expect(() => parseFilterFieldSchemaJson(missingGroup, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(missingGroup, testRuntime, undefined))
                 .toThrow('Invalid filter[0]: "group" must be a string');
 
             const missingAiGenerated = {
@@ -848,7 +827,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: [{ label: 'Test', group: 'default', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
             };
 
-            expect(() => parseFilterFieldSchemaJson(missingAiGenerated, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(missingAiGenerated, testRuntime, undefined))
                 .toThrow('Invalid filter[0]: "aiGenerated" must be a boolean');
         });
 
@@ -858,7 +837,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 filters: [{ label: 'Test', group: 'default', aiGenerated: false }]
             };
 
-            expect(() => parseFilterFieldSchemaJson(missingExpression, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(missingExpression, testRuntime, undefined))
                 .toThrow('Invalid filter[0]: "expression" is required');
         });
 
@@ -880,8 +859,8 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidTransformReference, testRuntime))
-                .toThrow('Invalid filter[0] expression: Invalid transform reference: "nonExistentTransform". Valid keys are: reference, amount, creditCard');
+            expect(() => parseFilterFieldSchemaJson(invalidTransformReference, testRuntime, undefined))
+                .toThrow('Invalid filter[0] expression: Component "nonExistentTransform" not found in queryTransforms. Available keys: reference, amount, creditCard');
         });
 
         it('should throw error for invalid expression structure', () => {
@@ -901,7 +880,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidExpression, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidExpression, testRuntime, undefined))
                 .toThrow('Invalid FilterExpr type: "invalidType"');
         });
 
@@ -921,7 +900,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidAnd, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidAnd, testRuntime, undefined))
                 .toThrow('Invalid and FilterExpr: "filters" must be an array');
 
             const invalidNot = {
@@ -939,7 +918,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ]
             };
 
-            expect(() => parseFilterFieldSchemaJson(invalidNot, testRuntime))
+            expect(() => parseFilterFieldSchemaJson(invalidNot, testRuntime, undefined))
                 .toThrow('Invalid not FilterExpr: "filter" must be an object');
         });
     });
@@ -970,7 +949,8 @@ describe('parseViewJson', () => {
         },
         noRowsComponents: {
             noRowsExtendDateRange: mockNoRowsComponent
-        }
+        },
+        customFilterComponents: {}
     };
 
     const testRuntimes = {
@@ -1355,13 +1335,14 @@ describe('parseViewJson', () => {
             };
 
             expect(() => parseViewJson(missingNoRowsComponent, testRuntimes))
-                .toThrow('No-rows component "nonexistent" not found in runtime.noRowsComponents');
+                .toThrow('Component "nonexistent" not found in noRowsComponents. Available keys: noRowsExtendDateRange');
         });
 
         it('should throw error when runtime has no noRowsComponents', () => {
             const runtimeWithoutNoRows = {
                 ...testRuntime,
-                noRowsComponents: undefined
+                noRowsComponents: {},
+                customFilterComponents: {}
             };
 
             const runtimesDictWithoutNoRows = {
@@ -1382,7 +1363,7 @@ describe('parseViewJson', () => {
             };
 
             expect(() => parseViewJson(withNoRowsComponent, runtimesDictWithoutNoRows))
-                .toThrow('No-rows component "anything" not found in runtime.noRowsComponents');
+                .toThrow('Component "anything" not found in noRowsComponents. Available keys:');
         });
     });
 });

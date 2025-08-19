@@ -1,5 +1,6 @@
 import { CellRenderer } from "../../framework/column-definition";
 import { DateTime, Left } from "../../components/LayoutHelpers";
+import { Runtime } from "../../framework/runtime";
 
 // Merchant cell renderer
 const merchantCellRenderer: CellRenderer = ({ data: { merchantId } }) =>
@@ -30,7 +31,7 @@ const jsonResponseCellRenderer: CellRenderer = ({ data: { responseBody } }) =>
     </Left>;
 
 // Runtime configuration for request log view
-export const requestLogViewRuntime = {
+export const requestLogViewRuntime: Runtime = {
     cellRenderers: {
         merchantCellRenderer,
         dateCellRenderer,
@@ -40,5 +41,6 @@ export const requestLogViewRuntime = {
         jsonResponseCellRenderer
     },
     queryTransforms: {},
-    noRowsComponents: {}
+    noRowsComponents: {},
+    customFilterComponents: {}
 };

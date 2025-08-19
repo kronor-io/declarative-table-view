@@ -9,13 +9,14 @@ import { defaultCellRenderer } from "../../framework/column-definition";
 import { NoRowsComponent } from "../../framework/view";
 import NoRowsExtendDateRange from "./components/NoRowsExtendDateRange";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
+import { Runtime } from "../../framework/runtime";
 
 interface KronorPortalContext {
     portalHost: string;
 }
 
 // Static runtime configuration for payment requests view
-export type PaymentRequestsRuntime = {
+export type PaymentRequestsRuntime = Runtime & {
     cellRenderers: {
         transaction: CellRenderer<KronorPortalContext>;
         merchant: CellRenderer<KronorPortalContext>;
@@ -43,7 +44,9 @@ export type PaymentRequestsRuntime = {
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsComponent;
     };
-    customFilterComponents: Record<string, any>;
+    customFilterComponents: {
+        PhoneNumberFilter: any;
+    };
 };
 
 // Static object of cell renderers for payment requests

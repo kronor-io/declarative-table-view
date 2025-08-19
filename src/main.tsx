@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { PrimeReactProvider } from 'primereact/api';
-
-
+import { Runtime } from './framework/runtime';
 
 export interface RenderTableViewOptions {
     graphqlHost: string;
@@ -14,6 +13,7 @@ export interface RenderTableViewOptions {
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
     cellRendererContext?: unknown; // Context passed to all cell renderers
+    externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
 }
 
 
@@ -32,6 +32,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     showViewTitle={options.showViewTitle ?? false}
                     cellRendererContext={options.cellRendererContext}
                     viewsJson={options.viewsJson}
+                    externalRuntime={options.externalRuntime}
                 />
             </PrimeReactProvider>
         </StrictMode>
