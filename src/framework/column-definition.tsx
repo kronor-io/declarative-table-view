@@ -7,6 +7,7 @@ export type CellRendererProps<TContext = unknown> = {
     context?: TContext; // Optional context passed from the table
     setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
+    createElement: typeof React.createElement; // React createElement function
 };
 
 export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;

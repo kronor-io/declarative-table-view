@@ -1,3 +1,4 @@
+import React from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { ColumnDefinition } from '../framework/column-definition';
@@ -48,7 +49,8 @@ function Table<CellRendererContext = unknown>({
                         data: rowData[columnIndex],
                         context: cellRendererContext,
                         setFilterState: wrappedSetFilterState,
-                        applyFilters: triggerRefetch
+                        applyFilters: triggerRefetch,
+                        createElement: React.createElement
                     })}
                 />
             ))}

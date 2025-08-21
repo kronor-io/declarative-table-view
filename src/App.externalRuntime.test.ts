@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { parseViewJson } from './framework/view-parser';
 
 describe('External Runtime Integration', () => {
@@ -95,7 +96,8 @@ describe('External Runtime Integration', () => {
             const mockProps = {
                 data: { id: 'test' },
                 setFilterState: () => { },
-                applyFilters: () => { }
+                applyFilters: () => { },
+                createElement: React.createElement
             };
             expect(cellRenderer(mockProps)).toBe('Default Cell');
         }).not.toThrow();
@@ -150,7 +152,8 @@ describe('External Runtime Integration', () => {
             const mockProps = {
                 data: { id: 'test' },
                 setFilterState: () => { },
-                applyFilters: () => { }
+                applyFilters: () => { },
+                createElement: React.createElement
             };
             expect(cellRenderer(mockProps)).toBe('External Override');
         }).not.toThrow();
