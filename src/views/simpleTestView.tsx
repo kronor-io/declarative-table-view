@@ -29,7 +29,7 @@ export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
                 setFilterState(currentState =>
                     currentState.map(filter => {
                         // Find the email filter and update its value
-                        if (filter.type === 'leaf' && filter.key === 'email') {
+                        if (filter.type === 'leaf' && filter.field === 'email') {
                             return {
                                 ...filter,
                                 value: data.email

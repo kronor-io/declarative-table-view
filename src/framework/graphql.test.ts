@@ -175,15 +175,15 @@ describe('buildHasuraConditions', () => {
 
     it('should handle a single condition', () => {
         const formState: FilterFormState[] = [
-            { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+            { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
         ];
         expect(buildHasuraConditions(formState)).toEqual({ name: { _eq: 'test' } });
     });
 
     it('should handle multiple conditions with an implicit AND', () => {
         const formState: FilterFormState[] = [
-            { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
-            { type: 'leaf', key: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } }
+            { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
+            { type: 'leaf', field: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } }
         ];
         expect(buildHasuraConditions(formState)).toEqual({
             _and: [
@@ -195,7 +195,7 @@ describe('buildHasuraConditions', () => {
 
     it('should handle nested fields', () => {
         const formState: FilterFormState[] = [
-            { type: 'leaf', key: 'user.name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+            { type: 'leaf', field: 'user.name', filterType: 'equals', value: 'test', control: { type: 'text' } }
         ];
         expect(buildHasuraConditions(formState)).toEqual({
             user: { name: { _eq: 'test' } }
@@ -204,7 +204,7 @@ describe('buildHasuraConditions', () => {
 
     it('should handle deeply nested fields', () => {
         const formState: FilterFormState[] = [
-            { type: 'leaf', key: 'a.b.c.d', filterType: 'equals', value: 'deep', control: { type: 'text' } }
+            { type: 'leaf', field: 'a.b.c.d', filterType: 'equals', value: 'deep', control: { type: 'text' } }
         ];
         expect(buildHasuraConditions(formState)).toEqual({
             a: { b: { c: { d: { _eq: 'deep' } } } }
@@ -217,8 +217,8 @@ describe('buildHasuraConditions', () => {
                 type: 'or',
                 filterType: 'or',
                 children: [
-                    { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
-                    { type: 'leaf', key: 'name', filterType: 'equals', value: 'another', control: { type: 'text' } }
+                    { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
+                    { type: 'leaf', field: 'name', filterType: 'equals', value: 'another', control: { type: 'text' } }
                 ]
             }
         ];
@@ -235,7 +235,7 @@ describe('buildHasuraConditions', () => {
             {
                 type: 'not',
                 filterType: 'not',
-                child: { type: 'leaf', key: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
+                child: { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
             }
         ];
         expect(buildHasuraConditions(formState)).toEqual({
@@ -249,16 +249,16 @@ describe('buildHasuraConditions', () => {
                 type: 'and',
                 filterType: 'and',
                 children: [
-                    { type: 'leaf', key: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } },
+                    { type: 'leaf', field: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } },
                     {
                         type: 'or',
                         filterType: 'or',
                         children: [
-                            { type: 'leaf', key: 'user.name', filterType: 'iLike', value: '%test%', control: { type: 'text' } },
+                            { type: 'leaf', field: 'user.name', filterType: 'iLike', value: '%test%', control: { type: 'text' } },
                             {
                                 type: 'not',
                                 filterType: 'not',
-                                child: { type: 'leaf', key: 'user.role', filterType: 'equals', value: 'admin', control: { type: 'text' } }
+                                child: { type: 'leaf', field: 'user.role', filterType: 'equals', value: 'admin', control: { type: 'text' } }
                             }
                         ]
                     }
@@ -280,10 +280,10 @@ describe('buildHasuraConditions', () => {
 
     it('should ignore empty or invalid values', () => {
         const formState: FilterFormState[] = [
-            { type: 'leaf', key: 'name', filterType: 'equals', value: '', control: { type: 'text' } },
-            { type: 'leaf', key: 'age', filterType: 'greaterThan', value: undefined, control: { type: 'number' } },
-            { type: 'leaf', key: 'tags', filterType: 'in', value: [], control: { type: 'multiselect', items: [] } },
-            { type: 'leaf', key: 'valid', filterType: 'equals', value: 'good', control: { type: 'text' } }
+            { type: 'leaf', field: 'name', filterType: 'equals', value: '', control: { type: 'text' } },
+            { type: 'leaf', field: 'age', filterType: 'greaterThan', value: undefined, control: { type: 'number' } },
+            { type: 'leaf', field: 'tags', filterType: 'in', value: [], control: { type: 'multiselect', items: [] } },
+            { type: 'leaf', field: 'valid', filterType: 'equals', value: 'good', control: { type: 'text' } }
         ];
         expect(buildHasuraConditions(formState)).toEqual({ valid: { _eq: 'good' } });
     });
@@ -292,7 +292,7 @@ describe('buildHasuraConditions', () => {
         const formState: FilterFormState[] = [
             {
                 type: 'leaf',
-                key: 'custom_field',
+                field: 'custom_field',
                 filterType: 'equals', // This is not used for custom operators, but required by the type
                 value: { operator: '_custom_op', value: 'some_value' },
                 control: { type: 'customOperator', operators: [{ label: 'Custom Op', value: '_custom_op' }], valueControl: { type: 'text' } }
@@ -307,7 +307,7 @@ describe('buildHasuraConditions', () => {
         const formState: FilterFormState[] = [
             {
                 type: 'leaf',
-                key: 'user.name',
+                field: 'user.name',
                 filterType: 'equals', // This is not used for custom operators, but required by the type
                 value: { operator: '_ilike', value: '%test%' },
                 control: { type: 'customOperator', operators: [{ label: 'iLike', value: '_ilike' }], valueControl: { type: 'text' } }

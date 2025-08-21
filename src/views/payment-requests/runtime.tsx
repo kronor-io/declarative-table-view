@@ -81,7 +81,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                 setFilterState(currentState =>
                     currentState.map(filter => {
                         // Find the customer email filter and update its value
-                        if (filter.type === 'leaf' && filter.key === 'customer.email') {
+                        if (filter.type === 'leaf' && filter.field === 'customer.email') {
                             return {
                                 ...filter,
                                 value: { operator: '_eq', value: data['customer.email'] }

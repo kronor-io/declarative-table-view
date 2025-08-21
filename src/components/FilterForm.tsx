@@ -13,10 +13,10 @@ import { Panel } from 'primereact/panel';
 export type FilterFormState =
     | {
         type: 'leaf';
-        key: string;
+        field: string;
         value: any;
         control: FilterControl;
-        filterType: Extract<FilterExpr, { key: string }>['type'];
+        filterType: Extract<FilterExpr, { field: string }>['type'];
     }
     | { type: 'and' | 'or'; children: FilterFormState[]; filterType: 'and' | 'or' }
     | { type: 'not'; child: FilterFormState; filterType: 'not' };
@@ -38,7 +38,7 @@ export function buildInitialFormState(expr: FilterExpr): FilterFormState {
     } else {
         return {
             type: 'leaf',
-            key: expr.key,
+            field: expr.field,
             value: 'initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '',
             control: expr.value,
             filterType: expr.type,
@@ -236,9 +236,9 @@ function renderFilterFormState(
             if (value !== null && transform && typeof transform.toQuery === 'function') {
                 const transformResult = transform.toQuery(value);
 
-                // Transform must return an object with optional key/value fields
-                if (transformResult.key !== undefined) {
-                    newState.key = transformResult.key;
+                // Transform must return an object with optional field/value fields
+                if (transformResult.field !== undefined) {
+                    newState.field = transformResult.field;
                 }
                 if (transformResult.value !== undefined) {
                     newState.value = transformResult.value;
@@ -308,29 +308,29 @@ function serializeNode(node: FilterFormState): any {
     }
 }
 
-// Helper: collect all keys that are date controls from the schema
-function collectDateKeysFromSchema(schema: FilterFieldSchema): Set<string> {
-    const dateKeys = new Set<string>();
+// Helper: collect all fields that are date controls from the schema
+function collectDateFieldsFromSchema(schema: FilterFieldSchema): Set<string> {
+    const dateFields = new Set<string>();
     function traverse(expr: FilterExpr) {
         if (expr.type === 'and' || expr.type === 'or') {
             expr.filters.forEach(traverse);
-        } else if ('key' in expr && 'value' in expr && expr.value.type === 'date') {
-            dateKeys.add(expr.key);
+        } else if ('field' in expr && 'value' in expr && expr.value.type === 'date') {
+            dateFields.add(expr.field);
         }
     }
     schema.filters.forEach(field => traverse(field.expression));
-    return dateKeys;
+    return dateFields;
 }
 
 export function filterStateFromJSON(json: any, schema: FilterFieldSchema): FilterFormState[] {
-    const dateKeys = collectDateKeysFromSchema(schema);
-    return json.map((node: any) => deserializeNodeWithDates(node, dateKeys));
+    const dateFields = collectDateFieldsFromSchema(schema);
+    return json.map((node: any) => deserializeNodeWithDates(node, dateFields));
 }
 
-function deserializeNodeWithDates(node: any, dateKeys: Set<string>): FilterFormState {
+function deserializeNodeWithDates(node: any, dateFields: Set<string>): FilterFormState {
     if (node.type === 'leaf') {
         let value = node.value;
-        if (typeof value === 'string' && dateKeys.has(node.key)) {
+        if (typeof value === 'string' && dateFields.has(node.field)) {
             const date = new Date(value);
             value = isNaN(date.getTime()) ? null : date;
         }
@@ -338,13 +338,13 @@ function deserializeNodeWithDates(node: any, dateKeys: Set<string>): FilterFormS
     } else if (node.type === 'not') {
         return {
             type: 'not',
-            child: deserializeNodeWithDates(node.child, dateKeys),
+            child: deserializeNodeWithDates(node.child, dateFields),
             filterType: node.filterType
         };
     } else {
         return {
             type: node.type,
-            children: (node.children || []).map((child: any) => deserializeNodeWithDates(child, dateKeys)),
+            children: (node.children || []).map((child: any) => deserializeNodeWithDates(child, dateFields)),
             filterType: node.filterType
         };
     }

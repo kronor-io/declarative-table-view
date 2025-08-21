@@ -58,17 +58,17 @@ export type FilterControlJson =
 
 // JSON Schema types for FilterExpr with transform as RuntimeReference
 export type FilterExprJson =
-    | { type: 'equals'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'notEquals'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'greaterThan'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'lessThan'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'greaterThanOrEqual'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'lessThanOrEqual'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'in'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'notIn'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'like'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'iLike'; key: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'isNull'; key: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'equals'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notEquals'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThan'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThan'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThanOrEqual'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThanOrEqual'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'in'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notIn'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'like'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'iLike'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'isNull'; field: string; value: FilterControlJson; transform?: RuntimeReference }
     | { type: 'and'; filters: FilterExprJson[] }
     | { type: 'or'; filters: FilterExprJson[] }
     | { type: 'not'; filter: FilterExprJson };
@@ -356,8 +356,8 @@ export function parseFilterExprJson(
         throw new Error(`Invalid FilterExpr type: "${expr.type}". Valid types are: ${validLeafTypes.join(', ')}, and, or, not`);
     }
 
-    if (typeof expr.key !== 'string') {
-        throw new Error('Invalid FilterExpr: "key" must be a string');
+    if (typeof expr.field !== 'string') {
+        throw new Error('Invalid FilterExpr: "field" must be a string');
     }
 
     if (!expr.value || typeof expr.value !== 'object') {
@@ -388,7 +388,7 @@ export function parseFilterExprJson(
     // Build the result FilterExpr
     const result: FilterExpr = {
         type: expr.type as any,
-        key: expr.key,
+        field: expr.field,
         value
     };
 

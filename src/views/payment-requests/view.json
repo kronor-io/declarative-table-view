@@ -168,7 +168,7 @@
                 "label": "Merchant",
                 "expression": {
                     "type": "in",
-                    "key": "merchantId",
+                    "field": "merchantId",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -190,7 +190,7 @@
                 "label": "Payment Provider",
                 "expression": {
                     "type": "in",
-                    "key": "paymentProvider",
+                    "field": "paymentProvider",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -236,7 +236,7 @@
                 "label": "Payment Status",
                 "expression": {
                     "type": "in",
-                    "key": "currentStatus",
+                    "field": "currentStatus",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -307,7 +307,7 @@
                 "label": "Reference",
                 "expression": {
                     "type": "equals",
-                    "key": "reference",
+                    "field": "reference",
                     "value": {
                         "type": "customOperator",
                         "operators": [
@@ -336,7 +336,7 @@
                 "label": "Payment ID",
                 "expression": {
                     "type": "equals",
-                    "key": "resultingPaymentId",
+                    "field": "resultingPaymentId",
                     "value": {
                         "type": "text"
                     }
@@ -348,7 +348,7 @@
                 "label": "Customer Email",
                 "expression": {
                     "type": "equals",
-                    "key": "customer.email",
+                    "field": "customer.email",
                     "value": {
                         "type": "customOperator",
                         "operators": [
@@ -373,7 +373,7 @@
                 "label": "Customer Name",
                 "expression": {
                     "type": "iLike",
-                    "key": "customer.name",
+                    "field": "customer.name",
                     "value": {
                         "type": "text"
                     }
@@ -388,7 +388,7 @@
                     "filters": [
                         {
                             "type": "greaterThanOrEqual",
-                            "key": "createdAt",
+                            "field": "createdAt",
                             "value": {
                                 "type": "date",
                                 "placeholder": "from"
@@ -396,7 +396,7 @@
                         },
                         {
                             "type": "lessThanOrEqual",
-                            "key": "createdAt",
+                            "field": "createdAt",
                             "value": {
                                 "type": "date",
                                 "placeholder": "to"
@@ -411,7 +411,7 @@
                 "label": "Reference 2",
                 "expression": {
                     "type": "equals",
-                    "key": "merchantReference2",
+                    "field": "merchantReference2",
                     "value": {
                         "type": "customOperator",
                         "operators": [
@@ -443,7 +443,7 @@
                     "filters": [
                         {
                             "type": "greaterThanOrEqual",
-                            "key": "amount",
+                            "field": "amount",
                             "value": {
                                 "type": "number",
                                 "placeholder": "from"
@@ -455,7 +455,7 @@
                         },
                         {
                             "type": "lessThanOrEqual",
-                            "key": "amount",
+                            "field": "amount",
                             "value": {
                                 "type": "number",
                                 "placeholder": "to"
@@ -474,7 +474,7 @@
                 "label": "Currency",
                 "expression": {
                     "type": "in",
-                    "key": "currency",
+                    "field": "currency",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -536,7 +536,7 @@
                 "label": "Refund Status",
                 "expression": {
                     "type": "in",
-                    "key": "payment.paymentRefundStatus",
+                    "field": "payment.paymentRefundStatus",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -562,7 +562,7 @@
                 "label": "Device Fingerprint",
                 "expression": {
                     "type": "equals",
-                    "key": "customer.device.fingerprint",
+                    "field": "customer.device.fingerprint",
                     "value": {
                         "type": "text"
                     }
@@ -574,7 +574,7 @@
                 "label": "Card Type",
                 "expression": {
                     "type": "in",
-                    "key": "attempts.cardType",
+                    "field": "attempts.cardType",
                     "value": {
                         "type": "multiselect",
                         "items": [
@@ -636,7 +636,7 @@
                 "label": "Credit Card Number",
                 "expression": {
                     "type": "iLike",
-                    "key": "attempts.maskedCard",
+                    "field": "attempts.maskedCard",
                     "value": {
                         "type": "text"
                     },
@@ -652,7 +652,7 @@
                 "label": "Customer Phone",
                 "expression": {
                     "type": "equals",
-                    "key": "customer.packedPhoneNumber",
+                    "field": "customer.packedPhoneNumber",
                     "value": {
                         "type": "custom",
                         "component": {

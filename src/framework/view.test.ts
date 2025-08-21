@@ -573,7 +573,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Name',
                         expression: {
                             type: 'equals',
-                            key: 'name',
+                            field: 'name',
                             value: { type: 'text' }
                         },
                         group: 'default',
@@ -583,7 +583,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Status',
                         expression: {
                             type: 'in',
-                            key: 'status',
+                            field: 'status',
                             value: {
                                 type: 'multiselect',
                                 items: [
@@ -609,7 +609,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 label: 'Name',
                 expression: {
                     type: 'equals',
-                    key: 'name',
+                    field: 'name',
                     value: { type: 'text' }
                 },
                 group: 'default',
@@ -628,7 +628,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Reference',
                         expression: {
                             type: 'equals',
-                            key: 'reference',
+                            field: 'reference',
                             value: { type: 'text' },
                             transform: { section: 'queryTransforms', key: 'reference' }
                         },
@@ -639,7 +639,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Amount',
                         expression: {
                             type: 'greaterThan',
-                            key: 'amount',
+                            field: 'amount',
                             value: { type: 'number' },
                             transform: { section: 'queryTransforms', key: 'amount' }
                         },
@@ -676,7 +676,7 @@ describe('parseFilterFieldSchemaJson', () => {
                             filters: [
                                 {
                                     type: 'equals',
-                                    key: 'status',
+                                    field: 'status',
                                     value: { type: 'text' }
                                 },
                                 {
@@ -684,7 +684,7 @@ describe('parseFilterFieldSchemaJson', () => {
                                     filters: [
                                         {
                                             type: 'greaterThan',
-                                            key: 'amount',
+                                            field: 'amount',
                                             value: { type: 'number' },
                                             transform: { section: 'queryTransforms', key: 'amount' }
                                         },
@@ -692,7 +692,7 @@ describe('parseFilterFieldSchemaJson', () => {
                                             type: 'not',
                                             filter: {
                                                 type: 'equals',
-                                                key: 'disabled',
+                                                field: 'disabled',
                                                 value: { type: 'text' }
                                             }
                                         }
@@ -732,7 +732,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Search',
                         expression: {
                             type: 'equals',
-                            key: 'search',
+                            field: 'search',
                             value: {
                                 type: 'customOperator',
                                 operators: [
@@ -808,7 +808,7 @@ describe('parseFilterFieldSchemaJson', () => {
         it('should throw error for invalid filter structure', () => {
             const invalidFilter = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+                filters: [{ expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
             };
 
             expect(() => parseFilterFieldSchemaJson(invalidFilter, testRuntime, undefined))
@@ -816,7 +816,7 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const missingGroup = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ label: 'Test', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+                filters: [{ label: 'Test', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
             };
 
             expect(() => parseFilterFieldSchemaJson(missingGroup, testRuntime, undefined))
@@ -824,7 +824,7 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const missingAiGenerated = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ label: 'Test', group: 'default', expression: { type: 'equals', key: 'test', value: { type: 'text' } } }]
+                filters: [{ label: 'Test', group: 'default', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
             };
 
             expect(() => parseFilterFieldSchemaJson(missingAiGenerated, testRuntime, undefined))
@@ -849,7 +849,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Test',
                         expression: {
                             type: 'equals',
-                            key: 'test',
+                            field: 'test',
                             value: { type: 'text' },
                             transform: { section: 'queryTransforms', key: 'nonExistentTransform' }
                         },
@@ -871,7 +871,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         label: 'Test',
                         expression: {
                             type: 'invalidType',
-                            key: 'test',
+                            field: 'test',
                             value: { type: 'text' }
                         },
                         group: 'default',
@@ -981,7 +981,7 @@ describe('parseViewJson', () => {
                             label: 'Test Filter',
                             expression: {
                                 type: 'equals',
-                                key: 'test',
+                                field: 'test',
                                 value: { type: 'text' }
                             },
                             group: 'default',
@@ -1072,7 +1072,7 @@ describe('parseViewJson', () => {
                             label: 'Reference',
                             expression: {
                                 type: 'equals',
-                                key: 'reference',
+                                field: 'reference',
                                 value: { type: 'text' },
                                 transform: { section: 'queryTransforms', key: 'reference' }
                             },
@@ -1086,12 +1086,12 @@ describe('parseViewJson', () => {
                                 filters: [
                                     {
                                         type: 'greaterThan',
-                                        key: 'amount',
+                                        field: 'amount',
                                         value: { type: 'number' }
                                     },
                                     {
                                         type: 'in',
-                                        key: 'status',
+                                        field: 'status',
                                         value: {
                                             type: 'multiselect',
                                             config: {

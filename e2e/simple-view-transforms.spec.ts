@@ -143,7 +143,7 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(keyValueInput).toBeVisible();
 
         // Test 1: Enter a value that should be transformed
-        // The transform should add "prefix_" to the input and change the key to "transformedField"
+        // The transform should add "prefix_" to the input and change the field to "transformedField"
         await keyValueInput.fill('30');
         await keyValueInput.press('Enter');
 

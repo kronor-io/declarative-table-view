@@ -15,7 +15,7 @@ import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
-import { FilterFieldSchemaFilter, getKeyNodes } from './framework/filters';
+import { FilterFieldSchemaFilter, getFieldNodes } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
@@ -149,8 +149,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 return string.toLowerCase().includes(search.toLowerCase());
             }
             if (stringMatchesSearchQuery(filter.label)) return [index];
-            const keyFilterExprs = getKeyNodes(filter.expression);
-            return keyFilterExprs.some(expr => stringMatchesSearchQuery(expr.key)) ? [index] : []
+            const fieldFilterExprs = getFieldNodes(filter.expression);
+            return fieldFilterExprs.some(expr => stringMatchesSearchQuery(expr.field)) ? [index] : []
         });
 
     // Next page handler

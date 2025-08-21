@@ -11,7 +11,7 @@ const NoRowsExtendDateRange = ({ setFilterState, applyFilters }: Pick<NoRowsComp
                     return {
                         ...filter,
                         children: filter.children.map(child => {
-                            if (child.type === 'leaf' && child.key === 'createdAt' && child.filterType === 'greaterThanOrEqual') {
+                            if (child.type === 'leaf' && child.field === 'createdAt' && child.filterType === 'greaterThanOrEqual') {
                                 const current = new Date(child.value);
                                 current.setMonth(current.getMonth() - 1);
                                 return { ...child, value: current };

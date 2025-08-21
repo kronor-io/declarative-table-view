@@ -28,13 +28,13 @@ function sanitizeFilterExpr(expr: FilterExpr): object {
         if ((expr.value.type === 'dropdown' || expr.value.type === 'multiselect')) {
             return {
                 type: expr.type,
-                key: expr.key,
+                field: expr.field,
                 items: expr.value.items
             };
         }
         return {
             type: expr.type,
-            key: expr.key
+            field: expr.field
         };
     }
 }
@@ -51,7 +51,7 @@ function sanitizeFilterSchemaForAI(filterSchema: FilterFieldSchema): object[] {
 
 function buildAiPrompt(filterSchema: FilterFieldSchema, userPrompt: string): string {
     const filterFormStateType = `type FilterFormState =
-  | { type: 'leaf'; key: string; value: any; }
+  | { type: 'leaf'; field: string; value: any; }
   | { type: 'and' | 'or'; children: FilterFormState[]; }
   | { type: 'not'; child: FilterFormState; };`;
     const sanitizedSchema = sanitizeFilterSchemaForAI(filterSchema);

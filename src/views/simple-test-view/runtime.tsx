@@ -17,7 +17,7 @@ const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters })
         setFilterState(currentState =>
             currentState.map(filter => {
                 // Find the email filter and update its value
-                if (filter.type === 'leaf' && filter.key === 'email') {
+                if (filter.type === 'leaf' && filter.field === 'email') {
                     return {
                         ...filter,
                         value: data.email
@@ -58,7 +58,7 @@ export const simpleTestViewRuntime: Runtime = {
                 if (!input || input === '') {
                     return { value: input }; // Return object with original value for empty input
                 }
-                return { key: "transformedField", value: `prefix_${input}` };
+                return { field: "transformedField", value: `prefix_${input}` };
             }
         }
     },

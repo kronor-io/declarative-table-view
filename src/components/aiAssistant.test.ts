@@ -49,7 +49,7 @@ describe('aiAssistant customOperator patching', () => {
                     group: 'test',
                     expression: {
                         type: 'equals',
-                        key: 'test_field',
+                        field: 'test_field',
                         value: {
                             type: 'customOperator',
                             operators: [
@@ -70,7 +70,7 @@ describe('aiAssistant customOperator patching', () => {
         // Simulate AI returning a plain string instead of the expected object
         const aiState = {
             type: 'leaf',
-            key: 'test_field',
+            field: 'test_field',
             value: 'test_value' // AI returned a plain string
         };
 
@@ -97,7 +97,7 @@ describe('aiAssistant customOperator patching', () => {
                     group: 'test',
                     expression: {
                         type: 'equals',
-                        key: 'test_field',
+                        field: 'test_field',
                         value: {
                             type: 'customOperator',
                             operators: [
@@ -118,7 +118,7 @@ describe('aiAssistant customOperator patching', () => {
         // Simulate AI returning a proper object
         const aiState = {
             type: 'leaf',
-            key: 'test_field',
+            field: 'test_field',
             value: {
                 operator: '_neq',
                 value: 'test_value'
@@ -148,7 +148,7 @@ describe('aiAssistant customOperator patching', () => {
                     group: 'test',
                     expression: {
                         type: 'equals',
-                        key: 'test_field',
+                        field: 'test_field',
                         value: {
                             type: 'text'
                         }
@@ -164,7 +164,7 @@ describe('aiAssistant customOperator patching', () => {
         // Simulate AI returning a string value for a text filter
         const aiState = {
             type: 'leaf',
-            key: 'test_field',
+            field: 'test_field',
             value: 'test_value'
         };
 

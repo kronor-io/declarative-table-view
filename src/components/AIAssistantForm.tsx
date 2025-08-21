@@ -3,7 +3,7 @@ import { Button } from 'primereact/button';
 import SpeechInput from './SpeechInput';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { useState } from 'react';
-import { filterExprFromJSON, FilterFieldSchema, getKeyNodes } from '../framework/filters';
+import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';
 
 interface AIAssistantFormProps {
@@ -71,8 +71,8 @@ export default function AIAssistantForm({
                             const allKeys = Array.from(
                                 new Set(
                                     selectedView.filterSchema.filters
-                                        .flatMap(filter => getKeyNodes(filter.expression)
-                                            .map(node => node.key)
+                                        .flatMap(filter => getFieldNodes(filter.expression)
+                                            .map(node => node.field)
                                         )
                                 )
                             );
@@ -88,17 +88,17 @@ export default function AIAssistantForm({
                             ].join('\n');
                             const filterExprType = [
                                 'type FilterExpr =',
-                                '  | { type: "equals"; key: string; value: FilterControl }',
-                                '  | { type: "notEquals"; key: string; value: FilterControl }',
-                                '  | { type: "greaterThan"; key: string; value: FilterControl }',
-                                '  | { type: "lessThan"; key: string; value: FilterControl }',
-                                '  | { type: "greaterThanOrEqual"; key: string; value: FilterControl }',
-                                '  | { type: "lessThanOrEqual"; key: string; value: FilterControl }',
-                                '  | { type: "in"; key: string; value: FilterControl }',
-                                '  | { type: "notIn"; key: string; value: FilterControl }',
-                                '  | { type: "like"; key: string; value: FilterControl }',
-                                '  | { type: "iLike"; key: string; value: FilterControl }',
-                                '  | { type: "isNull"; key: string; value: FilterControl }',
+                                '  | { type: "equals"; field: string; value: FilterControl }',
+                                '  | { type: "notEquals"; field: string; value: FilterControl }',
+                                '  | { type: "greaterThan"; field: string; value: FilterControl }',
+                                '  | { type: "lessThan"; field: string; value: FilterControl }',
+                                '  | { type: "greaterThanOrEqual"; field: string; value: FilterControl }',
+                                '  | { type: "lessThanOrEqual"; field: string; value: FilterControl }',
+                                '  | { type: "in"; field: string; value: FilterControl }',
+                                '  | { type: "notIn"; field: string; value: FilterControl }',
+                                '  | { type: "like"; field: string; value: FilterControl }',
+                                '  | { type: "iLike"; field: string; value: FilterControl }',
+                                '  | { type: "isNull"; field: string; value: FilterControl }',
                                 '  | { type: "and"; filters: FilterExpr[] }',
                                 '  | { type: "or"; filters: FilterExpr[] }',
                                 '  | { type: "not"; filter: FilterExpr };'

@@ -2,18 +2,6 @@ import { TransformResult } from './filters';
 
 describe('TransformResult functionality', () => {
 
-    describe('legacy transform behavior', () => {
-        it('should handle simple value returns', () => {
-            // Legacy transforms that return simple values
-            const legacyToQuery = (input: number) => input + 5;
-            const legacyFromQuery = (input: number) => input - 5;
-
-            // These should continue to work as before
-            expect(legacyToQuery(10)).toBe(15);
-            expect(legacyFromQuery(15)).toBe(10);
-        });
-    });
-
     describe('new object-based transform behavior', () => {
         it('should handle object returns with value only', () => {
             const objectTransform = (input: any): TransformResult => ({ value: input?.toString() || "" });
@@ -25,15 +13,15 @@ describe('TransformResult functionality', () => {
             expect(emptyResult).toEqual({ value: "" });
         });
 
-        it('should handle object returns with both key and value', () => {
+        it('should handle object returns with both field and value', () => {
             const keyValueTransform = (input: any): TransformResult => ({
-                key: "transformedField",
+                field: "transformedField",
                 value: `prefix_${input}`
             });
 
             const result = keyValueTransform("test");
             expect(result).toEqual({
-                key: "transformedField",
+                field: "transformedField",
                 value: "prefix_test"
             });
         });
@@ -43,7 +31,7 @@ describe('TransformResult functionality', () => {
                 if (!input || input === '') {
                     return input; // Return simple value for empty input
                 }
-                return { key: "transformedField", value: `prefix_${input}` };
+                return { field: "transformedField", value: `prefix_${input}` };
             };
 
             // Empty input returns simple value
@@ -52,7 +40,7 @@ describe('TransformResult functionality', () => {
 
             // Non-empty input returns object
             expect(conditionalTransform("test")).toEqual({
-                key: "transformedField",
+                field: "transformedField",
                 value: "prefix_test"
             });
         });

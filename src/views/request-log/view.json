@@ -15,7 +15,10 @@
                 }
             ],
             "name": "Merchant",
-            "cellRenderer": {"section": "cellRenderers", "key": "merchantCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "merchantCellRenderer"
+            }
         },
         {
             "data": [
@@ -25,7 +28,10 @@
                 }
             ],
             "name": "Date",
-            "cellRenderer": {"section": "cellRenderers", "key": "dateCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "dateCellRenderer"
+            }
         },
         {
             "data": [
@@ -35,7 +41,10 @@
                 }
             ],
             "name": "Idempotency Key",
-            "cellRenderer": {"section": "cellRenderers", "key": "idempotencyKeyCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "idempotencyKeyCellRenderer"
+            }
         },
         {
             "data": [
@@ -45,7 +54,10 @@
                 }
             ],
             "name": "Namespace",
-            "cellRenderer": {"section": "cellRenderers", "key": "namespaceCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "namespaceCellRenderer"
+            }
         },
         {
             "data": [
@@ -55,7 +67,10 @@
                 }
             ],
             "name": "Request",
-            "cellRenderer": {"section": "cellRenderers", "key": "jsonCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "jsonCellRenderer"
+            }
         },
         {
             "data": [
@@ -65,7 +80,10 @@
                 }
             ],
             "name": "Response",
-            "cellRenderer": {"section": "cellRenderers", "key": "jsonResponseCellRenderer"}
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "jsonResponseCellRenderer"
+            }
         }
     ],
     "filterSchema": {
@@ -83,14 +101,14 @@
                     "filters": [
                         {
                             "type": "greaterThanOrEqual",
-                            "key": "createdAt",
+                            "field": "createdAt",
                             "value": {
                                 "type": "date"
                             }
                         },
                         {
                             "type": "lessThanOrEqual",
-                            "key": "createdAt",
+                            "field": "createdAt",
                             "value": {
                                 "type": "date"
                             }

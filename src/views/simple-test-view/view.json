@@ -76,7 +76,7 @@
                 "label": "Amount",
                 "expression": {
                     "type": "greaterThanOrEqual",
-                    "key": "amount",
+                    "field": "amount",
                     "value": {
                         "type": "number"
                     },
@@ -92,7 +92,7 @@
                 "label": "Test Field",
                 "expression": {
                     "type": "equals",
-                    "key": "testField",
+                    "field": "testField",
                     "value": {
                         "type": "text"
                     }
@@ -104,7 +104,7 @@
                 "label": "Email",
                 "expression": {
                     "type": "equals",
-                    "key": "email",
+                    "field": "email",
                     "value": {
                         "type": "text"
                     }
@@ -116,7 +116,7 @@
                 "label": "Phone",
                 "expression": {
                     "type": "equals",
-                    "key": "phone",
+                    "field": "phone",
                     "value": {
                         "type": "custom",
                         "component": {
@@ -132,7 +132,7 @@
                 "label": "Test Field (Key-Value Transform)",
                 "expression": {
                     "type": "equals",
-                    "key": "testField",
+                    "field": "testField",
                     "value": {
                         "type": "text"
                     },

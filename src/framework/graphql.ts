@@ -57,7 +57,7 @@ export function buildHasuraConditions(
             if (state.control && state.control.type === 'customOperator') {
                 const opVal = state.value;
                 if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
-                return buildNestedKey(state.key, { [opVal.operator]: opVal.value });
+                return buildNestedKey(state.field, { [opVal.operator]: opVal.value });
             }
             if (state.value === undefined || state.value === '' || state.value === null || (Array.isArray(state.value) && state.value.length === 0)) return null;
             // Map filterType to Hasura operator
@@ -77,7 +77,7 @@ export function buildHasuraConditions(
             const op = opMap[state.filterType];
             if (!op) return null;
             // Support dot-separated keys by building nested objects
-            return buildNestedKey(state.key, { [op]: state.value });
+            return buildNestedKey(state.field, { [op]: state.value });
         }
         return null;
     }
