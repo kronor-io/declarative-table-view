@@ -548,15 +548,15 @@ describe('parseFilterFieldSchemaJson', () => {
         queryTransforms: {
             reference: {
                 fromQuery: (input: any) => input.replace(/%$/, ''),
-                toQuery: (input: any) => `${input}%`
+                toQuery: (input: any) => ({ value: `${input}%` })
             },
             amount: {
                 fromQuery: (input: any) => input / 100,
-                toQuery: (input: any) => input * 100
+                toQuery: (input: any) => ({ value: input * 100 })
             },
             creditCard: {
                 fromQuery: (input: any) => input.replace(/%/g, ''),
-                toQuery: (input: any) => `%${input}%`
+                toQuery: (input: any) => ({ value: `%${input}%` })
             }
         }
     };
@@ -936,15 +936,15 @@ describe('parseViewJson', () => {
         queryTransforms: {
             reference: {
                 fromQuery: (input: any) => input.replace(/%$/, ''),
-                toQuery: (input: any) => `${input}%`
+                toQuery: (input: any) => ({ value: `${input}%` })
             },
             amount: {
                 fromQuery: (input: any) => input / 100,
-                toQuery: (input: any) => input * 100
+                toQuery: (input: any) => ({ value: input * 100 })
             },
             creditCardNumber: {
                 fromQuery: (input: any) => input.replace(/%/g, ''),
-                toQuery: (input: any) => `%${input}%`
+                toQuery: (input: any) => ({ value: `%${input}%` })
             }
         },
         noRowsComponents: {

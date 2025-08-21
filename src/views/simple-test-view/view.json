@@ -79,6 +79,10 @@
                     "key": "amount",
                     "value": {
                         "type": "number"
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "amountOffset"
                     }
                 },
                 "group": "default",
@@ -119,6 +123,22 @@
                             "section": "customFilterComponents",
                             "key": "PhoneNumberFilter"
                         }
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
+            },
+            {
+                "label": "Test Field (Key-Value Transform)",
+                "expression": {
+                    "type": "equals",
+                    "key": "testField",
+                    "value": {
+                        "type": "text"
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "keyValueTransform"
                     }
                 },
                 "group": "extra",

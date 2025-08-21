@@ -76,6 +76,16 @@ export async function mockPaginationGraphQL(route: Route) {
             if (conditions.phone) {
                 if (conditions.phone._eq !== undefined) pass = pass && row.phone === conditions.phone._eq;
             }
+            if (conditions.testField) {
+                if (conditions.testField._eq !== undefined) pass = pass && row.testField === conditions.testField._eq;
+            }
+            if (conditions.transformedField) {
+                if (conditions.transformedField._eq !== undefined) {
+                    // transformedField should look for "prefix_30" and match against testField "Test 30"
+                    const expectedValue = conditions.transformedField._eq.replace('prefix_', 'Test ');
+                    pass = pass && row.testField === expectedValue;
+                }
+            }
             return pass;
         });
     }

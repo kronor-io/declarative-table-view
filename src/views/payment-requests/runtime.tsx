@@ -131,21 +131,21 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             },
             toQuery: (input: any) => {
                 if (input.operator === '_like') {
-                    return { ...input, value: `${input.value}%` };
+                    return { value: { ...input, value: `${input.value}%` } };
                 }
-                return input;
+                return { value: input };
             }
         },
 
         // Transform for Amount filter (convert between display and storage format)
         amount: {
             fromQuery: (input: any) => input / 100,
-            toQuery: (input: any) => input * 100
+            toQuery: (input: any) => ({ value: input * 100 })
         },
 
         // Transform for Credit Card Number filter (add wildcards)
         creditCardNumber: {
-            toQuery: (input: any) => `%${input}%`,
+            toQuery: (input: any) => ({ value: `%${input}%` }),
             fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
         }
     },

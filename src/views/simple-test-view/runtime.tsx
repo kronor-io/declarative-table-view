@@ -46,7 +46,22 @@ export const simpleTestViewRuntime: Runtime = {
         defaultCellRenderer,
         emailCellRenderer
     },
-    queryTransforms: {},
+    queryTransforms: {
+        amountOffset: {
+            fromQuery: (input: number) => input - 5,
+            toQuery: (input: number) => ({ value: input + 5 })
+        },
+        keyValueTransform: {
+            fromQuery: (input: any) => input?.toString() || "",
+            toQuery: (input: any) => {
+                // Handle empty or null input
+                if (!input || input === '') {
+                    return { value: input }; // Return object with original value for empty input
+                }
+                return { key: "transformedField", value: `prefix_${input}` };
+            }
+        }
+    },
     noRowsComponents: {},
     customFilterComponents: {
         PhoneNumberFilter

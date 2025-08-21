@@ -17,10 +17,6 @@ export type FilterFormState =
         value: any;
         control: FilterControl;
         filterType: Extract<FilterExpr, { key: string }>['type'];
-        transform?: {
-            toQuery?: (input: unknown) => unknown;
-            fromQuery?: (input: unknown) => unknown
-        }
     }
     | { type: 'and' | 'or'; children: FilterFormState[]; filterType: 'and' | 'or' }
     | { type: 'not'; child: FilterFormState; filterType: 'not' };
@@ -46,7 +42,6 @@ export function buildInitialFormState(expr: FilterExpr): FilterFormState {
             value: 'initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '',
             control: expr.value,
             filterType: expr.type,
-            transform: expr.transform,
         };
     }
 }
@@ -155,9 +150,22 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
 function renderFilterFormState(
     state: FilterFormState,
     setState: (state: FilterFormState) => void,
-    renderFilterType: boolean
+    renderFilterType: boolean,
+    filterExpression: FilterExpr
 ): ReactNode {
     if (state.type === 'and' || state.type === 'or') {
+        // Schema consistency check: filter expression must match state type
+        if (filterExpression.type !== state.type) {
+            throw new Error(`Schema consistency error: FilterFormState type "${state.type}" does not match FilterExpr type "${filterExpression.type}"`);
+        }
+
+        const childExpressions = filterExpression.filters;
+
+        // Schema consistency check: must have same number of children
+        if (childExpressions.length !== state.children.length) {
+            throw new Error(`Schema consistency error: FilterFormState has ${state.children.length} children but FilterExpr has ${childExpressions.length} filters`);
+        }
+
         return (
             <div className="flex flex-col gap-2 border-l-2 pl-2 ml-2">
                 {
@@ -177,7 +185,8 @@ function renderFilterFormState(
                                     newChildren[i] = newChild;
                                     setState({ ...state, children: newChildren });
                                 },
-                                renderFilterType
+                                renderFilterType,
+                                childExpressions[i]
                             )}
                         </div>
                     ))
@@ -185,6 +194,13 @@ function renderFilterFormState(
             </div>
         );
     } else if (state.type === 'not') {
+        // Schema consistency check: filter expression must be 'not' type
+        if (filterExpression.type !== 'not') {
+            throw new Error(`Schema consistency error: FilterFormState type "not" does not match FilterExpr type "${filterExpression.type}"`);
+        }
+
+        const childExpression = filterExpression.filter;
+
         return (
             <div className="flex flex-col gap-2 border-l-2 pl-2 ml-2">
                 {
@@ -198,24 +214,51 @@ function renderFilterFormState(
                     renderFilterFormState(
                         state.child,
                         newChild => setState({ ...state, child: newChild }),
-                        renderFilterType
+                        renderFilterType,
+                        childExpression
                     )
                 }
             </div>
         );
     } else if (state.type === 'leaf') {
+        // Schema consistency check: filter expression must be a leaf type (not 'and', 'or', or 'not')
+        if (filterExpression.type === 'and' || filterExpression.type === 'or' || filterExpression.type === 'not') {
+            throw new Error(`Schema consistency error: FilterFormState is leaf type but FilterExpr is "${filterExpression.type}"`);
+        }
+
+        // For leaf nodes, use the transform directly from the expression
+        const transform = 'transform' in filterExpression ? filterExpression.transform : undefined;
+
         // Apply transform.toQuery if present when setting value
         const handleSetValue = (value: unknown) => {
-            let newValue = value;
-            if (newValue !== null && state.transform && typeof state.transform.toQuery === 'function') {
-                newValue = state.transform.toQuery(value);
+            const newState = { ...state };
+
+            if (value !== null && transform && typeof transform.toQuery === 'function') {
+                const transformResult = transform.toQuery(value);
+
+                // Transform must return an object with optional key/value fields
+                if (transformResult.key !== undefined) {
+                    newState.key = transformResult.key;
+                }
+                if (transformResult.value !== undefined) {
+                    newState.value = transformResult.value;
+                } else {
+                    newState.value = value;
+                }
+            } else {
+                newState.value = value;
             }
-            setState({ ...state, value: newValue });
+
+            setState(newState);
         };
+
         // Apply transform.fromQuery if present when displaying value
         let displayValue = state.value;
-        if (displayValue && state.transform && typeof state.transform.fromQuery === 'function') {
-            displayValue = state.transform.fromQuery(state.value);
+        if (displayValue && transform && typeof transform.fromQuery === 'function') {
+            const transformResult = transform.fromQuery(state.value);
+
+            // Transform must return an object, use the value field or fall back to original
+            displayValue = transformResult.value !== undefined ? transformResult.value : displayValue;
         }
         return (
             <div className="flex flex-col min-w-[220px] mb-2">
@@ -361,7 +404,8 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visib
                                             newFormState[index] = newState;
                                             setFormState(newFormState);
                                         },
-                                        filterSchema.aiGenerated
+                                        filterSchema.aiGenerated,
+                                        filterSchema.expression
                                     )
                                 }
                             </div>
@@ -398,7 +442,8 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visib
                                                     newFormState[index] = newState;
                                                     setFormState(newFormState);
                                                 },
-                                                filterSchema.aiGenerated
+                                                filterSchema.aiGenerated,
+                                                filterSchema.expression
                                             )
                                         }
                                     </div>

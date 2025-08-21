@@ -1,3 +1,8 @@
+import React from 'react';
+
+// Transform result type - must return an object with optional key/value fields
+export type TransformResult = { key?: string; value?: unknown };
+
 export type FilterControl =
     | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
@@ -8,17 +13,17 @@ export type FilterControl =
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
-    | { type: 'equals'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'notEquals'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'greaterThan'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'lessThan'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'greaterThanOrEqual'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'lessThanOrEqual'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'in'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'notIn'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'like'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'iLike'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
-    | { type: 'isNull'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown } }
+    | { type: 'equals'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'notEquals'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'greaterThan'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'lessThan'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'greaterThanOrEqual'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'lessThanOrEqual'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'in'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'notIn'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'like'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'iLike'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
+    | { type: 'isNull'; key: string; value: FilterControl; transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => any } }
     | { type: 'and'; filters: FilterExpr[] }
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };
@@ -53,21 +58,21 @@ export const filterControl = {
 
 // Helper functions for building FilterExpr values
 export const filterExpr = {
-    equals: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'equals', key, value, ...(transform && { transform }) }),
-    notEquals: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'notEquals', key, value, ...(transform && { transform }) }),
-    greaterThan: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'greaterThan', key, value, ...(transform && { transform }) }),
-    lessThan: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'lessThan', key, value, ...(transform && { transform }) }),
-    greaterThanOrEqual: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'greaterThanOrEqual', key, value, ...(transform && { transform }) }),
-    lessThanOrEqual: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'lessThanOrEqual', key, value, ...(transform && { transform }) }),
-    in: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'in', key, value, ...(transform && { transform }) }),
-    notIn: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'notIn', key, value, ...(transform && { transform }) }),
-    like: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'like', key, value, ...(transform && { transform }) }),
-    iLike: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'iLike', key, value, ...(transform && { transform }) }),
-    isNull: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => unknown; fromQuery?: (input: unknown) => unknown }): FilterExpr => ({ type: 'isNull', key, value, ...(transform && { transform }) }),
+    equals: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'equals', key, value, ...(transform && { transform }) }),
+    notEquals: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'notEquals', key, value, ...(transform && { transform }) }),
+    greaterThan: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'greaterThan', key, value, ...(transform && { transform }) }),
+    lessThan: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'lessThan', key, value, ...(transform && { transform }) }),
+    greaterThanOrEqual: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'greaterThanOrEqual', key, value, ...(transform && { transform }) }),
+    lessThanOrEqual: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'lessThanOrEqual', key, value, ...(transform && { transform }) }),
+    in: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'in', key, value, ...(transform && { transform }) }),
+    notIn: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'notIn', key, value, ...(transform && { transform }) }),
+    like: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'like', key, value, ...(transform && { transform }) }),
+    iLike: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'iLike', key, value, ...(transform && { transform }) }),
+    isNull: (key: string, value: FilterControl, transform?: { toQuery?: (input: unknown) => TransformResult; fromQuery?: (input: unknown) => TransformResult }): FilterExpr => ({ type: 'isNull', key, value, ...(transform && { transform }) }),
     and: (filters: FilterExpr[]): FilterExpr => ({ type: 'and', filters }),
     or: (filters: FilterExpr[]): FilterExpr => ({ type: 'or', filters }),
     not: (filter: FilterExpr): FilterExpr => ({ type: 'not', filter }),
-    range: (key: string, control: (options: any) => FilterControl, transform?: { toQuery?: (input: any) => any; fromQuery?: (input: any) => any }): FilterExpr =>
+    range: (key: string, control: (options: any) => FilterControl, transform?: { toQuery?: (input: any) => TransformResult; fromQuery?: (input: any) => TransformResult }): FilterExpr =>
         filterExpr.and([
             filterExpr.greaterThanOrEqual(key, control({ placeholder: 'from' }), transform),
             filterExpr.lessThanOrEqual(key, control({ placeholder: 'to' }), transform)
