@@ -57,12 +57,12 @@ test.describe('Simple View Rendering', () => {
         await expect(table.getByText('Test 27', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 25', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 24', { exact: true })).toBeVisible();
-        await expect(table.getByText('300', { exact: true })).toBeVisible();
-        await expect(table.getByText('290', { exact: true })).toBeVisible();
-        await expect(table.getByText('280', { exact: true })).toBeVisible();
-        await expect(table.getByText('270', { exact: true })).toBeVisible();
-        await expect(table.getByText('250', { exact: true })).toBeVisible();
-        await expect(table.getByText('240', { exact: true })).toBeVisible();
+        await expect(table.getByText('$300', { exact: true })).toBeVisible();
+        await expect(table.getByText('$290', { exact: true })).toBeVisible();
+        await expect(table.getByText('$280', { exact: true })).toBeVisible();
+        await expect(table.getByText('$270', { exact: true })).toBeVisible();
+        await expect(table.getByText('$250', { exact: true })).toBeVisible();
+        await expect(table.getByText('$240', { exact: true })).toBeVisible();
 
         // Show filters first
         await page.getByText('Show Filters').click();

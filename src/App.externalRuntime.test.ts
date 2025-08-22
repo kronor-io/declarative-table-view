@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Tag } from 'primereact/tag';
 import { parseViewJson } from './framework/view-parser';
 
 describe('External Runtime Integration', () => {
@@ -97,7 +98,10 @@ describe('External Runtime Integration', () => {
                 data: { id: 'test' },
                 setFilterState: () => { },
                 applyFilters: () => { },
-                createElement: React.createElement
+                createElement: React.createElement,
+                components: {
+                    Badge: Tag
+                }
             };
             expect(cellRenderer(mockProps)).toBe('Default Cell');
         }).not.toThrow();
@@ -153,7 +157,10 @@ describe('External Runtime Integration', () => {
                 data: { id: 'test' },
                 setFilterState: () => { },
                 applyFilters: () => { },
-                createElement: React.createElement
+                createElement: React.createElement,
+                components: {
+                    Badge: Tag
+                }
             };
             expect(cellRenderer(mockProps)).toBe('External Override');
         }).not.toThrow();

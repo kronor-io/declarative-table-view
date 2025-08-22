@@ -1,6 +1,7 @@
 import React from "react";
 import { Center } from "../components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
+import { Tag } from 'primereact/tag';
 
 export type CellRendererProps<TContext = unknown> = {
     data: Record<string, any>;
@@ -8,6 +9,9 @@ export type CellRendererProps<TContext = unknown> = {
     setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
     createElement: typeof React.createElement; // React createElement function
+    components: {
+        Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
+    };
 };
 
 export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;

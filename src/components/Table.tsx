@@ -1,6 +1,7 @@
 import React from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
 import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
@@ -50,7 +51,10 @@ function Table<CellRendererContext = unknown>({
                         context: cellRendererContext,
                         setFilterState: wrappedSetFilterState,
                         applyFilters: triggerRefetch,
-                        createElement: React.createElement
+                        createElement: React.createElement,
+                        components: {
+                            Badge: Tag
+                        }
                     })}
                 />
             ))}

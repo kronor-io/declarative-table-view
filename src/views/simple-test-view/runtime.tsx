@@ -40,11 +40,33 @@ const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters })
     );
 };
 
+// Amount cell renderer that demonstrates using the Badge component
+const amountCellRenderer: CellRenderer = ({ data, components }) => {
+    const { Badge } = components;
+    const amount = data.amount;
+
+    // Determine severity based on amount value
+    const getSeverity = (amount: number) => {
+        if (amount > 250) return 'success';
+        if (amount > 200) return 'warning';
+        return 'danger';
+    };
+
+    return (
+        <Badge
+            value={`$${amount}`}
+            severity={getSeverity(amount)}
+            style={{ fontSize: '.8rem', padding: '0.3em 1em' }}
+        />
+    );
+};
+
 // Runtime configuration for simple test view
 export const simpleTestViewRuntime: Runtime = {
     cellRenderers: {
         defaultCellRenderer,
-        emailCellRenderer
+        emailCellRenderer,
+        amountCellRenderer
     },
     queryTransforms: {
         amountOffset: {

@@ -30,7 +30,7 @@
             "name": "Amount",
             "cellRenderer": {
                 "section": "cellRenderers",
-                "key": "defaultCellRenderer"
+                "key": "amountCellRenderer"
             }
         },
         {

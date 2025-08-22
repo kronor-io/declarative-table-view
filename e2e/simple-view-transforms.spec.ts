@@ -21,12 +21,12 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(table.getByText('Test 27', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 26', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 25', { exact: true })).toBeVisible();
-        await expect(table.getByText('300', { exact: true })).toBeVisible(); // amount for Test 30
-        await expect(table.getByText('290', { exact: true })).toBeVisible(); // amount for Test 29
-        await expect(table.getByText('280', { exact: true })).toBeVisible(); // amount for Test 28
-        await expect(table.getByText('270', { exact: true })).toBeVisible(); // amount for Test 27
-        await expect(table.getByText('260', { exact: true })).toBeVisible(); // amount for Test 26
-        await expect(table.getByText('250', { exact: true })).toBeVisible(); // amount for Test 25
+        await expect(table.getByText('$300', { exact: true })).toBeVisible(); // amount for Test 30
+        await expect(table.getByText('$290', { exact: true })).toBeVisible(); // amount for Test 29
+        await expect(table.getByText('$280', { exact: true })).toBeVisible(); // amount for Test 28
+        await expect(table.getByText('$270', { exact: true })).toBeVisible(); // amount for Test 27
+        await expect(table.getByText('$260', { exact: true })).toBeVisible(); // amount for Test 26
+        await expect(table.getByText('$250', { exact: true })).toBeVisible(); // amount for Test 25
 
         // Show filters first
         await page.getByText('Show Filters').click();
@@ -48,19 +48,19 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(table.getByText('Test 28', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 27', { exact: true })).toBeVisible();
         await expect(table.getByText('Test 26', { exact: true })).toBeVisible();
-        await expect(table.getByText('300', { exact: true })).toBeVisible();
-        await expect(table.getByText('290', { exact: true })).toBeVisible();
-        await expect(table.getByText('280', { exact: true })).toBeVisible();
-        await expect(table.getByText('270', { exact: true })).toBeVisible();
-        await expect(table.getByText('260', { exact: true })).toBeVisible();
+        await expect(table.getByText('$300', { exact: true })).toBeVisible();
+        await expect(table.getByText('$290', { exact: true })).toBeVisible();
+        await expect(table.getByText('$280', { exact: true })).toBeVisible();
+        await expect(table.getByText('$270', { exact: true })).toBeVisible();
+        await expect(table.getByText('$260', { exact: true })).toBeVisible();
 
         // These should not be visible (amount < 260)
         await expect(table.getByText('Test 25', { exact: true })).not.toBeVisible();
         await expect(table.getByText('Test 24', { exact: true })).not.toBeVisible();
         await expect(table.getByText('Test 23', { exact: true })).not.toBeVisible();
-        await expect(table.getByText('250', { exact: true })).not.toBeVisible();
-        await expect(table.getByText('240', { exact: true })).not.toBeVisible();
-        await expect(table.getByText('230', { exact: true })).not.toBeVisible();
+        await expect(table.getByText('$250', { exact: true })).not.toBeVisible();
+        await expect(table.getByText('$240', { exact: true })).not.toBeVisible();
+        await expect(table.getByText('$230', { exact: true })).not.toBeVisible();
     });
 
     test('should handle multiple filter value changes with transforms', async ({ page }) => {
