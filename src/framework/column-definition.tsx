@@ -1,5 +1,5 @@
 import React from "react";
-import { Center } from "../components/LayoutHelpers";
+import { Center, FlexRow, FlexColumn } from "../components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
 import { Tag } from 'primereact/tag';
 
@@ -11,6 +11,8 @@ export type CellRendererProps<TContext = unknown> = {
     createElement: typeof React.createElement; // React createElement function
     components: {
         Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
+        FlexRow: typeof FlexRow; // Horizontal layout component
+        FlexColumn: typeof FlexColumn; // Vertical layout component
     };
 };
 

@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 
 function wrapStringChildren(children: React.ReactNode) {
     if (typeof children === "string") {
@@ -36,7 +36,7 @@ function getJustifyClass(justify?: string) {
 }
 
 // Horizontal stack (row) with gap
-export function HStack({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
+export function FlexRow({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
     return (
         <div className={`flex flex-row ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${className}`.trim()}>
             {wrapStringChildren(children)}
@@ -45,7 +45,7 @@ export function HStack({ gap = "gap-2", className = "", align, justify, children
 }
 
 // Vertical stack (column) with gap
-export function VStack({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
+export function FlexColumn({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
     return (
         <div className={`flex flex-col ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${className}`.trim()}>
             {wrapStringChildren(children)}

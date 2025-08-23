@@ -40,9 +40,9 @@ const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters })
     );
 };
 
-// Amount cell renderer that demonstrates using the Badge component
-const amountCellRenderer: CellRenderer = ({ data, components }) => {
-    const { Badge } = components;
+// Amount cell renderer that demonstrates using the Badge component and FlexRow layout
+const amountCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+    const { Badge, FlexRow } = components;
     const amount = data.amount;
 
     // Determine severity based on amount value
@@ -52,13 +52,18 @@ const amountCellRenderer: CellRenderer = ({ data, components }) => {
         return 'danger';
     };
 
-    return (
-        <Badge
-            value={`$${amount}`}
-            severity={getSeverity(amount)}
-            style={{ fontSize: '.8rem', padding: '0.3em 1em' }}
-        />
-    );
+    return createElement(FlexRow, {
+        align: 'center',
+        gap: 'gap-2',
+        children: [
+            createElement(Badge, {
+                value: `$${amount}`,
+                severity: getSeverity(amount),
+                style: { fontSize: '.8rem', padding: '0.3em 1em' }
+            }),
+            amount > 200 ? '🔥' : '💰'
+        ]
+    });
 };
 
 // Runtime configuration for simple test view

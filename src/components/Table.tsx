@@ -5,6 +5,7 @@ import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
 import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
+import { FlexRow, FlexColumn } from './LayoutHelpers';
 
 type TableProps<CellRendererContext = unknown> = {
     columns: ColumnDefinition<CellRendererContext>[];
@@ -53,7 +54,9 @@ function Table<CellRendererContext = unknown>({
                         applyFilters: triggerRefetch,
                         createElement: React.createElement,
                         components: {
-                            Badge: Tag
+                            Badge: Tag,
+                            FlexRow,
+                            FlexColumn
                         }
                     })}
                 />

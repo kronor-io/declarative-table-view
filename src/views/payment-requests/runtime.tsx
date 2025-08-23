@@ -1,7 +1,7 @@
 // @ts-expect-error React is required for JSX even though not explicitly referenced
 import React from "react";
 import { CellRenderer } from "../../framework/column-definition";
-import { CurrencyAmount, DateTime, Left, Right, VStack } from "../../components/LayoutHelpers";
+import { CurrencyAmount, DateTime, Left, Right, FlexColumn } from "../../components/LayoutHelpers";
 import { PaymentMethod } from "./components/PaymentMethod";
 import { Mapping } from "../../components/Mapping";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
@@ -95,7 +95,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
 
             return (
                 <Left>
-                    <VStack align="start">
+                    <FlexColumn align="start">
                         <span className="font-bold">{data['customer.name']}</span>
                         <button
                             className="text-blue-500 underline hover:text-blue-700 cursor-pointer text-left"
@@ -104,7 +104,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                         >
                             {data['customer.email']}
                         </button>
-                    </VStack>
+                    </FlexColumn>
                 </Left>
             );
         },

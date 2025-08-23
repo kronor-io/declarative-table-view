@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
 import { parseViewJson } from './framework/view-parser';
+import { FlexRow, FlexColumn } from './components/LayoutHelpers';
 
 describe('External Runtime Integration', () => {
     it('should use external runtime when available', () => {
@@ -100,7 +101,9 @@ describe('External Runtime Integration', () => {
                 applyFilters: () => { },
                 createElement: React.createElement,
                 components: {
-                    Badge: Tag
+                    Badge: Tag,
+                    FlexRow,
+                    FlexColumn
                 }
             };
             expect(cellRenderer(mockProps)).toBe('Default Cell');
@@ -159,7 +162,9 @@ describe('External Runtime Integration', () => {
                 applyFilters: () => { },
                 createElement: React.createElement,
                 components: {
-                    Badge: Tag
+                    Badge: Tag,
+                    FlexRow,
+                    FlexColumn
                 }
             };
             expect(cellRenderer(mockProps)).toBe('External Override');

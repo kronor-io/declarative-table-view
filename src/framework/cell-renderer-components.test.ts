@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
 import { CellRenderer } from './column-definition';
+import { FlexRow, FlexColumn } from '../components/LayoutHelpers';
 
 describe('Cell Renderer Components', () => {
     it('should provide Badge component to cell renderers', () => {
@@ -21,7 +22,9 @@ describe('Cell Renderer Components', () => {
             applyFilters: jest.fn(),
             createElement: React.createElement,
             components: {
-                Badge: Tag
+                Badge: Tag,
+                FlexRow,
+                FlexColumn
             }
         };
 
@@ -46,7 +49,9 @@ describe('Cell Renderer Components', () => {
             applyFilters: jest.fn(),
             createElement: React.createElement,
             components: {
-                Badge: Tag
+                Badge: Tag,
+                FlexRow,
+                FlexColumn
             }
         };
 
@@ -71,10 +76,43 @@ describe('Cell Renderer Components', () => {
             applyFilters: jest.fn(),
             createElement: React.createElement,
             components: {
-                Badge: Tag
+                Badge: Tag,
+                FlexRow,
+                FlexColumn
             }
         };
 
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should provide FlexRow and FlexColumn components to cell renderers', () => {
+        // Create a test cell renderer that uses FlexRow and FlexColumn components
+        const testCellRenderer: CellRenderer = ({ components, createElement }) => {
+            const { FlexRow, FlexColumn } = components;
+            return createElement(FlexRow, {
+                children: [
+                    createElement(FlexColumn, { children: 'Vertical Layout' }),
+                    createElement(FlexColumn, { children: 'Another Column' })
+                ]
+            });
+        };
+
+        const mockProps = {
+            data: { value: 'Layout Test' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn
+            }
+        };
+
+        // Test that the cell renderer can access and use FlexRow/FlexColumn components
         expect(() => {
             const result = testCellRenderer(mockProps);
             expect(result).toBeDefined();
