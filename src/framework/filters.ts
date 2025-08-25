@@ -1,4 +1,10 @@
-import React from 'react';
+import * as React from 'react';
+
+// Multi-field specification
+export type FilterField =
+    | string  // Single field: "name" or "user.email"
+    | { and: string[] }  // AND multiple fields: { and: ["name", "title", "description"] }
+    | { or: string[] };  // OR multiple fields: { or: ["name", "title", "description"] }
 
 // Transform result type - must return an object with optional field/value fields
 export type TransformResult = { field?: string; value?: unknown };
@@ -19,17 +25,17 @@ export type FilterControl =
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
-    | { type: 'equals'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'notEquals'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'greaterThan'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'lessThan'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'greaterThanOrEqual'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'lessThanOrEqual'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'in'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'notIn'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'like'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'iLike'; field: string; value: FilterControl; transform?: FilterTransform }
-    | { type: 'isNull'; field: string; value: FilterControl; transform?: FilterTransform }
+    | { type: 'equals'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'notEquals'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'greaterThan'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'lessThan'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'greaterThanOrEqual'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'lessThanOrEqual'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'in'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'notIn'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'like'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'iLike'; field: FilterField; value: FilterControl; transform?: FilterTransform }
+    | { type: 'isNull'; field: FilterField; value: FilterControl; transform?: FilterTransform }
     | { type: 'and'; filters: FilterExpr[] }
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };
@@ -64,21 +70,21 @@ export const filterControl = {
 
 // Helper functions for building FilterExpr values
 export const filterExpr = {
-    equals: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'equals', field, value, ...(transform && { transform }) }),
-    notEquals: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notEquals', field, value, ...(transform && { transform }) }),
-    greaterThan: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThan', field, value, ...(transform && { transform }) }),
-    lessThan: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThan', field, value, ...(transform && { transform }) }),
-    greaterThanOrEqual: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThanOrEqual', field, value, ...(transform && { transform }) }),
-    lessThanOrEqual: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThanOrEqual', field, value, ...(transform && { transform }) }),
-    in: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'in', field, value, ...(transform && { transform }) }),
-    notIn: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notIn', field, value, ...(transform && { transform }) }),
-    like: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'like', field, value, ...(transform && { transform }) }),
-    iLike: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'iLike', field, value, ...(transform && { transform }) }),
-    isNull: (field: string, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'isNull', field, value, ...(transform && { transform }) }),
+    equals: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'equals', field, value, ...(transform && { transform }) }),
+    notEquals: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notEquals', field, value, ...(transform && { transform }) }),
+    greaterThan: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThan', field, value, ...(transform && { transform }) }),
+    lessThan: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThan', field, value, ...(transform && { transform }) }),
+    greaterThanOrEqual: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThanOrEqual', field, value, ...(transform && { transform }) }),
+    lessThanOrEqual: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThanOrEqual', field, value, ...(transform && { transform }) }),
+    in: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'in', field, value, ...(transform && { transform }) }),
+    notIn: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notIn', field, value, ...(transform && { transform }) }),
+    like: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'like', field, value, ...(transform && { transform }) }),
+    iLike: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'iLike', field, value, ...(transform && { transform }) }),
+    isNull: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'isNull', field, value, ...(transform && { transform }) }),
     and: (filters: FilterExpr[]): FilterExpr => ({ type: 'and', filters }),
     or: (filters: FilterExpr[]): FilterExpr => ({ type: 'or', filters }),
     not: (filter: FilterExpr): FilterExpr => ({ type: 'not', filter }),
-    range: (field: string, control: (options: any) => FilterControl, transform?: FilterTransform): FilterExpr =>
+    range: (field: FilterField, control: (options: any) => FilterControl, transform?: FilterTransform): FilterExpr =>
         filterExpr.and([
             filterExpr.greaterThanOrEqual(field, control({ placeholder: 'from' }), transform),
             filterExpr.lessThanOrEqual(field, control({ placeholder: 'to' }), transform)
@@ -87,7 +93,7 @@ export const filterExpr = {
 };
 
 // Helper to check if a FilterExpr is a leaf node
-export function isLeaf(expr: FilterExpr): expr is Extract<FilterExpr, { field: string; value: FilterControl }> {
+export function isLeaf(expr: FilterExpr): expr is Extract<FilterExpr, { field: FilterField; value: FilterControl }> {
     return 'field' in expr && 'value' in expr;
 }
 
@@ -102,7 +108,7 @@ export function transformFilterExprValues(expr: FilterExpr, fn: (value: FilterCo
     }
 }
 
-export type FilterExprFieldNode = Extract<FilterExpr, { field: string; value: FilterControl }>;
+export type FilterExprFieldNode = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
 export type FilterExprFilterListNode = Extract<FilterExpr, { filters: FilterExpr[] }>;
 export type FilterExprNotNode = Extract<FilterExpr, { filter: FilterExpr }>;
 
@@ -121,47 +127,7 @@ export function getFieldNodes(expr: FilterExpr): FilterExprFieldNode[] {
     return nodes;
 }
 
-export function buildHasuraConditionFromExpr(expr: FilterExpr): any {
-    switch (expr.type) {
-        case 'equals':
-            return buildFieldCondition(expr.field, { _eq: expr.value });
-        case 'notEquals':
-            return buildFieldCondition(expr.field, { _neq: expr.value });
-        case 'greaterThan':
-            return buildFieldCondition(expr.field, { _gt: expr.value });
-        case 'lessThan':
-            return buildFieldCondition(expr.field, { _lt: expr.value });
-        case 'greaterThanOrEqual':
-            return buildFieldCondition(expr.field, { _gte: expr.value });
-        case 'lessThanOrEqual':
-            return buildFieldCondition(expr.field, { _lte: expr.value });
-        case 'in':
-            return buildFieldCondition(expr.field, { _in: expr.value });
-        case 'notIn':
-            return buildFieldCondition(expr.field, { _nin: expr.value });
-        case 'like':
-            return buildFieldCondition(expr.field, { _like: expr.value });
-        case 'iLike':
-            return buildFieldCondition(expr.field, { _ilike: expr.value });
-        case 'isNull':
-            return buildFieldCondition(expr.field, { _is_null: expr.value });
-        case 'and':
-            return { _and: expr.filters.map(buildHasuraConditionFromExpr) };
-        case 'or':
-            return { _or: expr.filters.map(buildHasuraConditionFromExpr) };
-        case 'not':
-            return { _not: buildHasuraConditionFromExpr(expr.filter) };
-        default:
-            return {};
-    }
-}
 
-// Helper to build nested object from dot notation key
-function buildFieldCondition(key: string, cond: any): any {
-    if (!key.includes('.')) return { [key]: cond };
-    const parts = key.split('.');
-    return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
-}
 
 export type FilterFieldGroup = {
     name: string;

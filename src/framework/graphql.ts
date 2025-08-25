@@ -1,4 +1,5 @@
 import { FilterFormState } from '../components/FilterForm';
+import { FilterField } from './filters';
 import { ColumnDefinition, FieldQuery, OrderByConfig, QueryConfig } from './column-definition';
 
 // All supported Hasura operators for a field
@@ -32,8 +33,29 @@ export type HasuraCondition =
 export function buildHasuraConditions(
     formStates: FilterFormState[]
 ): HasuraCondition {
-    // Support dot-separated keys by building nested objects
-    function buildNestedKey(key: string, cond: any): HasuraCondition {
+    // Support dot-separated keys by building nested objects and handle and/or field expressions
+    function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
+        // Handle object format for multi-field expressions
+        if (typeof field === 'object') {
+            if ('and' in field) {
+                const conditions = field.and.map(fieldName => buildSingleNestedKey(fieldName, cond));
+                return { _and: conditions };
+            }
+            if ('or' in field) {
+                const conditions = field.or.map(fieldName => buildSingleNestedKey(fieldName, cond));
+                return { _or: conditions };
+            }
+        }
+
+        // Handle single field name (string)
+        if (typeof field === 'string') {
+            return buildSingleNestedKey(field, cond);
+        }
+
+        // Fallback
+        return {};
+    }    // Helper to build nested object from dot notation key for a single field
+    function buildSingleNestedKey(key: string, cond: any): HasuraCondition {
         if (!key.includes('.')) return { [key]: cond };
         const parts = key.split('.');
         return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);

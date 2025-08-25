@@ -922,6 +922,204 @@ describe('parseFilterFieldSchemaJson', () => {
                 .toThrow('Invalid not FilterExpr: "filter" must be an object');
         });
     });
+
+    describe('multi-field format support', () => {
+        it('should parse filters with AND multi-field format', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Multi-field AND Filter',
+                        expression: {
+                            type: 'equals',
+                            field: {
+                                and: ['testField', 'email', 'name']
+                            },
+                            value: {
+                                type: 'text',
+                                placeholder: 'Match all fields'
+                            }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.label).toBe('Multi-field AND Filter');
+            expect(filter.expression.type).toBe('equals');
+
+            const fieldValue = (filter.expression as any).field;
+            expect(fieldValue).toEqual({ and: ['testField', 'email', 'name'] });
+        });
+
+        it('should parse filters with OR multi-field format', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Multi-field OR Filter',
+                        expression: {
+                            type: 'iLike',
+                            field: {
+                                or: ['title', 'description', 'tags']
+                            },
+                            value: {
+                                type: 'text',
+                                placeholder: 'Search in any field'
+                            }
+                        },
+                        group: 'default',
+                        aiGenerated: true
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.label).toBe('Multi-field OR Filter');
+            expect(filter.expression.type).toBe('iLike');
+            expect(filter.aiGenerated).toBe(true);
+
+            const fieldValue = (filter.expression as any).field;
+            expect(fieldValue).toEqual({ or: ['title', 'description', 'tags'] });
+        });
+
+        it('should parse filters with single field (string format)', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Single Field Filter',
+                        expression: {
+                            type: 'equals',
+                            field: 'email',
+                            value: {
+                                type: 'text'
+                            }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.expression.type).toBe('equals');
+
+            const fieldValue = (filter.expression as any).field;
+            expect(fieldValue).toBe('email');
+        });
+
+        it('should handle multi-field format with transforms', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Multi-field with Transform',
+                        expression: {
+                            type: 'greaterThan',
+                            field: {
+                                or: ['amount', 'total']
+                            },
+                            value: {
+                                type: 'number'
+                            },
+                            transform: {
+                                section: 'queryTransforms',
+                                key: 'amount'
+                            }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
+
+            expect(result.filters).toHaveLength(1);
+            const filter = result.filters[0];
+            expect(filter.expression.type).toBe('greaterThan');
+            expect('transform' in filter.expression).toBe(true);
+            expect((filter.expression as any).transform).toBe(testRuntime.queryTransforms.amount);
+
+            const fieldValue = (filter.expression as any).field;
+            expect(fieldValue).toEqual({ or: ['amount', 'total'] });
+        });
+
+        it('should throw error for invalid multi-field format', () => {
+            const invalidAndField = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'equals',
+                            field: {
+                                and: 'not-array'
+                            },
+                            value: { type: 'text' }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidAndField, testRuntime, undefined))
+                .toThrow('Invalid FilterField: "and" must be an array of strings');
+
+            const invalidOrField = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'equals',
+                            field: {
+                                or: [123, 456]
+                            },
+                            value: { type: 'text' }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidOrField, testRuntime, undefined))
+                .toThrow('Invalid FilterField: "or" array must contain only strings');
+
+            const invalidFieldFormat = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        label: 'Test',
+                        expression: {
+                            type: 'equals',
+                            field: 123,
+                            value: { type: 'text' }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(invalidFieldFormat, testRuntime, undefined))
+                .toThrow('Invalid FilterField: must be a string or object with "and" or "or" arrays');
+        });
+    });
 });
 
 describe('parseViewJson', () => {

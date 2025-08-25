@@ -1,4 +1,4 @@
-import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter } from '../framework/filters';
+import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterField } from '../framework/filters';
 import { FilterControl, FilterFieldSchema } from '../framework/filters';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
@@ -13,10 +13,10 @@ import { Panel } from 'primereact/panel';
 export type FilterFormState =
     | {
         type: 'leaf';
-        field: string;
+        field: FilterField;
         value: any;
         control: FilterControl;
-        filterType: Extract<FilterExpr, { field: string }>['type'];
+        filterType: Extract<FilterExpr, { field: FilterField }>['type'];
     }
     | { type: 'and' | 'or'; children: FilterFormState[]; filterType: 'and' | 'or' }
     | { type: 'not'; child: FilterFormState; filterType: 'not' };
@@ -315,7 +315,14 @@ function collectDateFieldsFromSchema(schema: FilterFieldSchema): Set<string> {
         if (expr.type === 'and' || expr.type === 'or') {
             expr.filters.forEach(traverse);
         } else if ('field' in expr && 'value' in expr && expr.value.type === 'date') {
-            dateFields.add(expr.field);
+            // Handle FilterField - extract all individual field names
+            if (typeof expr.field === 'string') {
+                dateFields.add(expr.field);
+            } else if ('and' in expr.field) {
+                expr.field.and.forEach(field => dateFields.add(field));
+            } else if ('or' in expr.field) {
+                expr.field.or.forEach(field => dateFields.add(field));
+            }
         }
     }
     schema.filters.forEach(field => traverse(field.expression));

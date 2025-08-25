@@ -318,3 +318,101 @@ describe('buildHasuraConditions', () => {
         });
     });
 });
+
+describe("Multi-field Filter Support", () => {
+    it("should handle object format with and", () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                field: { and: ['name', 'title'] },
+                filterType: 'equals',
+                value: 'test',
+                control: { type: 'text' }
+            }
+        ];
+
+        const result = buildHasuraConditions(formState);
+
+        expect(result).toEqual({
+            _and: [
+                { name: { _eq: 'test' } },
+                { title: { _eq: 'test' } }
+            ]
+        });
+    });
+
+    it("should handle object format with or", () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                field: { or: ['name', 'title'] },
+                filterType: 'equals',
+                value: 'test',
+                control: { type: 'text' }
+            }
+        ];
+
+        const result = buildHasuraConditions(formState);
+
+        expect(result).toEqual({
+            _or: [
+                { name: { _eq: 'test' } },
+                { title: { _eq: 'test' } }
+            ]
+        });
+    });
+
+    it("should handle nested fields with object format", () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                field: { or: ['user.email', 'user.username'] },
+                filterType: 'iLike',
+                value: '%john%',
+                control: { type: 'text' }
+            }
+        ];
+
+        const result = buildHasuraConditions(formState);
+
+        expect(result).toEqual({
+            _or: [
+                { user: { email: { _ilike: '%john%' } } },
+                { user: { username: { _ilike: '%john%' } } }
+            ]
+        });
+    });
+
+    it("should handle mixed multi-field and single field expressions", () => {
+        const formState: FilterFormState[] = [
+            {
+                type: 'leaf',
+                field: { or: ['name', 'title'] },
+                filterType: 'iLike',
+                value: '%search%',
+                control: { type: 'text' }
+            },
+            {
+                type: 'leaf',
+                field: 'category',
+                filterType: 'equals',
+                value: 'tech',
+                control: { type: 'text' }
+            }
+        ];
+
+        const result = buildHasuraConditions(formState);
+
+        expect(result).toEqual({
+            _and: [
+                {
+                    _or: [
+                        { name: { _ilike: '%search%' } },
+                        { title: { _ilike: '%search%' } }
+                    ]
+                },
+                { category: { _eq: 'tech' } }
+            ]
+        });
+    });
+});

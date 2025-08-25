@@ -15,7 +15,7 @@ import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
-import { FilterFieldSchemaFilter, getFieldNodes } from './framework/filters';
+import { FilterFieldSchemaFilter, getFieldNodes, FilterField } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
@@ -148,9 +148,21 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             function stringMatchesSearchQuery(string: string) {
                 return string.toLowerCase().includes(search.toLowerCase());
             }
+
+            function fieldMatchesSearchQuery(field: FilterField): boolean {
+                if (typeof field === 'string') {
+                    return stringMatchesSearchQuery(field);
+                } else if ('and' in field) {
+                    return field.and.some((f: string) => stringMatchesSearchQuery(f));
+                } else if ('or' in field) {
+                    return field.or.some((f: string) => stringMatchesSearchQuery(f));
+                }
+                return false;
+            }
+
             if (stringMatchesSearchQuery(filter.label)) return [index];
             const fieldFilterExprs = getFieldNodes(filter.expression);
-            return fieldFilterExprs.some(expr => stringMatchesSearchQuery(expr.field)) ? [index] : []
+            return fieldFilterExprs.some(expr => fieldMatchesSearchQuery(expr.field)) ? [index] : []
         });
 
     // Next page handler

@@ -2,7 +2,7 @@
 // Separated from view.ts to avoid React import issues in tests
 
 import type { FieldQuery, QueryConfig, OrderByConfig, Field, QueryConfigs } from './column-definition';
-import type { FilterControl, FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
+import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
 
@@ -56,19 +56,25 @@ export type FilterControlJson =
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControlJson; initialValue?: any }
     | { type: 'custom'; component: RuntimeReference; props?: Record<string, any>; label?: string; initialValue?: any };
 
+// JSON Schema types for FilterField (multi-field support)
+export type FilterFieldJson =
+    | string  // Single field: "name" or "user.email"
+    | { and: string[] }  // AND multiple fields: { and: ["name", "title", "description"] }
+    | { or: string[] };  // OR multiple fields: { or: ["name", "title", "description"] }
+
 // JSON Schema types for FilterExpr with transform as RuntimeReference
 export type FilterExprJson =
-    | { type: 'equals'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'notEquals'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'greaterThan'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'lessThan'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'greaterThanOrEqual'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'lessThanOrEqual'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'in'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'notIn'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'like'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'iLike'; field: string; value: FilterControlJson; transform?: RuntimeReference }
-    | { type: 'isNull'; field: string; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'equals'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notEquals'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThan'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThan'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'greaterThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'lessThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'in'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'notIn'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'like'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'iLike'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
+    | { type: 'isNull'; field: FilterFieldJson; value: FilterControlJson; transform?: RuntimeReference }
     | { type: 'and'; filters: FilterExprJson[] }
     | { type: 'or'; filters: FilterExprJson[] }
     | { type: 'not'; filter: FilterExprJson };
@@ -313,6 +319,43 @@ export function parseColumnDefinitionJson(
     };
 }
 
+// Helper function to validate FilterFieldJson
+function parseFilterFieldJson(field: unknown): FilterField {
+    // Handle string (single field)
+    if (typeof field === 'string') {
+        return field;
+    }
+
+    // Handle object (multi-field)
+    if (typeof field === 'object' && field !== null && !Array.isArray(field)) {
+        const obj = field as Record<string, unknown>;
+
+        // Check for 'and' format
+        if ('and' in obj) {
+            if (!Array.isArray(obj.and)) {
+                throw new Error('Invalid FilterField: "and" must be an array of strings');
+            }
+            if (!obj.and.every(item => typeof item === 'string')) {
+                throw new Error('Invalid FilterField: "and" array must contain only strings');
+            }
+            return { and: obj.and as string[] };
+        }
+
+        // Check for 'or' format
+        if ('or' in obj) {
+            if (!Array.isArray(obj.or)) {
+                throw new Error('Invalid FilterField: "or" must be an array of strings');
+            }
+            if (!obj.or.every(item => typeof item === 'string')) {
+                throw new Error('Invalid FilterField: "or" array must contain only strings');
+            }
+            return { or: obj.or as string[] };
+        }
+    }
+
+    throw new Error('Invalid FilterField: must be a string or object with "and" or "or" arrays');
+}
+
 // Parser function for FilterExprJson to FilterExpr
 export function parseFilterExprJson(
     json: unknown,
@@ -356,9 +399,7 @@ export function parseFilterExprJson(
         throw new Error(`Invalid FilterExpr type: "${expr.type}". Valid types are: ${validLeafTypes.join(', ')}, and, or, not`);
     }
 
-    if (typeof expr.field !== 'string') {
-        throw new Error('Invalid FilterExpr: "field" must be a string');
-    }
+    const parsedField = parseFilterFieldJson(expr.field);
 
     if (!expr.value || typeof expr.value !== 'object') {
         throw new Error('Invalid FilterExpr: "value" must be a FilterControl object');
@@ -388,7 +429,7 @@ export function parseFilterExprJson(
     // Build the result FilterExpr
     const result: FilterExpr = {
         type: expr.type as any,
-        field: expr.field,
+        field: parsedField,
         value
     };
 

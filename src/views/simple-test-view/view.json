@@ -143,6 +143,42 @@
                 },
                 "group": "extra",
                 "aiGenerated": false
+            },
+            {
+                "label": "Search Multiple Fields (OR)",
+                "expression": {
+                    "type": "iLike",
+                    "field": {
+                        "or": [
+                            "testField",
+                            "email"
+                        ]
+                    },
+                    "value": {
+                        "type": "text",
+                        "placeholder": "Search in test field or email..."
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "label": "Match Multiple Fields (AND)",
+                "expression": {
+                    "type": "equals",
+                    "field": {
+                        "and": [
+                            "testField",
+                            "email"
+                        ]
+                    },
+                    "value": {
+                        "type": "text",
+                        "placeholder": "Value that must match both fields..."
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
             }
         ]
     }
