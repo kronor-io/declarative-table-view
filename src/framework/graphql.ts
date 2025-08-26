@@ -116,7 +116,12 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
     const merged = [...set1];
 
     for (const item2 of set2) {
-        const existingItem = merged.find(item1 => item1.field === item2.field);
+        // For aliased fields, we need to match on both alias and field name
+        const existingItem = merged.find(item1 =>
+            item1.field === item2.field &&
+            item1.alias === item2.alias &&
+            item1.path === item2.path
+        );
         if (existingItem) {
             // Deep merge selections if both have them
             if (existingItem.selections && item2.selections) {
@@ -126,6 +131,7 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
             if (item2.limit !== undefined) existingItem.limit = item2.limit;
             if (item2.order_by) existingItem.order_by = item2.order_by;
             if (item2.where) existingItem.where = item2.where;
+            if (item2.path) existingItem.path = item2.path;
             // etc. for other properties
         } else {
             merged.push(item2);
@@ -137,6 +143,25 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
 
 // Generates a GraphQL selection set from a FieldQuery[] (tagged ADT)
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
+    // Helper to apply alias to the deepest field in a nested structure
+    function applyAliasToDeepestField(item: GraphQLSelectionSetItem, alias: string): GraphQLSelectionSetItem {
+        if (item.selections && item.selections.length > 0) {
+            // If there are nested selections, recursively apply to the deepest one
+            const lastSelection = item.selections[item.selections.length - 1];
+            const updatedLastSelection = applyAliasToDeepestField(lastSelection, alias);
+            return {
+                ...item,
+                selections: [
+                    ...item.selections.slice(0, -1),
+                    updatedLastSelection
+                ]
+            };
+        } else {
+            // This is the deepest field, apply the alias here
+            return { ...item, alias };
+        }
+    }
+
     // Helper to process FieldQuery recursively
     function processFieldQuery(fieldQuery: FieldQuery): GraphQLSelectionSetItem | null {
         if (fieldQuery.type === 'field') {
@@ -172,6 +197,10 @@ export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): Gr
                     item.limit = head.limit;
                 }
 
+                if (head.path) {
+                    item.path = head.path;
+                }
+
                 if (tail.length) {
                     item.selections = [buildNestedItem(tail)];
                 }
@@ -180,6 +209,21 @@ export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): Gr
             };
 
             return buildNestedItem(fieldQuery.configs);
+        } else if (fieldQuery.type === 'fieldAlias') {
+            // Process the underlying field query
+            const underlyingItem = processFieldQuery(fieldQuery.field);
+            if (underlyingItem) {
+                // For different types of underlying fields, apply alias differently:
+                if (fieldQuery.field.type === 'field') {
+                    // For simple fields (potentially nested), apply alias to the deepest field
+                    return applyAliasToDeepestField(underlyingItem, fieldQuery.alias);
+                } else if (fieldQuery.field.type === 'queryConfigs') {
+                    // For queryConfigs, apply alias to the root field
+                    underlyingItem.alias = fieldQuery.alias;
+                    return underlyingItem;
+                }
+            }
+            return underlyingItem;
         }
         return null;
     }
@@ -233,6 +277,8 @@ export type HasuraOrderBy = Record<string, 'ASC' | 'DESC'>;
 
 export type GraphQLSelectionSetItem = {
     field: string;
+    alias?: string; // field alias support
+    path?: string; // path for querying inside JSON columns
     where?: HasuraCondition;
     order_by?: HasuraOrderBy | HasuraOrderBy[];
     limit?: number;
@@ -302,6 +348,8 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
         }
         if (item.limit !== undefined)
             args.push(`limit: ${item.limit}`);
+        if (item.path)
+            args.push(`path: "${item.path}"`);
         if (item.order_by) {
             // Custom rendering for orderBy to avoid quotes around asc/desc
             const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | undefined): string => {
@@ -327,14 +375,15 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
         return set
             .map(item => {
                 const args = renderArgs(item);
+                const fieldName = item.alias ? `${item.alias}: ${item.field}` : item.field;
                 if (item.selections && item.selections.length) {
                     return (
-                        `${indent}${item.field}${args} {` +
+                        `${indent}${fieldName}${args} {` +
                         renderSelectionSet(item.selections, indent + '  ') +
                         `${indent}}`
                     );
                 } else {
-                    return `${indent}${item.field}${args}`;
+                    return `${indent}${fieldName}${args}`;
                 }
             })
             .join('\n');

@@ -1,4 +1,4 @@
-import React from "react";
+import { ReactNode, createElement } from "react";
 import { Center, FlexRow, FlexColumn } from "../components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
 import { Tag } from 'primereact/tag';
@@ -8,7 +8,7 @@ export type CellRendererProps<TContext = unknown> = {
     context?: TContext; // Optional context passed from the table
     setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
-    createElement: typeof React.createElement; // React createElement function
+    createElement: typeof createElement; // React createElement function
     components: {
         Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
         FlexRow: typeof FlexRow; // Horizontal layout component
@@ -16,7 +16,7 @@ export type CellRendererProps<TContext = unknown> = {
     };
 };
 
-export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => React.ReactNode;
+export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => ReactNode;
 
 export type OrderByConfig = {
     key: string; // data key to order by
@@ -31,6 +31,7 @@ export type Field = {
 
 export type QueryConfig = {
     field: string
+    path?: string; // path for querying inside JSON columns
     orderBy?: OrderByConfig | OrderByConfig[];
     limit?: number;
 }
@@ -40,7 +41,14 @@ export type QueryConfigs = {
     configs: QueryConfig[]
 };
 
-export type FieldQuery = Field | QueryConfigs;
+// Field alias support - wraps any FieldQuery with an alias name
+export type FieldAlias = {
+    type: 'fieldAlias';
+    alias: string; // the alias name to use in GraphQL
+    field: FieldQuery; // the underlying field query
+};
+
+export type FieldQuery = Field | QueryConfigs | FieldAlias;
 
 // Helper to create a Field
 export function field(path: string): FieldQuery {
@@ -50,6 +58,11 @@ export function field(path: string): FieldQuery {
 // Helper to create QueryConfigs
 export function queryConfigs(configs: QueryConfig[]): FieldQuery {
     return { type: 'queryConfigs', configs };
+}
+
+// Helper to create a FieldAlias
+export function fieldAlias(alias: string, fieldQuery: FieldQuery): FieldQuery {
+    return { type: 'fieldAlias', alias, field: fieldQuery };
 }
 
 export type ColumnDefinition<CellRendererContext = unknown> = {

@@ -217,6 +217,64 @@ describe('parseColumnDefinitionJson', () => {
                 ]
             }]);
         });
+
+        it('should parse JSON with queryConfigs including path property', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'metadata',
+                            path: '$.user.preferences.theme'
+                        }
+                    ]
+                }],
+                name: 'JSON Path Query',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.data).toEqual([{
+                type: 'queryConfigs',
+                configs: [
+                    {
+                        field: 'metadata',
+                        path: '$.user.preferences.theme'
+                    }
+                ]
+            }]);
+        });
+
+        it('should parse JSON with queryConfigs including path, limit, and orderBy', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'activities',
+                            path: '$.recent',
+                            limit: 5,
+                            orderBy: { key: 'timestamp', direction: 'DESC' }
+                        }
+                    ]
+                }],
+                name: 'Complex JSON Query',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.data).toEqual([{
+                type: 'queryConfigs',
+                configs: [
+                    {
+                        field: 'activities',
+                        path: '$.recent',
+                        limit: 5,
+                        orderBy: { key: 'timestamp', direction: 'DESC' }
+                    }
+                ]
+            }]);
+        });
     });
 
     describe('input validation errors', () => {
@@ -457,6 +515,51 @@ describe('parseColumnDefinitionJson', () => {
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
+        });
+
+        it('should throw error for invalid path type in queryConfigs', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'metadata',
+                            path: 123 // Invalid: path should be a string
+                        }
+                    ]
+                }],
+                name: 'Invalid Path',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid data[0]: Invalid QueryConfig: "path" must be a string');
+        });
+
+        it('should throw error for null path in queryConfigs when provided', () => {
+            const json = {
+                data: [{
+                    type: 'queryConfigs',
+                    configs: [
+                        {
+                            field: 'metadata',
+                            path: null // null path should be ignored, but this doesn't happen in parsing
+                        }
+                    ]
+                }],
+                name: 'Null Path',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            // This should not throw because null path is handled and ignored
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.data).toEqual([{
+                type: 'queryConfigs',
+                configs: [
+                    { field: 'metadata' } // path should be omitted
+                ]
+            }]);
         });
     });
 

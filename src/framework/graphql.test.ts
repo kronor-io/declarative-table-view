@@ -1,5 +1,5 @@
 import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST, buildHasuraConditions } from "./graphql";
-import { ColumnDefinition } from "./column-definition";
+import { ColumnDefinition, fieldAlias, field, queryConfigs } from "./column-definition";
 import { FilterFormState } from '../components/FilterForm';
 
 describe("renderGraphQLQuery", () => {
@@ -165,6 +165,124 @@ describe("generateGraphQLQueryAST", () => {
                 ],
             },
         ]);
+    });
+
+    it("generates GraphQL query with field aliases", () => {
+        const columns: ColumnDefinition[] = [
+            {
+                name: "ID",
+                data: [field("id")],
+                cellRenderer: () => null,
+            },
+            {
+                name: "Recent Posts",
+                data: [
+                    fieldAlias(
+                        "recentPosts",
+                        queryConfigs([
+                            {
+                                field: "posts",
+                                limit: 3,
+                                orderBy: { key: "created_at", direction: "DESC" },
+                            },
+                            {
+                                field: "title",
+                            },
+                        ])
+                    ),
+                ],
+                cellRenderer: () => null,
+            },
+            {
+                name: "User Name",
+                data: [fieldAlias("userName", field("user.name"))],
+                cellRenderer: () => null,
+            },
+        ];
+
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+
+        expect(ast.selectionSet).toEqual([
+            { field: "id" },
+            {
+                field: "posts",
+                alias: "recentPosts",
+                limit: 3,
+                order_by: { created_at: "DESC" },
+                selections: [{ field: "title" }],
+            },
+            {
+                field: "user",
+                selections: [
+                    {
+                        field: "name",
+                        alias: "userName"
+                    }
+                ],
+            },
+        ]);
+
+        const query = renderGraphQLQuery(ast);
+        expect(query).toContain("recentPosts: posts(limit: 3, orderBy: {created_at: DESC})");
+        expect(query).toContain("userName: name");
+    });
+
+    it("generates GraphQL query with path support for JSON columns", () => {
+        const columns: ColumnDefinition[] = [
+            {
+                name: "ID",
+                data: [field("id")],
+                cellRenderer: () => null,
+            },
+            {
+                name: "JSON Field Value",
+                data: [
+                    queryConfigs([
+                        {
+                            field: "metadata",
+                            path: "$.user.preferences.theme",
+                        },
+                    ])
+                ],
+                cellRenderer: () => null,
+            },
+            {
+                name: "JSON Array Element",
+                data: [
+                    fieldAlias(
+                        "firstTag",
+                        queryConfigs([
+                            {
+                                field: "tags",
+                                path: "$[0]",
+                                limit: 1,
+                            },
+                        ])
+                    )
+                ],
+                cellRenderer: () => null,
+            },
+        ];
+
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+
+        expect(ast.selectionSet).toEqual([
+            { field: "id" },
+            {
+                field: "metadata",
+                path: "$.user.preferences.theme",
+            },
+            {
+                field: "tags",
+                alias: "firstTag",
+                path: "$[0]",
+                limit: 1,
+            },
+        ]);
+
+        const query = renderGraphQLQuery(ast);
+        expect(query).toContain('metadata(path: "$.user.preferences.theme")');
+        expect(query).toContain('firstTag: tags(limit: 1, path: "$[0]")');
     });
 });
 

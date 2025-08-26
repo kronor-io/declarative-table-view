@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { FieldQuery, QueryConfig, OrderByConfig, Field, QueryConfigs } from './column-definition';
+import type { FieldQuery, QueryConfig, Field, QueryConfigs, FieldAlias } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
@@ -44,6 +44,7 @@ export function resolveRuntimeReference<T>(
 export type FieldJson = Field;
 export type QueryConfigJson = QueryConfig;
 export type QueryConfigsJson = QueryConfigs;
+export type FieldAliasJson = FieldAlias;
 export type FieldQueryJson = FieldQuery;
 
 // JSON Schema types for FilterControl with RuntimeReference support for custom components
@@ -146,7 +147,7 @@ export function fieldQueryJsonToFieldQuery(json: FieldQueryJson): FieldQuery {
             type: 'field',
             path: json.path
         };
-    } else {
+    } else if (json.type === 'queryConfigs') {
         return {
             type: 'queryConfigs',
             configs: json.configs.map(config => {
@@ -159,12 +160,12 @@ export function fieldQueryJsonToFieldQuery(json: FieldQueryJson): FieldQuery {
                         result.orderBy = config.orderBy.map(ob => ({
                             key: ob.key,
                             direction: ob.direction
-                        } as OrderByConfig));
+                        }));
                     } else {
                         result.orderBy = {
                             key: config.orderBy.key,
                             direction: config.orderBy.direction
-                        } as OrderByConfig;
+                        };
                     }
                 }
 
@@ -172,8 +173,19 @@ export function fieldQueryJsonToFieldQuery(json: FieldQueryJson): FieldQuery {
                     result.limit = config.limit;
                 }
 
+                if (config.path !== undefined) {
+                    result.path = config.path;
+                }
+
                 return result;
             })
+        };
+    } else {
+        // Handle FieldAlias case
+        return {
+            type: 'fieldAlias',
+            alias: json.alias,
+            field: fieldQueryJsonToFieldQuery(json.field)
         };
     }
 }
@@ -228,6 +240,13 @@ function parseQueryConfigJson(obj: unknown): QueryConfigJson {
             throw new Error('Invalid QueryConfig: "limit" must be a non-negative integer');
         }
         result.limit = config.limit;
+    }
+
+    if (config.path !== undefined && config.path !== null) {
+        if (typeof config.path !== 'string') {
+            throw new Error('Invalid QueryConfig: "path" must be a string');
+        }
+        result.path = config.path;
     }
 
     return result;
