@@ -92,5 +92,6 @@ export const simpleTestViewRuntime: Runtime = {
     noRowsComponents: {},
     customFilterComponents: {
         PhoneNumberFilter
-    }
+    },
+    initialValues: {}
 };

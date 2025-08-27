@@ -24,7 +24,7 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseRuntimeReference(json);
-            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms');
+            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues');
         });
 
         it('should validate that section is a string', () => {
@@ -78,7 +78,8 @@ describe('RuntimeReference', () => {
             },
             queryTransforms: {},
             noRowsComponents: {},
-            customFilterComponents: {}
+            customFilterComponents: {},
+            initialValues: {}
         };
 
         it('should parse column with RuntimeReference format', () => {
@@ -147,7 +148,8 @@ describe('RuntimeReference', () => {
             customFilterComponents: {
                 phoneNumberFilter: () => 'PhoneNumberFilter',
                 emailFilter: () => 'EmailFilter'
-            }
+            },
+            initialValues: {}
         };
 
         it('should resolve custom filter component with RuntimeReference', () => {

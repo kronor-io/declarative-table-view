@@ -391,7 +391,11 @@
                             "field": "createdAt",
                             "value": {
                                 "type": "date",
-                                "placeholder": "from"
+                                "placeholder": "from",
+                                "initialValue": {
+                                    "section": "initialValues",
+                                    "key": "dateRangeStart"
+                                }
                             }
                         },
                         {
@@ -399,7 +403,11 @@
                             "field": "createdAt",
                             "value": {
                                 "type": "date",
-                                "placeholder": "to"
+                                "placeholder": "to",
+                                "initialValue": {
+                                    "section": "initialValues",
+                                    "key": "dateRangeEnd"
+                                }
                             }
                         }
                     ]

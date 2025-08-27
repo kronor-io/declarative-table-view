@@ -11,7 +11,8 @@ describe('parseColumnDefinitionJson', () => {
         },
         queryTransforms: {},
         noRowsComponents: {},
-        customFilterComponents: {}
+        customFilterComponents: {},
+        initialValues: {}
     };
 
     describe('successful parsing', () => {
@@ -661,7 +662,8 @@ describe('parseFilterFieldSchemaJson', () => {
                 fromQuery: (input: any) => input.replace(/%/g, ''),
                 toQuery: (input: any) => ({ value: `%${input}%` })
             }
-        }
+        },
+        initialValues: {}
     };
 
     describe('successful parsing', () => {
@@ -1251,7 +1253,8 @@ describe('parseViewJson', () => {
         noRowsComponents: {
             noRowsExtendDateRange: mockNoRowsComponent
         },
-        customFilterComponents: {}
+        customFilterComponents: {},
+        initialValues: {}
     };
 
     const testRuntimes = {

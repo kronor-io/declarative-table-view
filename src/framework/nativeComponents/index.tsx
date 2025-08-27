@@ -17,7 +17,8 @@ export const nativeComponentsRuntime: NativeComponentsRuntime = {
     },
     queryTransforms: {},
     noRowsComponents: {},
-    customFilterComponents: {}
+    customFilterComponents: {},
+    initialValues: {}
 };
 
 // Export components for direct usage

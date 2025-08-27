@@ -47,6 +47,10 @@ export type PaymentRequestsRuntime = Runtime & {
     customFilterComponents: {
         PhoneNumberFilter: any;
     };
+    initialValues: {
+        dateRangeStart: Date;
+        dateRangeEnd: Date;
+    };
 };
 
 // Static object of cell renderers for payment requests
@@ -156,5 +160,19 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     },
     customFilterComponents: {
         PhoneNumberFilter
+    },
+
+    // Initial values for filters
+    initialValues: {
+        // Date range: one month back from current date
+        dateRangeStart: (() => {
+            const date = new Date();
+            date.setMonth(date.getMonth() - 1);
+            return date; // Return Date object for calendar component
+        })(),
+        dateRangeEnd: (() => {
+            const date = new Date();
+            return date; // Return Date object for calendar component
+        })()
     }
 };

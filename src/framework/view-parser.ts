@@ -8,7 +8,7 @@ import type { Runtime } from './runtime';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms';
+    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms' | 'initialValues';
     key: string;
 };
 
@@ -130,7 +130,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms', 'initialValues'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -375,6 +375,89 @@ function parseFilterFieldJson(field: unknown): FilterField {
     throw new Error('Invalid FilterField: must be a string or object with "and" or "or" arrays');
 }
 
+// Helper function to parse initialValue that may be a RuntimeReference
+export function parseInitialValue(
+    initialValue: unknown,
+    builtInRuntime: Runtime,
+    externalRuntime?: Runtime
+): any {
+    // If initialValue is undefined or null, return as-is
+    if (initialValue === undefined || initialValue === null) {
+        return initialValue;
+    }
+
+    // Try to parse as RuntimeReference - this handles all validation internally
+    let ref: RuntimeReference;
+    try {
+        ref = parseRuntimeReference(initialValue);
+    } catch {
+        // If parsing as RuntimeReference fails, treat as regular value
+        return initialValue;
+    }
+
+    if (ref.section === 'initialValues') {
+        // Resolve the runtime reference from initialValues section - this may throw if key doesn't exist
+        return resolveRuntimeReference<any>(ref, externalRuntime, builtInRuntime);
+    }
+
+    // If it's not an initialValues reference, return as-is (might be a component reference)
+    return initialValue;
+}
+
+// Parser function for FilterControlJson to FilterControl
+export function parseFilterControlJson(
+    json: unknown,
+    builtInRuntime: Runtime,
+    externalRuntime?: Runtime
+): FilterControl {
+    if (!json || (typeof json !== 'object' && !Array.isArray(json))) {
+        throw new Error('Invalid FilterControl: Expected an object');
+    }
+
+    const filterControlJson = json as Record<string, unknown>;
+
+    // Parse initialValue if present
+    const parsedInitialValue = filterControlJson.initialValue !== undefined
+        ? parseInitialValue(filterControlJson.initialValue, builtInRuntime, externalRuntime)
+        : undefined;
+
+    // If it's a custom filter control, resolve the component from runtimes
+    if (filterControlJson.type === 'custom') {
+        // RuntimeReference-based component reference
+        const componentRef = parseRuntimeReference(filterControlJson.component);
+        if (componentRef.section !== 'customFilterComponents') {
+            throw new Error('Invalid custom filter component: section must be "customFilterComponents"');
+        }
+
+        const component = resolveRuntimeReference<any>(
+            componentRef,
+            externalRuntime,
+            builtInRuntime
+        );
+
+        return {
+            ...filterControlJson,
+            component,
+            initialValue: parsedInitialValue
+        } as FilterControl;
+    }
+
+    // Handle customOperator controls that might have nested FilterControlJson
+    if (filterControlJson.type === 'customOperator') {
+        return {
+            ...filterControlJson,
+            valueControl: parseFilterControlJson(filterControlJson.valueControl, builtInRuntime, externalRuntime),
+            initialValue: parsedInitialValue
+        } as FilterControl;
+    }
+
+    // Handle all other filter control types
+    return {
+        ...filterControlJson,
+        initialValue: parsedInitialValue
+    } as FilterControl;
+}
+
 // Parser function for FilterExprJson to FilterExpr
 export function parseFilterExprJson(
     json: unknown,
@@ -420,30 +503,12 @@ export function parseFilterExprJson(
 
     const parsedField = parseFilterFieldJson(expr.field);
 
-    if (!expr.value || typeof expr.value !== 'object') {
-        throw new Error('Invalid FilterExpr: "value" must be a FilterControl object');
+    if (!expr.value) {
+        throw new Error('Invalid FilterExpr: "value" is required');
     }
 
-    // If the value is a custom filter control, resolve the component from runtimes
-    let value: FilterControl = expr.value as FilterControl;
-    if (value && value.type === 'custom') {
-        // RuntimeReference-based component reference
-        const componentRef = parseRuntimeReference(value.component);
-        if (componentRef.section !== 'customFilterComponents') {
-            throw new Error('Invalid custom filter component: section must be "customFilterComponents"');
-        }
-
-        const component = resolveRuntimeReference<any>(
-            componentRef,
-            externalRuntime,
-            builtInRuntime
-        );
-
-        value = {
-            ...value,
-            component
-        };
-    }
+    // Parse the FilterControl using the new parsing function
+    const value = parseFilterControlJson(expr.value, builtInRuntime, externalRuntime);
 
     // Build the result FilterExpr
     const result: FilterExpr = {
@@ -611,7 +676,8 @@ export function parseViewJson(
         cellRenderers: {},
         queryTransforms: {},
         noRowsComponents: {},
-        customFilterComponents: {}
+        customFilterComponents: {},
+        initialValues: {}
     };
 
     // Validate columns array

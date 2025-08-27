@@ -12,4 +12,5 @@ export type Runtime = {
     }>;
     noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;
     customFilterComponents: Record<string, React.ComponentType<any>>;
+    initialValues: Record<string, any>;
 };

@@ -22,6 +22,7 @@ describe('External Runtime Integration', () => {
             customFilterComponents: {
                 customFilter: () => 'Custom filter',
             },
+            initialValues: {}
         };
 
         const testView = {
@@ -63,7 +64,8 @@ describe('External Runtime Integration', () => {
                 },
                 queryTransforms: {},
                 noRowsComponents: {},
-                customFilterComponents: {}
+                customFilterComponents: {},
+                initialValues: {}
             },
         };
         const externalRuntime = undefined; // No external runtime provided
@@ -118,7 +120,8 @@ describe('External Runtime Integration', () => {
                 },
                 queryTransforms: {},
                 noRowsComponents: {},
-                customFilterComponents: {}
+                customFilterComponents: {},
+                initialValues: {}
             },
         };
         const externalRuntime = {
@@ -127,7 +130,8 @@ describe('External Runtime Integration', () => {
             },
             queryTransforms: {},
             noRowsComponents: {},
-            customFilterComponents: {}
+            customFilterComponents: {},
+            initialValues: {}
         };
 
         const testView = {
