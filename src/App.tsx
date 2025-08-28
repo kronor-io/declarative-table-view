@@ -22,15 +22,14 @@ import { generateGraphQLQuery } from './framework/graphql';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 
-interface AppProps {
+export interface AppProps {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
-    viewsJson: string;
+    viewsJson: string; // JSON string containing array of view definitions
     showViewsMenu: boolean;
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
-    cellRendererContext?: unknown; // Context passed to all cell renderers
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
 }
 
@@ -42,7 +41,7 @@ const builtInRuntimes = {
     nativeComponents: nativeComponentsRuntime
 };
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, cellRendererContext, viewsJson, externalRuntime }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime }: AppProps) {
 
 
     const views = useMemo(() => {
@@ -282,7 +281,6 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 columns={selectedView.columnDefinitions}
                 data={state.data.flattenedRows}
                 noRowsComponent={selectedView.noRowsComponent}
-                cellRendererContext={cellRendererContext}
                 setFilterState={setFilterState}
                 filterState={state.filterState}
                 triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}

@@ -12,7 +12,6 @@ export interface RenderTableViewOptions {
     viewsJson: string; // JSON string containing array of view definitions
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
-    cellRendererContext?: unknown; // Context passed to all cell renderers
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
 }
 
@@ -30,7 +29,6 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     geminiApiKey={options.geminiApiKey}
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
-                    cellRendererContext={options.cellRendererContext}
                     viewsJson={options.viewsJson}
                     externalRuntime={options.externalRuntime}
                 />
@@ -57,7 +55,6 @@ if (import.meta.env.DEV) {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
                 geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
-                cellRendererContext: { /* example context object */ },
                 viewsJson: JSON.stringify([
                     JSON.parse(paymentRequests.default),
                     JSON.parse(requestLog.default),

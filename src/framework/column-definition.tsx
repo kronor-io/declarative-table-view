@@ -3,9 +3,8 @@ import { Center, FlexRow, FlexColumn } from "../components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
 import { Tag } from 'primereact/tag';
 
-export type CellRendererProps<TContext = unknown> = {
+export type CellRendererProps = {
     data: Record<string, any>;
-    context?: TContext; // Optional context passed from the table
     setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
     createElement: typeof createElement; // React createElement function
@@ -16,7 +15,7 @@ export type CellRendererProps<TContext = unknown> = {
     };
 };
 
-export type CellRenderer<TContext = unknown> = (props: CellRendererProps<TContext>) => ReactNode;
+export type CellRenderer = (props: CellRendererProps) => ReactNode;
 
 export type OrderByConfig = {
     key: string; // data key to order by
@@ -65,10 +64,10 @@ export function fieldAlias(alias: string, fieldQuery: FieldQuery): FieldQuery {
     return { type: 'fieldAlias', alias, field: fieldQuery };
 }
 
-export type ColumnDefinition<CellRendererContext = unknown> = {
+export type ColumnDefinition = {
     data: FieldQuery[];
     name: string; // column display name
-    cellRenderer: CellRenderer<CellRendererContext>;
+    cellRenderer: CellRenderer;
 };
 
 // Default function: returns the only value in the object

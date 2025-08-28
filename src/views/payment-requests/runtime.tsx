@@ -11,21 +11,17 @@ import NoRowsExtendDateRange from "./components/NoRowsExtendDateRange";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import { Runtime } from "../../framework/runtime";
 
-interface KronorPortalContext {
-    portalHost: string;
-}
-
 // Static runtime configuration for payment requests view
 export type PaymentRequestsRuntime = Runtime & {
     cellRenderers: {
-        transaction: CellRenderer<KronorPortalContext>;
-        merchant: CellRenderer<KronorPortalContext>;
-        placedAt: CellRenderer<KronorPortalContext>;
-        reference: CellRenderer<KronorPortalContext>;
-        paymentProvider: CellRenderer<KronorPortalContext>;
-        initiatedBy: CellRenderer<KronorPortalContext>;
-        status: CellRenderer<KronorPortalContext>;
-        amount: CellRenderer<KronorPortalContext>;
+        transaction: CellRenderer;
+        merchant: CellRenderer;
+        placedAt: CellRenderer;
+        reference: CellRenderer;
+        paymentProvider: CellRenderer;
+        initiatedBy: CellRenderer;
+        status: CellRenderer;
+        amount: CellRenderer;
     };
     queryTransforms: {
         reference: {
@@ -57,10 +53,8 @@ export type PaymentRequestsRuntime = Runtime & {
 export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     cellRenderers: {
         // Transaction cell renderer
-        transaction: ({ data: { transactionId, waitToken }, context }) => {
-            const url = context?.portalHost
-                ? new URL(`/portal/payment-requests/${waitToken}`, context.portalHost).toString()
-                : `/portal/payment-requests/${waitToken}`;
+        transaction: ({ data: { transactionId, waitToken } }) => {
+            const url = `/portal/payment-requests/${waitToken}`;
             return <a className="underline" href={url}>{transactionId}</a>;
         },
 

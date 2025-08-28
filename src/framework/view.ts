@@ -11,11 +11,11 @@ export type NoRowsComponentProps = {
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
 
-export type View<CellRendererContext = unknown> = {
+export type View = {
     title: string;
     routeName: string;
     collectionName: string;
-    columnDefinitions: ColumnDefinition<CellRendererContext>[];
+    columnDefinitions: ColumnDefinition[];
     filterSchema: FilterFieldSchema;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view

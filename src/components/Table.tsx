@@ -7,25 +7,23 @@ import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
 import { FlexRow, FlexColumn } from './LayoutHelpers';
 
-type TableProps<CellRendererContext = unknown> = {
-    columns: ColumnDefinition<CellRendererContext>[];
+type TableProps = {
+    columns: ColumnDefinition[];
     data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
-    cellRendererContext?: CellRendererContext; // Context passed to all cell renderers
     setFilterState: (filterState: FilterFormState[]) => void; // Function to update filter state
     filterState: FilterFormState[]; // Current filter state
     triggerRefetch: () => void; // Function to trigger data refetch
 };
 
-function Table<CellRendererContext = unknown>({
+function Table({
     columns,
     data,
     noRowsComponent,
-    cellRendererContext,
     setFilterState,
     filterState,
     triggerRefetch
-}: TableProps<CellRendererContext>) {
+}: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterFormState[]) => FilterFormState[]) => {
         const newState = updater(filterState);
@@ -49,7 +47,6 @@ function Table<CellRendererContext = unknown>({
                     header={column.name}
                     body={rowData => column.cellRenderer({
                         data: rowData[columnIndex],
-                        context: cellRendererContext,
                         setFilterState: wrappedSetFilterState,
                         applyFilters: triggerRefetch,
                         createElement: React.createElement,
