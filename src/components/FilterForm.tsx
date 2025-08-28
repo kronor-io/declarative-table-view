@@ -254,11 +254,9 @@ function renderFilterFormState(
 
         // Apply transform.fromQuery if present when displaying value
         let displayValue = state.value;
-        if (displayValue && transform && typeof transform.fromQuery === 'function') {
-            const transformResult = transform.fromQuery(state.value);
-
-            // Transform must return an object, use the value field or fall back to original
-            displayValue = transformResult.value !== undefined ? transformResult.value : displayValue;
+        if (displayValue !== null && displayValue !== undefined && transform && typeof transform.fromQuery === 'function') {
+            // fromQuery always returns plain values (unlike toQuery which returns objects)
+            displayValue = transform.fromQuery(state.value);
         }
         return (
             <div className="flex flex-col min-w-[220px] mb-2">
