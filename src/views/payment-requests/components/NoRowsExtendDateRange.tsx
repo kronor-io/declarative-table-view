@@ -1,4 +1,4 @@
-import { Center } from "../../../components/LayoutHelpers";
+import { FlexColumn } from "../../../components/LayoutHelpers";
 import { Button } from "primereact/button";
 import { NoRowsComponentProps } from "../../../framework/view";
 
@@ -26,10 +26,10 @@ const NoRowsExtendDateRange = ({ setFilterState, applyFilters }: Pick<NoRowsComp
         applyFilters();
     };
     return (
-        <Center className="py-8 text-gray-400 flex flex-col items-center gap-4">
+        <FlexColumn align="center" justify="center" className="py-8 text-gray-400">
             <span>No payment requests match the current filter.</span>
             <Button label="Extend the date range back by 1 month" onClick={handleExtend} size="small" />
-        </Center>
+        </FlexColumn>
     );
 };
 

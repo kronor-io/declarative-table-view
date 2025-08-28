@@ -1,6 +1,6 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
 import { ColumnDefinition, field } from "../framework/column-definition";
-import { DateTime, Left } from "../components/LayoutHelpers";
+import { DateTime, FlexRow } from "../components/LayoutHelpers";
 import { View } from "../framework/view";
 
 const columnDefinitions: ColumnDefinition[] = [
@@ -32,17 +32,17 @@ const columnDefinitions: ColumnDefinition[] = [
         data: ['requestParams'].map(field),
         name: 'Request',
         cellRenderer: ({ data: { requestParams } }) =>
-            <Left>
+            <FlexRow align="center" justify="start">
                 <pre className="text-left">{JSON.stringify(requestParams, null, 2)}</pre>
-            </Left>
+            </FlexRow>
     },
     {
         data: ['responseBody'].map(field),
         name: 'Response',
         cellRenderer: ({ data: { responseBody } }) =>
-            <Left>
+            <FlexRow align="center" justify="start">
                 <pre>{JSON.stringify(responseBody, null, 2)}</pre>
-            </Left>
+            </FlexRow>
     }
 ];
 

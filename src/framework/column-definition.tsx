@@ -1,5 +1,5 @@
 import { ReactNode, createElement } from "react";
-import { Center, FlexRow, FlexColumn } from "../components/LayoutHelpers";
+import { FlexRow, FlexColumn } from "../components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
 import { Tag } from 'primereact/tag';
 
@@ -71,4 +71,4 @@ export type ColumnDefinition = {
 };
 
 // Default function: returns the only value in the object
-export const defaultCellRenderer: CellRenderer = ({ data }) => <Center>{Object.values(data)[0]}</Center>;
+export const defaultCellRenderer: CellRenderer = ({ data }) => <FlexRow align="center" justify="center">{Object.values(data)[0]}</FlexRow>;

@@ -53,11 +53,6 @@ export function FlexColumn({ gap = "gap-2", className = "", align, justify, chil
     );
 }
 
-// Center content both vertically and horizontally
-export function Center({ className = "", children }: { className?: string; children: React.ReactNode }) {
-    return <div className={`flex items-center justify-center ${className}`}>{wrapStringChildren(children)}</div>;
-}
-
 // Spacer for use in flex layouts
 export function Spacer() {
     return <div className="flex-1" />;
@@ -69,16 +64,6 @@ export function DateTime({ date, locale = undefined, options = undefined, classN
     const d = new Date(date);
     if (isNaN(d.getTime())) return <span className={className}>{date}</span>;
     return <span className={className}>{d.toLocaleString(locale, options)}</span>;
-}
-
-// Left: aligns children to the start (left) of a flex container
-export function Left({ className = "", children }: { className?: string; children: React.ReactNode }) {
-    return <div className={`flex justify-start items-center ${className}`}>{wrapStringChildren(children)}</div>;
-}
-
-// Right: aligns children to the end (right) of a flex container
-export function Right({ className = "", children }: { className?: string; children: React.ReactNode }) {
-    return <div className={`flex justify-end items-center ${className}`}>{wrapStringChildren(children)}</div>;
 }
 
 // CurrencyAmount: formats a number as currency using Intl.NumberFormat

@@ -1,6 +1,6 @@
 import { Tag } from 'primereact/tag';
 import React from 'react';
-import { Center } from '../../../components/LayoutHelpers';
+import { FlexRow } from '../../../components/LayoutHelpers';
 
 export const paymentStatusEnumToText = (status: string): string => {
     switch (status) {
@@ -54,8 +54,8 @@ export const PaymentStatusTag: React.FC<{ status: string }> = ({ status }) => {
     // 'primary' is not a valid severity for Tag, fallback to 'info'
     const validSeverity: PaymentStatusSeverity = severity === 'primary' ? 'info' : severity;
     return (
-        <Center>
+        <FlexRow align="center" justify="center">
             <Tag value={paymentStatusEnumToText(status)} severity={validSeverity} style={{ fontSize: '.8rem', padding: '0.3em 1em' }} />
-        </Center>
+        </FlexRow>
     )
 };

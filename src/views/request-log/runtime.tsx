@@ -1,5 +1,5 @@
 import { CellRenderer } from "../../framework/column-definition";
-import { DateTime, Left } from "../../components/LayoutHelpers";
+import { DateTime, FlexRow } from "../../components/LayoutHelpers";
 import { Runtime } from "../../framework/runtime";
 
 // Merchant cell renderer
@@ -20,15 +20,15 @@ const namespaceCellRenderer: CellRenderer = ({ data: { namespace } }) =>
 
 // JSON cell renderer for request params
 const jsonCellRenderer: CellRenderer = ({ data: { requestParams } }) =>
-    <Left>
+    <FlexRow align="center" justify="start">
         <pre className="text-left">{JSON.stringify(requestParams, null, 2)}</pre>
-    </Left>;
+    </FlexRow>;
 
 // JSON response cell renderer
 const jsonResponseCellRenderer: CellRenderer = ({ data: { responseBody } }) =>
-    <Left>
+    <FlexRow align="center" justify="start">
         <pre>{JSON.stringify(responseBody, null, 2)}</pre>
-    </Left>;
+    </FlexRow>;
 
 // Runtime configuration for request log view
 export const requestLogViewRuntime: Runtime = {
