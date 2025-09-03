@@ -42,7 +42,7 @@ function Table({
         : null;
 
     return (
-        <DataTable value={data} tableStyle={{ minWidth: '50rem' }} showGridlines size='small' emptyMessage={noDataRowsComponent}>
+        <DataTable value={data} tableStyle={{ minWidth: '50rem' }} showGridlines stripedRows size='small' emptyMessage={noDataRowsComponent}>
             {columns.map((column, columnIndex) => (
                 <Column
                     key={columnIndex}
