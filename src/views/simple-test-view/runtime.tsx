@@ -1,4 +1,4 @@
-import { CellRenderer, defaultCellRenderer } from "../../framework/column-definition";
+import { CellRenderer } from "../../framework/column-definition";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import { Runtime } from "../../framework/runtime";
 
@@ -69,7 +69,6 @@ const amountCellRenderer: CellRenderer = ({ data, components, createElement }) =
 // Runtime configuration for simple test view
 export const simpleTestViewRuntime: Runtime = {
     cellRenderers: {
-        defaultCellRenderer,
         emailCellRenderer,
         amountCellRenderer
     },

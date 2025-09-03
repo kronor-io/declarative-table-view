@@ -5,7 +5,9 @@ import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
 import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
-import { FlexRow, FlexColumn } from './LayoutHelpers';
+import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from '../framework/cell-renderer-components/LayoutHelpers';
+import { Mapping } from '../framework/cell-renderer-components/Mapping';
+import { Link } from '../framework/cell-renderer-components/Link';
 
 type TableProps = {
     columns: ColumnDefinition[];
@@ -53,7 +55,11 @@ function Table({
                         components: {
                             Badge: Tag,
                             FlexRow,
-                            FlexColumn
+                            FlexColumn,
+                            Mapping,
+                            DateTime,
+                            CurrencyAmount,
+                            Link
                         }
                     })}
                 />

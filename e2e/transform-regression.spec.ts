@@ -8,7 +8,7 @@ test.describe('Transform Regression Tests', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the page with the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present and visible
         const table = page.getByRole('table');
@@ -42,7 +42,7 @@ test.describe('Transform Regression Tests', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the page with the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present and visible
         const table = page.getByRole('table');
@@ -79,7 +79,7 @@ test.describe('Transform Regression Tests', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the page with the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present and visible
         const table = page.getByRole('table');

@@ -64,7 +64,7 @@ describe('FilterControlJson initialValue runtime reference parsing', () => {
             const ref = { section: 'initialValues', key: 'nonexistent' };
 
             expect(() => parseInitialValue(ref, testRuntime)).toThrow(
-                'Component "nonexistent" not found in initialValues'
+                'Reference "nonexistent" not found in initialValues'
             );
         });
 

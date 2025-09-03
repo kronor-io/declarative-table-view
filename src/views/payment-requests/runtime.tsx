@@ -1,14 +1,8 @@
-// @ts-expect-error React is required for JSX even though not explicitly referenced
-import React from "react";
 import { CellRenderer } from "../../framework/column-definition";
-import { CurrencyAmount, DateTime, FlexColumn, FlexRow } from "../../components/LayoutHelpers";
+import { CurrencyAmount, DateTime, FlexColumn, FlexRow } from "../../framework/cell-renderer-components/LayoutHelpers";
 import { PaymentMethod } from "./components/PaymentMethod";
-import { Mapping } from "../../components/Mapping";
+import { Mapping } from "../../framework/cell-renderer-components/Mapping";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
-import { defaultCellRenderer } from "../../framework/column-definition";
-import { NoRowsComponent } from "../../framework/view";
-import NoRowsExtendDateRange from "./components/NoRowsExtendDateRange";
-import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import { Runtime } from "../../framework/runtime";
 
 // Static runtime configuration for payment requests view
@@ -17,7 +11,6 @@ export type PaymentRequestsRuntime = Runtime & {
         transaction: CellRenderer;
         merchant: CellRenderer;
         placedAt: CellRenderer;
-        reference: CellRenderer;
         paymentProvider: CellRenderer;
         initiatedBy: CellRenderer;
         status: CellRenderer;
@@ -36,12 +29,6 @@ export type PaymentRequestsRuntime = Runtime & {
             fromQuery: (input: any) => any;
             toQuery: (input: any) => any;
         };
-    };
-    noRowsComponents: {
-        noRowsExtendDateRange: NoRowsComponent;
-    };
-    customFilterComponents: {
-        PhoneNumberFilter: any;
     };
     initialValues: {
         dateRangeStart: Date;
@@ -65,9 +52,6 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         // Placed At cell renderer
         placedAt: ({ data: { createdAt } }) =>
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />,
-
-        // Reference cell renderer
-        reference: defaultCellRenderer,
 
         // Payment Provider cell renderer
         paymentProvider: ({ data }) =>
@@ -148,13 +132,9 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         }
     },
 
-    // No-rows components
-    noRowsComponents: {
-        noRowsExtendDateRange: NoRowsExtendDateRange
-    },
-    customFilterComponents: {
-        PhoneNumberFilter
-    },
+    noRowsComponents: {},
+
+    customFilterComponents: {},
 
     // Initial values for filters
     initialValues: {

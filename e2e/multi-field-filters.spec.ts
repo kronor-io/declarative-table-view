@@ -7,7 +7,7 @@ test.describe('Multi-field Filter Support', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present
         const table = page.getByRole('table');
@@ -39,7 +39,7 @@ test.describe('Multi-field Filter Support', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present
         const table = page.getByRole('table');
@@ -68,7 +68,7 @@ test.describe('Multi-field Filter Support', () => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 
         // Navigate to the simple test view
-        await page.goto('/?view=simple-test-view');
+        await page.goto('/?test-view=simple-test-view');
 
         // Wait for the table to be present
         const table = page.getByRole('table');

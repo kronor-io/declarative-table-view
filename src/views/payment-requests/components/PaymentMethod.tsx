@@ -1,5 +1,5 @@
 import React from "react";
-import { FlexRow } from "../../../components/LayoutHelpers";
+import { FlexRow } from "../../../framework/cell-renderer-components/LayoutHelpers";
 
 type PaymentMethodEnum =
     | "SWISH"

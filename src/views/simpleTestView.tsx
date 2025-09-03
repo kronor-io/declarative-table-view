@@ -1,6 +1,10 @@
 import { View } from "../framework/view";
-import { ColumnDefinition, field, defaultCellRenderer } from "../framework/column-definition";
+import { ColumnDefinition, field } from "../framework/column-definition";
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
+
+// Simple text cell renderer for legacy compatibility
+const textCellRenderer = ({ data }: { data: any }) =>
+    typeof data === 'object' && data !== null ? Object.values(data)[0]?.toString() : String(data);
 
 // Define a simple data type for this view
 export type SimpleTestData = {
@@ -14,12 +18,12 @@ export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
     {
         data: ['testField'].map(field),
         name: 'Test Column Header', // This is what the test will look for
-        cellRenderer: defaultCellRenderer,
+        cellRenderer: textCellRenderer,
     },
     {
         data: ['amount'].map(field),
         name: 'Amount',
-        cellRenderer: defaultCellRenderer,
+        cellRenderer: textCellRenderer,
     },
     {
         data: ['email'].map(field),

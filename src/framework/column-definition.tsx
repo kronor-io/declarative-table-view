@@ -1,6 +1,8 @@
 import { ReactNode, createElement } from "react";
-import { FlexRow, FlexColumn } from "../components/LayoutHelpers";
+import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from "./cell-renderer-components/LayoutHelpers";
 import { FilterFormState } from "../components/FilterForm";
+import { Mapping } from "./cell-renderer-components/Mapping";
+import { Link } from "./cell-renderer-components/Link";
 import { Tag } from 'primereact/tag';
 
 export type CellRendererProps = {
@@ -12,6 +14,10 @@ export type CellRendererProps = {
         Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
         FlexRow: typeof FlexRow; // Horizontal layout component
         FlexColumn: typeof FlexColumn; // Vertical layout component
+        Mapping: typeof Mapping; // Generic mapping component for displaying mapped values
+        DateTime: typeof DateTime; // Date formatting component
+        CurrencyAmount: typeof CurrencyAmount; // Currency formatting component
+        Link: typeof Link; // Link component for creating hyperlinks
     };
 };
 
@@ -69,6 +75,3 @@ export type ColumnDefinition = {
     name: string; // column display name
     cellRenderer: CellRenderer;
 };
-
-// Default function: returns the only value in the object
-export const defaultCellRenderer: CellRenderer = ({ data }) => <FlexRow align="center" justify="center">{Object.values(data)[0]}</FlexRow>;

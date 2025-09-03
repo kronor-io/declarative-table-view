@@ -1,6 +1,6 @@
 import { FilterFieldSchema, filterExpr as Filter, filterControl as Control } from "../framework/filters";
 import { ColumnDefinition, field } from "../framework/column-definition";
-import { DateTime, FlexRow } from "../components/LayoutHelpers";
+import { DateTime, FlexRow } from "../framework/cell-renderer-components/LayoutHelpers";
 import { View } from "../framework/view";
 
 const columnDefinitions: ColumnDefinition[] = [

@@ -36,7 +36,7 @@ export function resolveRuntimeReference<T>(
     const availableKeys = [...new Set([...externalKeys, ...builtInKeys])];
 
     throw new Error(
-        `Component "${key}" not found in ${section}. Available keys: ${availableKeys.join(', ')}`
+        `Reference "${key}" not found in ${section}. Available keys: ${availableKeys.join(', ')}`
     );
 }
 
@@ -626,7 +626,7 @@ export function parseFilterFieldSchemaJson(
 // Parse ViewJson into a View object with separate built-in and external runtimes
 export function parseViewJson(
     json: unknown,
-    builtInRuntimes: Record<string, Runtime>,
+    builtInRuntime: Runtime,
     externalRuntime?: Runtime
 ): View {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
@@ -660,26 +660,6 @@ export function parseViewJson(
         throw new Error('View "orderByType" must be a string');
     }
 
-    if (typeof view.runtimeKey !== 'string') {
-        throw new Error('View "runtimeKey" must be a string');
-    }
-
-    // Get the built-in runtime by key
-    const builtInRuntime = builtInRuntimes[view.runtimeKey];
-    if (!builtInRuntime && !externalRuntime) {
-        const availableKeys = Object.keys(builtInRuntimes);
-        throw new Error(`Invalid runtimeKey: "${view.runtimeKey}". Available built-in runtime keys are: ${availableKeys.join(', ')}`);
-    }
-
-    // Use empty runtime if built-in runtime is not found but external runtime exists
-    const effectiveBuiltInRuntime = builtInRuntime || {
-        cellRenderers: {},
-        queryTransforms: {},
-        noRowsComponents: {},
-        customFilterComponents: {},
-        initialValues: {}
-    };
-
     // Validate columns array
     if (!Array.isArray(view.columns)) {
         throw new Error('View "columns" must be an array');
@@ -694,7 +674,7 @@ export function parseViewJson(
     const columnDefinitions = view.columns.map((col, index) => {
         let colJson;
         try {
-            colJson = parseColumnDefinitionJson(col, effectiveBuiltInRuntime, externalRuntime);
+            colJson = parseColumnDefinitionJson(col, builtInRuntime, externalRuntime);
         } catch (error) {
             throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -703,7 +683,7 @@ export function parseViewJson(
         const cellRenderer = resolveRuntimeReference<any>(
             colJson.cellRenderer,
             externalRuntime,
-            effectiveBuiltInRuntime
+            builtInRuntime
         );
 
         return {
@@ -716,7 +696,7 @@ export function parseViewJson(
     // Parse filter schema with runtime resolution
     let filterSchema;
     try {
-        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, effectiveBuiltInRuntime, externalRuntime);
+        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, builtInRuntime, externalRuntime);
     } catch (error) {
         throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

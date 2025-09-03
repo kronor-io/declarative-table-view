@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 
 /**
  * Generic mapping component for displaying mapped values.

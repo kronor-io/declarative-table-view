@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
 import { CellRenderer } from './column-definition';
-import { FlexRow, FlexColumn } from '../components/LayoutHelpers';
+import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from './cell-renderer-components/LayoutHelpers';
+import { Mapping } from './cell-renderer-components/Mapping';
+import { Link } from './cell-renderer-components/Link';
 
 describe('Cell Renderer Components', () => {
     it('should provide Badge component to cell renderers', () => {
@@ -24,7 +26,11 @@ describe('Cell Renderer Components', () => {
             components: {
                 Badge: Tag,
                 FlexRow,
-                FlexColumn
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
             }
         };
 
@@ -51,7 +57,11 @@ describe('Cell Renderer Components', () => {
             components: {
                 Badge: Tag,
                 FlexRow,
-                FlexColumn
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
             }
         };
 
@@ -78,7 +88,11 @@ describe('Cell Renderer Components', () => {
             components: {
                 Badge: Tag,
                 FlexRow,
-                FlexColumn
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
             }
         };
 
@@ -108,11 +122,140 @@ describe('Cell Renderer Components', () => {
             components: {
                 Badge: Tag,
                 FlexRow,
-                FlexColumn
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
             }
         };
 
         // Test that the cell renderer can access and use FlexRow/FlexColumn components
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should provide Mapping component to cell renderers', () => {
+        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+            const { Mapping } = components;
+            const statusMap = { 'pending': 'Pending', 'approved': 'Approved', 'rejected': 'Rejected' };
+            return createElement(Mapping, { value: data.status, map: statusMap });
+        };
+
+        const mockProps = {
+            data: { status: 'pending' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
+            }
+        };
+
+        // Test that the cell renderer can access and use the Mapping component
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should provide DateTime component to cell renderers', () => {
+        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+            const { DateTime } = components;
+            return createElement(DateTime, { date: data.createdAt, options: { dateStyle: 'short' } });
+        };
+
+        const mockProps = {
+            data: { createdAt: '2023-01-01T12:00:00Z' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
+            }
+        };
+
+        // Test that the cell renderer can access and use the DateTime component
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should provide CurrencyAmount component to cell renderers', () => {
+        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+            const { CurrencyAmount } = components;
+            return createElement(CurrencyAmount, {
+                amount: data.amount,
+                currency: data.currency || 'USD',
+                options: { minimumFractionDigits: 2 }
+            });
+        };
+
+        const mockProps = {
+            data: { amount: 12345, currency: 'EUR' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
+            }
+        };
+
+        // Test that the cell renderer can access and use the CurrencyAmount component
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should provide Link component to cell renderers', () => {
+        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+            const { Link } = components;
+            return createElement(Link, {
+                text: data.linkText || 'Click here',
+                href: data.url || '#',
+                className: 'custom-link-class'
+            });
+        };
+
+        const mockProps = {
+            data: { linkText: 'Visit Example', url: 'https://example.com' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
+            }
+        };
+
+        // Test that the cell renderer can access and use the Link component
         expect(() => {
             const result = testCellRenderer(mockProps);
             expect(result).toBeDefined();

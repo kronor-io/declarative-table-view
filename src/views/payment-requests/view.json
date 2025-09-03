@@ -5,7 +5,6 @@
     "paginationKey": "createdAt",
     "boolExpType": "PaymentRequestBoolExp",
     "orderByType": "[PaymentRequestOrderBy!]",
-    "runtimeKey": "paymentRequests",
     "noRowsComponent": {
         "section": "noRowsComponents",
         "key": "noRowsExtendDateRange"
@@ -64,7 +63,7 @@
             "name": "Reference",
             "cellRenderer": {
                 "section": "cellRenderers",
-                "key": "reference"
+                "key": "text"
             }
         },
         {

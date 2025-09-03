@@ -965,7 +965,7 @@ describe('parseFilterFieldSchemaJson', () => {
             };
 
             expect(() => parseFilterFieldSchemaJson(invalidTransformReference, testRuntime, undefined))
-                .toThrow('Invalid filter[0] expression: Component "nonExistentTransform" not found in queryTransforms. Available keys: reference, amount, creditCard');
+                .toThrow('Invalid filter[0] expression: Reference "nonExistentTransform" not found in queryTransforms. Available keys: reference, amount, creditCard');
         });
 
         it('should throw error for invalid expression structure', () => {
@@ -1230,7 +1230,7 @@ describe('parseFilterFieldSchemaJson', () => {
 describe('parseViewJson', () => {
     const mockNoRowsComponent = () => null;
 
-    const testRuntime = {
+    const viewTestRuntime = {
         cellRenderers: {
             text: () => 'text-renderer',
             number: () => 'number-renderer',
@@ -1257,9 +1257,6 @@ describe('parseViewJson', () => {
         initialValues: {}
     };
 
-    const testRuntimes = {
-        testRuntime: testRuntime
-    };
 
     describe('successful parsing', () => {
         it('should parse valid ViewJson with all required fields', () => {
@@ -1270,7 +1267,6 @@ describe('parseViewJson', () => {
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
@@ -1295,7 +1291,7 @@ describe('parseViewJson', () => {
                 }
             };
 
-            const result = parseViewJson(validJson, testRuntimes);
+            const result = parseViewJson(validJson, viewTestRuntime);
 
             expect(result.title).toBe('Test View');
             expect(result.routeName).toBe('test-view');
@@ -1317,7 +1313,6 @@ describe('parseViewJson', () => {
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 noRowsComponent: { section: 'noRowsComponents', key: 'noRowsExtendDateRange' },
                 columns: [
                     {
@@ -1332,7 +1327,7 @@ describe('parseViewJson', () => {
                 }
             };
 
-            const result = parseViewJson(validJson, testRuntimes);
+            const result = parseViewJson(validJson, viewTestRuntime);
 
             expect(result.noRowsComponent).toBe(mockNoRowsComponent);
         });
@@ -1345,7 +1340,6 @@ describe('parseViewJson', () => {
                 paginationKey: 'updatedAt',
                 boolExpType: 'ComplexBoolExp',
                 orderByType: '[ComplexOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
@@ -1415,7 +1409,7 @@ describe('parseViewJson', () => {
                 }
             };
 
-            const result = parseViewJson(complexJson, testRuntimes);
+            const result = parseViewJson(complexJson, viewTestRuntime);
 
             expect(result.columnDefinitions).toHaveLength(2);
             expect(result.filterSchema.groups).toHaveLength(2);
@@ -1428,16 +1422,16 @@ describe('parseViewJson', () => {
 
     describe('error handling', () => {
         it('should throw error for invalid JSON structure', () => {
-            expect(() => parseViewJson(null, testRuntimes))
+            expect(() => parseViewJson(null, viewTestRuntime))
                 .toThrow('View JSON must be a non-null object');
 
-            expect(() => parseViewJson([], testRuntimes))
+            expect(() => parseViewJson([], viewTestRuntime))
                 .toThrow('View JSON must be a non-null object');
 
-            expect(() => parseViewJson('string', testRuntimes))
+            expect(() => parseViewJson('string', viewTestRuntime))
                 .toThrow('View JSON must be a non-null object');
 
-            expect(() => parseViewJson(123, testRuntimes))
+            expect(() => parseViewJson(123, viewTestRuntime))
                 .toThrow('View JSON must be a non-null object');
         });
 
@@ -1452,11 +1446,11 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noTitle, testRuntimes))
+            expect(() => parseViewJson(noTitle, viewTestRuntime))
                 .toThrow('View "title" must be a string');
 
             const invalidTitle = { ...noTitle, title: 123 };
-            expect(() => parseViewJson(invalidTitle, testRuntimes))
+            expect(() => parseViewJson(invalidTitle, viewTestRuntime))
                 .toThrow('View "title" must be a string');
         });
 
@@ -1471,11 +1465,11 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noRouteName, testRuntimes))
+            expect(() => parseViewJson(noRouteName, viewTestRuntime))
                 .toThrow('View "routeName" must be a string');
 
             const invalidRouteName = { ...noRouteName, routeName: null };
-            expect(() => parseViewJson(invalidRouteName, testRuntimes))
+            expect(() => parseViewJson(invalidRouteName, viewTestRuntime))
                 .toThrow('View "routeName" must be a string');
         });
 
@@ -1490,11 +1484,11 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noCollectionName, testRuntimes))
+            expect(() => parseViewJson(noCollectionName, viewTestRuntime))
                 .toThrow('View "collectionName" must be a string');
 
             const invalidCollectionName = { ...noCollectionName, collectionName: {} };
-            expect(() => parseViewJson(invalidCollectionName, testRuntimes))
+            expect(() => parseViewJson(invalidCollectionName, viewTestRuntime))
                 .toThrow('View "collectionName" must be a string');
         });
 
@@ -1509,11 +1503,11 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noPaginationKey, testRuntimes))
+            expect(() => parseViewJson(noPaginationKey, viewTestRuntime))
                 .toThrow('View "paginationKey" must be a string');
 
             const invalidPaginationKey = { ...noPaginationKey, paginationKey: [] };
-            expect(() => parseViewJson(invalidPaginationKey, testRuntimes))
+            expect(() => parseViewJson(invalidPaginationKey, viewTestRuntime))
                 .toThrow('View "paginationKey" must be a string');
         });
 
@@ -1528,7 +1522,7 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noBoolExpType, testRuntimes))
+            expect(() => parseViewJson(noBoolExpType, viewTestRuntime))
                 .toThrow('View "boolExpType" must be a string');
 
             const noOrderByType = {
@@ -1541,7 +1535,7 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noOrderByType, testRuntimes))
+            expect(() => parseViewJson(noOrderByType, viewTestRuntime))
                 .toThrow('View "orderByType" must be a string');
         });
 
@@ -1553,15 +1547,14 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noColumns, testRuntimes))
+            expect(() => parseViewJson(noColumns, viewTestRuntime))
                 .toThrow('View "columns" must be an array');
 
             const invalidColumns = { ...noColumns, columns: 'not-array' };
-            expect(() => parseViewJson(invalidColumns, testRuntimes))
+            expect(() => parseViewJson(invalidColumns, viewTestRuntime))
                 .toThrow('View "columns" must be an array');
         });
 
@@ -1573,11 +1566,10 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: []
             };
 
-            expect(() => parseViewJson(noFilterSchema, testRuntimes))
+            expect(() => parseViewJson(noFilterSchema, viewTestRuntime))
                 .toThrow('View "filterSchema" is required');
         });
 
@@ -1589,7 +1581,6 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [
                     {
                         data: [],
@@ -1600,7 +1591,7 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(invalidColumn, testRuntimes))
+            expect(() => parseViewJson(invalidColumn, viewTestRuntime))
                 .toThrow('Invalid column[0]:');
         });
 
@@ -1612,7 +1603,6 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [],
                 filterSchema: {
                     groups: 'not-array',
@@ -1620,7 +1610,7 @@ describe('parseViewJson', () => {
                 }
             };
 
-            expect(() => parseViewJson(invalidFilterSchema, testRuntimes))
+            expect(() => parseViewJson(invalidFilterSchema, viewTestRuntime))
                 .toThrow('Invalid filterSchema:');
         });
 
@@ -1632,25 +1622,20 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
                 noRowsComponent: { section: 'noRowsComponents', key: 'nonexistent' }
             };
 
-            expect(() => parseViewJson(missingNoRowsComponent, testRuntimes))
-                .toThrow('Component "nonexistent" not found in noRowsComponents. Available keys: noRowsExtendDateRange');
+            expect(() => parseViewJson(missingNoRowsComponent, viewTestRuntime))
+                .toThrow('Reference "nonexistent" not found in noRowsComponents. Available keys: noRowsExtendDateRange');
         });
 
         it('should throw error when runtime has no noRowsComponents', () => {
             const runtimeWithoutNoRows = {
-                ...testRuntime,
+                ...viewTestRuntime,
                 noRowsComponents: {},
                 customFilterComponents: {}
-            };
-
-            const runtimesDictWithoutNoRows = {
-                testRuntime: runtimeWithoutNoRows
             };
 
             const withNoRowsComponent = {
@@ -1660,14 +1645,13 @@ describe('parseViewJson', () => {
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
-                runtimeKey: 'testRuntime',
                 columns: [],
                 filterSchema: { groups: [], filters: [] },
                 noRowsComponent: { section: 'noRowsComponents', key: 'anything' }
             };
 
-            expect(() => parseViewJson(withNoRowsComponent, runtimesDictWithoutNoRows))
-                .toThrow('Component "anything" not found in noRowsComponents. Available keys:');
+            expect(() => parseViewJson(withNoRowsComponent, runtimeWithoutNoRows))
+                .toThrow('Reference "anything" not found in noRowsComponents. Available keys:');
         });
     });
 });

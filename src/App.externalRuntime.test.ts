@@ -1,11 +1,19 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
 import { parseViewJson } from './framework/view-parser';
-import { FlexRow, FlexColumn } from './components/LayoutHelpers';
+import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from './framework/cell-renderer-components/LayoutHelpers';
+import { Mapping } from './framework/cell-renderer-components/Mapping';
+import { Link } from './framework/cell-renderer-components/Link';
 
 describe('External Runtime Integration', () => {
     it('should use external runtime when available', () => {
-        const builtInRuntimes = {};
+        const builtInRuntime = {
+            cellRenderers: {},
+            queryTransforms: {},
+            noRowsComponents: {},
+            customFilterComponents: {},
+            initialValues: {}
+        };
         const externalRuntime = {
             cellRenderers: {
                 customCellRenderer: () => 'Custom Cell',
@@ -32,7 +40,6 @@ describe('External Runtime Integration', () => {
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
             orderByType: '[TestOrderBy!]',
-            runtimeKey: 'anyKey', // This will be ignored when external runtime is provided
             columns: [
                 {
                     data: [{ type: 'field', path: 'id' }],
@@ -48,7 +55,7 @@ describe('External Runtime Integration', () => {
 
         // Test that parseViewJson works with external runtime
         expect(() => {
-            const view = parseViewJson(testView, builtInRuntimes, externalRuntime);
+            const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test External Runtime View');
             expect(view.columnDefinitions).toHaveLength(1);
             expect(view.columnDefinitions[0].name).toBe('ID');
@@ -57,16 +64,14 @@ describe('External Runtime Integration', () => {
     });
 
     it('should fall back to built-in runtime when external runtime key not found', () => {
-        const builtInRuntimes = {
-            simpleTestView: {
-                cellRenderers: {
-                    defaultCellRenderer: () => 'Default Cell',
-                },
-                queryTransforms: {},
-                noRowsComponents: {},
-                customFilterComponents: {},
-                initialValues: {}
+        const builtInRuntime = {
+            cellRenderers: {
+                text: () => 'Built-in Text Cell',
             },
+            queryTransforms: {},
+            noRowsComponents: {},
+            customFilterComponents: {},
+            initialValues: {}
         };
         const externalRuntime = undefined; // No external runtime provided
 
@@ -77,12 +82,11 @@ describe('External Runtime Integration', () => {
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
             orderByType: '[TestOrderBy!]',
-            runtimeKey: 'simpleTestView',
             columns: [
                 {
                     data: [{ type: 'field', path: 'id' }],
                     name: 'ID',
-                    cellRenderer: { section: 'cellRenderers', key: 'defaultCellRenderer' },
+                    cellRenderer: { section: 'cellRenderers', key: 'text' },
                 },
             ],
             filterSchema: {
@@ -93,7 +97,7 @@ describe('External Runtime Integration', () => {
 
         // Test that built-in runtime is used when external doesn't have the key
         expect(() => {
-            const view = parseViewJson(testView, builtInRuntimes, externalRuntime);
+            const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test Fallback Runtime View');
             // Test the cell renderer function
             const cellRenderer = view.columnDefinitions[0].cellRenderer;
@@ -105,28 +109,30 @@ describe('External Runtime Integration', () => {
                 components: {
                     Badge: Tag,
                     FlexRow,
-                    FlexColumn
+                    FlexColumn,
+                    Mapping,
+                    DateTime,
+                    CurrencyAmount,
+                    Link
                 }
             };
-            expect(cellRenderer(mockProps)).toBe('Default Cell');
+            expect(cellRenderer(mockProps)).toBe('Built-in Text Cell');
         }).not.toThrow();
     });
 
     it('should prefer external runtime over built-in when both have same key', () => {
-        const builtInRuntimes = {
-            simpleTestView: {
-                cellRenderers: {
-                    defaultCellRenderer: () => 'Built-in Default',
-                },
-                queryTransforms: {},
-                noRowsComponents: {},
-                customFilterComponents: {},
-                initialValues: {}
+        const builtInRuntime = {
+            cellRenderers: {
+                text: () => 'Built-in Default',
             },
+            queryTransforms: {},
+            noRowsComponents: {},
+            customFilterComponents: {},
+            initialValues: {}
         };
         const externalRuntime = {
             cellRenderers: {
-                defaultCellRenderer: () => 'External Override',
+                text: () => 'External Override',
             },
             queryTransforms: {},
             noRowsComponents: {},
@@ -141,12 +147,11 @@ describe('External Runtime Integration', () => {
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
             orderByType: '[TestOrderBy!]',
-            runtimeKey: 'anyKey', // This will be ignored since external runtime is provided
             columns: [
                 {
                     data: [{ type: 'field', path: 'id' }],
                     name: 'ID',
-                    cellRenderer: { section: 'cellRenderers', key: 'defaultCellRenderer' },
+                    cellRenderer: { section: 'cellRenderers', key: 'text' },
                 },
             ],
             filterSchema: {
@@ -156,7 +161,7 @@ describe('External Runtime Integration', () => {
         };
 
         expect(() => {
-            const view = parseViewJson(testView, builtInRuntimes, externalRuntime);
+            const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test Precedence View');
             // Test that external runtime took precedence
             const cellRenderer = view.columnDefinitions[0].cellRenderer;
@@ -168,7 +173,11 @@ describe('External Runtime Integration', () => {
                 components: {
                     Badge: Tag,
                     FlexRow,
-                    FlexColumn
+                    FlexColumn,
+                    Mapping,
+                    DateTime,
+                    CurrencyAmount,
+                    Link
                 }
             };
             expect(cellRenderer(mockProps)).toBe('External Override');

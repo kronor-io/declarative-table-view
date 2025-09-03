@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 

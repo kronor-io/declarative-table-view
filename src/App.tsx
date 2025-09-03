@@ -1,10 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
-import { requestLogViewRuntime } from './views/request-log/runtime';
-import { simpleTestViewRuntime } from './views/simple-test-view/runtime';
-import { paymentRequestsRuntime } from './views/payment-requests/runtime';
-import { nativeComponentsRuntime } from './framework/nativeComponents';
+import { nativeRuntime } from './framework/native-runtime';
 import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
@@ -33,20 +30,14 @@ export interface AppProps {
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
 }
 
-// Built-in runtimes dictionary
-const builtInRuntimes = {
-    paymentRequests: paymentRequestsRuntime,
-    requestLog: requestLogViewRuntime,
-    simpleTestView: simpleTestViewRuntime,
-    nativeComponents: nativeComponentsRuntime
-};
+const builtInRuntime: Runtime = nativeRuntime
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime }: AppProps) {
 
 
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
-        return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntimes, externalRuntime));
+        return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
     }, [viewsJson, externalRuntime]) as View[];
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
