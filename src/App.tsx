@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
@@ -8,6 +8,8 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
+import { Toast } from 'primereact/toast';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import { fetchData, FetchDataResult } from './framework/data';
@@ -67,6 +69,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
+    const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
     const [showFilterForm, setShowFilterForm] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
@@ -100,22 +103,50 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             ...savedFilter,
             state: state // Keep the parsed state for immediate use
         }]);
+
+        // Show success toast
+        toast.current?.show({
+            severity: 'success',
+            summary: 'Filter Saved',
+            detail: `Filter "${name}" has been saved successfully`,
+            life: 3000
+        });
     };
 
     // Update an existing filter
     const handleUpdateFilter = (filter: SavedFilter, state: FilterFormState[]) => {
-        const updatedFilter = savedFilterManager.updateFilter(filter, {
-            state: savedFilterManager.serializeFilterState(state)
-        });
+        confirmDialog({
+            message: `Are you sure you want to overwrite the existing filter "${filter.name}"?`,
+            header: 'Confirm Filter Update',
+            icon: 'pi pi-exclamation-triangle',
+            defaultFocus: 'reject',
+            acceptClassName: 'p-button-danger',
+            accept: () => {
+                const updatedFilter = savedFilterManager.updateFilter(filter, {
+                    state: savedFilterManager.serializeFilterState(state)
+                });
 
-        if (updatedFilter) {
-            // Update local state
-            setSavedFilters(prev => prev.map(f =>
-                f.id === filter.id
-                    ? { ...updatedFilter, state: state } // Keep the parsed state for immediate use
-                    : f
-            ));
-        }
+                if (updatedFilter) {
+                    // Update local state
+                    setSavedFilters(prev => prev.map(f =>
+                        f.id === filter.id
+                            ? { ...updatedFilter, state: state } // Keep the parsed state for immediate use
+                            : f
+                    ));
+
+                    // Show success toast
+                    toast.current?.show({
+                        severity: 'success',
+                        summary: 'Filter Updated',
+                        detail: `Filter "${filter.name}" has been updated successfully`,
+                        life: 3000
+                    });
+                }
+            },
+            reject: () => {
+                // User cancelled - no action needed
+            }
+        });
     };
 
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
@@ -199,6 +230,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     return (
         <div className='p-2'>
+            <Toast ref={toast} />
+            <ConfirmDialog />
             <Menubar
                 model={[
                     ...(showViewsMenu ? [{
