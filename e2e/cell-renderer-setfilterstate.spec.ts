@@ -26,7 +26,7 @@ test.describe('Cell Renderer setFilterState', () => {
 
         // Test that filters work normally (ensuring our changes don't break existing functionality)
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the Amount input and apply a filter (simple-test-view shows filters by default)
         const amountLabel = page.getByText('Amount', { exact: true });

@@ -12,6 +12,7 @@ import { Toast } from 'primereact/toast';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
+import SavedFilterList from './components/SavedFilterList';
 import { fetchData, FetchDataResult } from './framework/data';
 import { useAppState } from './framework/state';
 import { FilterFieldSchemaFilter, getFieldNodes, FilterField } from './framework/filters';
@@ -65,13 +66,14 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             selectedView.boolExpType,
             selectedView.orderByType
         );
-    }, [selectedView.id]);
+    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
     const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
     const [showFilterForm, setShowFilterForm] = useState(false);
+    const [showSavedFilterList, setShowSavedFilterList] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
 
     // Pagination state
@@ -85,7 +87,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             ...filter,
             state: savedFilterManager.parseFilterState(filter, selectedView.filterSchema)
         })));
-    }, [selectedView.id]);
+    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Save a new filter
     const handleSaveFilter = (state: FilterFormState[]) => {
@@ -147,6 +149,23 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 // User cancelled - no action needed
             }
         });
+    };
+
+    // Delete a saved filter
+    const handleDeleteFilter = (filterId: string) => {
+        const success = savedFilterManager.deleteFilter(filterId);
+        if (success) {
+            // Update local state
+            setSavedFilters(prev => prev.filter(f => f.id !== filterId));
+
+            // Show success toast
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Filter Deleted',
+                detail: 'Filter has been deleted successfully',
+                life: 3000
+            });
+        }
     };
 
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
@@ -242,16 +261,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             icon: 'pi pi-table',
                             command: () => handleViewChange(viewIndex)
                         }))
-                    }] : []),
-                    {
-                        label: 'Saved Filters',
-                        icon: 'pi pi-file-import',
-                        items: savedFilters.length > 0 ? savedFilters.map((filter) => ({
-                            label: filter.name,
-                            icon: 'pi pi-filter',
-                            command: () => handleFilterLoad(filter.state)
-                        })) : [{ label: 'No saved filters', disabled: true }]
-                    }
+                    }] : [])
                 ]}
                 className="mb-4 border-b"
                 start={
@@ -261,8 +271,16 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             icon={showFilterForm ? 'pi pi-filter-slash' : 'pi pi-filter'}
                             outlined
                             size='small'
-                            label={showFilterForm ? 'Hide Filters' : 'Show Filters'}
+                            label={showFilterForm ? 'Hide Filters' : 'Filters'}
                             onClick={() => setShowFilterForm(v => !v)}
+                        />
+                        <Button
+                            type="button"
+                            icon={showSavedFilterList ? 'pi pi-list' : 'pi pi-cog'}
+                            outlined
+                            size='small'
+                            label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
+                            onClick={() => setShowSavedFilterList(v => !v)}
                         />
                     </div>
                 }
@@ -302,6 +320,14 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     </div>
                 )
             }
+
+            <SavedFilterList
+                savedFilters={savedFilters}
+                onFilterDelete={handleDeleteFilter}
+                onFilterLoad={handleFilterLoad}
+                onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
+                visible={showSavedFilterList}
+            />
 
             {
                 showFilterForm && (

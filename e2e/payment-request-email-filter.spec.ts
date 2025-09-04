@@ -34,7 +34,7 @@ test.describe('Simple View Email Filter', () => {
         await firstEmailButton.click();
 
         // Show filters to see the filter form
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Verify that the Email filter is now populated with the clicked email
         const emailFilterInput = page.getByText('Email', { exact: true }).locator('..').locator('~ div input');

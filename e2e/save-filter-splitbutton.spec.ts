@@ -12,7 +12,7 @@ test.describe('Save Filter SplitButton', () => {
 
     test('should render SplitButton for save filter', async ({ page }) => {
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Look for the Save Filter SplitButton
         const saveFilterButton = page.locator('.p-splitbutton').filter({ hasText: 'Save Filter' });
@@ -29,7 +29,7 @@ test.describe('Save Filter SplitButton', () => {
 
     test('should open dropdown menu when arrow is clicked', async ({ page }) => {
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the SplitButton
         const saveFilterButton = page.locator('.p-splitbutton').filter({ hasText: 'Save Filter' });
@@ -46,7 +46,7 @@ test.describe('Save Filter SplitButton', () => {
 
     test('main button click should trigger save dialog', async ({ page }) => {
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Set up dialog handler to verify it's triggered
         let dialogTriggered = false;

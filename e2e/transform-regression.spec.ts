@@ -15,7 +15,7 @@ test.describe('Transform Regression Tests', () => {
         await expect(table).toBeVisible();
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the amount filter input
         const amountLabel = page.getByText('Amount', { exact: true });
@@ -49,7 +49,7 @@ test.describe('Transform Regression Tests', () => {
         await expect(table).toBeVisible();
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the amount filter input
         const amountLabel = page.getByText('Amount', { exact: true });
@@ -86,7 +86,7 @@ test.describe('Transform Regression Tests', () => {
         await expect(table).toBeVisible();
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the amount filter input
         const amountLabel = page.getByText('Amount', { exact: true });

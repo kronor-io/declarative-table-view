@@ -29,7 +29,7 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(table.getByText('$250', { exact: true })).toBeVisible(); // amount for Test 25
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the amount filter input
         const amountLabel = page.getByText('Amount', { exact: true });
@@ -75,7 +75,7 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(table).toBeVisible();
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the amount filter input
         const amountLabel = page.getByText('Amount', { exact: true });
@@ -124,7 +124,7 @@ test.describe('Simple View Transform Functionality', () => {
         await expect(table.getByText('Test 29', { exact: true })).toBeVisible();
 
         // Show filters first
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the extra filters panel
         const extraFiltersPanel = page.locator('.p-panel-header', { hasText: 'Extra Filters' });

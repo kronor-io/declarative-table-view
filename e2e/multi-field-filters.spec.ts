@@ -14,7 +14,7 @@ test.describe('Multi-field Filter Support', () => {
         await expect(table).toBeVisible();
 
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the "Search Multiple Fields (OR)" filter
         const multiFieldLabel = page.getByText('Search Multiple Fields (OR)', { exact: true });
@@ -46,7 +46,7 @@ test.describe('Multi-field Filter Support', () => {
         await expect(table).toBeVisible();
 
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Find the "Match Multiple Fields (AND)" filter
         const andFieldLabel = page.getByText('Match Multiple Fields (AND)', { exact: true });
@@ -75,7 +75,7 @@ test.describe('Multi-field Filter Support', () => {
         await expect(table).toBeVisible();
 
         // Show filters
-        await page.getByText('Show Filters').click();
+        await page.getByText('Filters', { exact: true }).click();
 
         // Use both a regular filter and a multi-field filter
         const emailLabel = page.getByText('Email', { exact: true });
