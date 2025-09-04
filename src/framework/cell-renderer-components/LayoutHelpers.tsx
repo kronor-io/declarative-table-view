@@ -35,10 +35,17 @@ function getJustifyClass(justify?: string) {
     }
 }
 
+function getWrapClass(wrap?: string | boolean) {
+    if (wrap === true || wrap === 'wrap') return 'flex-wrap';
+    if (wrap === 'nowrap') return 'flex-nowrap';
+    if (wrap === 'wrap-reverse') return 'flex-wrap-reverse';
+    return '';
+}
+
 // Horizontal stack (row) with gap
-export function FlexRow({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
+export function FlexRow({ gap = "gap-2", className = "", align, justify, wrap, children }: { gap?: string; className?: string; align?: string; justify?: string; wrap?: string | boolean; children: React.ReactNode }) {
     return (
-        <div className={`flex flex-row ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${className}`.trim()}>
+        <div className={`flex flex-row ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${getWrapClass(wrap)} ${className}`.trim()}>
             {wrapStringChildren(children)}
         </div>
     );

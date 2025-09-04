@@ -137,6 +137,74 @@ describe('Cell Renderer Components', () => {
         }).not.toThrow();
     });
 
+    it('should support flex-wrap property on FlexRow component', () => {
+        // Create a test cell renderer that uses FlexRow with wrap property
+        const testCellRenderer: CellRenderer = ({ components, createElement }) => {
+            const { FlexRow } = components;
+            return createElement(FlexRow, {
+                wrap: true,
+                children: ['Item 1', 'Item 2', 'Item 3']
+            });
+        };
+
+        const mockProps = {
+            data: { value: 'Wrap Test' },
+            setFilterState: jest.fn(),
+            applyFilters: jest.fn(),
+            createElement: React.createElement,
+            components: {
+                Badge: Tag,
+                FlexRow,
+                FlexColumn,
+                Mapping,
+                DateTime,
+                CurrencyAmount,
+                Link
+            }
+        };
+
+        // Test that FlexRow can handle wrap property
+        expect(() => {
+            const result = testCellRenderer(mockProps);
+            expect(result).toBeDefined();
+        }).not.toThrow();
+    });
+
+    it('should support different wrap values on FlexRow component', () => {
+        const wrapValues = ['wrap', 'nowrap', 'wrap-reverse'];
+
+        wrapValues.forEach(wrapValue => {
+            const testCellRenderer: CellRenderer = ({ components, createElement }) => {
+                const { FlexRow } = components;
+                return createElement(FlexRow, {
+                    wrap: wrapValue,
+                    children: ['Test Item']
+                });
+            };
+
+            const mockProps = {
+                data: { value: `Wrap Test ${wrapValue}` },
+                setFilterState: jest.fn(),
+                applyFilters: jest.fn(),
+                createElement: React.createElement,
+                components: {
+                    Badge: Tag,
+                    FlexRow,
+                    FlexColumn,
+                    Mapping,
+                    DateTime,
+                    CurrencyAmount,
+                    Link
+                }
+            };
+
+            expect(() => {
+                const result = testCellRenderer(mockProps);
+                expect(result).toBeDefined();
+            }).not.toThrow();
+        });
+    });
+
     it('should provide Mapping component to cell renderers', () => {
         const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
             const { Mapping } = components;
