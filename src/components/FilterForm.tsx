@@ -46,11 +46,6 @@ export function buildInitialFormState(expr: FilterExpr): FilterFormState {
     }
 }
 
-export type SavedFilter = {
-    name: string;
-    state: FilterFormState[];
-};
-
 interface FilterFormProps {
     filterSchema: FilterFieldSchema;
     formState: FilterFormState[];
@@ -277,82 +272,6 @@ function isFilterEmpty(state: FilterFormState): boolean {
         return isFilterEmpty(state.child);
     }
     return state.children.every(isFilterEmpty);
-}
-
-// Serialization helpers for FilterFormState
-export function filterStateToJSON(state: FilterFormState[]): any {
-    return state.map(node => serializeNode(node));
-}
-
-function serializeNode(node: FilterFormState): any {
-    if (node.type === 'leaf') {
-        let value = node.value;
-        if (value instanceof Date) {
-            value = value.toISOString();
-        }
-        return { ...node, value };
-    } else if (node.type === 'not') {
-        return {
-            type: 'not',
-            child: serializeNode(node.child),
-            filterType: node.filterType
-        };
-    } else {
-        return {
-            type: node.type,
-            children: node.children.map(serializeNode),
-            filterType: node.filterType
-        };
-    }
-}
-
-// Helper: collect all fields that are date controls from the schema
-function collectDateFieldsFromSchema(schema: FilterFieldSchema): Set<string> {
-    const dateFields = new Set<string>();
-    function traverse(expr: FilterExpr) {
-        if (expr.type === 'and' || expr.type === 'or') {
-            expr.filters.forEach(traverse);
-        } else if ('field' in expr && 'value' in expr && expr.value.type === 'date') {
-            // Handle FilterField - extract all individual field names
-            if (typeof expr.field === 'string') {
-                dateFields.add(expr.field);
-            } else if ('and' in expr.field) {
-                expr.field.and.forEach(field => dateFields.add(field));
-            } else if ('or' in expr.field) {
-                expr.field.or.forEach(field => dateFields.add(field));
-            }
-        }
-    }
-    schema.filters.forEach(field => traverse(field.expression));
-    return dateFields;
-}
-
-export function filterStateFromJSON(json: any, schema: FilterFieldSchema): FilterFormState[] {
-    const dateFields = collectDateFieldsFromSchema(schema);
-    return json.map((node: any) => deserializeNodeWithDates(node, dateFields));
-}
-
-function deserializeNodeWithDates(node: any, dateFields: Set<string>): FilterFormState {
-    if (node.type === 'leaf') {
-        let value = node.value;
-        if (typeof value === 'string' && dateFields.has(node.field)) {
-            const date = new Date(value);
-            value = isNaN(date.getTime()) ? null : date;
-        }
-        return { ...node, value };
-    } else if (node.type === 'not') {
-        return {
-            type: 'not',
-            child: deserializeNodeWithDates(node.child, dateFields),
-            filterType: node.filterType
-        };
-    } else {
-        return {
-            type: node.type,
-            children: (node.children || []).map((child: any) => deserializeNodeWithDates(child, dateFields)),
-            filterType: node.filterType
-        };
-    }
 }
 
 function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visibleIndices, onSubmit }: FilterFormProps) {

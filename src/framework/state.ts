@@ -29,13 +29,13 @@ export function getInitialViewIndex(views: View[]): number {
     const params = new URLSearchParams(window.location.search);
     const viewName = params.get('view');
     if (viewName) {
-        const index = views.findIndex((view: View) => view.routeName === viewName);
+        const index = views.findIndex((view: View) => view.uniqueName === viewName);
         if (index !== -1) {
             return index;
         }
     }
     // Update URL if no view parameter or invalid viewName
-    const defaultViewName = views[0]?.routeName;
+    const defaultViewName = views[0]?.uniqueName;
     if (defaultViewName) {
         window.history.replaceState({}, '', `?view=${defaultViewName}`);
     }

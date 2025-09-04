@@ -104,7 +104,7 @@ export type ColumnDefinitionJson = {
 
 export type ViewJson = {
     title: string;
-    routeName: string;
+    uniqueName: string;
     collectionName: string;
     paginationKey: string;
     columns: ColumnDefinitionJson[];
@@ -640,8 +640,8 @@ export function parseViewJson(
         throw new Error('View "title" must be a string');
     }
 
-    if (typeof view.routeName !== 'string') {
-        throw new Error('View "routeName" must be a string');
+    if (typeof view.uniqueName !== 'string') {
+        throw new Error('View "uniqueName" must be a string');
     }
 
     if (typeof view.collectionName !== 'string') {
@@ -718,7 +718,7 @@ export function parseViewJson(
 
     return {
         title: view.title,
-        routeName: view.routeName,
+        uniqueName: view.uniqueName,
         collectionName: view.collectionName,
         columnDefinitions,
         filterSchema,

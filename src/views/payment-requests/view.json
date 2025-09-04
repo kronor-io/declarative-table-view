@@ -1,6 +1,6 @@
 {
     "title": "Payment Requests",
-    "routeName": "payment-requests",
+    "uniqueName": "payment-requests",
     "collectionName": "paymentRequests",
     "paginationKey": "createdAt",
     "boolExpType": "PaymentRequestBoolExp",

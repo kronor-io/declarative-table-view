@@ -1,6 +1,6 @@
 {
     "title": "Simple Test View",
-    "routeName": "simple-test-view",
+    "uniqueName": "simple-test-view",
     "collectionName": "simpleTestDataCollection",
     "paginationKey": "id",
     "boolExpType": "SimpleTestBoolExp",

@@ -9,7 +9,7 @@ import { View } from './view';
 // Mock view definitions
 const mockViews: View[] = [
     {
-        routeName: 'foo',
+        uniqueName: 'foo',
         title: 'Foo',
         filterSchema: {
             groups: [{ name: 'default', label: 'Default' }],
@@ -21,7 +21,7 @@ const mockViews: View[] = [
         paginationKey: 'id',
     } as any,
     {
-        routeName: 'bar',
+        uniqueName: 'bar',
         title: 'Bar',
         filterSchema: {
             groups: [{ name: 'default', label: 'Default' }],

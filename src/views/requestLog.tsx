@@ -66,7 +66,7 @@ const collectionName = 'requestsLog';
 
 const RequestLogView: View = {
     title: 'Requests',
-    routeName: 'request-logs',
+    uniqueName: 'request-logs',
     collectionName,
     columnDefinitions,
     filterSchema,

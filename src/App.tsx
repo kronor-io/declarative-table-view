@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
-import FilterForm, { FilterFormState, SavedFilter, filterStateFromJSON, filterStateToJSON } from './components/FilterForm';
+import FilterForm, { FilterFormState } from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -16,6 +16,7 @@ import { FilterFieldSchemaFilter, getFieldNodes, FilterField } from './framework
 import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
+import { savedFilterManager, SavedFilter } from './framework/saved-filters';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 
@@ -33,8 +34,6 @@ export interface AppProps {
 const builtInRuntime: Runtime = nativeRuntime
 
 function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime }: AppProps) {
-
-
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -64,7 +63,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             selectedView.boolExpType,
             selectedView.orderByType
         );
-    }, [selectedView]);
+    }, [selectedView.uniqueName]);
 
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
@@ -78,28 +77,29 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     // Load saved filters from localStorage on mount
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem('savedFilters');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                setSavedFilters(parsed.map((p: any) => ({
-                    name: p.name,
-                    state: filterStateFromJSON(p.state, selectedView.filterSchema)
-                })));
-            } else setSavedFilters([]);
-        } catch {
-            setSavedFilters([]);
-        }
-    }, [selectedView.filterSchema]);
+        const filters = savedFilterManager.loadSavedFilters(selectedView.uniqueName);
+        setSavedFilters(filters.map(filter => ({
+            ...filter,
+            state: savedFilterManager.parseFilterState(filter, selectedView.filterSchema)
+        })));
+    }, [selectedView.uniqueName]);
 
     // Save a new filter
     const handleSaveFilter = (state: FilterFormState[]) => {
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
-        const newFilter = { name, state: filterStateToJSON(state) };
-        const updatedFilters = [...savedFilters, newFilter];
-        localStorage.setItem('savedFilters', JSON.stringify(updatedFilters));
-        setSavedFilters(updatedFilters);
+
+        const savedFilter = savedFilterManager.saveFilter({
+            view: selectedView.uniqueName,
+            name,
+            state: savedFilterManager.serializeFilterState(state)
+        });
+
+        // Update local state
+        setSavedFilters(prev => [...prev, {
+            ...savedFilter,
+            state: state // Keep the parsed state for immediate use
+        }]);
     };
 
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
@@ -122,8 +122,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     // When view changes, reset filter state and clear data
     const handleViewChange = (viewIndex: number) => {
         setSelectedViewIndex(viewIndex);
-        // Update URL with the new view's routeName
-        const newViewName = views[viewIndex].routeName;
+        // Update URL with the new view's uniqueName
+        const newViewName = views[viewIndex].uniqueName;
         window.history.pushState({}, '', `?view=${newViewName}`);
     };
 

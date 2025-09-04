@@ -35,7 +35,7 @@ describe('External Runtime Integration', () => {
 
         const testView = {
             title: 'Test External Runtime View',
-            routeName: 'test-external-runtime',
+            uniqueName: 'test-external-runtime',
             collectionName: 'testCollection',
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
@@ -77,7 +77,7 @@ describe('External Runtime Integration', () => {
 
         const testView = {
             title: 'Test Fallback Runtime View',
-            routeName: 'test-fallback-runtime',
+            uniqueName: 'test-fallback-runtime',
             collectionName: 'testCollection',
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
@@ -142,7 +142,7 @@ describe('External Runtime Integration', () => {
 
         const testView = {
             title: 'Test Precedence View',
-            routeName: 'test-precedence',
+            uniqueName: 'test-precedence',
             collectionName: 'testCollection',
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',

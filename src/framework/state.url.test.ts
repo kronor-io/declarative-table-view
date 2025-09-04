@@ -7,8 +7,8 @@ import { View } from './view';
 
 describe('getInitialViewIndex', () => {
     const views: View[] = [
-        { routeName: 'foo', title: 'Foo', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any,
-        { routeName: 'bar', title: 'Bar', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any
+        { uniqueName: 'foo', title: 'Foo', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any,
+        { uniqueName: 'bar', title: 'Bar', filterSchema: { groups: [], filters: [] }, columnDefinitions: [], paginationKey: 'id' } as any
     ];
 
     it('returns 0 and updates URL if no view param', () => {

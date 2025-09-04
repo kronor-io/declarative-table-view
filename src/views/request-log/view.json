@@ -1,6 +1,6 @@
 {
     "title": "Requests",
-    "routeName": "request-logs",
+    "uniqueName": "request-logs",
     "collectionName": "requestsLog",
     "paginationKey": "createdAt",
     "boolExpType": "RequestLogBoolExp",
