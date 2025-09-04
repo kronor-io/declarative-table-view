@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { createSavedFilterManager, SavedFilter } from './saved-filters';
+import { createSavedFilterManager, SavedFilter, CURRENT_FORMAT_REVISION } from './saved-filters';
 import { FilterFieldSchema } from './filters';
 import { FilterFormState } from '../components/FilterForm';
 
@@ -196,7 +196,8 @@ describe('SavedFilterManager', () => {
                 name: 'Original Name',
                 view: 'test-view',
                 state: [],
-                createdAt: new Date('2023-01-01T00:00:00.000Z')
+                createdAt: new Date('2023-01-01T00:00:00.000Z'),
+                formatRevision: CURRENT_FORMAT_REVISION
             };
 
             const updatedFilter = manager.updateFilter(existingFilter, updates);
@@ -216,7 +217,8 @@ describe('SavedFilterManager', () => {
                 name: 'Non Existent',
                 view: 'test-view',
                 state: [],
-                createdAt: new Date()
+                createdAt: new Date(),
+                formatRevision: CURRENT_FORMAT_REVISION
             };
             const result = manager.updateFilter(nonExistentFilter, { name: 'New Name' });
             expect(result).toBeNull();
@@ -309,7 +311,8 @@ describe('SavedFilterManager', () => {
                         filterType: 'equals'
                     }
                 ],
-                createdAt: new Date()
+                createdAt: new Date(),
+                formatRevision: CURRENT_FORMAT_REVISION
             };
 
             const parsed = manager.parseFilterState(savedFilter, testSchema);
@@ -344,7 +347,8 @@ describe('SavedFilterManager', () => {
                         filterType: 'and'
                     }
                 ],
-                createdAt: new Date()
+                createdAt: new Date(),
+                formatRevision: CURRENT_FORMAT_REVISION
             };
 
             const parsed = manager.parseFilterState(savedFilter, testSchema);

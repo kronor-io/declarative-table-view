@@ -392,7 +392,7 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                     onClick={() => onSaveFilter(formState)}
                     model={savedFilters.map(filter => ({
                         label: `Update "${filter.name}"`,
-                        icon: 'pi pi-pencil',
+                        icon: 'pi pi-file-import',
                         command: () => onUpdateFilter(filter, formState)
                     }))}
                     className='p-button-secondary'

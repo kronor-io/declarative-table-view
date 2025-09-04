@@ -1,17 +1,23 @@
 import { FilterFormState } from '../components/FilterForm';
 import { FilterFieldSchema } from './filters';
 
+/**
+ * Current format revision for saved filters
+ */
+export const CURRENT_FORMAT_REVISION = '2025-09-04T00:00:00.000Z';
+
 export interface SavedFilter {
     id: string;
     name: string;
     view: string;
     state: any; // Serialized FilterFormState[]
     createdAt: Date;
+    formatRevision: string; // ISO date string indicating the format version
 }
 
 export interface SavedFilterManager {
     loadSavedFilters: (viewName: string) => SavedFilter[];
-    saveFilter: (filter: Omit<SavedFilter, 'id' | 'createdAt'>) => SavedFilter;
+    saveFilter: (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => SavedFilter;
     updateFilter: (filter: SavedFilter, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) => SavedFilter | null;
     deleteFilter: (id: string) => boolean;
     parseFilterState: (savedFilter: SavedFilter, schema: FilterFieldSchema) => FilterFormState[];
@@ -121,7 +127,8 @@ export function createSavedFilterManager(): SavedFilterManager {
                 name: item.name || 'Unnamed Filter',
                 view: item.view,
                 state: item.state || [],
-                createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
+                createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+                formatRevision: item.formatRevision || CURRENT_FORMAT_REVISION
             }));
         } catch (error) {
             console.error('Failed to load saved filters from localStorage:', error);
@@ -146,7 +153,8 @@ export function createSavedFilterManager(): SavedFilterManager {
                 name: item.name || 'Unnamed Filter',
                 view: item.view,
                 state: item.state || [],
-                createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
+                createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+                formatRevision: item.formatRevision
             }));
 
             return filters.filter((filter: SavedFilter) => filter.view === viewName);
@@ -156,11 +164,12 @@ export function createSavedFilterManager(): SavedFilterManager {
         }
     }
 
-    function saveFilter(filter: Omit<SavedFilter, 'id' | 'createdAt'>): SavedFilter {
+    function saveFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): SavedFilter {
         const newFilter: SavedFilter = {
             id: crypto.randomUUID(),
             ...filter,
-            createdAt: new Date()
+            createdAt: new Date(),
+            formatRevision: CURRENT_FORMAT_REVISION
         };
 
         const existingFilters = loadAllSavedFilters();
