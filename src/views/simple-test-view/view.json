@@ -1,6 +1,6 @@
 {
     "title": "Simple Test View",
-    "uniqueName": "simple-test-view",
+    "id": "simple-test-view",
     "collectionName": "simpleTestDataCollection",
     "paginationKey": "id",
     "boolExpType": "SimpleTestBoolExp",

@@ -90,7 +90,7 @@ const collectionName = 'simpleTestDataCollection';
 
 const SimpleTestView: View = {
     title: 'Simple Test View',
-    uniqueName: 'simple-test-view', // Unique name for URL
+    id: 'simple-test-view', // Unique name for URL
     collectionName,
     columnDefinitions: simpleTestViewColumnDefinitions, // Use the exported definitions
     filterSchema,

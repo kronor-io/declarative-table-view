@@ -1,6 +1,6 @@
 {
-    "title": "Requests",
-    "uniqueName": "request-logs",
+    "title": "Request Logs",
+    "id": "request-logs",
     "collectionName": "requestsLog",
     "paginationKey": "createdAt",
     "boolExpType": "RequestLogBoolExp",

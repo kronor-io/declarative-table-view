@@ -63,7 +63,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             selectedView.boolExpType,
             selectedView.orderByType
         );
-    }, [selectedView.uniqueName]);
+    }, [selectedView.id]);
 
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
@@ -77,12 +77,12 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     // Load saved filters from localStorage on mount
     useEffect(() => {
-        const filters = savedFilterManager.loadSavedFilters(selectedView.uniqueName);
+        const filters = savedFilterManager.loadSavedFilters(selectedView.id);
         setSavedFilters(filters.map(filter => ({
             ...filter,
             state: savedFilterManager.parseFilterState(filter, selectedView.filterSchema)
         })));
-    }, [selectedView.uniqueName]);
+    }, [selectedView.id]);
 
     // Save a new filter
     const handleSaveFilter = (state: FilterFormState[]) => {
@@ -90,7 +90,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         if (!name) return;
 
         const savedFilter = savedFilterManager.saveFilter({
-            view: selectedView.uniqueName,
+            view: selectedView.id,
             name,
             state: savedFilterManager.serializeFilterState(state)
         });
@@ -122,8 +122,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     // When view changes, reset filter state and clear data
     const handleViewChange = (viewIndex: number) => {
         setSelectedViewIndex(viewIndex);
-        // Update URL with the new view's uniqueName
-        const newViewName = views[viewIndex].uniqueName;
+        // Update URL with the new view's id
+        const newViewName = views[viewIndex].id;
         window.history.pushState({}, '', `?view=${newViewName}`);
     };
 

@@ -1262,7 +1262,7 @@ describe('parseViewJson', () => {
         it('should parse valid ViewJson with all required fields', () => {
             const validJson = {
                 title: 'Test View',
-                uniqueName: 'test-view',
+                id: 'test-view',
                 collectionName: 'testCollection',
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
@@ -1294,7 +1294,7 @@ describe('parseViewJson', () => {
             const result = parseViewJson(validJson, viewTestRuntime);
 
             expect(result.title).toBe('Test View');
-            expect(result.uniqueName).toBe('test-view');
+            expect(result.id).toBe('test-view');
             expect(result.collectionName).toBe('testCollection');
             expect(result.paginationKey).toBe('createdAt');
             expect(result.boolExpType).toBe('TestBoolExp');
@@ -1308,7 +1308,7 @@ describe('parseViewJson', () => {
         it('should parse ViewJson with noRowsComponent', () => {
             const validJson = {
                 title: 'Test View',
-                uniqueName: 'test-view',
+                id: 'test-view',
                 collectionName: 'testCollection',
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
@@ -1335,7 +1335,7 @@ describe('parseViewJson', () => {
         it('should parse ViewJson with multiple columns and complex filters', () => {
             const complexJson = {
                 title: 'Complex View',
-                uniqueName: 'complex-view',
+                id: 'complex-view',
                 collectionName: 'complexCollection',
                 paginationKey: 'updatedAt',
                 boolExpType: 'ComplexBoolExp',
@@ -1437,7 +1437,7 @@ describe('parseViewJson', () => {
 
         it('should throw error for missing or invalid title', () => {
             const noTitle = {
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1454,8 +1454,8 @@ describe('parseViewJson', () => {
                 .toThrow('View "title" must be a string');
         });
 
-        it('should throw error for missing or invalid uniqueName', () => {
-            const noUniqueName = {
+        it('should throw error for missing or invalid id', () => {
+            const noId = {
                 title: 'Test',
                 collectionName: 'test',
                 paginationKey: 'id',
@@ -1465,18 +1465,18 @@ describe('parseViewJson', () => {
                 filterSchema: { groups: [], filters: [] }
             };
 
-            expect(() => parseViewJson(noUniqueName, viewTestRuntime))
-                .toThrow('View "uniqueName" must be a string');
+            expect(() => parseViewJson(noId, viewTestRuntime))
+                .toThrow('View "id" must be a string');
 
-            const invalidUniqueName = { ...noUniqueName, uniqueName: null };
-            expect(() => parseViewJson(invalidUniqueName, viewTestRuntime))
-                .toThrow('View "uniqueName" must be a string');
+            const invalidId = { ...noId, id: null };
+            expect(() => parseViewJson(invalidId, viewTestRuntime))
+                .toThrow('View "id" must be a string');
         });
 
         it('should throw error for missing or invalid collectionName', () => {
             const noCollectionName = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1495,7 +1495,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing or invalid paginationKey', () => {
             const noPaginationKey = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1514,7 +1514,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing or invalid GraphQL types', () => {
             const noBoolExpType = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 orderByType: '[TestOrderBy!]',
@@ -1527,7 +1527,7 @@ describe('parseViewJson', () => {
 
             const noOrderByType = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1542,7 +1542,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing or invalid columns', () => {
             const noColumns = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1561,7 +1561,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing filterSchema', () => {
             const noFilterSchema = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1576,7 +1576,7 @@ describe('parseViewJson', () => {
         it('should throw error for invalid column in columns array', () => {
             const invalidColumn = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1598,7 +1598,7 @@ describe('parseViewJson', () => {
         it('should throw error for invalid filterSchema', () => {
             const invalidFilterSchema = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1617,7 +1617,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing noRowsComponent in runtime', () => {
             const missingNoRowsComponent = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
@@ -1640,7 +1640,7 @@ describe('parseViewJson', () => {
 
             const withNoRowsComponent = {
                 title: 'Test',
-                uniqueName: 'test',
+                id: 'test',
                 collectionName: 'test',
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
