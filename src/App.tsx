@@ -102,6 +102,22 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         }]);
     };
 
+    // Update an existing filter
+    const handleUpdateFilter = (filter: SavedFilter, state: FilterFormState[]) => {
+        const updatedFilter = savedFilterManager.updateFilter(filter, {
+            state: savedFilterManager.serializeFilterState(state)
+        });
+
+        if (updatedFilter) {
+            // Update local state
+            setSavedFilters(prev => prev.map(f =>
+                f.id === filter.id
+                    ? { ...updatedFilter, state: state } // Keep the parsed state for immediate use
+                    : f
+            ));
+        }
+    };
+
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
         return fetchData({
             client,
@@ -261,6 +277,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         formState={state.filterState}
                         setFormState={setFilterState}
                         onSaveFilter={handleSaveFilter}
+                        onUpdateFilter={handleUpdateFilter}
+                        savedFilters={savedFilters}
                         visibleIndices={visibleIndices}
                         onSubmit={() => {
                             setRefetchTrigger(prev => prev + 1);

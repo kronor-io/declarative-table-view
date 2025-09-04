@@ -1,11 +1,13 @@
 import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterField } from '../framework/filters';
 import { FilterControl, FilterFieldSchema } from '../framework/filters';
+import { SavedFilter } from '../framework/saved-filters';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
+import { SplitButton } from 'primereact/splitbutton';
 import { ReactNode } from 'react';
 import { Panel } from 'primereact/panel';
 
@@ -51,6 +53,8 @@ interface FilterFormProps {
     formState: FilterFormState[];
     setFormState: (state: FilterFormState[]) => void;
     onSaveFilter: (state: FilterFormState[]) => void;
+    onUpdateFilter: (filter: SavedFilter, state: FilterFormState[]) => void;
+    savedFilters: SavedFilter[];
     visibleIndices: number[]; // indices of filters to display
     onSubmit: () => void;
 }
@@ -274,7 +278,7 @@ function isFilterEmpty(state: FilterFormState): boolean {
     return state.children.every(isFilterEmpty);
 }
 
-function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visibleIndices, onSubmit }: FilterFormProps) {
+function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpdateFilter, savedFilters, visibleIndices, onSubmit }: FilterFormProps) {
     // Helper to reset a filter at index i
     function resetFilter(i: number) {
         const initial = buildInitialFormState(filterSchema.filters[i].expression);
@@ -380,7 +384,19 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, visib
             <div className="flex gap-2 mb-3 justify-end">
                 <Button type="submit" size='small' label="Apply filter" icon='pi pi-filter' />
                 <Button type="button" size='small' outlined label="Reset All" icon='pi pi-filter-slash' onClick={resetAllFilters} className='p-button-secondary' />
-                <Button type="button" size='small' outlined label="Save Filter" icon='pi pi-bookmark' onClick={() => onSaveFilter(formState)} className='p-button-secondary' />
+                <SplitButton
+                    size='small'
+                    outlined
+                    label="Save Filter"
+                    icon='pi pi-bookmark'
+                    onClick={() => onSaveFilter(formState)}
+                    model={savedFilters.map(filter => ({
+                        label: `Update "${filter.name}"`,
+                        icon: 'pi pi-pencil',
+                        command: () => onUpdateFilter(filter, formState)
+                    }))}
+                    className='p-button-secondary'
+                />
             </div>
         </form>
     );
