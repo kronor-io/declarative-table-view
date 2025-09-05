@@ -363,7 +363,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         />
                         <Button
                             type="button"
-                            icon={showSavedFilterList ? 'pi pi-list' : 'pi pi-cog'}
+                            icon='pi pi-bookmark'
                             outlined
                             size='small'
                             label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
