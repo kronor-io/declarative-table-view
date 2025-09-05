@@ -1,6 +1,7 @@
-import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter, FilterField } from '../framework/filters';
+import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter } from '../framework/filters';
 import { FilterControl, FilterFieldSchema } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
+import { FilterFormState } from '../framework/filter-form-state';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
@@ -11,17 +12,8 @@ import { SplitButton } from 'primereact/splitbutton';
 import { ReactNode } from 'react';
 import { Panel } from 'primereact/panel';
 
-// Tree-like state for FilterForm
-export type FilterFormState =
-    | {
-        type: 'leaf';
-        field: FilterField;
-        value: any;
-        control: FilterControl;
-        filterType: Extract<FilterExpr, { field: FilterField }>['type'];
-    }
-    | { type: 'and' | 'or'; children: FilterFormState[]; filterType: 'and' | 'or' }
-    | { type: 'not'; child: FilterFormState; filterType: 'not' };
+// Re-export FilterFormState from the dedicated module
+export type { FilterFormState } from '../framework/filter-form-state';
 
 // Helper to build initial state from FilterExpr
 export function buildInitialFormState(expr: FilterExpr): FilterFormState {
@@ -54,6 +46,7 @@ interface FilterFormProps {
     setFormState: (state: FilterFormState[]) => void;
     onSaveFilter: (state: FilterFormState[]) => void;
     onUpdateFilter: (filter: SavedFilter, state: FilterFormState[]) => void;
+    onShareFilter: () => void;
     savedFilters: SavedFilter[];
     visibleIndices: number[]; // indices of filters to display
     onSubmit: () => void;
@@ -278,7 +271,7 @@ function isFilterEmpty(state: FilterFormState): boolean {
     return state.children.every(isFilterEmpty);
 }
 
-function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpdateFilter, savedFilters, visibleIndices, onSubmit }: FilterFormProps) {
+function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpdateFilter, onShareFilter, savedFilters, visibleIndices, onSubmit }: FilterFormProps) {
     // Helper to reset a filter at index i
     function resetFilter(i: number) {
         const initial = buildInitialFormState(filterSchema.filters[i].expression);
@@ -396,6 +389,15 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                         command: () => onUpdateFilter(filter, formState)
                     }))}
                     className='p-button-secondary'
+                />
+                <Button
+                    type="button"
+                    size='small'
+                    outlined
+                    icon="pi pi-share-alt"
+                    label="Share Filter"
+                    onClick={onShareFilter}
+                    className="p-button-secondary"
                 />
             </div>
         </form>

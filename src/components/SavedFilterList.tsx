@@ -8,10 +8,11 @@ interface SavedFilterListProps {
     onFilterDelete: (filterId: string) => void;
     onFilterLoad: (filterState: any[]) => void;
     onFilterApply: () => void;
+    onFilterShare: (filterState: any[]) => void;
     visible: boolean;
 }
 
-export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, visible }: SavedFilterListProps) {
+export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, onFilterShare, visible }: SavedFilterListProps) {
     if (!visible) {
         return null;
     }
@@ -92,7 +93,9 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
 
     return (
         <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Saved Filters</h3>
+            <div className="mb-3">
+                <h3 className="text-lg font-medium text-gray-900">Saved Filters</h3>
+            </div>
             {savedFilters.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No saved filters for this view</p>
             ) : (
@@ -119,6 +122,14 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                                         onFilterApply();
                                     }}
                                     className="p-button"
+                                />
+                                <Button
+                                    size="small"
+                                    outlined
+                                    icon="pi pi-share-alt"
+                                    label="Share"
+                                    onClick={() => onFilterShare(filter.state)}
+                                    className="p-button-secondary"
                                 />
                                 <Button
                                     size="small"

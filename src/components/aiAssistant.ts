@@ -1,7 +1,7 @@
 // src/components/aiAssistant.ts
 import { FilterExpr, FilterFieldSchema } from '../framework/filters';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
-import { savedFilterManager, CURRENT_FORMAT_REVISION } from '../framework/saved-filters';
+import { parseFilterFormState } from '../framework/filter-form-state';
 
 // --- Shared prompt and serialization helpers ---
 export interface AIApi {
@@ -141,17 +141,7 @@ export const GeminiApi: AIApi = {
                 const emptyState = emptyStateFromSchema(filterSchema);
                 const merged = mergeStateArrayByKey(emptyState, parsed);
 
-                // Create a temporary saved filter to use the parsing logic
-                const tempSavedFilter = {
-                    id: 'temp',
-                    name: 'temp',
-                    view: 'temp',
-                    state: merged,
-                    createdAt: new Date(),
-                    formatRevision: CURRENT_FORMAT_REVISION
-                };
-
-                setFormState(savedFilterManager.parseFilterState(tempSavedFilter, filterSchema));
+                setFormState(parseFilterFormState(merged, filterSchema));
             } else {
                 alert('Could not parse FilterFormState from Gemini response. Check the console.');
             }

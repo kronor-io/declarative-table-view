@@ -13,6 +13,9 @@ function hasKey<K extends string | number | symbol, T extends { [key in K]: unkn
     return typeof obj === 'object' && obj !== null && key in obj && Array.isArray((obj as T)[key]);
 }
 
+// Request counter to be able to cancel handling of previous requests
+let requestCounter = 0;
+
 export const fetchData = async ({
     client,
     view,
@@ -28,6 +31,9 @@ export const fetchData = async ({
     rows: number;
     cursor: string | number | null;
 }): Promise<FetchDataResult> => {
+    // Assign a unique ID to this request for ordering
+    const currentRequestId = ++requestCounter;
+
     try {
         let conditions = buildHasuraConditions(filterState);
         if (cursor !== null) {
@@ -41,7 +47,15 @@ export const fetchData = async ({
             limit: rows,
             orderBy: [{ [view.paginationKey]: 'DESC' }],
         };
+
         const response = await client.request(query, variables);
+
+        // Check if this is still the most recent request
+        if (currentRequestId !== requestCounter) {
+            // A newer request has been started, discard this response
+            throw new DOMException('Request superseded by newer request', 'AbortError');
+        }
+
         if (!hasKey(response, view.collectionName)) {
             console.error('Error fetching data, unexpected response format:', response);
             return { rows: [], flattenedRows: [] };
@@ -55,6 +69,10 @@ export const fetchData = async ({
             flattenedRows: flattenFields(rowsFetched as Record<string, any>[], view.columnDefinitions)
         }
     } catch (error) {
+        // Don't log AbortError as it's expected when cancelling requests
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            throw error; // Re-throw abort errors so fetchDataWrapper can cancel response handling
+        }
         console.error('Error fetching data:', error);
         return { rows: [], flattenedRows: [] };
     }

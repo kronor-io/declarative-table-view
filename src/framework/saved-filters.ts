@@ -1,4 +1,4 @@
-import { FilterFormState } from '../components/FilterForm';
+import { FilterFormState, serializeFilterFormStateArray, parseFilterFormState } from './filter-form-state';
 import { FilterFieldSchema } from './filters';
 
 /**
@@ -28,82 +28,6 @@ export interface SavedFilterManager {
  * Local storage key for saved filters
  */
 const SAVED_FILTERS_KEY = 'savedFilters';
-
-/**
- * Helper to serialize FilterFormState to JSON for storage
- */
-function serializeNode(node: FilterFormState): any {
-    if (node.type === 'leaf') {
-        let value = node.value;
-        if (value instanceof Date) {
-            value = value.toISOString();
-        }
-        return { ...node, value };
-    } else if (node.type === 'not') {
-        return {
-            type: 'not',
-            child: serializeNode(node.child),
-            filterType: node.filterType
-        };
-    } else {
-        return {
-            type: node.type,
-            children: node.children.map(serializeNode),
-            filterType: node.filterType
-        };
-    }
-}
-
-/**
- * Helper to deserialize JSON to FilterFormState with proper date handling
- */
-function deserializeNodeWithDates(node: any, dateFields: Set<string>): FilterFormState {
-    if (node.type === 'leaf') {
-        let value = node.value;
-        if (typeof value === 'string' && dateFields.has(node.field)) {
-            const date = new Date(value);
-            value = isNaN(date.getTime()) ? null : date;
-        }
-        return { ...node, value };
-    } else if (node.type === 'not') {
-        return {
-            type: 'not',
-            child: deserializeNodeWithDates(node.child, dateFields),
-            filterType: node.filterType
-        };
-    } else {
-        return {
-            type: node.type,
-            children: (node.children || []).map((child: any) => deserializeNodeWithDates(child, dateFields)),
-            filterType: node.filterType
-        };
-    }
-}
-
-/**
- * Helper to collect all fields that are date controls from the schema
- */
-function collectDateFieldsFromSchema(schema: FilterFieldSchema): Set<string> {
-    const dateFields = new Set<string>();
-
-    function traverse(expr: any) {
-        if (expr.type === 'and' || expr.type === 'or') {
-            expr.filters.forEach(traverse);
-        } else if ('field' in expr && 'value' in expr && expr.value.type === 'date') {
-            // Handle FilterField - extract all individual field names
-            if (typeof expr.field === 'string') {
-                dateFields.add(expr.field);
-            } else if ('and' in expr.field) {
-                expr.field.and.forEach((field: string) => dateFields.add(field));
-            } else if ('or' in expr.field) {
-                expr.field.or.forEach((field: string) => dateFields.add(field));
-            }
-        }
-    }
-
-    schema.filters.forEach(filter => traverse(filter.expression));
-    return dateFields;
-}
 
 /**
  * Create a saved filter manager that handles localStorage operations
@@ -236,17 +160,11 @@ export function createSavedFilterManager(): SavedFilterManager {
     }
 
     function parseFilterState(savedFilter: SavedFilter, schema: FilterFieldSchema): FilterFormState[] {
-        try {
-            const dateFields = collectDateFieldsFromSchema(schema);
-            return savedFilter.state.map((node: any) => deserializeNodeWithDates(node, dateFields));
-        } catch (error) {
-            console.error('Failed to parse filter state:', error);
-            return [];
-        }
+        return parseFilterFormState(savedFilter.state, schema);
     }
 
     function serializeFilterState(state: FilterFormState[]): any {
-        return state.map(node => serializeNode(node));
+        return serializeFilterFormStateArray(state);
     }
 
     return {

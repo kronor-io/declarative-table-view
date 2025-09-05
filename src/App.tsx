@@ -20,8 +20,10 @@ import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { savedFilterManager, SavedFilter } from './framework/saved-filters';
+import { parseFilterFormState } from './framework/filter-form-state';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
+import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard } from './framework/filter-sharing';
 
 export interface AppProps {
     graphqlHost: string;
@@ -85,8 +87,40 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         const filters = savedFilterManager.loadSavedFilters(selectedView.id);
         setSavedFilters(filters.map(filter => ({
             ...filter,
-            state: savedFilterManager.parseFilterState(filter, selectedView.filterSchema)
+            state: parseFilterFormState(filter.state, selectedView.filterSchema)
         })));
+    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Load filter from URL parameter on mount and view change
+    useEffect(() => {
+        const urlFilterState = getFilterFromUrl();
+        if (urlFilterState) {
+            try {
+                // Parse the URL filter state with the current view's schema
+                const parsedState = parseFilterFormState(urlFilterState, selectedView.filterSchema);
+
+                setFilterState(parsedState);
+                setRefetchTrigger(prev => prev + 1);
+
+                // Clear the filter parameter from URL to keep URL clean
+                clearFilterFromUrl();
+
+                toast.current?.show({
+                    severity: 'info',
+                    summary: 'Filter Loaded',
+                    detail: 'Filter has been loaded from the shared URL',
+                    life: 3000
+                });
+            } catch (error) {
+                console.error('Failed to load filter from URL:', error);
+                toast.current?.show({
+                    severity: 'warn',
+                    summary: 'Invalid Filter',
+                    detail: 'The shared filter link is invalid or corrupted',
+                    life: 3000
+                });
+            }
+        }
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Save a new filter
@@ -168,6 +202,52 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         }
     };
 
+    // Share current filter state
+    const handleShareFilter = async () => {
+        try {
+            const shareableUrl = createShareableUrl(state.filterState);
+            await copyToClipboard(shareableUrl);
+
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Filter Shared',
+                detail: 'Shareable link copied to clipboard!',
+                life: 3000
+            });
+        } catch (error) {
+            console.error('Failed to share filter:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Share Failed',
+                detail: 'Failed to create shareable link',
+                life: 3000
+            });
+        }
+    };
+
+    // Share a specific saved filter state
+    const handleShareSavedFilter = async (filterState: FilterFormState[]) => {
+        try {
+            const shareableUrl = createShareableUrl(filterState);
+            await copyToClipboard(shareableUrl);
+
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Filter Shared',
+                detail: 'Shareable link copied to clipboard!',
+                life: 3000
+            });
+        } catch (error) {
+            console.error('Failed to share saved filter:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Share Failed',
+                detail: 'Failed to create shareable link',
+                life: 3000
+            });
+        }
+    };
+
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
         return fetchData({
             client,
@@ -181,7 +261,14 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     // Fetch data when view changes or refetch is triggered
     useEffect(() => {
-        fetchDataWrapper(null).then(dataRows => setDataRows(dataRows));
+        fetchDataWrapper(null)
+            .then(dataRows => setDataRows(dataRows))
+            .catch(error => {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    // Request was aborted, no action needed
+                    return;
+                }
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedViewIndex, refetchTrigger]);
 
@@ -326,6 +413,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 onFilterDelete={handleDeleteFilter}
                 onFilterLoad={handleFilterLoad}
                 onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
+                onFilterShare={handleShareSavedFilter}
                 visible={showSavedFilterList}
             />
 
@@ -337,6 +425,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         setFormState={setFilterState}
                         onSaveFilter={handleSaveFilter}
                         onUpdateFilter={handleUpdateFilter}
+                        onShareFilter={handleShareFilter}
                         savedFilters={savedFilters}
                         visibleIndices={visibleIndices}
                         onSubmit={() => {
