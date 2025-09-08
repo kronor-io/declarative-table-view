@@ -15,29 +15,34 @@ import { Panel } from 'primereact/panel';
 // Re-export FilterFormState from the dedicated module
 export type { FilterFormState } from '../framework/filter-form-state';
 
-// Helper to build initial state from FilterExpr
-export function buildInitialFormState(expr: FilterExpr): FilterFormState {
+// Helper to build form state from FilterExpr
+export function buildInitialFormState(expr: FilterExpr, useEmpty = false): FilterFormState {
     if (expr.type === 'and' || expr.type === 'or') {
         return {
             type: expr.type,
-            children: expr.filters.map(buildInitialFormState),
+            children: expr.filters.map(child => buildInitialFormState(child, useEmpty)),
             filterType: expr.type
         };
     } else if (expr.type === 'not') {
         return {
             type: 'not',
-            child: buildInitialFormState(expr.filter),
+            child: buildInitialFormState(expr.filter, useEmpty),
             filterType: 'not'
         };
     } else {
         return {
             type: 'leaf',
             field: expr.field,
-            value: 'initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '',
+            value: useEmpty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : ''),
             control: expr.value,
             filterType: expr.type,
         };
     }
+}
+
+// Helper to build empty state from FilterExpr (used for resets)
+export function buildEmptyFormState(expr: FilterExpr): FilterFormState {
+    return buildInitialFormState(expr, true);
 }
 
 interface FilterFormProps {
@@ -274,14 +279,14 @@ function isFilterEmpty(state: FilterFormState): boolean {
 function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpdateFilter, onShareFilter, savedFilters, visibleIndices, onSubmit }: FilterFormProps) {
     // Helper to reset a filter at index i
     function resetFilter(i: number) {
-        const initial = buildInitialFormState(filterSchema.filters[i].expression);
+        const initial = buildEmptyFormState(filterSchema.filters[i].expression);
         const newFormState = [...formState];
         newFormState[i] = initial;
         setFormState(newFormState);
     }
     // Helper to reset all filters
     function resetAllFilters() {
-        setFormState(filterSchema.filters.map(filter => buildInitialFormState(filter.expression)));
+        setFormState(filterSchema.filters.map(filter => buildEmptyFormState(filter.expression)));
     }
     const visibleSet = new Set(visibleIndices)
     // Group filters by group name
