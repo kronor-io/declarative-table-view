@@ -2,6 +2,8 @@
 import { FilterExpr, FilterFieldSchema } from '../framework/filters';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { parseFilterFormState } from '../framework/filter-form-state';
+import { RefObject } from 'react';
+import { Toast } from 'primereact/toast';
 
 // --- Shared prompt and serialization helpers ---
 export interface AIApi {
@@ -9,7 +11,8 @@ export interface AIApi {
         filterSchema: FilterFieldSchema,
         userPrompt: string,
         setFormState: (state: FilterFormState[]) => void,
-        apiKey: string
+        apiKey: string,
+        toast?: RefObject<Toast | null>
     ): Promise<void>;
 }
 
@@ -118,7 +121,7 @@ function mergeStateArrayByKey(emptyArr: FilterFormState[], aiArr: unknown[]): Fi
 
 // --- Gemini Flash-Lite implementation ---
 export const GeminiApi: AIApi = {
-    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey) {
+    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast) {
         const prompt = buildAiPrompt(filterSchema, userPrompt);
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
@@ -143,11 +146,31 @@ export const GeminiApi: AIApi = {
 
                 setFormState(parseFilterFormState(merged, filterSchema));
             } else {
-                alert('Could not parse FilterFormState from Gemini response. Check the console.');
+                const errorMessage = 'Could not parse FilterFormState from Gemini response. Check the console.';
+                if (toast?.current) {
+                    toast.current.show({
+                        severity: 'warn',
+                        summary: 'Parse Error',
+                        detail: errorMessage,
+                        life: 3000
+                    });
+                } else {
+                    alert(errorMessage);
+                }
             }
         } catch (err) {
             console.error(err);
-            alert('Failed to get response from Gemini API.');
+            const errorMessage = 'Failed to get response from Gemini API.';
+            if (toast?.current) {
+                toast.current.show({
+                    severity: 'error',
+                    summary: 'API Error',
+                    detail: errorMessage,
+                    life: 3000
+                });
+            } else {
+                alert(errorMessage);
+            }
         }
     }
 };
@@ -157,7 +180,8 @@ export function generateFilterWithAI(
     userPrompt: string,
     setFormState: (state: FilterFormState[]) => void,
     apiImpl: AIApi,
-    geminiApiKey: string
+    geminiApiKey: string,
+    toast?: RefObject<Toast | null>
 ): Promise<void> {
-    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey);
+    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast);
 }

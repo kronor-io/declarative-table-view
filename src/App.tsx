@@ -403,6 +403,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             setFilterState={setFilterState}
                             selectedView={selectedView}
                             geminiApiKey={geminiApiKey}
+                            toast={toast}
                         />
                     </div>
                 )

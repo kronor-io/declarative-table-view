@@ -1,8 +1,9 @@
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { FilterFormState, buildInitialFormState } from './FilterForm';
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';
 
@@ -12,7 +13,8 @@ interface AIAssistantFormProps {
     setFilterSchema: (schema: FilterFieldSchema) => void;
     setFilterState: (state: FilterFormState[]) => void;
     selectedView: View;
-    geminiApiKey: string
+    geminiApiKey: string;
+    toast: RefObject<Toast | null>;
 }
 
 export default function AIAssistantForm({
@@ -21,7 +23,8 @@ export default function AIAssistantForm({
     setFilterSchema,
     setFilterState,
     selectedView,
-    geminiApiKey
+    geminiApiKey,
+    toast
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState('authorized payments in euro or danish krona in the first week of april 2025');
     const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
@@ -34,14 +37,29 @@ export default function AIAssistantForm({
                 <Button
                     type="button"
                     outlined
-                    label="Generate Filter"
+                    label="Update filters"
                     icon='pi pi-sparkles'
                     loading={aiLoading}
                     onClick={async () => {
                         setAiLoading(true);
                         try {
                             const { generateFilterWithAI, GeminiApi } = await import('./aiAssistant');
-                            await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey);
+                            await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey, toast);
+
+                            toast.current?.show({
+                                severity: 'success',
+                                summary: 'AI Filter Generated',
+                                detail: 'Filter values have been populated based on your prompt',
+                                life: 3000
+                            });
+                        } catch (error) {
+                            console.error('AI filter generation failed:', error);
+                            toast.current?.show({
+                                severity: 'error',
+                                summary: 'AI Generation Failed',
+                                detail: 'Failed to generate filter from AI. Please try again.',
+                                life: 3000
+                            });
                         } finally {
                             setAiLoading(false);
                         }
@@ -61,7 +79,7 @@ export default function AIAssistantForm({
                 <Button
                     type="button"
                     outlined
-                    label="Add filter"
+                    label="Generate filter"
                     icon='pi pi-sparkles'
                     loading={aiLoading}
                     onClick={async () => {
@@ -141,8 +159,14 @@ export default function AIAssistantForm({
                                 if (!response.ok) throw new Error('Gemini API error');
                                 const data = await response.json();
                                 aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                            } catch {
-                                alert('Failed to get response from Gemini API.');
+                            } catch (error) {
+                                console.error('Gemini API error:', error);
+                                toast.current?.show({
+                                    severity: 'error',
+                                    summary: 'API Error',
+                                    detail: 'Failed to get response from Gemini API.',
+                                    life: 3000
+                                });
                                 setAiLoading(false);
                                 return;
                             }
@@ -151,19 +175,35 @@ export default function AIAssistantForm({
                             if (match) {
                                 try {
                                     exprJson = JSON.parse(match[0]);
-                                } catch {
-                                    alert('AI response is not valid JSON');
+                                } catch (error) {
+                                    console.error('Invalid JSON from AI:', error);
+                                    toast.current?.show({
+                                        severity: 'warn',
+                                        summary: 'Invalid Response',
+                                        detail: 'AI response is not valid JSON',
+                                        life: 3000
+                                    });
                                     setAiLoading(false);
                                     return;
                                 }
                             } else {
-                                alert('Could not find JSON in AI response');
+                                toast.current?.show({
+                                    severity: 'warn',
+                                    summary: 'No Filter Found',
+                                    detail: 'Could not find JSON in AI response',
+                                    life: 3000
+                                });
                                 setAiLoading(false);
                                 return;
                             }
                             const filterExpr = filterExprFromJSON(exprJson);
                             if (!filterExpr) {
-                                alert('Could not parse AI response as FilterExpr');
+                                toast.current?.show({
+                                    severity: 'warn',
+                                    summary: 'Parse Error',
+                                    detail: 'Could not parse AI response as FilterExpr',
+                                    life: 3000
+                                });
                                 setAiLoading(false);
                                 return;
                             }
@@ -180,6 +220,13 @@ export default function AIAssistantForm({
                                 buildInitialFormState(filterExpr)
                             ];
                             setFilterState(formState);
+
+                            toast.current?.show({
+                                severity: 'success',
+                                summary: 'AI Filter Added',
+                                detail: 'New filter has been created and added to the form',
+                                life: 3000
+                            });
                         } finally {
                             setAiLoading(false);
                         }
