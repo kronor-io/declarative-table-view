@@ -1,5 +1,5 @@
 import React from 'react';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
@@ -10,21 +10,25 @@ import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
 
 type TableProps = {
+    viewId: string;
     columns: ColumnDefinition[];
     data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterFormState[]) => void; // Function to update filter state
     filterState: FilterFormState[]; // Current filter state
     triggerRefetch: () => void; // Function to trigger data refetch
+    ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
 };
 
 function Table({
+    viewId,
     columns,
     data,
     noRowsComponent,
     setFilterState,
     filterState,
-    triggerRefetch
+    triggerRefetch,
+    ref
 }: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterFormState[]) => FilterFormState[]) => {
@@ -41,18 +45,27 @@ function Table({
         })
         : null;
 
+    const exportFunction = (event: DataTableExportFunctionEvent<any>) => {
+        const data = (event.rowData as [])[Number(event.field)]
+        return data[Object.keys(data)[0]]
+    }
+
     return (
         <DataTable
+            ref={ref}
             value={data}
             tableStyle={{ minWidth: '50rem' }}
             showGridlines
             stripedRows
             size='small'
             emptyMessage={noDataRowsComponent}
+            exportFunction={exportFunction}
+            exportFilename={viewId}
         >
             {columns.map((column, columnIndex) => (
                 <Column
                     key={columnIndex}
+                    field={columnIndex.toString()}
                     header={column.name}
                     body={rowData => column.cellRenderer({
                         data: rowData[columnIndex],

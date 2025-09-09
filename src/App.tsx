@@ -24,6 +24,7 @@ import { parseFilterFormState } from './framework/filter-form-state';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard } from './framework/filter-sharing';
+import { DataTable } from 'primereact/datatable';
 
 export interface AppProps {
     graphqlHost: string;
@@ -73,6 +74,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
     const toast = useRef<Toast>(null);
+    const tableRef = useRef<DataTable<any>>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
     const [showFilterForm, setShowFilterForm] = useState(false);
     const [showSavedFilterList, setShowSavedFilterList] = useState(false);
@@ -248,6 +250,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         }
     };
 
+    // Export current view as CSV
+    const handleExportCSV = () => {
+        if (tableRef.current) {
+            tableRef.current.exportCSV({ selectionOnly: false });
+        }
+    };
+
     const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
         return fetchData({
             client,
@@ -369,6 +378,14 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
                             onClick={() => setShowSavedFilterList(v => !v)}
                         />
+                        <Button
+                            type="button"
+                            icon='pi pi-table'
+                            outlined
+                            size='small'
+                            label='Download CSV'
+                            onClick={handleExportCSV}
+                        />
                     </div>
                 }
                 end={
@@ -436,6 +453,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 )
             }
             <Table
+                viewId={selectedView.id}
+                ref={tableRef}
                 columns={selectedView.columnDefinitions}
                 data={state.data.flattenedRows}
                 noRowsComponent={selectedView.noRowsComponent}
