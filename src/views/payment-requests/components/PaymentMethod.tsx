@@ -170,6 +170,13 @@ export const PaymentMethod: React.FC<Props> = ({ cardType, paymentMethod, darkmo
                     Bank Transfer
                 </FlexRow>
             );
+        case "POINTSPAY":
+            return (
+                <FlexRow align="center" justify="center" wrap='wrap'>
+                    <img src="https://staging.kronor.io/portal/static/assets/img/logos/pointspay_logo.png" width="32px" alt="Pointspay" data-toggle="tooltip" data-placement="bottom" title="Pointspay" />
+                    Pointspay
+                </FlexRow>
+            );
         default:
             return <>UNKNOWN</>;
     }
