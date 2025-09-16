@@ -276,6 +276,54 @@ describe('parseColumnDefinitionJson', () => {
                 ]
             }]);
         });
+
+        it('should parse JSON with fieldAlias data', () => {
+            const json = {
+                data: [{
+                    type: 'fieldAlias',
+                    alias: 'userName',
+                    field: { type: 'field', path: 'user.name' }
+                }],
+                name: 'User Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.data).toEqual([{
+                type: 'fieldAlias',
+                alias: 'userName',
+                field: { type: 'field', path: 'user.name' }
+            }]);
+        });
+
+        it('should parse JSON with nested fieldAlias data', () => {
+            const json = {
+                data: [{
+                    type: 'fieldAlias',
+                    alias: 'userPosts',
+                    field: {
+                        type: 'queryConfigs',
+                        configs: [
+                            { field: 'posts', limit: 3 }
+                        ]
+                    }
+                }],
+                name: 'User Posts',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.data).toEqual([{
+                type: 'fieldAlias',
+                alias: 'userPosts',
+                field: {
+                    type: 'queryConfigs',
+                    configs: [
+                        { field: 'posts', limit: 3 }
+                    ]
+                }
+            }]);
+        });
     });
 
     describe('input validation errors', () => {
@@ -491,7 +539,7 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid data[1]: Invalid FieldQuery: "type" must be "field" or "queryConfigs"');
+            }).toThrow('Invalid data[1]: Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
         });
 
         it('should throw error for array in data array', () => {
@@ -561,6 +609,54 @@ describe('parseColumnDefinitionJson', () => {
                     { field: 'metadata' } // path should be omitted
                 ]
             }]);
+        });
+
+        it('should throw error for fieldAlias missing alias property', () => {
+            const json = {
+                data: [{
+                    type: 'fieldAlias',
+                    field: { type: 'field', path: 'user.name' }
+                    // missing alias property
+                }],
+                name: 'User Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid data[0]: Invalid FieldAlias: "alias" must be a string');
+        });
+
+        it('should throw error for fieldAlias missing field property', () => {
+            const json = {
+                data: [{
+                    type: 'fieldAlias',
+                    alias: 'userName'
+                    // missing field property
+                }],
+                name: 'User Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid data[0]: Invalid FieldAlias: "field" is required');
+        });
+
+        it('should throw error for fieldAlias with invalid nested field', () => {
+            const json = {
+                data: [{
+                    type: 'fieldAlias',
+                    alias: 'userName',
+                    field: { type: 'invalid', path: 'user.name' }
+                }],
+                name: 'User Name',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid data[0]: Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
         });
     });
 

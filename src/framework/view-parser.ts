@@ -141,55 +141,6 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
     };
 }
 
-export function fieldQueryJsonToFieldQuery(json: FieldQueryJson): FieldQuery {
-    if (json.type === 'field') {
-        return {
-            type: 'field',
-            path: json.path
-        };
-    } else if (json.type === 'queryConfigs') {
-        return {
-            type: 'queryConfigs',
-            configs: json.configs.map(config => {
-                const result: QueryConfig = {
-                    field: config.field
-                };
-
-                if (config.orderBy !== undefined) {
-                    if (Array.isArray(config.orderBy)) {
-                        result.orderBy = config.orderBy.map(ob => ({
-                            key: ob.key,
-                            direction: ob.direction
-                        }));
-                    } else {
-                        result.orderBy = {
-                            key: config.orderBy.key,
-                            direction: config.orderBy.direction
-                        };
-                    }
-                }
-
-                if (config.limit !== undefined) {
-                    result.limit = config.limit;
-                }
-
-                if (config.path !== undefined) {
-                    result.path = config.path;
-                }
-
-                return result;
-            })
-        };
-    } else {
-        // Handle FieldAlias case
-        return {
-            type: 'fieldAlias',
-            alias: json.alias,
-            field: fieldQueryJsonToFieldQuery(json.field)
-        };
-    }
-}
-
 // Parser functions for FieldQuery structures
 function parseOrderByConfig(obj: unknown): { key: string; direction: 'ASC' | 'DESC' } {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
@@ -275,8 +226,20 @@ function parseFieldQueryJson(obj: unknown): FieldQueryJson {
             type: 'queryConfigs',
             configs: fieldQuery.configs.map(parseQueryConfigJson)
         };
+    } else if (fieldQuery.type === 'fieldAlias') {
+        if (typeof fieldQuery.alias !== 'string') {
+            throw new Error('Invalid FieldAlias: "alias" must be a string');
+        }
+        if (!fieldQuery.field) {
+            throw new Error('Invalid FieldAlias: "field" is required');
+        }
+        return {
+            type: 'fieldAlias',
+            alias: fieldQuery.alias,
+            field: parseFieldQueryJson(fieldQuery.field)
+        } as FieldQueryJson;
     } else {
-        throw new Error('Invalid FieldQuery: "type" must be "field" or "queryConfigs"');
+        throw new Error('Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
     }
 }
 
@@ -687,7 +650,7 @@ export function parseViewJson(
         );
 
         return {
-            data: colJson.data.map(fieldQueryJsonToFieldQuery),
+            data: colJson.data,
             name: colJson.name,
             cellRenderer
         };
