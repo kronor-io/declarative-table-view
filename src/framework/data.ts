@@ -139,6 +139,10 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
             };
 
             values[pathKey] = extract(row, fieldQuery.configs);
+        } else if (fieldQuery.type === 'fieldAlias') {
+            // For field aliases, we look up the value using the alias name instead of the original field path
+            // The GraphQL response should contain the aliased field name
+            values[fieldQuery.alias] = row[fieldQuery.alias];
         }
     };
 
