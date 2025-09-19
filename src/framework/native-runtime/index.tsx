@@ -11,7 +11,15 @@ export type NativeRuntime = Runtime & {
 
 export const nativeRuntime: NativeRuntime = {
     cellRenderers: {
-        text: ({ data }) => typeof data === 'object' && data !== null ? Object.values(data)[0].toString() : String(data),
+        text: ({ data }) => {
+            if (typeof data === 'object' && data !== null) {
+                const value = Object.values(data)[0]
+                if (value != null) {
+                    return String(value)
+                }
+            }
+            return ''
+        },
         json: ({ data }) => JSON.stringify(data),
     },
     queryTransforms: {},
