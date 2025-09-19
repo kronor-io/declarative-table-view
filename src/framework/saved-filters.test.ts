@@ -268,6 +268,7 @@ describe('SavedFilterManager', () => {
             groups: [{ name: 'default', label: null }],
             filters: [
                 {
+                    id: 'date-filter',
                     label: 'Date Filter',
                     expression: {
                         type: 'equals',
@@ -278,6 +279,7 @@ describe('SavedFilterManager', () => {
                     aiGenerated: false
                 },
                 {
+                    id: 'text-filter',
                     label: 'Text Filter',
                     expression: {
                         type: 'equals',

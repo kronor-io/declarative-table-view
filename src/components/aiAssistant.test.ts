@@ -45,6 +45,7 @@ describe('aiAssistant customOperator patching', () => {
             groups: [{ name: 'test', label: 'Test Group' }],
             filters: [
                 {
+                    id: 'test-filter',
                     label: 'Test Filter',
                     group: 'test',
                     expression: {
@@ -93,6 +94,7 @@ describe('aiAssistant customOperator patching', () => {
             groups: [{ name: 'test', label: 'Test Group' }],
             filters: [
                 {
+                    id: 'test-filter-2',
                     label: 'Test Filter',
                     group: 'test',
                     expression: {
@@ -144,6 +146,7 @@ describe('aiAssistant customOperator patching', () => {
             groups: [{ name: 'test', label: 'Test Group' }],
             filters: [
                 {
+                    id: 'test-filter-3',
                     label: 'Test Filter',
                     group: 'test',
                     expression: {

@@ -12,6 +12,7 @@ describe('filter-form-state', () => {
         ],
         filters: [
             {
+                id: 'email-filter',
                 label: 'Email',
                 expression: {
                     type: 'equals',
@@ -22,6 +23,7 @@ describe('filter-form-state', () => {
                 aiGenerated: false
             },
             {
+                id: 'date-filter',
                 label: 'Date',
                 expression: {
                     type: 'equals',

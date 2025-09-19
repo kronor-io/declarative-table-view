@@ -771,6 +771,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 ],
                 filters: [
                     {
+                        id: 'name-filter',
                         label: 'Name',
                         expression: {
                             type: 'equals',
@@ -781,6 +782,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         aiGenerated: false
                     },
                     {
+                        id: 'status-filter',
                         label: 'Status',
                         expression: {
                             type: 'in',
@@ -807,6 +809,7 @@ describe('parseFilterFieldSchemaJson', () => {
 
             expect(result.filters).toHaveLength(2);
             expect(result.filters[0]).toEqual({
+                id: 'name-filter',
                 label: 'Name',
                 expression: {
                     type: 'equals',
@@ -816,6 +819,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 group: 'default',
                 aiGenerated: false
             });
+            expect(result.filters[1].id).toBe('status-filter');
             expect(result.filters[1].label).toBe('Status');
             expect(result.filters[1].expression.type).toBe('in');
             expect(result.filters[1].aiGenerated).toBe(true);
@@ -826,6 +830,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'reference-filter',
                         label: 'Reference',
                         expression: {
                             type: 'equals',
@@ -837,6 +842,7 @@ describe('parseFilterFieldSchemaJson', () => {
                         aiGenerated: false
                     },
                     {
+                        id: 'amount-filter',
                         label: 'Amount',
                         expression: {
                             type: 'greaterThan',
@@ -871,6 +877,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'complex-filter',
                         label: 'Complex Filter',
                         expression: {
                             type: 'and',
@@ -930,6 +937,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'search-filter',
                         label: 'Search',
                         expression: {
                             type: 'equals',
@@ -1013,11 +1021,11 @@ describe('parseFilterFieldSchemaJson', () => {
             };
 
             expect(() => parseFilterFieldSchemaJson(invalidFilter, testRuntime, undefined))
-                .toThrow('Invalid filter[0]: "label" must be a string');
+                .toThrow('Invalid filter[0]: "id" must be a string');
 
             const missingGroup = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ label: 'Test', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
+                filters: [{ id: 'test', label: 'Test', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
             };
 
             expect(() => parseFilterFieldSchemaJson(missingGroup, testRuntime, undefined))
@@ -1025,7 +1033,7 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const missingAiGenerated = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ label: 'Test', group: 'default', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
+                filters: [{ id: 'test', label: 'Test', group: 'default', expression: { type: 'equals', field: 'test', value: { type: 'text' } } }]
             };
 
             expect(() => parseFilterFieldSchemaJson(missingAiGenerated, testRuntime, undefined))
@@ -1035,7 +1043,7 @@ describe('parseFilterFieldSchemaJson', () => {
         it('should throw error for missing expression', () => {
             const missingExpression = {
                 groups: [{ name: 'default', label: null }],
-                filters: [{ label: 'Test', group: 'default', aiGenerated: false }]
+                filters: [{ id: 'test', label: 'Test', group: 'default', aiGenerated: false }]
             };
 
             expect(() => parseFilterFieldSchemaJson(missingExpression, testRuntime, undefined))
@@ -1047,6 +1055,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'test',
                         label: 'Test',
                         expression: {
                             type: 'equals',
@@ -1069,6 +1078,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'test',
                         label: 'Test',
                         expression: {
                             type: 'invalidType',
@@ -1090,6 +1100,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'test',
                         label: 'Test',
                         expression: {
                             type: 'and',
@@ -1108,6 +1119,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'test-2',
                         label: 'Test',
                         expression: {
                             type: 'not',
@@ -1130,6 +1142,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'multi-field-and',
                         label: 'Multi-field AND Filter',
                         expression: {
                             type: 'equals',
@@ -1163,6 +1176,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'multi-field-or',
                         label: 'Multi-field OR Filter',
                         expression: {
                             type: 'iLike',
@@ -1197,6 +1211,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'single-field',
                         label: 'Single Field Filter',
                         expression: {
                             type: 'equals',
@@ -1226,6 +1241,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'multi-field-transform',
                         label: 'Multi-field with Transform',
                         expression: {
                             type: 'greaterThan',
@@ -1263,6 +1279,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'invalid-and',
                         label: 'Test',
                         expression: {
                             type: 'equals',
@@ -1284,6 +1301,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'invalid-or',
                         label: 'Test',
                         expression: {
                             type: 'equals',
@@ -1305,6 +1323,7 @@ describe('parseFilterFieldSchemaJson', () => {
                 groups: [{ name: 'default', label: null }],
                 filters: [
                     {
+                        id: 'invalid-field',
                         label: 'Test',
                         expression: {
                             type: 'equals',
@@ -1374,6 +1393,7 @@ describe('parseViewJson', () => {
                     groups: [{ name: 'default', label: null }],
                     filters: [
                         {
+                            id: 'test-filter',
                             label: 'Test Filter',
                             expression: {
                                 type: 'equals',
@@ -1463,6 +1483,7 @@ describe('parseViewJson', () => {
                     ],
                     filters: [
                         {
+                            id: 'reference-filter',
                             label: 'Reference',
                             expression: {
                                 type: 'equals',
@@ -1474,6 +1495,7 @@ describe('parseViewJson', () => {
                             aiGenerated: false
                         },
                         {
+                            id: 'complex-filter',
                             label: 'Complex Filter',
                             expression: {
                                 type: 'and',

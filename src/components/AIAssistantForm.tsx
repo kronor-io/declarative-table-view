@@ -207,11 +207,13 @@ export default function AIAssistantForm({
                                 setAiLoading(false);
                                 return;
                             }
+                            // Generate a unique ID for the AI filter
+                            const aiFilterId = `ai-filter-${Date.now()}`;
                             const newSchema = {
                                 ...filterSchema,
                                 filters: [
                                     ...filterSchema.filters,
-                                    { label: 'AI Filter', expression: filterExpr, group: 'default', aiGenerated: true }
+                                    { id: aiFilterId, label: 'AI Filter', expression: filterExpr, group: 'default', aiGenerated: true }
                                 ]
                             };
                             setFilterSchema(newSchema);

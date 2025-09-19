@@ -94,6 +94,7 @@
         ],
         "filters": [
             {
+                "id": "date-range",
                 "label": "Date",
                 "expression": {
                     "type": "and",

@@ -72,6 +72,7 @@
         ],
         "filters": [
             {
+                "id": "amount-gte",
                 "label": "Amount",
                 "expression": {
                     "type": "greaterThanOrEqual",
@@ -88,6 +89,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "test-field-eq",
                 "label": "Test Field",
                 "expression": {
                     "type": "equals",
@@ -100,6 +102,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "email-eq",
                 "label": "Email",
                 "expression": {
                     "type": "equals",
@@ -112,6 +115,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "phone-eq",
                 "label": "Phone",
                 "expression": {
                     "type": "equals",
@@ -128,6 +132,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "test-field-kv-transform",
                 "label": "Test Field (Key-Value Transform)",
                 "expression": {
                     "type": "equals",
@@ -144,6 +149,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "search-multi-fields-or",
                 "label": "Search Multiple Fields (OR)",
                 "expression": {
                     "type": "iLike",
@@ -162,6 +168,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "match-multi-fields-and",
                 "label": "Match Multiple Fields (AND)",
                 "expression": {
                     "type": "equals",

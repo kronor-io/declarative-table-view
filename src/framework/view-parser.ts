@@ -84,6 +84,7 @@ export type FilterExprJson =
 export type FilterFieldGroupJson = FilterFieldGroup;
 
 export type FilterFieldSchemaFilterJson = {
+    id: string;
     label: string;
     expression: FilterExprJson;
     group: string;
@@ -549,6 +550,10 @@ export function parseFilterFieldSchemaJson(
 
         const f = filter as Record<string, unknown>;
 
+        if (typeof f.id !== 'string') {
+            throw new Error(`Invalid filter[${index}]: "id" must be a string`);
+        }
+
         if (typeof f.label !== 'string') {
             throw new Error(`Invalid filter[${index}]: "label" must be a string`);
         }
@@ -573,6 +578,7 @@ export function parseFilterFieldSchemaJson(
         }
 
         return {
+            id: f.id,
             label: f.label,
             expression,
             group: f.group,

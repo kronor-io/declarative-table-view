@@ -66,18 +66,21 @@ const filterSchema: FilterFieldSchema = {
     groups: filterGroups,
     filters: [
         {
+            id: 'amount-gte',
             label: 'Amount',
             expression: Filter.greaterThanOrEqual('amount', Control.number()),
             group: 'default',
             aiGenerated: false
         },
         {
+            id: 'test-field-eq',
             label: 'Test Field',
             expression: Filter.equals('testField', Control.text()),
             group: 'extra',
             aiGenerated: false
         },
         {
+            id: 'email-eq',
             label: 'Email',
             expression: Filter.equals('email', Control.text()),
             group: 'default',

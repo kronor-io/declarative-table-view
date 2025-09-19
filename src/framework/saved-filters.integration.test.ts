@@ -43,6 +43,7 @@ describe('Saved Filters Integration', () => {
             groups: [{ name: 'default', label: null }],
             filters: [
                 {
+                    id: 'email-filter',
                     label: 'Email Filter',
                     expression: {
                         type: 'equals',
@@ -101,6 +102,7 @@ describe('Saved Filters Integration', () => {
             groups: [{ name: 'default', label: null }],
             filters: [
                 {
+                    id: 'date-filter',
                     label: 'Date Filter',
                     expression: {
                         type: 'equals',

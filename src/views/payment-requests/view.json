@@ -164,6 +164,7 @@
         ],
         "filters": [
             {
+                "id": "merchant",
                 "label": "Merchant",
                 "expression": {
                     "type": "in",
@@ -186,6 +187,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "payment-provider",
                 "label": "Payment Provider",
                 "expression": {
                     "type": "in",
@@ -232,6 +234,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "payment-status",
                 "label": "Payment Status",
                 "expression": {
                     "type": "in",
@@ -303,6 +306,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "reference",
                 "label": "Reference",
                 "expression": {
                     "type": "equals",
@@ -332,6 +336,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "payment-id",
                 "label": "Payment ID",
                 "expression": {
                     "type": "equals",
@@ -344,6 +349,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "customer-email",
                 "label": "Customer Email",
                 "expression": {
                     "type": "equals",
@@ -369,6 +375,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "customer-name",
                 "label": "Customer Name",
                 "expression": {
                     "type": "iLike",
@@ -381,6 +388,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "date-range",
                 "label": "Date Range",
                 "expression": {
                     "type": "and",
@@ -415,6 +423,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "reference-2",
                 "label": "Reference 2",
                 "expression": {
                     "type": "equals",
@@ -444,6 +453,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "amount-range",
                 "label": "Amount",
                 "expression": {
                     "type": "and",
@@ -478,6 +488,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "currency",
                 "label": "Currency",
                 "expression": {
                     "type": "in",
@@ -540,6 +551,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "refund-status",
                 "label": "Refund Status",
                 "expression": {
                     "type": "in",
@@ -566,6 +578,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "device-fingerprint",
                 "label": "Device Fingerprint",
                 "expression": {
                     "type": "equals",
@@ -578,6 +591,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "card-type",
                 "label": "Card Type",
                 "expression": {
                     "type": "in",
@@ -640,6 +654,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "credit-card-number",
                 "label": "Credit Card Number",
                 "expression": {
                     "type": "iLike",
@@ -656,6 +671,7 @@
                 "aiGenerated": false
             },
             {
+                "id": "customer-phone",
                 "label": "Customer Phone",
                 "expression": {
                     "type": "equals",

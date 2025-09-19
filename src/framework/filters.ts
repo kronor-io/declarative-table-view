@@ -135,6 +135,7 @@ export type FilterFieldGroup = {
 };
 
 export type FilterFieldSchemaFilter = {
+    id: string; // unique identifier for the filter
     label: string;
     expression: FilterExpr;
     group: string; // group name

@@ -54,6 +54,7 @@ const filterSchema: FilterFieldSchema = {
     groups: filterGroups,
     filters: [
         {
+            id: 'date-range',
             label: 'Date',
             expression: Filter.range('createdAt', Control.date),
             group: 'default',
