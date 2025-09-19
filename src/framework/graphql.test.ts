@@ -1,6 +1,6 @@
 import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST, buildHasuraConditions } from "./graphql";
 import { ColumnDefinition, fieldAlias, field, queryConfigs } from "./column-definition";
-import { FilterFormState } from '../components/FilterForm';
+import { FilterState } from './state';
 
 describe("renderGraphQLQuery", () => {
     it("renders a simple query with variables and selection set", () => {
@@ -288,21 +288,21 @@ describe("generateGraphQLQueryAST", () => {
 
 describe('buildHasuraConditions', () => {
     it('should return an empty object for no conditions', () => {
-        expect(buildHasuraConditions([])).toEqual({});
+        expect(buildHasuraConditions(new Map())).toEqual({});
     });
 
     it('should handle a single condition', () => {
-        const formState: FilterFormState[] = [
-            { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
-        ];
+        const formState: FilterState = new Map([
+            ['name-filter', { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({ name: { _eq: 'test' } });
     });
 
     it('should handle multiple conditions with an implicit AND', () => {
-        const formState: FilterFormState[] = [
-            { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
-            { type: 'leaf', field: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } }
-        ];
+        const formState: FilterState = new Map([
+            ['name-filter', { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }],
+            ['age-filter', { type: 'leaf', field: 'age', filterType: 'greaterThan', value: 20, control: { type: 'number' } }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             _and: [
                 { name: { _eq: 'test' } },
@@ -312,34 +312,34 @@ describe('buildHasuraConditions', () => {
     });
 
     it('should handle nested fields', () => {
-        const formState: FilterFormState[] = [
-            { type: 'leaf', field: 'user.name', filterType: 'equals', value: 'test', control: { type: 'text' } }
-        ];
+        const formState: FilterState = new Map([
+            ['user-name-filter', { type: 'leaf', field: 'user.name', filterType: 'equals', value: 'test', control: { type: 'text' } }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             user: { name: { _eq: 'test' } }
         });
     });
 
     it('should handle deeply nested fields', () => {
-        const formState: FilterFormState[] = [
-            { type: 'leaf', field: 'a.b.c.d', filterType: 'equals', value: 'deep', control: { type: 'text' } }
-        ];
+        const formState: FilterState = new Map([
+            ['deep-filter', { type: 'leaf', field: 'a.b.c.d', filterType: 'equals', value: 'deep', control: { type: 'text' } }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             a: { b: { c: { d: { _eq: 'deep' } } } }
         });
     });
 
     it('should handle explicit AND/OR conditions', () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['or-filter', {
                 type: 'or',
                 filterType: 'or',
                 children: [
                     { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } },
                     { type: 'leaf', field: 'name', filterType: 'equals', value: 'another', control: { type: 'text' } }
                 ]
-            }
-        ];
+            }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             _or: [
                 { name: { _eq: 'test' } },
@@ -349,21 +349,21 @@ describe('buildHasuraConditions', () => {
     });
 
     it('should handle NOT conditions', () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['not-filter', {
                 type: 'not',
                 filterType: 'not',
                 child: { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }
-            }
-        ];
+            }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             _not: { name: { _eq: 'test' } }
         });
     });
 
     it('should handle complex nested structures', () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['complex-filter', {
                 type: 'and',
                 filterType: 'and',
                 children: [
@@ -381,8 +381,8 @@ describe('buildHasuraConditions', () => {
                         ]
                     }
                 ]
-            }
-        ];
+            }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             _and: [
                 { age: { _gt: 20 } },
@@ -397,40 +397,40 @@ describe('buildHasuraConditions', () => {
     });
 
     it('should ignore empty or invalid values', () => {
-        const formState: FilterFormState[] = [
-            { type: 'leaf', field: 'name', filterType: 'equals', value: '', control: { type: 'text' } },
-            { type: 'leaf', field: 'age', filterType: 'greaterThan', value: undefined, control: { type: 'number' } },
-            { type: 'leaf', field: 'tags', filterType: 'in', value: [], control: { type: 'multiselect', items: [] } },
-            { type: 'leaf', field: 'valid', filterType: 'equals', value: 'good', control: { type: 'text' } }
-        ];
+        const formState: FilterState = new Map([
+            ['name-filter', { type: 'leaf', field: 'name', filterType: 'equals', value: '', control: { type: 'text' } }],
+            ['age-filter', { type: 'leaf', field: 'age', filterType: 'greaterThan', value: undefined, control: { type: 'number' } }],
+            ['tags-filter', { type: 'leaf', field: 'tags', filterType: 'in', value: [], control: { type: 'multiselect', items: [] } }],
+            ['valid-filter', { type: 'leaf', field: 'valid', filterType: 'equals', value: 'good', control: { type: 'text' } }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({ valid: { _eq: 'good' } });
     });
 
     it('should handle custom operators', () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['custom-filter', {
                 type: 'leaf',
                 field: 'custom_field',
                 filterType: 'equals', // This is not used for custom operators, but required by the type
                 value: { operator: '_custom_op', value: 'some_value' },
                 control: { type: 'customOperator', operators: [{ label: 'Custom Op', value: '_custom_op' }], valueControl: { type: 'text' } }
-            }
-        ];
+            }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             custom_field: { _custom_op: 'some_value' }
         });
     });
 
     it('should handle custom operators with nested fields', () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['user-name-custom-filter', {
                 type: 'leaf',
                 field: 'user.name',
                 filterType: 'equals', // This is not used for custom operators, but required by the type
                 value: { operator: '_ilike', value: '%test%' },
                 control: { type: 'customOperator', operators: [{ label: 'iLike', value: '_ilike' }], valueControl: { type: 'text' } }
-            }
-        ];
+            }]
+        ]);
         expect(buildHasuraConditions(formState)).toEqual({
             user: { name: { _ilike: '%test%' } }
         });
@@ -439,15 +439,15 @@ describe('buildHasuraConditions', () => {
 
 describe("Multi-field Filter Support", () => {
     it("should handle object format with and", () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['multi-and-filter', {
                 type: 'leaf',
                 field: { and: ['name', 'title'] },
                 filterType: 'equals',
                 value: 'test',
                 control: { type: 'text' }
-            }
-        ];
+            }]
+        ]);
 
         const result = buildHasuraConditions(formState);
 
@@ -460,15 +460,15 @@ describe("Multi-field Filter Support", () => {
     });
 
     it("should handle object format with or", () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['multi-or-filter', {
                 type: 'leaf',
                 field: { or: ['name', 'title'] },
                 filterType: 'equals',
                 value: 'test',
                 control: { type: 'text' }
-            }
-        ];
+            }]
+        ]);
 
         const result = buildHasuraConditions(formState);
 
@@ -481,15 +481,15 @@ describe("Multi-field Filter Support", () => {
     });
 
     it("should handle nested fields with object format", () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['nested-multi-filter', {
                 type: 'leaf',
                 field: { or: ['user.email', 'user.username'] },
                 filterType: 'iLike',
                 value: '%john%',
                 control: { type: 'text' }
-            }
-        ];
+            }]
+        ]);
 
         const result = buildHasuraConditions(formState);
 
@@ -502,22 +502,22 @@ describe("Multi-field Filter Support", () => {
     });
 
     it("should handle mixed multi-field and single field expressions", () => {
-        const formState: FilterFormState[] = [
-            {
+        const formState: FilterState = new Map([
+            ['search-filter', {
                 type: 'leaf',
                 field: { or: ['name', 'title'] },
                 filterType: 'iLike',
                 value: '%search%',
                 control: { type: 'text' }
-            },
-            {
+            }],
+            ['category-filter', {
                 type: 'leaf',
                 field: 'category',
                 filterType: 'equals',
                 value: 'tech',
                 control: { type: 'text' }
-            }
-        ];
+            }]
+        ]);
 
         const result = buildHasuraConditions(formState);
 

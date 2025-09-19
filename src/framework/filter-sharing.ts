@@ -1,11 +1,12 @@
-import { FilterFormState, serializeFilterFormStateArray } from './filter-form-state';
+import { serializeFilterFormStateMap } from './filter-form-state';
+import { FilterState } from './state';
 
 /**
  * Encode filter state to a base64 URL-safe string
  */
-export function encodeFilterState(filterState: FilterFormState[]): string {
+export function encodeFilterState(filterState: FilterState): string {
     try {
-        const serializedState = serializeFilterFormStateArray(filterState);
+        const serializedState = serializeFilterFormStateMap(filterState);
         const jsonString = JSON.stringify(serializedState);
         // Convert to base64 and make it URL-safe
         return btoa(jsonString)
@@ -40,7 +41,7 @@ export function decodeFilterState(encodedState: string): any[] {
 /**
  * Create a shareable URL with the current filter state
  */
-export function createShareableUrl(filterState: FilterFormState[]): string {
+export function createShareableUrl(filterState: FilterState): string {
     try {
         const encodedFilter = encodeFilterState(filterState);
         const url = new URL(window.location.href);

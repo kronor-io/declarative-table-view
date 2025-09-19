@@ -1,13 +1,13 @@
 import { ReactNode, createElement } from "react";
 import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from "./cell-renderer-components/LayoutHelpers";
-import { FilterFormState } from "../components/FilterForm";
 import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from 'primereact/tag';
+import { FilterState } from "./state";
 
 export type CellRendererProps = {
     data: Record<string, any>;
-    setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void; // Function to update filter state
+    setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
     createElement: typeof createElement; // React createElement function
     components: {

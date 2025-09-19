@@ -1,8 +1,8 @@
 import { GraphQLClient } from 'graphql-request';
-import { FilterFormState } from '../components/FilterForm';
 import { buildHasuraConditions } from '../framework/graphql';
 import { View } from '../framework/view';
 import { ColumnDefinition, FieldQuery, QueryConfig } from '../framework/column-definition';
+import { FilterState } from './state';
 
 export interface FetchDataResult {
     rows: Record<string, unknown>[]; // Fetched rows from the query
@@ -27,7 +27,7 @@ export const fetchData = async ({
     client: GraphQLClient;
     view: View;
     query: string;
-    filterState: FilterFormState[];
+    filterState: FilterState;
     rows: number;
     cursor: string | number | null;
 }): Promise<FetchDataResult> => {

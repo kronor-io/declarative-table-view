@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
-import FilterForm, { FilterFormState } from './components/FilterForm';
+import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -14,8 +14,8 @@ import TablePagination from './components/TablePagination';
 import AIAssistantForm from './components/AIAssistantForm';
 import SavedFilterList from './components/SavedFilterList';
 import { fetchData, FetchDataResult } from './framework/data';
-import { useAppState } from './framework/state';
-import { FilterFieldSchemaFilter, getFieldNodes, FilterField } from './framework/filters';
+import { FilterState, useAppState } from './framework/state';
+import { FilterFieldSchemaFilter, getFieldNodes, FilterField, FilterId } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
@@ -126,7 +126,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Save a new filter
-    const handleSaveFilter = (state: FilterFormState[]) => {
+    const handleSaveFilter = (state: FilterState) => {
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
 
@@ -152,7 +152,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     // Update an existing filter
-    const handleUpdateFilter = (filter: SavedFilter, state: FilterFormState[]) => {
+    const handleUpdateFilter = (filter: SavedFilter, state: FilterState) => {
         confirmDialog({
             message: `Are you sure you want to overwrite the existing filter "${filter.name}"?`,
             header: 'Confirm Filter Update',
@@ -228,7 +228,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     // Share a specific saved filter state
-    const handleShareSavedFilter = async (filterState: FilterFormState[]) => {
+    const handleShareSavedFilter = async (filterState: FilterState) => {
         try {
             const shareableUrl = createShareableUrl(filterState);
             await copyToClipboard(shareableUrl);
@@ -290,13 +290,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     // When filter is loaded, set filter state
-    const handleFilterLoad = (filterState: FilterFormState[]) => {
+    const handleFilterLoad = (filterState: FilterState) => {
         setFilterState(filterState);
     };
 
-    // Filter filterSchema by search, get indices
-    const visibleIndices: number[] = state.filterSchema.filters
-        .flatMap((filter: FilterFieldSchemaFilter, index: number) => {
+    // Filter filterSchema by search, get filter IDs
+    const visibleFilterIds: FilterId[] = state.filterSchema.filters
+        .flatMap((filter: FilterFieldSchemaFilter) => {
             function stringMatchesSearchQuery(string: string) {
                 return string.toLowerCase().includes(search.toLowerCase());
             }
@@ -312,9 +312,9 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 return false;
             }
 
-            if (stringMatchesSearchQuery(filter.label)) return [index];
+            if (stringMatchesSearchQuery(filter.label)) return [filter.id];
             const fieldFilterExprs = getFieldNodes(filter.expression);
-            return fieldFilterExprs.some(expr => fieldMatchesSearchQuery(expr.field)) ? [index] : []
+            return fieldFilterExprs.some(expr => fieldMatchesSearchQuery(expr.field)) ? [filter.id] : []
         });
 
     // Next page handler
@@ -439,13 +439,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 showFilterForm && (
                     <FilterForm
                         filterSchema={state.filterSchema}
-                        formState={state.filterState}
-                        setFormState={setFilterState}
+                        filterState={state.filterState}
+                        setFilterState={setFilterState}
                         onSaveFilter={handleSaveFilter}
                         onUpdateFilter={handleUpdateFilter}
                         onShareFilter={handleShareFilter}
                         savedFilters={savedFilters}
-                        visibleIndices={visibleIndices}
+                        visibleFilterIds={visibleFilterIds}
                         onSubmit={() => {
                             setRefetchTrigger(prev => prev + 1);
                         }}

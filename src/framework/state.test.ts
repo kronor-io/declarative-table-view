@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { createDefaultAppState, setSelectedViewIndex, setDataRows, setFilterSchema, setFilterState } from './state';
-import { buildInitialFormState, FilterFormState } from '../components/FilterForm';
+import { createDefaultAppState, setSelectedViewIndex, setDataRows, setFilterSchema, setFilterState, FilterState } from './state';
+import { buildInitialFormState } from '../components/FilterForm';
 import { View } from './view';
 
 // Mock view definitions
@@ -14,7 +14,7 @@ const mockViews: View[] = [
         filterSchema: {
             groups: [{ name: 'default', label: 'Default' }],
             filters: [
-                { label: 'A', expression: { type: 'isNull', key: 'a', value: {} }, group: 'default' }
+                { id: 'filter-a', label: 'A', expression: { type: 'isNull', key: 'a', value: {} }, group: 'default' }
             ]
         },
         columnDefinitions: [],
@@ -26,7 +26,7 @@ const mockViews: View[] = [
         filterSchema: {
             groups: [{ name: 'default', label: 'Default' }],
             filters: [
-                { label: 'B', expression: { type: 'isNull', key: 'b', value: {} }, group: 'default' }
+                { id: 'filter-b', label: 'B', expression: { type: 'isNull', key: 'b', value: {} }, group: 'default' }
             ]
         },
         columnDefinitions: [],
@@ -41,7 +41,7 @@ describe('AppState', () => {
         expect(state.views).toBe(mockViews);
         expect(state.filterSchema).toEqual(mockViews[0].filterSchema);
         expect(state.filterState).toEqual(
-            mockViews[0].filterSchema.filters.map(f => buildInitialFormState(f.expression))
+            new Map(mockViews[0].filterSchema.filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
         expect(state.data).toEqual({ rows: [], flattenedRows: [] });
     });
@@ -52,7 +52,7 @@ describe('AppState', () => {
         expect(state.selectedViewIndex).toBe(1);
         expect(state.filterSchema).toEqual(mockViews[1].filterSchema);
         expect(state.filterState).toEqual(
-            mockViews[1].filterSchema.filters.map(f => buildInitialFormState(f.expression))
+            new Map(mockViews[1].filterSchema.filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
     });
 
@@ -70,7 +70,7 @@ describe('AppState', () => {
         const newSchema = {
             groups: [{ name: 'default', label: 'Default' }],
             filters: [
-                { label: 'C', expression: { type: 'isNull', key: 'c', value: null }, group: 'default' }
+                { id: 'filter-c', label: 'C', expression: { type: 'isNull', key: 'c', value: null }, group: 'default' }
             ]
         };
         state = setFilterSchema(state, newSchema as any);
@@ -79,7 +79,7 @@ describe('AppState', () => {
 
     it('setFilterState updates filterState', () => {
         let state = createDefaultAppState(mockViews);
-        const newFilterState: FilterFormState[] = [{ key: 'x', value: 42 } as any];
+        const newFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
         state = setFilterState(state, newFilterState);
         expect(state.filterState).toBe(newFilterState);
     });

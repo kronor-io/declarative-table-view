@@ -1,17 +1,36 @@
 import { useState } from "react";
 import { buildInitialFormState, FilterFormState } from "../components/FilterForm";
-import { FilterFieldSchema } from "./filters";
+import { FilterFieldSchema, FilterId } from "./filters";
 import { View } from "./view";
 import { FetchDataResult } from "./data";
 
+export type FilterState = Map<FilterId, FilterFormState>;
+
+export function getFilterStateById(state: FilterState, id: FilterId): FilterFormState {
+    const filter = state.get(id);
+    if (!filter) {
+        throw new Error(`Inconsistent state: Filter with id ${id} not found`);
+    }
+    return filter;
+}
+
+export function setFilterStateById(state: FilterState, id: FilterId, newFilterState: FilterFormState): FilterState {
+    if (!state.has(id)) {
+        throw new Error(`Inconsistent state: Filter with id ${id} not found`);
+    }
+    const newState = new Map(state);
+    newState.set(id, newFilterState);
+    return newState;
+}
+
 // AppState data structure for app state
 export interface AppState {
-    selectedViewIndex: number;
-    views: View[];
-    filterSchema: FilterFieldSchema;
-    data: FetchDataResult;
-    filterState: FilterFormState[];
-    pagination: PaginationState;
+    selectedViewIndex: number
+    views: View[]
+    filterSchema: FilterFieldSchema
+    data: FetchDataResult
+    filterState: FilterState
+    pagination: PaginationState
 }
 
 export interface PaginationState {
@@ -42,14 +61,15 @@ export function getInitialViewIndex(views: View[]): number {
     return 0;
 }
 
-function createInitialFilterState(filterSchema: FilterFieldSchema): FilterFormState[] {
-    return filterSchema.filters.map(filter => buildInitialFormState(filter.expression));
+
+export function createDefaultFilterState(filterSchema: FilterFieldSchema, useEmpty: boolean = false): FilterState {
+    return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, useEmpty)]));
 }
 
 export function createDefaultAppState(views: View[]): AppState {
     const selectedViewIndex = getInitialViewIndex(views);
     const filterSchema: FilterFieldSchema = views[selectedViewIndex].filterSchema;
-    const initialFilterState = createInitialFilterState(filterSchema);
+    const initialFilterState = createDefaultFilterState(filterSchema);
     return {
         views,
         selectedViewIndex,
@@ -68,7 +88,7 @@ function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
         ...state,
         selectedViewIndex: newIndex,
         filterSchema,
-        filterState: createInitialFilterState(filterSchema),
+        filterState: createDefaultFilterState(filterSchema),
         pagination: defaultPagination
     };
 }
@@ -92,7 +112,7 @@ function setFilterSchema(state: AppState, newSchema: FilterFieldSchema): AppStat
     };
 }
 
-function setFilterState(state: AppState, newFilterState: FilterFormState[]): AppState {
+function setFilterState(state: AppState, newFilterState: FilterState): AppState {
     return {
         ...state,
         filterState: newFilterState,
@@ -108,7 +128,7 @@ export const useAppState = (views: View[]) => {
         setSelectedViewIndex: (index: number) => setAppState(prev => setSelectedViewIndex(prev, index)),
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
         setFilterSchema: (schema: FilterFieldSchema) => setAppState(prev => setFilterSchema(prev, schema)),
-        setFilterState: (filterState: FilterFormState[]) => setAppState(prev => setFilterState(prev, filterState))
+        setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState))
     };
 }
 

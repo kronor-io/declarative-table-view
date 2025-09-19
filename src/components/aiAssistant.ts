@@ -4,13 +4,14 @@ import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { parseFilterFormState } from '../framework/filter-form-state';
 import { RefObject } from 'react';
 import { Toast } from 'primereact/toast';
+import { FilterState } from '../framework/state';
 
 // --- Shared prompt and serialization helpers ---
 export interface AIApi {
     sendPrompt(
         filterSchema: FilterFieldSchema,
         userPrompt: string,
-        setFormState: (state: FilterFormState[]) => void,
+        setFormState: (state: FilterState) => void,
         apiKey: string,
         toast?: RefObject<Toast | null>
     ): Promise<void>;
@@ -178,7 +179,7 @@ export const GeminiApi: AIApi = {
 export function generateFilterWithAI(
     filterSchema: FilterFieldSchema,
     userPrompt: string,
-    setFormState: (state: FilterFormState[]) => void,
+    setFormState: (state: FilterState) => void,
     apiImpl: AIApi,
     geminiApiKey: string,
     toast?: RefObject<Toast | null>

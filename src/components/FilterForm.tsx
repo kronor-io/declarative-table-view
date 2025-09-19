@@ -9,8 +9,9 @@ import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Panel } from 'primereact/panel';
+import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 
 // Re-export FilterFormState from the dedicated module
 export type { FilterFormState } from '../framework/filter-form-state';
@@ -40,20 +41,15 @@ export function buildInitialFormState(expr: FilterExpr, useEmpty = false): Filte
     }
 }
 
-// Helper to build empty state from FilterExpr (used for resets)
-export function buildEmptyFormState(expr: FilterExpr): FilterFormState {
-    return buildInitialFormState(expr, true);
-}
-
 interface FilterFormProps {
     filterSchema: FilterFieldSchema;
-    formState: FilterFormState[];
-    setFormState: (state: FilterFormState[]) => void;
-    onSaveFilter: (state: FilterFormState[]) => void;
-    onUpdateFilter: (filter: SavedFilter, state: FilterFormState[]) => void;
+    filterState: FilterState
+    setFilterState: (state: FilterState) => void;
+    onSaveFilter: (state: FilterState) => void;
+    onUpdateFilter: (filter: SavedFilter, state: FilterState) => void;
     onShareFilter: () => void;
     savedFilters: SavedFilter[];
-    visibleIndices: number[]; // indices of filters to display
+    visibleFilterIds: string[]; // indices of filters to display
     onSubmit: () => void;
 }
 
@@ -276,29 +272,51 @@ function isFilterEmpty(state: FilterFormState): boolean {
     return state.children.every(isFilterEmpty);
 }
 
-function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpdateFilter, onShareFilter, savedFilters, visibleIndices, onSubmit }: FilterFormProps) {
-    // Helper to reset a filter at index i
-    function resetFilter(i: number) {
-        const initial = buildEmptyFormState(filterSchema.filters[i].expression);
-        const newFormState = [...formState];
-        newFormState[i] = initial;
-        setFormState(newFormState);
+function FilterForm({
+    filterSchema,
+    filterState,
+    setFilterState,
+    onSaveFilter,
+    onUpdateFilter,
+    onShareFilter,
+    savedFilters,
+    visibleFilterIds,
+    onSubmit
+}: FilterFormProps) {
+
+    const filterSchemaById: Map<string, FilterFieldSchemaFilter> = useMemo(() => new Map(
+        filterSchema.filters.map(filter => [filter.id, filter])
+    ), [filterSchema]);
+
+    const visibleSet = useMemo(() => new Set(visibleFilterIds), [visibleFilterIds]);
+
+    // Helper to reset a filter by its ID
+    function resetFilter(filterId: string) {
+        const _filterSchema = filterSchemaById.get(filterId);
+        if (!_filterSchema) return;
+
+        return new Map<string, FilterFormState>(
+            Array.from(filterState.entries())
+                .map(([id, state]) => [id, id === filterId ? buildInitialFormState(_filterSchema.expression, true) : state])
+        );
     }
+
     // Helper to reset all filters
     function resetAllFilters() {
-        setFormState(filterSchema.filters.map(filter => buildEmptyFormState(filter.expression)));
+        setFilterState(
+            createDefaultFilterState(filterSchema, true)
+        );
     }
-    const visibleSet = new Set(visibleIndices)
+
     // Group filters by group name
-    const filtersWithIndex: Array<[number, FilterFieldSchemaFilter]> = filterSchema.filters.map((filter, index) => [index, filter]);
     const defaultGroup: FilterFieldGroup | undefined = filterSchema.groups.find(group => group.name === 'default');
-    const defaultFilters: Array<[number, FilterFieldSchemaFilter]> = filtersWithIndex.filter(([index, filter]) => filter.group === 'default' && visibleSet.has(index));
+    const defaultFilters: FilterFieldSchemaFilter[] = filterSchema.filters.filter(filter => filter.group === 'default' && visibleSet.has(filter.id));
     const otherGroups: FilterFieldGroup[] = filterSchema.groups.filter(group => group.name !== 'default');
-    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: [number, FilterFieldSchemaFilter][] }> =
+    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: FilterFieldSchemaFilter[] }> =
         otherGroups
             .map(group => ({
                 group,
-                filters: filtersWithIndex.filter(([index, filter]) => filter.group === group.name && visibleSet.has(index))
+                filters: filterSchema.filters.filter(filter => filter.group === group.name && visibleSet.has(filter.id))
             }))
             .filter(grouping => grouping.filters.length > 0);
     return (
@@ -307,8 +325,8 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
             {defaultGroup && defaultFilters.length > 0 && (
                 <div className="flex flex-wrap gap-4 items-start mb-4">
                     {
-                        defaultFilters.map(([index, filterSchema]) => (
-                            <div key={index} className="flex flex-col min-w-[220px] mb-2">
+                        defaultFilters.map(filterSchema => (
+                            <div key={filterSchema.id} className="flex flex-col min-w-[220px] mb-2">
                                 <div className="flex items-center mb-1 max-h-[20px]">
                                     <label className="text-sm font-bold">{filterSchema.label}</label>
                                     <Button
@@ -318,17 +336,15 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                                         rounded
                                         text
                                         title="Reset filter"
-                                        onClick={() => resetFilter(index)}
-                                        visible={!isFilterEmpty(formState[index])}
+                                        onClick={() => resetFilter(filterSchema.id)}
+                                        visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id))}
                                     />
                                 </div>
                                 {
                                     renderFilterFormState(
-                                        formState[index],
+                                        getFilterStateById(filterState, filterSchema.id),
                                         newState => {
-                                            const newFormState = [...formState];
-                                            newFormState[index] = newState;
-                                            setFormState(newFormState);
+                                            setFilterState(setFilterStateById(filterState, filterSchema.id, newState));
                                         },
                                         filterSchema.aiGenerated,
                                         filterSchema.expression
@@ -345,8 +361,8 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                     <Panel key={group.name} header={group.label} className="w-full mb-4">
                         <div className="flex flex-wrap gap-4 items-start">
                             {
-                                filters.map(([index, filterSchema]) => (
-                                    <div key={index} className="flex flex-col min-w-[220px] mb-2">
+                                filters.map((filterSchema) => (
+                                    <div key={filterSchema.id} className="flex flex-col min-w-[220px] mb-2">
                                         <div className="flex items-center mb-1 max-h-[20px]">
                                             <label className="text-sm font-bold">{filterSchema.label}</label>
                                             <Button
@@ -356,17 +372,15 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                                                 rounded
                                                 text
                                                 title="Reset filter"
-                                                onClick={() => resetFilter(index)}
-                                                visible={!isFilterEmpty(formState[index])}
+                                                onClick={() => resetFilter(filterSchema.id)}
+                                                visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id))}
                                             />
                                         </div>
                                         {
                                             renderFilterFormState(
-                                                formState[index],
+                                                getFilterStateById(filterState, filterSchema.id),
                                                 newState => {
-                                                    const newFormState = [...formState];
-                                                    newFormState[index] = newState;
-                                                    setFormState(newFormState);
+                                                    setFilterState(setFilterStateById(filterState, filterSchema.id, newState));
                                                 },
                                                 filterSchema.aiGenerated,
                                                 filterSchema.expression
@@ -387,11 +401,11 @@ function FilterForm({ filterSchema, formState, setFormState, onSaveFilter, onUpd
                     outlined
                     label="Save Filter"
                     icon='pi pi-bookmark'
-                    onClick={() => onSaveFilter(formState)}
+                    onClick={() => onSaveFilter(filterState)}
                     model={savedFilters.map(filter => ({
                         label: `Update “${filter.name}”`,
                         icon: 'pi pi-file-import',
-                        command: () => onUpdateFilter(filter, formState)
+                        command: () => onUpdateFilter(filter, filterState)
                     }))}
                     className='p-button-secondary'
                 />

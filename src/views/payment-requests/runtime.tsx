@@ -61,16 +61,19 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         initiatedBy: ({ data, setFilterState, applyFilters }) => {
             const handleEmailClick = () => {
                 setFilterState(currentState =>
-                    currentState.map(filter => {
+                    new Map(Array.from(currentState.entries()).map(([key, filter]) => {
                         // Find the customer email filter and update its value
                         if (filter.type === 'leaf' && filter.field === 'customer.email') {
-                            return {
-                                ...filter,
-                                value: { operator: '_eq', value: data['customer.email'] }
-                            };
+                            return [
+                                key,
+                                {
+                                    ...filter,
+                                    value: { operator: '_eq', value: data['customer.email'] }
+                                }
+                            ];
                         }
-                        return filter;
-                    })
+                        return [key, filter];
+                    }))
                 );
                 applyFilters();
             };

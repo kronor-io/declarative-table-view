@@ -2,17 +2,18 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
-import { FilterFormState, buildInitialFormState } from './FilterForm';
+import { buildInitialFormState } from './FilterForm';
 import { useState, RefObject } from 'react';
 import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';
 import { generateFilterWithAI, GeminiApi } from './aiAssistant';
+import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
     filterSchema: FilterFieldSchema;
-    filterState: FilterFormState[];
+    filterState: FilterState;
     setFilterSchema: (schema: FilterFieldSchema) => void;
-    setFilterState: (state: FilterFormState[]) => void;
+    setFilterState: (state: FilterState) => void;
     selectedView: View;
     geminiApiKey: string;
     toast: RefObject<Toast | null>;
@@ -217,11 +218,10 @@ export default function AIAssistantForm({
                                 ]
                             };
                             setFilterSchema(newSchema);
-                            const formState = [
-                                ...filterState,
-                                buildInitialFormState(filterExpr)
-                            ];
-                            setFilterState(formState);
+
+                            // Add the AI-generated filter to the existing FilterState Map
+                            filterState.set(aiFilterId, buildInitialFormState(filterExpr));
+                            setFilterState(new Map(filterState)); // Trigger React re-render
 
                             toast.current?.show({
                                 severity: 'success',

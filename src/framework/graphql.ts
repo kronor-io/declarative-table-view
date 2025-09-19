@@ -1,6 +1,7 @@
 import { FilterFormState } from '../components/FilterForm';
 import { FilterField } from './filters';
 import { ColumnDefinition, FieldQuery, OrderByConfig, QueryConfig } from './column-definition';
+import { FilterState } from './state';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
@@ -31,7 +32,7 @@ export type HasuraCondition =
 
 // New version: build Hasura conditions from FilterFormState and FilterFieldSchema
 export function buildHasuraConditions(
-    formStates: FilterFormState[]
+    filterState: FilterState
 ): HasuraCondition {
     // Support dot-separated keys by building nested objects and handle and/or field expressions
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
@@ -103,7 +104,7 @@ export function buildHasuraConditions(
         }
         return null;
     }
-    const conditions = formStates
+    const conditions = Array.from(filterState.values())
         .map(stateToCondition)
         .filter((c): c is HasuraCondition => !!c);
     if (conditions.length === 0) return {};

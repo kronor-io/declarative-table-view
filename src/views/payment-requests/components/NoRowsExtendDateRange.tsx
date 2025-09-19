@@ -6,22 +6,24 @@ const NoRowsExtendDateRange = ({ setFilterState, applyFilters }: Pick<NoRowsComp
     const handleExtend = () => {
         // Extend the 'from' date 1 month further back immutably
         setFilterState(currentState =>
-            currentState.map(filter => {
-                if (filter.type === 'and' && Array.isArray(filter.children)) {
-                    return {
-                        ...filter,
-                        children: filter.children.map(child => {
-                            if (child.type === 'leaf' && child.field === 'createdAt' && child.filterType === 'greaterThanOrEqual') {
-                                const current = new Date(child.value);
-                                current.setMonth(current.getMonth() - 1);
-                                return { ...child, value: current };
-                            }
-                            return child;
-                        })
-                    };
-                }
-                return filter;
-            })
+            new Map(
+                Array.from(currentState.entries()).map(([key, filter]) => {
+                    if (filter.type === 'and' && Array.isArray(filter.children)) {
+                        return [key, {
+                            ...filter,
+                            children: filter.children.map(child => {
+                                if (child.type === 'leaf' && child.field === 'createdAt' && child.filterType === 'greaterThanOrEqual') {
+                                    const current = new Date(child.value);
+                                    current.setMonth(current.getMonth() - 1);
+                                    return { ...child, value: current };
+                                }
+                                return child;
+                            })
+                        }];
+                    }
+                    return [key, filter];
+                })
+            )
         );
         applyFilters();
     };

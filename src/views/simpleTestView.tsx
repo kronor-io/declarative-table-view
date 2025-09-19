@@ -31,16 +31,18 @@ export const simpleTestViewColumnDefinitions: ColumnDefinition[] = [
         cellRenderer: ({ data, setFilterState }) => {
             const handleEmailClick = () => {
                 setFilterState(currentState =>
-                    currentState.map(filter => {
-                        // Find the email filter and update its value
-                        if (filter.type === 'leaf' && filter.field === 'email') {
-                            return {
-                                ...filter,
-                                value: data.email
-                            };
-                        }
-                        return filter;
-                    })
+                    new Map(
+                        Array.from(currentState.entries()).map(([key, filter]) => {
+                            // Find the email filter and update its value
+                            if (filter.type === 'leaf' && filter.field === 'email') {
+                                return [key, {
+                                    ...filter,
+                                    value: data.email
+                                }];
+                            }
+                            return [key, filter];
+                        })
+                    )
                 );
             };
 

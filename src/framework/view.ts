@@ -1,11 +1,11 @@
 import React from "react";
 import { ColumnDefinition } from "./column-definition";
 import { FilterFieldSchema } from "./filters";
-import { FilterFormState } from "../components/FilterForm";
+import { FilterState } from "./state";
 
 export type NoRowsComponentProps = {
-    setFilterState: (updater: (currentState: FilterFormState[]) => FilterFormState[]) => void;
-    filterState: FilterFormState[];
+    setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
+    filterState: FilterState;
     applyFilters: () => void;
 };
 

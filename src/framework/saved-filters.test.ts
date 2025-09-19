@@ -3,7 +3,7 @@
  */
 import { createSavedFilterManager, SavedFilter, CURRENT_FORMAT_REVISION } from './saved-filters';
 import { FilterFieldSchema } from './filters';
-import { FilterFormState } from '../components/FilterForm';
+import { FilterState } from './state';
 
 // Mock crypto.randomUUID for consistent testing
 const mockUUID = jest.fn();
@@ -297,35 +297,40 @@ describe('SavedFilterManager', () => {
                 id: 'test',
                 name: 'Test',
                 view: 'test',
-                state: [
-                    {
+                state: {
+                    'date-filter': {
                         type: 'leaf',
                         field: 'dateField',
                         value: '2023-01-01T00:00:00.000Z',
                         control: { type: 'date' },
                         filterType: 'equals'
                     },
-                    {
+                    'text-filter': {
                         type: 'leaf',
                         field: 'textField',
                         value: 'text value',
                         control: { type: 'text' },
                         filterType: 'equals'
                     }
-                ],
+                },
                 createdAt: new Date(),
                 formatRevision: CURRENT_FORMAT_REVISION
             };
 
             const parsed = manager.parseFilterState(savedFilter, testSchema);
 
-            expect(parsed).toHaveLength(2);
-            expect(parsed[0].type).toBe('leaf');
-            if (parsed[0].type === 'leaf') {
-                expect(parsed[0].value).toBeInstanceOf(Date);
+            expect(parsed.size).toBe(2);
+            const dateFilter = parsed.get('date-filter');
+            const textFilter = parsed.get('text-filter');
+
+            expect(dateFilter).toBeDefined();
+            expect(textFilter).toBeDefined();
+
+            if (dateFilter?.type === 'leaf') {
+                expect(dateFilter.value).toBeInstanceOf(Date);
             }
-            if (parsed[1].type === 'leaf') {
-                expect(parsed[1].value).toBe('text value');
+            if (textFilter?.type === 'leaf') {
+                expect(textFilter.value).toBe('text value');
             }
         });
 
@@ -334,8 +339,8 @@ describe('SavedFilterManager', () => {
                 id: 'test',
                 name: 'Test',
                 view: 'test',
-                state: [
-                    {
+                state: {
+                    'and-filter': {
                         type: 'and',
                         children: [
                             {
@@ -348,48 +353,52 @@ describe('SavedFilterManager', () => {
                         ],
                         filterType: 'and'
                     }
-                ],
+                },
                 createdAt: new Date(),
                 formatRevision: CURRENT_FORMAT_REVISION
             };
 
             const parsed = manager.parseFilterState(savedFilter, testSchema);
 
-            expect(parsed).toHaveLength(1);
-            expect(parsed[0].type).toBe('and');
-            expect((parsed[0] as any).children).toHaveLength(1);
+            expect(parsed.size).toBe(1);
+            const andFilter = parsed.get('and-filter');
+            expect(andFilter).toBeDefined();
+            expect(andFilter?.type).toBe('and');
+            expect((andFilter as any).children).toHaveLength(1);
         });
     });
 
     describe('serializeFilterState', () => {
         it('should serialize filter state with date conversion', () => {
-            const state: FilterFormState[] = [
-                {
+            const state: FilterState = new Map([
+                ['date-filter', {
                     type: 'leaf',
                     field: 'dateField',
                     value: new Date('2023-01-01T00:00:00.000Z'),
                     control: { type: 'date' },
                     filterType: 'equals'
-                },
-                {
+                }],
+                ['text-filter', {
                     type: 'leaf',
                     field: 'textField',
                     value: 'text value',
                     control: { type: 'text' },
                     filterType: 'equals'
-                }
-            ];
+                }]
+            ]);
 
             const serialized = manager.serializeFilterState(state);
 
-            expect(serialized).toHaveLength(2);
-            expect(serialized[0].value).toBe('2023-01-01T00:00:00.000Z');
-            expect(serialized[1].value).toBe('text value');
+            // serializeFilterFormStateMap returns an object, not an array
+            expect(typeof serialized).toBe('object');
+            expect(Array.isArray(serialized)).toBe(false);
+            expect(serialized['date-filter'].value).toBe('2023-01-01T00:00:00.000Z');
+            expect(serialized['text-filter'].value).toBe('text value');
         });
 
         it('should handle nested structures', () => {
-            const state: FilterFormState[] = [
-                {
+            const state: FilterState = new Map([
+                ['and-filter', {
                     type: 'and',
                     children: [
                         {
@@ -401,15 +410,17 @@ describe('SavedFilterManager', () => {
                         }
                     ],
                     filterType: 'and'
-                }
-            ];
+                }]
+            ]);
 
             const serialized = manager.serializeFilterState(state);
 
-            expect(serialized).toHaveLength(1);
-            expect(serialized[0].type).toBe('and');
-            expect(serialized[0].children).toHaveLength(1);
-            expect(serialized[0].children[0].value).toBe('value1');
+            // serializeFilterFormStateMap returns an object, not an array
+            expect(typeof serialized).toBe('object');
+            expect(Array.isArray(serialized)).toBe(false);
+            expect(serialized['and-filter'].type).toBe('and');
+            expect(serialized['and-filter'].children).toHaveLength(1);
+            expect(serialized['and-filter'].children[0].value).toBe('value1');
         });
     });
 });

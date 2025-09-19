@@ -2,13 +2,14 @@ import { Button } from 'primereact/button';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { Tag } from 'primereact/tag';
 import { SavedFilter } from '../framework/saved-filters';
+import { FilterState } from '../framework/state';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
     onFilterDelete: (filterId: string) => void;
-    onFilterLoad: (filterState: any[]) => void;
+    onFilterLoad: (filterState: FilterState) => void;
     onFilterApply: () => void;
-    onFilterShare: (filterState: any[]) => void;
+    onFilterShare: (filterState: FilterState) => void;
     visible: boolean;
 }
 
@@ -76,8 +77,8 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                                 ? `${filter.value.substring(0, 128)}...`
                                 : 'value' in filter.value
                                     ? String(filter.value.value)
-                                    : String(filter.value)
-                            }`}
+                                    : String(filter.value)}`
+                            }
                             className="text-xs"
                             style={{
                                 backgroundColor: 'transparent',

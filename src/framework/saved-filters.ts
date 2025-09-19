@@ -1,5 +1,6 @@
-import { FilterFormState, serializeFilterFormStateArray, parseFilterFormState } from './filter-form-state';
+import { serializeFilterFormStateMap, parseFilterFormState } from './filter-form-state';
 import { FilterFieldSchema } from './filters';
+import { FilterState } from './state';
 
 /**
  * Current format revision for saved filters
@@ -20,8 +21,8 @@ export interface SavedFilterManager {
     saveFilter: (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => SavedFilter;
     updateFilter: (filter: SavedFilter, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) => SavedFilter | null;
     deleteFilter: (id: string) => boolean;
-    parseFilterState: (savedFilter: SavedFilter, schema: FilterFieldSchema) => FilterFormState[];
-    serializeFilterState: (state: FilterFormState[]) => any;
+    parseFilterState: (savedFilter: SavedFilter, schema: FilterFieldSchema) => FilterState;
+    serializeFilterState: (state: FilterState) => any;
 }
 
 /**
@@ -159,12 +160,12 @@ export function createSavedFilterManager(): SavedFilterManager {
         }
     }
 
-    function parseFilterState(savedFilter: SavedFilter, schema: FilterFieldSchema): FilterFormState[] {
+    function parseFilterState(savedFilter: SavedFilter, schema: FilterFieldSchema): FilterState {
         return parseFilterFormState(savedFilter.state, schema);
     }
 
-    function serializeFilterState(state: FilterFormState[]): any {
-        return serializeFilterFormStateArray(state);
+    function serializeFilterState(state: FilterState): any {
+        return serializeFilterFormStateMap(state);
     }
 
     return {

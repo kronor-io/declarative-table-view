@@ -3,6 +3,7 @@
  */
 import { createSavedFilterManager } from './saved-filters';
 import { FilterFieldSchema } from './filters';
+import { FilterState } from './state';
 
 // Integration test to ensure the saved filters work end-to-end
 describe('Saved Filters Integration', () => {
@@ -57,15 +58,15 @@ describe('Saved Filters Integration', () => {
         };
 
         // Create filter state
-        const filterState = [
-            {
+        const filterState: FilterState = new Map([
+            ['email-filter', {
                 type: 'leaf' as const,
                 field: 'email',
                 value: 'test@example.com',
                 control: { type: 'text' as const },
                 filterType: 'equals' as const
-            }
-        ];
+            }]
+        ]);
 
         // Save the filter
         const serializedState = manager.serializeFilterState(filterState);
@@ -86,12 +87,14 @@ describe('Saved Filters Integration', () => {
 
         // Parse the filter state back
         const parsedState = manager.parseFilterState(loadedFilters[0], testSchema);
-        expect(parsedState).toHaveLength(1);
-        expect(parsedState[0].type).toBe('leaf');
+        expect(parsedState.size).toBe(1);
+        const emailFilter = parsedState.get('email-filter');
+        expect(emailFilter).toBeDefined();
+        expect(emailFilter?.type).toBe('leaf');
 
-        if (parsedState[0].type === 'leaf') {
-            expect(parsedState[0].field).toBe('email');
-            expect(parsedState[0].value).toBe('test@example.com');
+        if (emailFilter?.type === 'leaf') {
+            expect(emailFilter.field).toBe('email');
+            expect(emailFilter.value).toBe('test@example.com');
         }
     });
 
@@ -116,15 +119,15 @@ describe('Saved Filters Integration', () => {
         };
 
         const testDate = new Date('2023-01-01T00:00:00.000Z');
-        const filterState = [
-            {
+        const filterState: FilterState = new Map([
+            ['date-filter', {
                 type: 'leaf' as const,
                 field: 'createdAt',
                 value: testDate,
                 control: { type: 'date' as const },
                 filterType: 'equals' as const
-            }
-        ];
+            }]
+        ]);
 
         // Serialize and save
         const serializedState = manager.serializeFilterState(filterState);
@@ -138,10 +141,13 @@ describe('Saved Filters Integration', () => {
         const loadedFilters = manager.loadSavedFilters('test-view');
         const parsedState = manager.parseFilterState(loadedFilters[0], testSchema);
 
-        expect(parsedState[0].type).toBe('leaf');
-        if (parsedState[0].type === 'leaf') {
-            expect(parsedState[0].value).toBeInstanceOf(Date);
-            expect(parsedState[0].value.getTime()).toBe(testDate.getTime());
+        expect(parsedState.size).toBe(1);
+        const dateFilter = parsedState.get('date-filter');
+        expect(dateFilter).toBeDefined();
+        expect(dateFilter?.type).toBe('leaf');
+        if (dateFilter?.type === 'leaf') {
+            expect(dateFilter.value).toBeInstanceOf(Date);
+            expect(dateFilter.value.getTime()).toBe(testDate.getTime());
         }
     });
 });

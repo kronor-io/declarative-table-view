@@ -1,4 +1,5 @@
 import { FilterFieldSchema, FilterField, FilterControl, FilterExpr } from './filters';
+import { FilterState } from './state';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
@@ -38,10 +39,13 @@ export function serializeFilterFormState(node: FilterFormState): any {
 }
 
 /**
- * Serialize an array of FilterFormState to JSON for storage
+ * Serialize a FilterState Map to JSON object for storage
  */
-export function serializeFilterFormStateArray(state: FilterFormState[]): any {
-    return state.map(node => serializeFilterFormState(node));
+export function serializeFilterFormStateMap(state: FilterState): any {
+    return Object.fromEntries(
+        Array.from(state.entries())
+            .map(([id, node]) => [id, serializeFilterFormState(node)])
+    );
 }
 
 /**
@@ -104,15 +108,14 @@ function deserializeFilterFormStateNode(node: any, dateFields: Set<string>): Fil
 }
 
 /**
- * Parse serialized filter state back to FilterFormState array
- * This is the core function that doesn't require a SavedFilter object
+ * Parse serialized filter state back to FilterFormState map
  */
-export function parseFilterFormState(serializedState: any[], schema: FilterFieldSchema): FilterFormState[] {
+export function parseFilterFormState(serializedState: any, schema: FilterFieldSchema): FilterState {
     try {
         const dateFields = collectDateFieldsFromSchema(schema);
-        return serializedState.map((node: any) => deserializeFilterFormStateNode(node, dateFields));
+        return new Map(Object.entries(serializedState).map(([id, node]) => [id, deserializeFilterFormStateNode(node, dateFields)]));
     } catch {
         console.error('Failed to parse filter state');
-        return [];
+        return new Map();
     }
 }

@@ -3,19 +3,19 @@ import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
-import { FilterFormState } from './FilterForm';
 import { NoRowsComponent } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from '../framework/cell-renderer-components/LayoutHelpers';
 import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
+import { FilterState } from '../framework/state';
 
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
     data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
-    setFilterState: (filterState: FilterFormState[]) => void; // Function to update filter state
-    filterState: FilterFormState[]; // Current filter state
+    setFilterState: (filterState: FilterState) => void; // Function to update filter state
+    filterState: FilterState; // Current filter state
     triggerRefetch: () => void; // Function to trigger data refetch
     ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
 };
@@ -31,7 +31,7 @@ function Table({
     ref
 }: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
-    const wrappedSetFilterState = (updater: (currentState: FilterFormState[]) => FilterFormState[]) => {
+    const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
         const newState = updater(filterState);
         setFilterState(newState);
     };

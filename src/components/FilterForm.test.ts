@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { buildInitialFormState, buildEmptyFormState } from './FilterForm';
+import { buildInitialFormState } from './FilterForm';
 import { FilterExpr } from '../framework/filters';
 
 describe('FilterForm state builders', () => {
@@ -28,23 +28,6 @@ describe('FilterForm state builders', () => {
                 },
                 filterType: 'equals'
             });
-        });
-
-        it('buildEmptyFormState convenience function works the same as useEmpty=true', () => {
-            const expr: FilterExpr = {
-                type: 'equals',
-                field: 'test',
-                value: {
-                    type: 'text',
-                    initialValue: 'default-value'
-                }
-            };
-
-            const emptyStateFromFlag = buildInitialFormState(expr, true);
-            const emptyStateFromHelper = buildEmptyFormState(expr);
-
-            expect(emptyStateFromFlag).toEqual(emptyStateFromHelper);
-            expect((emptyStateFromHelper as any).value).toBe('');
         });
 
         it('both functions handle expressions without initialValue the same way', () => {
