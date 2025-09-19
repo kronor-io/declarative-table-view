@@ -6,6 +6,7 @@ import { FilterFormState, buildInitialFormState } from './FilterForm';
 import { useState, RefObject } from 'react';
 import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';
+import { generateFilterWithAI, GeminiApi } from './aiAssistant';
 
 interface AIAssistantFormProps {
     filterSchema: FilterFieldSchema;
@@ -43,7 +44,6 @@ export default function AIAssistantForm({
                     onClick={async () => {
                         setAiLoading(true);
                         try {
-                            const { generateFilterWithAI, GeminiApi } = await import('./aiAssistant');
                             await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey, toast);
 
                             toast.current?.show({
