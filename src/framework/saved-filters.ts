@@ -3,15 +3,16 @@ import { FilterFieldSchema } from './filters';
 import { FilterState } from './state';
 
 /**
- * Current format revision for saved filters
+ * Format revisions for saved filters
  */
-export const CURRENT_FORMAT_REVISION = '2025-09-04T00:00:00.000Z';
+export const OLD_ARRAY_FORMAT_REVISION = '2025-09-04T00:00:00.000Z';
+export const CURRENT_FORMAT_REVISION = '2025-09-19T00:00:00.000Z';
 
 export interface SavedFilter {
     id: string;
     name: string;
     view: string;
-    state: any; // Serialized FilterFormState[]
+    state: any; // Serialized FilterState (object format for current revision, array format for old revision)
     createdAt: Date;
     formatRevision: string; // ISO date string indicating the format version
 }
@@ -23,6 +24,28 @@ export interface SavedFilterManager {
     deleteFilter: (id: string) => boolean;
     parseFilterState: (savedFilter: SavedFilter, schema: FilterFieldSchema) => FilterState;
     serializeFilterState: (state: FilterState) => any;
+}
+
+/**
+ * Migrate saved filter from old array-based format to new Map-based format
+ */
+function migrateArrayFormatToMapFormat(oldState: any[], schema: FilterFieldSchema): any {
+    if (!Array.isArray(oldState)) {
+        return oldState; // Already migrated or invalid
+    }
+
+    const schemaFilters = schema.filters || [];
+    const migratedState: { [filterId: string]: any } = {};
+
+    // Map each filter in the old array to a filterId based on schema order
+    oldState.forEach((filterFormState, index) => {
+        if (index < schemaFilters.length) {
+            const schemaFilter = schemaFilters[index];
+            migratedState[schemaFilter.id] = filterFormState;
+        }
+    });
+
+    return migratedState;
 }
 
 /**
@@ -53,7 +76,7 @@ export function createSavedFilterManager(): SavedFilterManager {
                 view: item.view,
                 state: item.state || [],
                 createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-                formatRevision: item.formatRevision || CURRENT_FORMAT_REVISION
+                formatRevision: item.formatRevision || OLD_ARRAY_FORMAT_REVISION // Default to old format if missing
             }));
         } catch (error) {
             console.error('Failed to load saved filters from localStorage:', error);
@@ -79,10 +102,40 @@ export function createSavedFilterManager(): SavedFilterManager {
                 view: item.view,
                 state: item.state || [],
                 createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-                formatRevision: item.formatRevision
+                formatRevision: item.formatRevision || OLD_ARRAY_FORMAT_REVISION // Default to old format if missing
             }));
 
-            return filters.filter((filter: SavedFilter) => filter.view === viewName);
+            const viewFilters = filters.filter((filter: SavedFilter) => filter.view === viewName);
+
+            // Check if any filters need migration and update localStorage if so
+            const needsMigration = viewFilters.some(filter =>
+                filter.formatRevision === OLD_ARRAY_FORMAT_REVISION && Array.isArray(filter.state)
+            );
+
+            if (needsMigration) {
+                // Update the format revision for migrated filters in localStorage
+                const updatedFilters = parsed.map((item: any) => {
+                    if (item.view === viewName &&
+                        (item.formatRevision === OLD_ARRAY_FORMAT_REVISION || !item.formatRevision) &&
+                        Array.isArray(item.state)) {
+                        return {
+                            ...item,
+                            formatRevision: CURRENT_FORMAT_REVISION
+                        };
+                    }
+                    return item;
+                });
+
+                localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(updatedFilters));
+
+                // Update the returned filters with new revision
+                return viewFilters.map(filter => ({
+                    ...filter,
+                    formatRevision: CURRENT_FORMAT_REVISION
+                }));
+            }
+
+            return viewFilters;
         } catch (error) {
             console.error('Failed to load saved filters from localStorage:', error);
             return [];
@@ -161,7 +214,14 @@ export function createSavedFilterManager(): SavedFilterManager {
     }
 
     function parseFilterState(savedFilter: SavedFilter, schema: FilterFieldSchema): FilterState {
-        return parseFilterFormState(savedFilter.state, schema);
+        let stateToParse = savedFilter.state;
+
+        // Check if migration is needed from old array format
+        if (savedFilter.formatRevision === OLD_ARRAY_FORMAT_REVISION && Array.isArray(savedFilter.state)) {
+            stateToParse = migrateArrayFormatToMapFormat(savedFilter.state, schema);
+        }
+
+        return parseFilterFormState(stateToParse, schema);
     }
 
     function serializeFilterState(state: FilterState): any {
