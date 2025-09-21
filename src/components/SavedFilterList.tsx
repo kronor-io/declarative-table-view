@@ -57,12 +57,12 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return filter.value !== ''
     }
 
-    const renderFilterState = (state: any[]) => {
-        if (!state || state.length === 0) {
+    const renderFilterState = (state: FilterState) => {
+        if (!state || state.size === 0) {
             return null;
         }
 
-        const activeFilters = state.filter(isActiveFilter);
+        const activeFilters = Array.from(state.values()).filter(isActiveFilter);
         if (activeFilters.length === 0) {
             return null;
         }
@@ -70,23 +70,33 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return (
             <div className="mt-2 flex flex-wrap gap-1">
                 {
-                    activeFilters.map((filter, index) => (
-                        <Tag
-                            key={index}
-                            value={`${filter.field}: ${typeof filter.value === 'string' && filter.value.length > 128
+                    activeFilters.map((filter, index) => {
+                        // Handle different types of FilterFormState
+                        let displayText = '';
+                        if (filter.type === 'leaf') {
+                            const valueStr = typeof filter.value === 'string' && filter.value.length > 128
                                 ? `${filter.value.substring(0, 128)}...`
-                                : 'value' in filter.value
-                                    ? String(filter.value.value)
-                                    : String(filter.value)}`
-                            }
-                            className="text-xs"
-                            style={{
-                                backgroundColor: 'transparent',
-                                color: '#6366f1',
-                                borderWidth: 1
-                            }}
-                        />
-                    ))
+                                : String(filter.value);
+                            displayText = `${filter.field}: ${valueStr}`;
+                        } else if (filter.type === 'and' || filter.type === 'or') {
+                            displayText = `${filter.type.toUpperCase()} (${filter.children.length} filters)`;
+                        } else if (filter.type === 'not') {
+                            displayText = `NOT (1 filter)`;
+                        }
+
+                        return (
+                            <Tag
+                                key={index}
+                                value={displayText}
+                                className="text-xs"
+                                style={{
+                                    backgroundColor: 'transparent',
+                                    color: '#6366f1',
+                                    borderWidth: 1
+                                }}
+                            />
+                        );
+                    })
                 }
             </div>
         );

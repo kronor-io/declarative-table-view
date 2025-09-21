@@ -86,11 +86,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
 
     // Load saved filters from localStorage on mount
     useEffect(() => {
-        const filters = savedFilterManager.loadSavedFilters(selectedView.id);
-        setSavedFilters(filters.map(filter => ({
-            ...filter,
-            state: parseFilterFormState(filter.state, selectedView.filterSchema)
-        })));
+        const filters = savedFilterManager.loadFilters(selectedView.id, selectedView.filterSchema);
+        setSavedFilters(filters);
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load filter from URL parameter on mount and view change
@@ -133,14 +130,11 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         const savedFilter = savedFilterManager.saveFilter({
             view: selectedView.id,
             name,
-            state: savedFilterManager.serializeFilterState(state)
+            state: state
         });
 
         // Update local state
-        setSavedFilters(prev => [...prev, {
-            ...savedFilter,
-            state: state // Keep the parsed state for immediate use
-        }]);
+        setSavedFilters(prev => [...prev, savedFilter]);
 
         // Show success toast
         toast.current?.show({
@@ -161,15 +155,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             acceptClassName: 'p-button-danger',
             accept: () => {
                 const updatedFilter = savedFilterManager.updateFilter(filter, {
-                    state: savedFilterManager.serializeFilterState(state)
+                    state: state
                 });
 
                 if (updatedFilter) {
                     // Update local state
                     setSavedFilters(prev => prev.map(f =>
-                        f.id === filter.id
-                            ? { ...updatedFilter, state: state } // Keep the parsed state for immediate use
-                            : f
+                        f.id === filter.id ? updatedFilter : f
                     ));
 
                     // Show success toast
