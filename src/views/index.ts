@@ -10,7 +10,3 @@ export { default as paymentRequestsViewJson } from "./payment-requests/view.json
 
 // Payment requests exports (contains PaymentMethod and NoRowsExtendDateRange)
 export { paymentRequestsRuntime } from "./payment-requests";
-
-// Legacy exports for backward compatibility
-export { default as SimpleTestView } from "./simpleTestView";
-export { default as RequestLogView } from "./requestLog";

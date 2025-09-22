@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { simpleTestViewColumnDefinitions } from '../src/views/simpleTestView'; // Adjusted import path
 import { mockPaginationGraphQL } from './graphqlMock';
 
 test.describe('Simple View Rendering', () => {
@@ -41,8 +40,8 @@ test.describe('Simple View Rendering', () => {
         const table = page.getByRole('table');
         await expect(table).toBeVisible();
 
-        // Get the expected header text from the imported column definitions
-        const expectedHeaderText = simpleTestViewColumnDefinitions[0].name;
+        // Get the expected header text from the simple test view JSON (first column name)
+        const expectedHeaderText = "Test Column Header";
 
         // Locate the column header by its text content
         const columnHeader = table.getByText(expectedHeaderText, { exact: true });
