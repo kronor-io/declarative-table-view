@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { buildInitialFormState } from './FilterForm';
+import { buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { FilterExpr } from '../framework/filters';
 
 describe('FilterForm state builders', () => {
@@ -40,14 +40,14 @@ describe('FilterForm state builders', () => {
             };
 
             const initialState = buildInitialFormState(expr);
-            const emptyState = buildInitialFormState(expr, true);
+            const emptyState = buildInitialFormState(expr, FormStateInitMode.Empty);
 
             // Both should have empty string value when no initialValue is provided
             expect((initialState as any).value).toBe('');
             expect((emptyState as any).value).toBe('');
         });
 
-        it('buildInitialFormState with useEmpty=true handles complex nested expressions', () => {
+        it('buildInitialFormState with mode=Empty handles complex nested expressions', () => {
             const expr: FilterExpr = {
                 type: 'and',
                 filters: [
@@ -73,7 +73,7 @@ describe('FilterForm state builders', () => {
                 ]
             };
 
-            const emptyState = buildInitialFormState(expr, true);
+            const emptyState = buildInitialFormState(expr, FormStateInitMode.Empty);
             expect(emptyState.type).toBe('and');
             expect((emptyState as any).children).toHaveLength(2);
 

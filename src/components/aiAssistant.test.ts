@@ -1,6 +1,7 @@
 // src/components/aiAssistant.test.ts
 import { FilterFieldSchema } from '../framework/filters';
-import { FilterFormState, buildInitialFormState } from './FilterForm';
+import { FilterFormState } from './FilterForm';
+import { buildInitialFormState } from '../framework/state';
 
 // Access private function for testing by re-implementing similar logic
 function testMergeStateByKey(emptyState: FilterFormState, aiState: any): FilterFormState {

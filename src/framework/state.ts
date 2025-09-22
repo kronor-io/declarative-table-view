@@ -1,10 +1,40 @@
 import { useState } from "react";
-import { buildInitialFormState, FilterFormState } from "../components/FilterForm";
-import { FilterFieldSchema, FilterId } from "./filters";
+import { FilterFormState } from "../components/FilterForm";
+import { FilterFieldSchema, FilterId, FilterExpr } from "./filters";
 import { View } from "./view";
 import { FetchDataResult } from "./data";
 
 export type FilterState = Map<FilterId, FilterFormState>;
+
+export enum FormStateInitMode {
+    WithInitialValues = 'withInitialValues',
+    Empty = 'empty'
+}
+
+// Helper to build form state from FilterExpr
+export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterFormState {
+    if (expr.type === 'and' || expr.type === 'or') {
+        return {
+            type: expr.type,
+            children: expr.filters.map(child => buildInitialFormState(child, mode)),
+            filterType: expr.type
+        };
+    } else if (expr.type === 'not') {
+        return {
+            type: 'not',
+            child: buildInitialFormState(expr.filter, mode),
+            filterType: 'not'
+        };
+    } else {
+        return {
+            type: 'leaf',
+            field: expr.field,
+            value: mode === FormStateInitMode.Empty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : ''),
+            control: expr.value,
+            filterType: expr.type,
+        };
+    }
+}
 
 export function getFilterStateById(state: FilterState, id: FilterId): FilterFormState {
     const filter = state.get(id);
@@ -62,8 +92,8 @@ export function getInitialViewIndex(views: View[]): number {
 }
 
 
-export function createDefaultFilterState(filterSchema: FilterFieldSchema, useEmpty: boolean = false): FilterState {
-    return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, useEmpty)]));
+export function createDefaultFilterState(filterSchema: FilterFieldSchema, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
+    return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
 }
 
 export function createDefaultAppState(views: View[]): AppState {

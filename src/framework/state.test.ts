@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { createDefaultAppState, setSelectedViewIndex, setDataRows, setFilterSchema, setFilterState, FilterState } from './state';
-import { buildInitialFormState } from '../components/FilterForm';
+import { buildInitialFormState } from './state';
 import { View } from './view';
 
 // Mock view definitions

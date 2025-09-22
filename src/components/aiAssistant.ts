@@ -1,6 +1,7 @@
 // src/components/aiAssistant.ts
 import { FilterExpr, FilterFieldSchema } from '../framework/filters';
-import { FilterFormState, buildInitialFormState } from './FilterForm';
+import { FilterFormState } from './FilterForm';
+import { buildInitialFormState } from '../framework/state';
 import { parseFilterFormState } from '../framework/filter-form-state';
 import { RefObject } from 'react';
 import { Toast } from 'primereact/toast';

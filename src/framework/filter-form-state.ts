@@ -14,37 +14,51 @@ export type FilterFormState =
     | { type: 'not'; child: FilterFormState; filterType: 'not' };
 
 /**
- * Helper to serialize FilterFormState to JSON for storage
+ * Generic helper to apply a transformation function to all leaf values in a FilterFormState tree
  */
-export function serializeFilterFormState(node: FilterFormState): any {
+export function mapFilterFormState<T>(
+    node: FilterFormState,
+    transformValue: (value: any, field: FilterField) => T
+): FilterFormState {
     if (node.type === 'leaf') {
-        let value = node.value;
-        if (value instanceof Date) {
-            value = value.toISOString();
-        }
-        return { ...node, value };
+        return {
+            ...node,
+            value: transformValue(node.value, node.field)
+        };
     } else if (node.type === 'not') {
         return {
             type: 'not',
-            child: serializeFilterFormState(node.child),
+            child: mapFilterFormState(node.child, transformValue),
             filterType: node.filterType
         };
     } else {
         return {
             type: node.type,
-            children: node.children.map(serializeFilterFormState),
+            children: node.children.map(child => mapFilterFormState(child, transformValue)),
             filterType: node.filterType
         };
     }
 }
 
 /**
+ * Helper to serialize a FilterFormState node, converting Date objects to ISO strings
+ */
+export function makeFilterFormStateSerializable(node: FilterFormState): FilterFormState {
+    return mapFilterFormState(node, (value) => {
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        return value;
+    });
+}
+
+/**
  * Serialize a FilterState Map to JSON object for storage
  */
-export function serializeFilterFormStateMap(state: FilterState): any {
+export function serializeFilterFormStateMap(state: FilterState): Record<string, any> {
     return Object.fromEntries(
         Array.from(state.entries())
-            .map(([id, node]) => [id, serializeFilterFormState(node)])
+            .map(([id, node]) => [id, makeFilterFormStateSerializable(node)])
     );
 }
 

@@ -11,35 +11,10 @@ import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
 import { ReactNode, useMemo } from 'react';
 import { Panel } from 'primereact/panel';
-import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
+import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 
 // Re-export FilterFormState from the dedicated module
 export type { FilterFormState } from '../framework/filter-form-state';
-
-// Helper to build form state from FilterExpr
-export function buildInitialFormState(expr: FilterExpr, useEmpty = false): FilterFormState {
-    if (expr.type === 'and' || expr.type === 'or') {
-        return {
-            type: expr.type,
-            children: expr.filters.map(child => buildInitialFormState(child, useEmpty)),
-            filterType: expr.type
-        };
-    } else if (expr.type === 'not') {
-        return {
-            type: 'not',
-            child: buildInitialFormState(expr.filter, useEmpty),
-            filterType: 'not'
-        };
-    } else {
-        return {
-            type: 'leaf',
-            field: expr.field,
-            value: useEmpty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : ''),
-            control: expr.value,
-            filterType: expr.type,
-        };
-    }
-}
 
 interface FilterFormProps {
     filterSchema: FilterFieldSchema;
@@ -297,14 +272,14 @@ function FilterForm({
 
         return new Map<string, FilterFormState>(
             Array.from(filterState.entries())
-                .map(([id, state]) => [id, id === filterId ? buildInitialFormState(_filterSchema.expression, true) : state])
+                .map(([id, state]) => [id, id === filterId ? buildInitialFormState(_filterSchema.expression, FormStateInitMode.Empty) : state])
         );
     }
 
     // Helper to reset all filters
     function resetAllFilters() {
         setFilterState(
-            createDefaultFilterState(filterSchema, true)
+            createDefaultFilterState(filterSchema, FormStateInitMode.Empty)
         );
     }
 

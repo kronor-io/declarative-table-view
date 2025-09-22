@@ -9,6 +9,7 @@ type PaymentMethodEnum =
     | "CREDIT_CARD"
     | "P24"
     | "DIRECT_DEBIT"
+    | "POINTSPAY"
     | "BANK_TRANSFER"
     | string;
 

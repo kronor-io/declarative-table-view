@@ -2,7 +2,7 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
-import { buildInitialFormState } from './FilterForm';
+import { buildInitialFormState } from '../framework/state';
 import { useState, RefObject } from 'react';
 import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';

@@ -2,7 +2,7 @@ import { Tag } from 'primereact/tag';
 import React from 'react';
 import { FlexRow } from '../../../framework/cell-renderer-components/LayoutHelpers';
 
-export const paymentStatusEnumToText = (status: string): string => {
+const paymentStatusEnumToText = (status: string): string => {
     switch (status) {
         case 'CANCELLED': return 'Cancelled';
         case 'PAID': return 'Paid';
@@ -22,9 +22,9 @@ export const paymentStatusEnumToText = (status: string): string => {
     }
 };
 
-export type PaymentStatusSeverity = 'success' | 'warning' | 'danger' | 'secondary' | 'info' | 'contrast' | undefined | null;
+type PaymentStatusSeverity = 'success' | 'warning' | 'danger' | 'secondary' | 'info' | 'contrast' | undefined | null;
 
-export const badgeForPaymentStatus = (status: string): PaymentStatusSeverity | 'primary' => {
+const badgeForPaymentStatus = (status: string): PaymentStatusSeverity | 'primary' => {
     switch (status) {
         case 'PAID':
         case 'FLOW_COMPLETED':
