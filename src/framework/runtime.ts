@@ -7,7 +7,6 @@ import { TransformResult } from "./filters";
 export type Runtime = {
     cellRenderers: Record<string, CellRenderer | React.ComponentType<any>>;
     queryTransforms: Record<string, {
-        fromQuery: (input: any) => any;
         toQuery: (input: any) => TransformResult;
     }>;
     noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;

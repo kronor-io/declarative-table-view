@@ -39,7 +39,7 @@ describe('AppState', () => {
         const state = createDefaultAppState(mockViews);
         expect(state.selectedViewIndex).toBe(0);
         expect(state.views).toBe(mockViews);
-        expect(state.filterSchema).toEqual(mockViews[0].filterSchema);
+        expect(state.filterSchemasAndGroups).toEqual(mockViews[0].filterSchema);
         expect(state.filterState).toEqual(
             new Map(mockViews[0].filterSchema.filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
@@ -50,7 +50,7 @@ describe('AppState', () => {
         let state = createDefaultAppState(mockViews);
         state = setSelectedViewIndex(state, 1);
         expect(state.selectedViewIndex).toBe(1);
-        expect(state.filterSchema).toEqual(mockViews[1].filterSchema);
+        expect(state.filterSchemasAndGroups).toEqual(mockViews[1].filterSchema);
         expect(state.filterState).toEqual(
             new Map(mockViews[1].filterSchema.filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
@@ -74,7 +74,7 @@ describe('AppState', () => {
             ]
         };
         state = setFilterSchema(state, newSchema as any);
-        expect(state.filterSchema).toBe(newSchema);
+        expect(state.filterSchemasAndGroups).toBe(newSchema);
     });
 
     it('setFilterState updates filterState', () => {

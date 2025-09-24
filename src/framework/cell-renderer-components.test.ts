@@ -22,6 +22,7 @@ describe('Cell Renderer Components', () => {
             data: { value: 'Hello' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -53,6 +54,7 @@ describe('Cell Renderer Components', () => {
             data: {},
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -84,6 +86,7 @@ describe('Cell Renderer Components', () => {
             data: { status: 'Pending' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -118,6 +121,7 @@ describe('Cell Renderer Components', () => {
             data: { value: 'Layout Test' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -151,6 +155,7 @@ describe('Cell Renderer Components', () => {
             data: { value: 'Wrap Test' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -186,6 +191,7 @@ describe('Cell Renderer Components', () => {
                 data: { value: `Wrap Test ${wrapValue}` },
                 setFilterState: jest.fn(),
                 applyFilters: jest.fn(),
+                updateFilterById: jest.fn(),
                 createElement: React.createElement,
                 components: {
                     Badge: Tag,
@@ -216,6 +222,7 @@ describe('Cell Renderer Components', () => {
             data: { status: 'pending' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -245,6 +252,7 @@ describe('Cell Renderer Components', () => {
             data: { createdAt: '2023-01-01T12:00:00Z' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -278,6 +286,7 @@ describe('Cell Renderer Components', () => {
             data: { amount: 12345, currency: 'EUR' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,
@@ -311,6 +320,7 @@ describe('Cell Renderer Components', () => {
             data: { linkText: 'Visit Example', url: 'https://example.com' },
             setFilterState: jest.fn(),
             applyFilters: jest.fn(),
+            updateFilterById: jest.fn(),
             createElement: React.createElement,
             components: {
                 Badge: Tag,

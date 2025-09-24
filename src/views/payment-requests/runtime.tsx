@@ -18,15 +18,12 @@ export type PaymentRequestsRuntime = Runtime & {
     };
     queryTransforms: {
         reference: {
-            fromQuery: (input: any) => any;
             toQuery: (input: any) => any;
         };
         amount: {
-            fromQuery: (input: any) => any;
             toQuery: (input: any) => any;
         };
         creditCardNumber: {
-            fromQuery: (input: any) => any;
             toQuery: (input: any) => any;
         };
     };
@@ -58,23 +55,15 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />,
 
         // Initiated By cell renderer
-        initiatedBy: ({ data, setFilterState, applyFilters }) => {
+        initiatedBy: ({ data, updateFilterById, applyFilters }) => {
             const handleEmailClick = () => {
-                setFilterState(currentState =>
-                    new Map(Array.from(currentState.entries()).map(([key, filter]) => {
-                        // Find the customer email filter and update its value
-                        if (filter.type === 'leaf' && filter.field === 'customer.email') {
-                            return [
-                                key,
-                                {
-                                    ...filter,
-                                    value: { operator: '_eq', value: data['customer.email'] }
-                                }
-                            ];
-                        }
-                        return [key, filter];
-                    }))
-                );
+                // 'customer-email' is the filter id defined in view.json
+                updateFilterById('customer-email', (currentFilter: any) => {
+                    return {
+                        ...currentFilter,
+                        value: { operator: '_eq', value: data['customer.email'] }
+                    };
+                });
                 applyFilters();
             };
 
@@ -108,15 +97,9 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     queryTransforms: {
         // Transform for Reference filter (starts with functionality)
         reference: {
-            fromQuery: (input: any) => {
-                if (input.operator === '_like') {
-                    return { ...input, value: input.value.replace(/%$/, '') };
-                }
-                return input;
-            },
             toQuery: (input: any) => {
-                if (input.operator === '_like') {
-                    return { value: { ...input, value: `${input.value}%` } };
+                if (input.operator === '_like' && input.value) {
+                    return { value: { value: `${input.value}%` } };
                 }
                 return { value: input };
             }
@@ -124,14 +107,22 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
 
         // Transform for Amount filter (convert between display and storage format)
         amount: {
-            fromQuery: (input: any) => input / 100,
-            toQuery: (input: any) => ({ value: input * 100 })
+            toQuery: (input: any) => {
+                if (input) {
+                    return { value: input * 100 };
+                }
+                return { value: input };
+            }
         },
 
         // Transform for Credit Card Number filter (add wildcards)
         creditCardNumber: {
-            toQuery: (input: any) => ({ value: `%${input}%` }),
-            fromQuery: (input: any) => input.replace(/%/g, '') // Remove % for display
+            toQuery: (input: any) => {
+                if (input) {
+                    return { value: `%${input}%` };
+                }
+                return { value: input };
+            }
         }
     },
 

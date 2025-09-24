@@ -57,37 +57,65 @@ export async function mockPaginationGraphQL(route: Route) {
     // Apply additional filters (e.g. by amount, email)
     function applyFilters(rows: typeof allRows, conditions: any): typeof allRows {
         if (!conditions) return rows;
-        // Only handle simple _gte/_lte/_eq for 'amount', 'id', and 'email' for now
-        return rows.filter(row => {
-            let pass = true;
-            if (conditions.amount) {
-                if (conditions.amount._gte !== undefined) pass = pass && row.amount >= conditions.amount._gte;
-                if (conditions.amount._lte !== undefined) pass = pass && row.amount <= conditions.amount._lte;
-                if (conditions.amount._eq !== undefined) pass = pass && row.amount === conditions.amount._eq;
-            }
-            if (conditions.id) {
-                if (conditions.id._gte !== undefined) pass = pass && row.id >= conditions.id._gte;
-                if (conditions.id._lte !== undefined) pass = pass && row.id <= conditions.id._lte;
-                if (conditions.id._eq !== undefined) pass = pass && row.id === conditions.id._eq;
-            }
-            if (conditions.email) {
-                if (conditions.email._eq !== undefined) pass = pass && row.email === conditions.email._eq;
-            }
-            if (conditions.phone) {
-                if (conditions.phone._eq !== undefined) pass = pass && row.phone === conditions.phone._eq;
-            }
-            if (conditions.testField) {
-                if (conditions.testField._eq !== undefined) pass = pass && row.testField === conditions.testField._eq;
-            }
-            if (conditions.transformedField) {
-                if (conditions.transformedField._eq !== undefined) {
-                    // transformedField should look for "prefix_30" and match against testField "Test 30"
-                    const expectedValue = conditions.transformedField._eq.replace('prefix_', 'Test ');
+
+        return rows.filter(row => evaluateCondition(row, conditions));
+    }
+
+    // Recursively evaluate a condition against a row
+    function evaluateCondition(row: any, condition: any): boolean {
+        // Handle logical operators
+        if (condition._and) {
+            return condition._and.every((subCondition: any) => evaluateCondition(row, subCondition));
+        }
+        if (condition._or) {
+            return condition._or.some((subCondition: any) => evaluateCondition(row, subCondition));
+        }
+        if (condition._not) {
+            return !evaluateCondition(row, condition._not);
+        }
+
+        // Handle field conditions
+        let pass = true;
+
+        // Check each field in the condition
+        for (const [fieldName, fieldCondition] of Object.entries(condition)) {
+            if (fieldName.startsWith('_')) continue; // Skip logical operators
+
+            const fieldValue = row[fieldName];
+            const ops = fieldCondition as any;
+
+            if (ops._eq !== undefined) {
+                if (fieldName === 'transformedField') {
+                    // Special handling for transformedField - convert back to testField
+                    const expectedValue = ops._eq.replace('prefix_', 'Test ');
                     pass = pass && row.testField === expectedValue;
+                } else {
+                    pass = pass && fieldValue === ops._eq;
                 }
             }
-            return pass;
-        });
+            if (ops._neq !== undefined) pass = pass && fieldValue !== ops._neq;
+            if (ops._gt !== undefined) pass = pass && fieldValue > ops._gt;
+            if (ops._lt !== undefined) pass = pass && fieldValue < ops._lt;
+            if (ops._gte !== undefined) pass = pass && fieldValue >= ops._gte;
+            if (ops._lte !== undefined) pass = pass && fieldValue <= ops._lte;
+            if (ops._in !== undefined) pass = pass && Array.isArray(ops._in) && ops._in.includes(fieldValue);
+            if (ops._nin !== undefined) pass = pass && (!Array.isArray(ops._nin) || !ops._nin.includes(fieldValue));
+            if (ops._like !== undefined) {
+                // Convert SQL LIKE pattern to regex
+                const pattern = ops._like.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
+                const regex = new RegExp(`^${pattern}$`);
+                pass = pass && regex.test(String(fieldValue));
+            }
+            if (ops._ilike !== undefined) {
+                // Convert SQL ILIKE pattern to case-insensitive regex
+                const pattern = ops._ilike.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
+                const regex = new RegExp(`^${pattern}$`, 'i');
+                pass = pass && regex.test(String(fieldValue));
+            }
+            if (ops._is_null !== undefined) pass = pass && ((fieldValue == null) === ops._is_null);
+        }
+
+        return pass;
     }
     // Pagination: use _gt for asc, _lt for desc, recursively
     let cursorValue: number | undefined = undefined;
@@ -98,7 +126,7 @@ export async function mockPaginationGraphQL(route: Route) {
         // Then pagination cursor
         cursorValue = findPaginationCursor(postData.variables.conditions, orderKey, orderDir);
         if (cursorValue !== undefined) {
-            const idx = filteredRows.findIndex(r => Number(r[orderKey]) === cursorValue);
+            const idx = filteredRows.findIndex(r => Number((r as any)[orderKey]) === cursorValue);
             startIdx = idx >= 0 ? idx + 1 : 0;
         }
     }

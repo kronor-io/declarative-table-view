@@ -7,7 +7,8 @@ import { NoRowsComponent } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from '../framework/cell-renderer-components/LayoutHelpers';
 import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
-import { FilterState } from '../framework/state';
+import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
+import { FilterFormState } from '../framework/filter-form-state';
 
 type TableProps = {
     viewId: string;
@@ -41,7 +42,19 @@ function Table({
         ? noRowsComponent({
             filterState,
             setFilterState: wrappedSetFilterState,
-            applyFilters: triggerRefetch
+            applyFilters: triggerRefetch,
+            updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
+                wrappedSetFilterState(currentState => {
+                    try {
+                        const currentFilter = getFilterStateById(currentState, filterId);
+                        const updatedFilter = updater(currentFilter);
+                        if (updatedFilter === currentFilter) return currentState;
+                        return setFilterStateById(currentState, filterId, updatedFilter);
+                    } catch {
+                        return currentState; // filter missing -> no change
+                    }
+                });
+            }
         })
         : null;
 
@@ -71,6 +84,18 @@ function Table({
                         data: rowData[columnIndex],
                         setFilterState: wrappedSetFilterState,
                         applyFilters: triggerRefetch,
+                        updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
+                            wrappedSetFilterState(currentState => {
+                                try {
+                                    const currentFilter = getFilterStateById(currentState, filterId);
+                                    const updatedFilter = updater(currentFilter);
+                                    if (updatedFilter === currentFilter) return currentState;
+                                    return setFilterStateById(currentState, filterId, updatedFilter);
+                                } catch {
+                                    return currentState;
+                                }
+                            });
+                        },
                         createElement: React.createElement,
                         components: {
                             Badge: Tag,

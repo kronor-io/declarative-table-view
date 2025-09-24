@@ -1,12 +1,14 @@
 import React from "react";
 import { ColumnDefinition } from "./column-definition";
-import { FilterFieldSchema } from "./filters";
+import { FilterSchemasAndGroups } from "./filters";
 import { FilterState } from "./state";
+import { FilterFormState } from "./filter-form-state";
 
 export type NoRowsComponentProps = {
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
     filterState: FilterState;
     applyFilters: () => void;
+    updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => void;
 };
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
@@ -16,7 +18,7 @@ export type View = {
     id: string;
     collectionName: string;
     columnDefinitions: ColumnDefinition[];
-    filterSchema: FilterFieldSchema;
+    filterSchema: FilterSchemasAndGroups;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination

@@ -2,11 +2,11 @@ import {
     serializeFilterFormStateMap,
     parseFilterFormState
 } from './filter-form-state';
-import { FilterFieldSchema } from './filters';
+import { FilterSchemasAndGroups } from './filters';
 import { FilterState } from './state';
 
 describe('filter-form-state', () => {
-    const mockFilterSchema: FilterFieldSchema = {
+    const mockFilterSchema: FilterSchemasAndGroups = {
         groups: [
             { name: 'Basic', label: 'Basic' }
         ],

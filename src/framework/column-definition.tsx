@@ -4,11 +4,13 @@ import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from 'primereact/tag';
 import { FilterState } from "./state";
+import { FilterId } from "./filters";
 
 export type CellRendererProps = {
     data: Record<string, any>;
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
     applyFilters: () => void; // Function to trigger data fetch with current filter state
+    updateFilterById: (filterId: FilterId, updater: (currentValue: any) => any) => void; // Narrow helper to update a specific filter by id
     createElement: typeof createElement; // React createElement function
     components: {
         Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience

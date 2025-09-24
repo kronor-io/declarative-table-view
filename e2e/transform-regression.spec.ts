@@ -23,7 +23,7 @@ test.describe('Transform Regression Tests', () => {
 
         // Enter 255 in the input field
         // With transform: toQuery adds 5, so 255 becomes 260 in the query
-        // But fromQuery should subtract 5, so display should remain 255
+        // Display should remain 255 (the user's input)
         await amountInput.fill('255');
 
         // Apply the filter
@@ -33,11 +33,11 @@ test.describe('Transform Regression Tests', () => {
         await page.waitForTimeout(100);
 
         // Check that the input still shows the original value (255) after applying the transform
-        // This is the regression test - currently it shows the transformed value (260)
+        // This is the regression test - it should show the original user input
         await expect(amountInput).toHaveValue('255');
     });
 
-    test('should correctly apply both toQuery and fromQuery transforms', async ({ page }) => {
+    test('should correctly apply toQuery transforms', async ({ page }) => {
         // Intercept the GraphQL request and mock the response
         await page.route('**/v1/graphql', mockPaginationGraphQL);
 

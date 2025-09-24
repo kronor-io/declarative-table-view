@@ -12,22 +12,11 @@ export type SimpleTestData = {
 };
 
 // Email cell renderer that allows filtering by email
-const emailCellRenderer: CellRenderer = ({ data, setFilterState, applyFilters }) => {
+const emailCellRenderer: CellRenderer = ({ data, updateFilterById, applyFilters }) => {
     const handleEmailClick = () => {
-        setFilterState(currentState =>
-            new Map(
-                Array.from(currentState.entries()).map(([key, filter]) => {
-                    // Find the email filter and update its value
-                    if (filter.type === 'leaf' && filter.field === 'email') {
-                        return [key, {
-                            ...filter,
-                            value: data.email
-                        }];
-                    }
-                    return [key, filter];
-                })
-            )
-        );
+        updateFilterById('email-eq', (currentFilter: any) => {
+            return { ...currentFilter, value: data.email };
+        });
         applyFilters();
     };
 
@@ -76,11 +65,9 @@ export const simpleTestViewRuntime: Runtime = {
     },
     queryTransforms: {
         amountOffset: {
-            fromQuery: (input: number) => input - 5,
             toQuery: (input: number) => ({ value: input + 5 })
         },
         keyValueTransform: {
-            fromQuery: (input: any) => input?.toString() || "",
             toQuery: (input: any) => {
                 // Handle empty or null input
                 if (!input || input === '') {

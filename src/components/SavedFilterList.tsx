@@ -3,6 +3,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Tag } from 'primereact/tag';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterState } from '../framework/state';
+import { FilterSchemasAndGroups } from '../framework/filters';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
@@ -11,9 +12,10 @@ interface SavedFilterListProps {
     onFilterApply: () => void;
     onFilterShare: (filterState: FilterState) => void;
     visible: boolean;
+    filterSchema: FilterSchemasAndGroups;
 }
 
-export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, onFilterShare, visible }: SavedFilterListProps) {
+export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, onFilterShare, visible, filterSchema }: SavedFilterListProps) {
     if (!visible) {
         return null;
     }
@@ -57,12 +59,30 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return filter.value !== ''
     }
 
+    const schemaById = new Map(filterSchema.filters.map(f => [f.id, f]));
+
+    function getFieldDisplay(filterId: string): string {
+        const schemaEntry = schemaById.get(filterId);
+        if (!schemaEntry) return '';
+        const expr: any = schemaEntry.expression;
+        if (expr && 'field' in expr) {
+            const fieldVal = expr.field;
+            if (typeof fieldVal === 'string') return fieldVal;
+            if (fieldVal && typeof fieldVal === 'object') {
+                if ('and' in fieldVal && Array.isArray(fieldVal.and)) return fieldVal.and.join(' & ');
+                if ('or' in fieldVal && Array.isArray(fieldVal.or)) return fieldVal.or.join(' | ');
+            }
+        }
+        return '';
+    }
+
     const renderFilterState = (state: FilterState) => {
         if (!state || state.size === 0) {
             return null;
         }
 
-        const activeFilters = Array.from(state.values()).filter(isActiveFilter);
+        const activeFilters = Array.from(state.entries())
+            .filter(([, filter]) => isActiveFilter(filter));
         if (activeFilters.length === 0) {
             return null;
         }
@@ -70,14 +90,15 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return (
             <div className="mt-2 flex flex-wrap gap-1">
                 {
-                    activeFilters.map((filter, index) => {
+                    activeFilters.map(([filterId, filter], index) => {
                         // Handle different types of FilterFormState
                         let displayText = '';
                         if (filter.type === 'leaf') {
                             const valueStr = typeof filter.value === 'string' && filter.value.length > 128
                                 ? `${filter.value.substring(0, 128)}...`
                                 : String(filter.value);
-                            displayText = `${filter.field}: ${valueStr}`;
+                            const fieldName = getFieldDisplay(filterId);
+                            displayText = fieldName ? `${fieldName}: ${valueStr}` : valueStr;
                         } else if (filter.type === 'and' || filter.type === 'or') {
                             displayText = `${filter.type.toUpperCase()} (${filter.children.length} filters)`;
                         } else if (filter.type === 'not') {

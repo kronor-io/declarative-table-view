@@ -20,13 +20,7 @@ describe('FilterForm state builders', () => {
             const initialState = buildInitialFormState(expr);
             expect(initialState).toEqual({
                 type: 'leaf',
-                field: 'test',
-                value: 'default-value',
-                control: {
-                    type: 'text',
-                    initialValue: 'default-value'
-                },
-                filterType: 'equals'
+                value: 'default-value'
             });
         });
 

@@ -1,5 +1,5 @@
-import type { FilterExpr, FilterFieldGroup, FilterFieldSchemaFilter } from '../framework/filters';
-import { FilterControl, FilterFieldSchema } from '../framework/filters';
+import type { FilterExpr, FilterFieldGroup, FilterSchema, FilterId } from '../framework/filters';
+import { FilterControl, FilterSchemasAndGroups } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterFormState } from '../framework/filter-form-state';
 import { InputText } from 'primereact/inputtext';
@@ -17,14 +17,14 @@ import { createDefaultFilterState, FilterState, getFilterStateById, setFilterSta
 export type { FilterFormState } from '../framework/filter-form-state';
 
 interface FilterFormProps {
-    filterSchema: FilterFieldSchema;
+    filterSchemasAndGroups: FilterSchemasAndGroups;
     filterState: FilterState
     setFilterState: (state: FilterState) => void;
     onSaveFilter: (state: FilterState) => void;
     onUpdateFilter: (filter: SavedFilter, state: FilterState) => void;
     onShareFilter: () => void;
     savedFilters: SavedFilter[];
-    visibleFilterIds: string[]; // indices of filters to display
+    visibleFilterIds: FilterId[]; // indices of filters to display
     onSubmit: () => void;
 }
 
@@ -194,42 +194,18 @@ function renderFilterFormState(
             throw new Error(`Schema consistency error: FilterFormState is leaf type but FilterExpr is "${filterExpression.type}"`);
         }
 
-        // For leaf nodes, use the transform directly from the expression
-        const transform = 'transform' in filterExpression ? filterExpression.transform : undefined;
-
-        // Apply transform.toQuery if present when setting value
         const handleSetValue = (value: unknown) => {
-            const newState = { ...state };
-
-            if (value !== null && transform && typeof transform.toQuery === 'function') {
-                const transformResult = transform.toQuery(value);
-
-                // Transform must return an object with optional field/value fields
-                if (transformResult.field !== undefined) {
-                    newState.field = transformResult.field;
-                }
-                if (transformResult.value !== undefined) {
-                    newState.value = transformResult.value;
-                } else {
-                    newState.value = value;
-                }
-            } else {
-                newState.value = value;
-            }
-
+            const newState = { ...state, value };
             setState(newState);
         };
 
-        // Apply transform.fromQuery if present when displaying value
-        let displayValue = state.value;
-        if (displayValue !== null && displayValue !== undefined && transform && typeof transform.fromQuery === 'function') {
-            // fromQuery always returns plain values (unlike toQuery which returns objects)
-            displayValue = transform.fromQuery(state.value);
-        }
+        // Use the raw state value for display - transforms are applied during query building
+        const displayValue = state.value;
+
         return (
             <div className="flex flex-col min-w-[220px] mb-2">
-                <label className="text-sm font-medium mb-1">{state.control.label}</label>
-                {renderInput(state.control, displayValue, handleSetValue)}
+                <label className="text-sm font-medium mb-1">{filterExpression.value.label}</label>
+                {renderInput(filterExpression.value, displayValue, handleSetValue)}
             </div>
         );
     }
@@ -248,7 +224,7 @@ function isFilterEmpty(state: FilterFormState): boolean {
 }
 
 function FilterForm({
-    filterSchema,
+    filterSchemasAndGroups,
     filterState,
     setFilterState,
     onSaveFilter,
@@ -259,39 +235,36 @@ function FilterForm({
     onSubmit
 }: FilterFormProps) {
 
-    const filterSchemaById: Map<string, FilterFieldSchemaFilter> = useMemo(() => new Map(
-        filterSchema.filters.map(filter => [filter.id, filter])
-    ), [filterSchema]);
+    const filterSchemaById: Map<FilterId, FilterSchema> = useMemo(() => new Map(
+        filterSchemasAndGroups.filters.map(filter => [filter.id, filter])
+    ), [filterSchemasAndGroups]);
 
     const visibleSet = useMemo(() => new Set(visibleFilterIds), [visibleFilterIds]);
 
     // Helper to reset a filter by its ID
-    function resetFilter(filterId: string) {
-        const _filterSchema = filterSchemaById.get(filterId);
-        if (!_filterSchema) return;
-
-        return new Map<string, FilterFormState>(
-            Array.from(filterState.entries())
-                .map(([id, state]) => [id, id === filterId ? buildInitialFormState(_filterSchema.expression, FormStateInitMode.Empty) : state])
-        );
+    function resetFilter(filterId: FilterId) {
+        const filterSchema = filterSchemaById.get(filterId);
+        if (!filterSchema) return;
+        const initial = buildInitialFormState(filterSchema.expression, FormStateInitMode.Empty);
+        setFilterState(setFilterStateById(filterState, filterId, initial));
     }
 
     // Helper to reset all filters
     function resetAllFilters() {
         setFilterState(
-            createDefaultFilterState(filterSchema, FormStateInitMode.Empty)
+            createDefaultFilterState(filterSchemasAndGroups, FormStateInitMode.Empty)
         );
     }
 
     // Group filters by group name
-    const defaultGroup: FilterFieldGroup | undefined = filterSchema.groups.find(group => group.name === 'default');
-    const defaultFilters: FilterFieldSchemaFilter[] = filterSchema.filters.filter(filter => filter.group === 'default' && visibleSet.has(filter.id));
-    const otherGroups: FilterFieldGroup[] = filterSchema.groups.filter(group => group.name !== 'default');
-    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: FilterFieldSchemaFilter[] }> =
+    const defaultGroup: FilterFieldGroup | undefined = filterSchemasAndGroups.groups.find(group => group.name === 'default');
+    const defaultFilters: FilterSchema[] = filterSchemasAndGroups.filters.filter(filter => filter.group === 'default' && visibleSet.has(filter.id));
+    const otherGroups: FilterFieldGroup[] = filterSchemasAndGroups.groups.filter(group => group.name !== 'default');
+    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: FilterSchema[] }> =
         otherGroups
             .map(group => ({
                 group,
-                filters: filterSchema.filters.filter(filter => filter.group === group.name && visibleSet.has(filter.id))
+                filters: filterSchemasAndGroups.filters.filter(filter => filter.group === group.name && visibleSet.has(filter.id))
             }))
             .filter(grouping => grouping.filters.length > 0);
     return (

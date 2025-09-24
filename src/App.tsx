@@ -15,7 +15,7 @@ import AIAssistantForm from './components/AIAssistantForm';
 import SavedFilterList from './components/SavedFilterList';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
-import { FilterFieldSchemaFilter, getFieldNodes, FilterField, FilterId } from './framework/filters';
+import { FilterSchema, getFieldNodes, FilterField, FilterId } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
 import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
@@ -287,8 +287,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     // Filter filterSchema by search, get filter IDs
-    const visibleFilterIds: FilterId[] = state.filterSchema.filters
-        .flatMap((filter: FilterFieldSchemaFilter) => {
+    const visibleFilterIds: FilterId[] = state.filterSchemasAndGroups.filters
+        .flatMap((filter: FilterSchema) => {
             function stringMatchesSearchQuery(string: string) {
                 return string.toLowerCase().includes(search.toLowerCase());
             }
@@ -406,7 +406,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 showAIAssistantForm && (
                     <div className="mb-6">
                         <AIAssistantForm
-                            filterSchema={state.filterSchema}
+                            filterSchema={state.filterSchemasAndGroups}
                             filterState={state.filterState}
                             setFilterSchema={setFilterSchema}
                             setFilterState={setFilterState}
@@ -425,12 +425,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
                 onFilterShare={handleShareSavedFilter}
                 visible={showSavedFilterList}
+                filterSchema={state.filterSchemasAndGroups}
             />
 
             {
                 showFilterForm && (
                     <FilterForm
-                        filterSchema={state.filterSchema}
+                        filterSchemasAndGroups={state.filterSchemasAndGroups}
                         filterState={state.filterState}
                         setFilterState={setFilterState}
                         onSaveFilter={handleSaveFilter}

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { createSavedFilterManager, SavedFilter, CURRENT_FORMAT_REVISION } from './saved-filters';
-import { FilterFieldSchema } from './filters';
+import { FilterSchemasAndGroups } from './filters';
 
 // Mock crypto.randomUUID for consistent testing
 const mockUUID = jest.fn();
@@ -16,7 +16,7 @@ describe('SavedFilterManager', () => {
     let mockLocalStorage: { [key: string]: string };
 
     // Basic test schema for simple tests
-    const basicSchema: FilterFieldSchema = {
+    const basicSchema: FilterSchemasAndGroups = {
         groups: [{ name: 'default', label: null }],
         filters: [
             {

@@ -35,7 +35,7 @@ export const fetchData = async ({
     const currentRequestId = ++requestCounter;
 
     try {
-        let conditions = buildHasuraConditions(filterState);
+        let conditions = buildHasuraConditions(filterState, view.filterSchema);
         if (cursor !== null) {
             const pagKey = view.paginationKey;
             const pagCond = { [pagKey]: { _lt: cursor } };

@@ -2,7 +2,7 @@
 // Separated from view.ts to avoid React import issues in tests
 
 import type { FieldQuery, QueryConfig, Field, QueryConfigs, FieldAlias } from './column-definition';
-import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterFieldSchemaFilter, FilterFieldSchema } from './filters';
+import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
 
@@ -505,7 +505,7 @@ export function parseFilterFieldSchemaJson(
     json: unknown,
     builtInRuntime: Runtime,
     externalRuntime?: Runtime
-): FilterFieldSchema {
+): FilterSchemasAndGroups {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid FilterFieldSchema: Expected an object');
     }
@@ -543,7 +543,7 @@ export function parseFilterFieldSchemaJson(
         throw new Error('Invalid FilterFieldSchema: "filters" must be an array');
     }
 
-    const filters: FilterFieldSchemaFilter[] = schema.filters.map((filter, index) => {
+    const filters: FilterSchema[] = schema.filters.map((filter, index) => {
         if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
             throw new Error(`Invalid filter[${index}]: Expected an object`);
         }

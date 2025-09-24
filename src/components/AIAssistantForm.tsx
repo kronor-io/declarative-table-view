@@ -4,15 +4,15 @@ import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { buildInitialFormState } from '../framework/state';
 import { useState, RefObject } from 'react';
-import { filterExprFromJSON, FilterFieldSchema, getFieldNodes } from '../framework/filters';
+import { filterExprFromJSON, FilterSchemasAndGroups, getFieldNodes } from '../framework/filters';
 import { View } from '../framework/view';
 import { generateFilterWithAI, GeminiApi } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
-    filterSchema: FilterFieldSchema;
+    filterSchema: FilterSchemasAndGroups;
     filterState: FilterState;
-    setFilterSchema: (schema: FilterFieldSchema) => void;
+    setFilterSchema: (schema: FilterSchemasAndGroups) => void;
     setFilterState: (state: FilterState) => void;
     selectedView: View;
     geminiApiKey: string;

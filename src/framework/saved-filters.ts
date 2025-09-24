@@ -1,5 +1,5 @@
 import { serializeFilterFormStateMap, parseFilterFormState } from './filter-form-state';
-import { FilterFieldSchema } from './filters';
+import { FilterSchemasAndGroups } from './filters';
 import { FilterState } from './state';
 
 /**
@@ -36,7 +36,7 @@ export interface SavedFilter {
  * Interface for the saved filter manager
  */
 export interface SavedFilterManager {
-    loadFilters(viewName: string, schema: FilterFieldSchema): SavedFilter[];
+    loadFilters(viewName: string, schema: FilterSchemasAndGroups): SavedFilter[];
     saveFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): SavedFilter;
     updateFilter(filter: SavedFilter, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): SavedFilter | null;
     deleteFilter(id: string): boolean;
@@ -48,7 +48,7 @@ const LEGACY_SAVED_FILTERS_KEY = 'savedFilters';
 /**
  * Convert old array format to object format using schema order
  */
-function convertArrayToObject(state: unknown, schema: FilterFieldSchema): Record<string, unknown> {
+function convertArrayToObject(state: unknown, schema: FilterSchemasAndGroups): Record<string, unknown> {
     if (!Array.isArray(state)) {
         console.warn('Expected array for conversion but got:', typeof state);
         return {};
@@ -156,7 +156,7 @@ export function createSavedFilterManager(): SavedFilterManager {
     /**
      * Load and parse saved filters for a specific view
      */
-    function loadFilters(viewName: string, schema: FilterFieldSchema): SavedFilter[] {
+    function loadFilters(viewName: string, schema: FilterSchemasAndGroups): SavedFilter[] {
         const allRawFilters = loadRawSavedFilters();
         let hasMigrations = false;
 

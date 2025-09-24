@@ -20,7 +20,6 @@ describe('External Runtime Integration', () => {
             },
             queryTransforms: {
                 customTransform: {
-                    fromQuery: (input: any) => input,
                     toQuery: (input: any) => ({ value: input }),
                 },
             },
@@ -105,6 +104,7 @@ describe('External Runtime Integration', () => {
                 data: { id: 'test' },
                 setFilterState: () => { },
                 applyFilters: () => { },
+                updateFilterById: () => { },
                 createElement: React.createElement,
                 components: {
                     Badge: Tag,
@@ -169,6 +169,7 @@ describe('External Runtime Integration', () => {
                 data: { id: 'test' },
                 setFilterState: () => { },
                 applyFilters: () => { },
+                updateFilterById: () => { },
                 createElement: React.createElement,
                 components: {
                     Badge: Tag,

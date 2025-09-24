@@ -1,7 +1,8 @@
 import { FilterFormState } from '../components/FilterForm';
-import { FilterField } from './filters';
+import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
 import { ColumnDefinition, FieldQuery, OrderByConfig, QueryConfig } from './column-definition';
 import { FilterState } from './state';
+import { traverseFilterSchemaAndState } from './filter-form-state';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
@@ -30,9 +31,10 @@ export type HasuraCondition =
     | { _not: HasuraCondition }
     | { [field: string]: HasuraOperator | HasuraOperator[] };
 
-// New version: build Hasura conditions from FilterFormState and FilterFieldSchema
+// Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
-    filterState: FilterState
+    filterState: FilterState,
+    filterSchema: FilterSchemasAndGroups
 ): HasuraCondition {
     // Support dot-separated keys by building nested objects and handle and/or field expressions
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
@@ -55,58 +57,95 @@ export function buildHasuraConditions(
 
         // Fallback
         return {};
-    }    // Helper to build nested object from dot notation key for a single field
+    }
+
+    // Helper to build nested object from dot notation key for a single field
     function buildSingleNestedKey(key: string, cond: any): HasuraCondition {
         if (!key.includes('.')) return { [key]: cond };
         const parts = key.split('.');
         return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
     }
 
-    // Recursively convert FilterFormState to HasuraCondition
-    function stateToCondition(state: FilterFormState): HasuraCondition | null {
-        if (state.type === 'and' || state.type === 'or') {
-            const children = state.children
-                .map(stateToCondition)
-                .filter((c): c is HasuraCondition => !!c);
-            if (children.length === 0) return null;
-            if (state.type === 'and') return { _and: children } as HasuraCondition;
-            if (state.type === 'or') return { _or: children } as HasuraCondition;
-        } else if (state.type === 'not') {
-            const child = stateToCondition(state.child);
-            if (!child) return null;
-            return { _not: child } as HasuraCondition;
-        } else if (state.type === 'leaf') {
-            // Handle customOperator
-            if (state.control && state.control.type === 'customOperator') {
-                const opVal = state.value;
-                if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
-                return buildNestedKey(state.field, { [opVal.operator]: opVal.value });
+    // Recursive function that uses traversal helper to build conditions
+    function buildConditionsRecursive(
+        schemaNode: FilterExpr,
+        stateNode: FilterFormState
+    ): HasuraCondition | null {
+        return traverseFilterSchemaAndState(
+            schemaNode,
+            stateNode,
+            {
+                leaf: (schema, state): HasuraCondition | null => {
+                    // Apply transforms if they exist
+                    let transformedValue = state.value;
+                    let transformedField = schema.field;
+
+                    if (schema.transform?.toQuery !== undefined) {
+                        const transformResult = schema.transform.toQuery(state.value);
+                        if (transformResult.field !== undefined) transformedField = transformResult.field as FilterField;
+                        if (transformResult.value !== undefined) transformedValue = transformResult.value;
+                    }
+
+                    // Handle customOperator from schema control info
+                    if (schema.value && schema.value.type === 'customOperator') {
+                        const opVal = transformedValue;
+                        if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
+                        return buildNestedKey(transformedField, { [opVal.operator]: opVal.value });
+                    }
+
+                    if (transformedValue === undefined || transformedValue === '' || transformedValue === null || (Array.isArray(transformedValue) && transformedValue.length === 0)) return null;
+
+                    // Map filterType to Hasura operator using schema info
+                    const opMap: Record<string, string> = {
+                        equals: '_eq',
+                        notEquals: '_neq',
+                        greaterThan: '_gt',
+                        lessThan: '_lt',
+                        greaterThanOrEqual: '_gte',
+                        lessThanOrEqual: '_lte',
+                        in: '_in',
+                        notIn: '_nin',
+                        like: '_like',
+                        iLike: '_ilike',
+                        isNull: '_is_null',
+                    };
+                    const op = opMap[schema.type];
+                    if (!op) return null;
+
+                    // Support dot-separated keys by building nested objects
+                    return buildNestedKey(transformedField, { [op]: transformedValue });
+                },
+                and: (_schema, _state, childResults): HasuraCondition | null => {
+                    const validChildren = childResults.filter((c): c is HasuraCondition => c !== null);
+                    if (validChildren.length === 0) return null;
+                    return { _and: validChildren };
+                },
+                or: (_schema, _state, childResults): HasuraCondition | null => {
+                    const validChildren = childResults.filter((c): c is HasuraCondition => c !== null);
+                    if (validChildren.length === 0) return null;
+                    return { _or: validChildren };
+                },
+                not: (_schema, _state, childResult): HasuraCondition | null => {
+                    return childResult ? { _not: childResult } : null;
+                }
             }
-            if (state.value === undefined || state.value === '' || state.value === null || (Array.isArray(state.value) && state.value.length === 0)) return null;
-            // Map filterType to Hasura operator
-            const opMap: Record<string, string> = {
-                equals: '_eq',
-                notEquals: '_neq',
-                greaterThan: '_gt',
-                lessThan: '_lt',
-                greaterThanOrEqual: '_gte',
-                lessThanOrEqual: '_lte',
-                in: '_in',
-                notIn: '_nin',
-                like: '_like',
-                iLike: '_ilike',
-                isNull: '_is_null',
-            };
-            const op = opMap[state.filterType];
-            if (!op) return null;
-            // Support dot-separated keys by building nested objects
-            return buildNestedKey(state.field, { [op]: state.value });
-        }
-        return null;
+        );
     }
-    const conditions = Array.from(filterState.values())
-        .map(stateToCondition)
-        .filter((c): c is HasuraCondition => !!c);
+
+    // Process each filter in the state
+    const conditions: HasuraCondition[] = [];
+
+    for (const [filterId, formState] of filterState.entries()) {
+        // Find the corresponding schema
+        const filterDef = filterSchema.filters.find(f => f.id === filterId);
+        if (!filterDef) continue;
+
+        const condition = buildConditionsRecursive(filterDef.expression, formState);
+        if (condition) {
+            conditions.push(condition);
+        }
+    }
+
     if (conditions.length === 0) return {};
     if (conditions.length === 1) return conditions[0];
     return { _and: conditions };

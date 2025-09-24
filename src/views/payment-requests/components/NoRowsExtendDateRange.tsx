@@ -1,30 +1,29 @@
 import { FlexColumn } from "../../../framework/cell-renderer-components/LayoutHelpers";
 import { Button } from "primereact/button";
 import { NoRowsComponentProps } from "../../../framework/view";
+import { FilterFormState } from "../../../framework/filter-form-state";
 
-const NoRowsExtendDateRange = ({ setFilterState, applyFilters }: Pick<NoRowsComponentProps, 'setFilterState' | 'applyFilters'>) => {
+const NoRowsExtendDateRange = ({ updateFilterById, applyFilters }: Pick<NoRowsComponentProps, 'updateFilterById' | 'applyFilters'>) => {
     const handleExtend = () => {
-        // Extend the 'from' date 1 month further back immutably
-        setFilterState(currentState =>
-            new Map(
-                Array.from(currentState.entries()).map(([key, filter]) => {
-                    if (filter.type === 'and' && Array.isArray(filter.children)) {
-                        return [key, {
-                            ...filter,
-                            children: filter.children.map(child => {
-                                if (child.type === 'leaf' && child.field === 'createdAt' && child.filterType === 'greaterThanOrEqual') {
-                                    const current = new Date(child.value);
-                                    current.setMonth(current.getMonth() - 1);
-                                    return { ...child, value: current };
-                                }
-                                return child;
-                            })
-                        }];
-                    }
-                    return [key, filter];
-                })
-            )
-        );
+        // Update the first child (the lower end of the date range)
+        updateFilterById('date-range', (currentFilter: FilterFormState) => {
+            if (currentFilter.type === 'and' && currentFilter.children.length > 0) {
+                const firstChild = currentFilter.children[0];
+                if (firstChild.type === 'leaf') {
+                    const current = new Date(firstChild.value);
+                    current.setMonth(current.getMonth() - 1);
+
+                    return {
+                        ...currentFilter,
+                        children: [
+                            { ...firstChild, value: current },
+                            ...currentFilter.children.slice(1)
+                        ]
+                    };
+                }
+            }
+            return currentFilter; // No change if not the expected structure
+        });
         applyFilters();
     };
     return (

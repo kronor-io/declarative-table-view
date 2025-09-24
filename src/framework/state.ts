@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FilterFormState } from "../components/FilterForm";
-import { FilterFieldSchema, FilterId, FilterExpr } from "./filters";
+import { FilterSchemasAndGroups, FilterId, FilterExpr } from "./filters";
 import { View } from "./view";
 import { FetchDataResult } from "./data";
 
@@ -16,22 +16,17 @@ export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode 
     if (expr.type === 'and' || expr.type === 'or') {
         return {
             type: expr.type,
-            children: expr.filters.map(child => buildInitialFormState(child, mode)),
-            filterType: expr.type
+            children: expr.filters.map(child => buildInitialFormState(child, mode))
         };
     } else if (expr.type === 'not') {
         return {
             type: 'not',
-            child: buildInitialFormState(expr.filter, mode),
-            filterType: 'not'
+            child: buildInitialFormState(expr.filter, mode)
         };
     } else {
         return {
             type: 'leaf',
-            field: expr.field,
-            value: mode === FormStateInitMode.Empty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : ''),
-            control: expr.value,
-            filterType: expr.type,
+            value: mode === FormStateInitMode.Empty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '')
         };
     }
 }
@@ -57,7 +52,7 @@ export function setFilterStateById(state: FilterState, id: FilterId, newFilterSt
 export interface AppState {
     selectedViewIndex: number
     views: View[]
-    filterSchema: FilterFieldSchema
+    filterSchemasAndGroups: FilterSchemasAndGroups
     data: FetchDataResult
     filterState: FilterState
     pagination: PaginationState
@@ -92,18 +87,18 @@ export function getInitialViewIndex(views: View[]): number {
 }
 
 
-export function createDefaultFilterState(filterSchema: FilterFieldSchema, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
+export function createDefaultFilterState(filterSchema: FilterSchemasAndGroups, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
     return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
 }
 
 export function createDefaultAppState(views: View[]): AppState {
     const selectedViewIndex = getInitialViewIndex(views);
-    const filterSchema: FilterFieldSchema = views[selectedViewIndex].filterSchema;
+    const filterSchema: FilterSchemasAndGroups = views[selectedViewIndex].filterSchema;
     const initialFilterState = createDefaultFilterState(filterSchema);
     return {
         views,
         selectedViewIndex,
-        filterSchema,
+        filterSchemasAndGroups: filterSchema,
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
         pagination: defaultPagination
@@ -117,7 +112,7 @@ function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
     return {
         ...state,
         selectedViewIndex: newIndex,
-        filterSchema,
+        filterSchemasAndGroups: filterSchema,
         filterState: createDefaultFilterState(filterSchema),
         pagination: defaultPagination
     };
@@ -135,10 +130,10 @@ function setDataRows(state: AppState, newRows: FetchDataResult, pagination: Pagi
     };
 }
 
-function setFilterSchema(state: AppState, newSchema: FilterFieldSchema): AppState {
+function setFilterSchema(state: AppState, newSchema: FilterSchemasAndGroups): AppState {
     return {
         ...state,
-        filterSchema: newSchema
+        filterSchemasAndGroups: newSchema
     };
 }
 
@@ -157,7 +152,7 @@ export const useAppState = (views: View[]) => {
         selectedView: getSelectedView(appState),
         setSelectedViewIndex: (index: number) => setAppState(prev => setSelectedViewIndex(prev, index)),
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
-        setFilterSchema: (schema: FilterFieldSchema) => setAppState(prev => setFilterSchema(prev, schema)),
+        setFilterSchema: (schema: FilterSchemasAndGroups) => setAppState(prev => setFilterSchema(prev, schema)),
         setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState))
     };
 }
