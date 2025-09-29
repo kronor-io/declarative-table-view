@@ -67,7 +67,8 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             selectedView.collectionName,
             selectedView.columnDefinitions as ColumnDefinition[],
             selectedView.boolExpType,
-            selectedView.orderByType
+            selectedView.orderByType,
+            selectedView.paginationKey
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

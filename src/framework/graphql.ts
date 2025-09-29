@@ -296,13 +296,32 @@ export function generateGraphQLQueryAST(
 }
 
 // Generates a full GraphQL query string for a given root field and schema, supporting only limit (Int), conditions (Hasura condition), and orderBy (Hasura ordering)
+// Generates a full GraphQL query string for a given root field and schema.
+// If paginationKey is provided and not already part of the selection set derived from columns,
+// it will be appended to ensure cursor-based pagination works even when the user has not defined
+// a column for that field.
 export function generateGraphQLQuery(
     rootField: string,
     columns: ColumnDefinition[],
     boolExpType: string,
-    orderByType: string
+    orderByType: string,
+    paginationKey: string
 ): string {
     const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType);
+
+    // Check if the pagination key is already present in the top-level selection set
+    const hasPagKey = ast.selectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
+    if (!hasPagKey) {
+        // Support dotted paths (e.g., parent.child.id) by building nested selections
+        const buildNested = (path: string): GraphQLSelectionSetItem => {
+            const parts = path.split('.');
+            const head = parts[0];
+            if (parts.length === 1) return { field: head };
+            return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
+        };
+        ast.selectionSet.push(buildNested(paginationKey));
+    }
+
     return renderGraphQLQuery(ast);
 }
 
