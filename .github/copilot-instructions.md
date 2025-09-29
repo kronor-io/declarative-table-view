@@ -1,4 +1,4 @@
-# Copilot Instructions for view-dsl
+# Copilot Instructions for dtv
 
 ## Project Overview
 - This is a React + TypeScript monorepo using Vite for development/build, Playwright for E2E tests, and Jest for unit tests.
