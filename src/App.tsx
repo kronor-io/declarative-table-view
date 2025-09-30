@@ -403,7 +403,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             icon='pi pi-table'
                             outlined
                             size='small'
-                            label='Download CSV'
+                            label='Export page to CSV'
                             onClick={handleExportCSV}
                         />
                         {(!isOverlay || onCloseOverlay) && (
