@@ -513,7 +513,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 )
             }
             {showPopout && !isOverlay && createPortal(
-                <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto">
+                <div className="fixed inset-0 bg-white dark:bg-gray-900 overflow-auto">
                     <App
                         graphqlHost={graphqlHost}
                         graphqlToken={graphqlToken}
