@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
 import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
@@ -35,11 +36,13 @@ export interface AppProps {
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
+    isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
+    onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
 }
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -80,6 +83,30 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     const [showFilterForm, setShowFilterForm] = useState(false);
     const [showSavedFilterList, setShowSavedFilterList] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
+    const [showPopout, setShowPopout] = useState(false);
+
+    // Lock body scroll when popout is open (only in root instance)
+    useEffect(() => {
+        if (!isOverlay && showPopout) {
+            const previousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = previousOverflow;
+            };
+        }
+    }, [showPopout, isOverlay]);
+
+    // Close overlay on ESC key (only applies to overlay instance)
+    useEffect(() => {
+        if (!isOverlay) return;
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onCloseOverlay?.();
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [isOverlay, onCloseOverlay]);
 
     // Pagination state
     const hasNextPage = state.data.rows.length === rowsPerPage;
@@ -379,6 +406,22 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             label='Download CSV'
                             onClick={handleExportCSV}
                         />
+                        {(!isOverlay || onCloseOverlay) && (
+                            <Button
+                                type="button"
+                                icon={isOverlay ? 'pi pi-times' : 'pi pi-window-maximize'}
+                                outlined
+                                size='small'
+                                label={isOverlay ? 'Close Popout' : 'Popout'}
+                                onClick={() => {
+                                    if (isOverlay) {
+                                        onCloseOverlay?.();
+                                    } else {
+                                        setShowPopout(true);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                 }
                 end={
@@ -398,7 +441,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 }
             />
             {
-                showViewTitle && (
+                (showViewTitle || isOverlay) && (
                     <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
                 )
             }
@@ -469,6 +512,23 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     />
                 )
             }
+            {showPopout && !isOverlay && createPortal(
+                <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-auto">
+                    <App
+                        graphqlHost={graphqlHost}
+                        graphqlToken={graphqlToken}
+                        geminiApiKey={geminiApiKey}
+                        showViewsMenu={showViewsMenu}
+                        rowsPerPage={rowsPerPage}
+                        showViewTitle={showViewTitle}
+                        viewsJson={viewsJson}
+                        externalRuntime={externalRuntime}
+                        isOverlay={true}
+                        onCloseOverlay={() => setShowPopout(false)}
+                    />
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
