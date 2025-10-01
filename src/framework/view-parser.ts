@@ -685,6 +685,20 @@ export function parseViewJson(
         );
     }
 
+    // Optional staticConditions: validate it's an array of objects (shallow validation)
+    let staticConditions;
+    if (view.staticConditions !== undefined) {
+        if (!Array.isArray(view.staticConditions)) {
+            throw new Error('View "staticConditions" must be an array when provided');
+        }
+        // Only allow plain objects (basic guard); deeper validation is left to runtime/Hasura
+        const invalidIndex = view.staticConditions.findIndex(c => typeof c !== 'object' || c === null || Array.isArray(c));
+        if (invalidIndex !== -1) {
+            throw new Error(`View "staticConditions" entry[${invalidIndex}] must be a non-null object`);
+        }
+        staticConditions = view.staticConditions as any;
+    }
+
     return {
         title: view.title,
         id: view.id,
@@ -694,6 +708,7 @@ export function parseViewJson(
         boolExpType: view.boolExpType as string,
         orderByType: view.orderByType as string,
         paginationKey: view.paginationKey,
-        noRowsComponent
+        noRowsComponent,
+        staticConditions
     };
 }

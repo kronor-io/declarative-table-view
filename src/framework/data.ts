@@ -36,11 +36,22 @@ export const fetchData = async ({
 
     try {
         let conditions = buildHasuraConditions(filterState, view.filterSchema);
+
+        // Merge staticConditions (always-on) if present
+        if (view.staticConditions && view.staticConditions.length > 0) {
+            // If existing conditions object is empty (no user filters), we still wrap both sides in _and for consistency
+            conditions = { _and: [conditions, ...view.staticConditions] } as any;
+        }
         if (cursor !== null) {
             const pagKey = view.paginationKey;
             const pagCond = { [pagKey]: { _lt: cursor } };
             // Always wrap in _and for pagination
-            conditions = { _and: [conditions, pagCond] };
+            // If static conditions already produced an _and wrapper, append to its array to avoid nesting
+            if (conditions && '_and' in conditions && Array.isArray((conditions as any)._and)) {
+                (conditions as any)._and.push(pagCond);
+            } else {
+                conditions = { _and: [conditions, pagCond] } as any;
+            }
         }
         const variables = {
             conditions,

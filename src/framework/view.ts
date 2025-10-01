@@ -3,6 +3,7 @@ import { ColumnDefinition } from "./column-definition";
 import { FilterSchemasAndGroups } from "./filters";
 import { FilterState } from "./state";
 import { FilterFormState } from "./filter-form-state";
+import { HasuraCondition } from "./graphql";
 
 export type NoRowsComponentProps = {
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
@@ -23,6 +24,8 @@ export type View = {
     orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination
     noRowsComponent?: NoRowsComponent;
+    // Optional static GraphQL conditions (Hasura boolean expressions) always applied in addition to user filters
+    staticConditions?: HasuraCondition[];
 };
 
 

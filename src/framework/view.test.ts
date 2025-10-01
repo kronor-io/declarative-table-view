@@ -1376,6 +1376,9 @@ describe('parseViewJson', () => {
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
+                staticConditions: [
+                    { status: { _eq: 'ACTIVE' } }
+                ],
                 columns: [
                     {
                         data: [{ type: 'field', path: 'id' }],
@@ -1413,6 +1416,7 @@ describe('parseViewJson', () => {
             expect(result.filterSchema.groups).toHaveLength(1);
             expect(result.filterSchema.filters).toHaveLength(1);
             expect(result.noRowsComponent).toBeUndefined();
+            expect(result.staticConditions).toEqual([{ status: { _eq: 'ACTIVE' } }]);
         });
 
         it('should parse ViewJson with noRowsComponent', () => {
@@ -1764,6 +1768,38 @@ describe('parseViewJson', () => {
 
             expect(() => parseViewJson(withNoRowsComponent, runtimeWithoutNoRows))
                 .toThrow('Reference "anything" not found in noRowsComponents. Available keys:');
+        });
+
+        it('should throw error for invalid staticConditions (not array)', () => {
+            const invalidStatic = {
+                title: 'Test',
+                id: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                staticConditions: 'not-an-array'
+            };
+            expect(() => parseViewJson(invalidStatic, viewTestRuntime))
+                .toThrow('View "staticConditions" must be an array when provided');
+        });
+
+        it('should throw error for invalid staticConditions entry', () => {
+            const invalidStaticEntry = {
+                title: 'Test',
+                id: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                staticConditions: [null]
+            };
+            expect(() => parseViewJson(invalidStaticEntry, viewTestRuntime))
+                .toThrow('View "staticConditions" entry[0] must be a non-null object');
         });
     });
 });
