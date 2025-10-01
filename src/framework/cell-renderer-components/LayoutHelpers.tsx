@@ -72,12 +72,3 @@ export function DateTime({ date, locale = undefined, options = undefined, classN
     if (isNaN(d.getTime())) return <span className={className}>{date}</span>;
     return <span className={className}>{d.toLocaleString(locale, options)}</span>;
 }
-
-// CurrencyAmount: formats a number as currency using Intl.NumberFormat
-export function CurrencyAmount({ amount, currency, locale = undefined, options = {}, className = "" }: { amount: number | string; currency: string; locale?: string; options?: Intl.NumberFormatOptions; className?: string }) {
-    const parsedAmount = Number(amount);
-    if (isNaN(parsedAmount)) return null;
-    const formatOptions: Intl.NumberFormatOptions = { style: 'currency', currency, ...options };
-    const formatter = new Intl.NumberFormat(locale, formatOptions);
-    return <span className={className}>{formatter.format(parsedAmount)}</span>;
-}

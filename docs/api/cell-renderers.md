@@ -19,14 +19,13 @@ import { CellRenderer } from "src/framework/column-definition";
 export type CellRenderer = (props: CellRendererProps) => React.ReactNode;
 
 export type CellRendererProps = {
-    data: Record<string, any>;
-    setFilterState: (updater: (current: FilterState) => FilterState) => void;
-    applyFilters: () => void;
-    updateFilterById: (filterId: string, updater: (currentValue: any) => any) => void;
-    createElement: typeof React.createElement;
-    components: {
-        Badge; FlexRow; FlexColumn; Mapping; DateTime; CurrencyAmount; Link;
-    };
+  data: Record<string, any>;
+  setFilterState: (updater: (current: FilterState) => FilterState) => void;
+  applyFilters: () => void;
+  updateFilterById: (filterId: string, updater: (currentValue: any) => any) => void;
+  createElement: typeof React.createElement;
+  components: { Badge; FlexRow; FlexColumn; Mapping; DateTime; CurrencyAmount; Link; };
+  currency: { majorToMinor: (major: number, code: string, locale?: string) => number; minorToMajor: (minor: number, code: string, locale?: string) => number };
 };
 ```
 
@@ -42,25 +41,37 @@ export type CellRendererProps = {
   - `Mapping` — map raw values to labels (`<Mapping value={merchantId} map={{1: 'Boozt'}} />`)
   - `DateTime` — localized date/time formatting
   - `CurrencyAmount` — currency formatting with `Intl.NumberFormat`
+  - (prop) `currency` — helpers for unit conversion (major/minor units)
   - `Link` — styled anchor element
 
 ## Creating a Cell Renderer
 ```tsx
 // runtime.tsx
 export const myRuntime: Runtime = {
-  cellRenderers: {
-    amount: ({ data: { currency, amount }, components: { FlexRow, CurrencyAmount } }) => (
-      <FlexRow justify="end">
-        <CurrencyAmount amount={Number(amount)/100} currency={currency} />
-      </FlexRow>
-    )
-  },
-  queryTransforms: {},
-  noRowsComponents: {},
-  customFilterComponents: {},
-  initialValues: {}
+    cellRenderers: {
+        // Example where the GraphQL field "amountMinor" is stored in minor units (e.g. cents)
+        amount: ({
+            data: { currency, amountMinor },
+            components: { FlexRow, CurrencyAmount },
+            currency: { minorToMajor }
+        }) => {
+            // Convert minor (integer) units to major for display using provided helper
+            const majorAmount = minorToMajor(amountMinor, currency);
+            return (
+                <FlexRow justify="end">
+                    <CurrencyAmount amount={majorAmount} currency={currency} />
+                </FlexRow>
+            );
+        }
+    },
+    queryTransforms: {},
+    noRowsComponents: {},
+    customFilterComponents: {},
+    initialValues: {}
 };
 ```
+
+If your amount field already arrives as a major unit (e.g. 123.45 for USD) you can skip the `minorToMajor` call and pass it directly to `CurrencyAmount`.
 
 ## Referencing in JSON View
 ```jsonc

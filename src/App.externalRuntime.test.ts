@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
 import { parseViewJson } from './framework/view-parser';
-import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from './framework/cell-renderer-components/LayoutHelpers';
+import { FlexRow, FlexColumn, DateTime } from './framework/cell-renderer-components/LayoutHelpers';
+import { CurrencyAmount } from './framework/cell-renderer-components/CurrencyAmount';
 import { Mapping } from './framework/cell-renderer-components/Mapping';
 import { Link } from './framework/cell-renderer-components/Link';
 
@@ -114,7 +115,8 @@ describe('External Runtime Integration', () => {
                     DateTime,
                     CurrencyAmount,
                     Link
-                }
+                },
+                currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n }
             };
             expect(cellRenderer(mockProps)).toBe('Built-in Text Cell');
         }).not.toThrow();
@@ -179,7 +181,8 @@ describe('External Runtime Integration', () => {
                     DateTime,
                     CurrencyAmount,
                     Link
-                }
+                },
+                currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n }
             };
             expect(cellRenderer(mockProps)).toBe('External Override');
         }).not.toThrow();

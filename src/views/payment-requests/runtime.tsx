@@ -1,7 +1,5 @@
 import { CellRenderer } from "../../framework/column-definition";
-import { CurrencyAmount, DateTime, FlexColumn, FlexRow } from "../../framework/cell-renderer-components/LayoutHelpers";
 import { PaymentMethod } from "./components/PaymentMethod";
-import { Mapping } from "../../framework/cell-renderer-components/Mapping";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { Runtime } from "../../framework/runtime";
 
@@ -43,11 +41,11 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         },
 
         // Merchant cell renderer
-        merchant: ({ data: { merchantId } }) =>
+        merchant: ({ data: { merchantId }, components: { Mapping } }) =>
             <Mapping value={merchantId} map={{ 1: 'Boozt', 2: 'Boozt Dev' }} />,
 
         // Placed At cell renderer
-        placedAt: ({ data: { createdAt } }) =>
+        placedAt: ({ data: { createdAt }, components: { DateTime } }) =>
             <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />,
 
         // Payment Provider cell renderer
@@ -55,7 +53,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />,
 
         // Initiated By cell renderer
-        initiatedBy: ({ data, updateFilterById, applyFilters }) => {
+        initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexColumn, FlexRow } }) => {
             const handleEmailClick = () => {
                 // 'customer-email' is the filter id defined in view.json
                 updateFilterById('customer-email', (currentFilter: any) => {
@@ -87,9 +85,9 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         status: ({ data }) => <PaymentStatusTag status={data.currentStatus} />,
 
         // Amount cell renderer
-        amount: ({ data: { currency, amount } }) =>
+        amount: ({ data: { currency, amount }, components: { CurrencyAmount, FlexRow }, currency: { minorToMajor } }) =>
             <FlexRow align="center" justify="end">
-                <CurrencyAmount amount={Number(amount) / 100} currency={currency} />
+                <CurrencyAmount amount={minorToMajor(Number(amount), currency)} currency={currency} />
             </FlexRow>
     },
 
@@ -138,6 +136,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             date.setMonth(date.getMonth() - 1);
             return date; // Return Date object for calendar component
         })(),
+
         dateRangeEnd: (() => {
             const date = new Date();
             return date; // Return Date object for calendar component

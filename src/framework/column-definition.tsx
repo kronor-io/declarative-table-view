@@ -1,5 +1,7 @@
 import { ReactNode, createElement } from "react";
-import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from "./cell-renderer-components/LayoutHelpers";
+import { FlexRow, FlexColumn, DateTime } from "./cell-renderer-components/LayoutHelpers";
+import { CurrencyAmount } from './cell-renderer-components/CurrencyAmount';
+import { majorToMinor, minorToMajor } from './currency';
 import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from 'primereact/tag';
@@ -21,6 +23,10 @@ export type CellRendererProps = {
         CurrencyAmount: typeof CurrencyAmount; // Currency formatting component
         Link: typeof Link; // Link component for creating hyperlinks
     };
+    currency: {
+        minorToMajor: typeof minorToMajor;
+        majorToMinor: typeof majorToMinor;
+    }
 };
 
 export type CellRenderer = (props: CellRendererProps) => ReactNode;

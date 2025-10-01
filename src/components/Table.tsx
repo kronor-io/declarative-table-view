@@ -4,7 +4,9 @@ import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { ColumnDefinition } from '../framework/column-definition';
 import { NoRowsComponent } from '../framework/view';
-import { FlexRow, FlexColumn, DateTime, CurrencyAmount } from '../framework/cell-renderer-components/LayoutHelpers';
+import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
+import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
+import { majorToMinor, minorToMajor } from '../framework/currency';
 import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
@@ -105,7 +107,8 @@ function Table({
                             DateTime,
                             CurrencyAmount,
                             Link
-                        }
+                        },
+                        currency: { minorToMajor, majorToMinor }
                     })}
                 />
             ))}
