@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { createDefaultAppState, setSelectedViewIndex, setDataRows, setFilterSchema, setFilterState, FilterState } from './state';
+import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterSchema, setFilterState, FilterState } from './state';
 import { buildInitialFormState } from './state';
 import { View } from './view';
 
@@ -37,7 +37,7 @@ const mockViews: View[] = [
 describe('AppState', () => {
     it('creates default state with correct initial view and filter state', () => {
         const state = createDefaultAppState(mockViews);
-        expect(state.selectedViewIndex).toBe(0);
+        expect(state.selectedViewId).toBe('foo');
         expect(state.views).toBe(mockViews);
         expect(state.filterSchemasAndGroups).toEqual(mockViews[0].filterSchema);
         expect(state.filterState).toEqual(
@@ -46,10 +46,10 @@ describe('AppState', () => {
         expect(state.data).toEqual({ rows: [], flattenedRows: [] });
     });
 
-    it('setSelectedViewIndex updates selectedViewIndex, filterSchema, and filterState', () => {
+    it('setSelectedViewId updates selectedViewIndex, filterSchema, and filterState', () => {
         let state = createDefaultAppState(mockViews);
-        state = setSelectedViewIndex(state, 1);
-        expect(state.selectedViewIndex).toBe(1);
+        state = setSelectedViewId(state, mockViews[1].id);
+        expect(state.selectedViewId).toBe('bar');
         expect(state.filterSchemasAndGroups).toEqual(mockViews[1].filterSchema);
         expect(state.filterState).toEqual(
             new Map(mockViews[1].filterSchema.filters.map(f => [f.id, buildInitialFormState(f.expression)]))

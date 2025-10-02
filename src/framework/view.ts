@@ -14,9 +14,11 @@ export type NoRowsComponentProps = {
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
 
+export type ViewId = string;
+
 export type View = {
     title: string;
-    id: string;
+    id: ViewId;
     collectionName: string;
     columnDefinitions: ColumnDefinition[];
     filterSchema: FilterSchemasAndGroups;

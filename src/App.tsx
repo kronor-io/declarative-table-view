@@ -58,7 +58,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     const {
         state,
         selectedView,
-        setSelectedViewIndex,
+        setSelectedViewId,
         setFilterSchema,
         setFilterState,
         setDataRows
@@ -299,15 +299,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 }
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedViewIndex, refetchTrigger]);
-
-    // When view changes, reset filter state and clear data
-    const handleViewChange = (viewIndex: number) => {
-        setSelectedViewIndex(viewIndex);
-        // Update URL with the new view's id
-        const newViewName = views[viewIndex].id;
-        window.history.pushState({}, '', `?view=${newViewName}`);
-    };
+    }, [state.selectedViewId, refetchTrigger]);
 
     // When filter is loaded, set filter state
     const handleFilterLoad = (filterState: FilterState) => {
@@ -372,10 +364,10 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     ...(showViewsMenu ? [{
                         label: 'Views',
                         icon: 'pi pi-eye',
-                        items: views.map((view: View, viewIndex: number) => ({
+                        items: views.map((view: View) => ({
                             label: view.title,
                             icon: 'pi pi-table',
-                            command: () => handleViewChange(viewIndex)
+                            command: () => setSelectedViewId(view.id)
                         }))
                     }] : [])
                 ]}

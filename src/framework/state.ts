@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FilterFormState } from "../components/FilterForm";
 import { FilterSchemasAndGroups, FilterId, FilterExpr } from "./filters";
-import { View } from "./view";
+import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
 
 export type FilterState = Map<FilterId, FilterFormState>;
@@ -50,7 +50,7 @@ export function setFilterStateById(state: FilterState, id: FilterId, newFilterSt
 
 // AppState data structure for app state
 export interface AppState {
-    selectedViewIndex: number
+    selectedViewId: ViewId
     views: View[]
     filterSchemasAndGroups: FilterSchemasAndGroups
     data: FetchDataResult
@@ -68,36 +68,18 @@ const defaultPagination: PaginationState = {
     cursors: []
 };
 
-// Utility to get initial view index from URL or default
-export function getInitialViewIndex(views: View[]): number {
-    const params = new URLSearchParams(window.location.search);
-    const viewName = params.get('view');
-    if (viewName) {
-        const index = views.findIndex((view: View) => view.id === viewName);
-        if (index !== -1) {
-            return index;
-        }
-    }
-    // Update URL if no view parameter or invalid viewName
-    const defaultViewName = views[0]?.id;
-    if (defaultViewName) {
-        window.history.replaceState({}, '', `?view=${defaultViewName}`);
-    }
-    return 0;
-}
-
-
 export function createDefaultFilterState(filterSchema: FilterSchemasAndGroups, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
     return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
 }
 
 export function createDefaultAppState(views: View[]): AppState {
-    const selectedViewIndex = getInitialViewIndex(views);
-    const filterSchema: FilterSchemasAndGroups = views[selectedViewIndex].filterSchema;
+    const selectedViewId = views[0]?.id;
+    const view = views.find(v => v.id === selectedViewId) as View;
+    const filterSchema: FilterSchemasAndGroups = view.filterSchema;
     const initialFilterState = createDefaultFilterState(filterSchema);
     return {
         views,
-        selectedViewIndex,
+        selectedViewId,
         filterSchemasAndGroups: filterSchema,
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
@@ -105,13 +87,13 @@ export function createDefaultAppState(views: View[]): AppState {
     };
 }
 
-// Update selectedViewIndex
-function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
-    const view = state.views[newIndex];
-    const filterSchema = view.filterSchema || { groups: [], filters: [] };
+// Update selectedViewId
+function setSelectedViewId(state: AppState, newId: ViewId): AppState {
+    const view = state.views.find(v => v.id === newId);
+    const filterSchema = view?.filterSchema || { groups: [], filters: [] };
     return {
         ...state,
-        selectedViewIndex: newIndex,
+        selectedViewId: newId,
         filterSchemasAndGroups: filterSchema,
         filterState: createDefaultFilterState(filterSchema),
         pagination: defaultPagination
@@ -119,7 +101,7 @@ function setSelectedViewIndex(state: AppState, newIndex: number): AppState {
 }
 
 function getSelectedView(state: AppState): View {
-    return state.views[state.selectedViewIndex];
+    return state.views.find(v => v.id === state.selectedViewId) as View;
 }
 
 function setDataRows(state: AppState, newRows: FetchDataResult, pagination: PaginationState = defaultPagination): AppState {
@@ -150,11 +132,11 @@ export const useAppState = (views: View[]) => {
     return {
         state: appState,
         selectedView: getSelectedView(appState),
-        setSelectedViewIndex: (index: number) => setAppState(prev => setSelectedViewIndex(prev, index)),
+        setSelectedViewId: (id: ViewId) => setAppState(prev => setSelectedViewId(prev, id)),
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
         setFilterSchema: (schema: FilterSchemasAndGroups) => setAppState(prev => setFilterSchema(prev, schema)),
         setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState))
     };
 }
 
-export { setSelectedViewIndex, setDataRows, setFilterSchema, setFilterState };
+export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState };
