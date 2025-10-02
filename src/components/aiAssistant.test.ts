@@ -198,4 +198,73 @@ describe('aiAssistant customOperator patching', () => {
             });
         }
     });
+
+    it('should collapse OR children into array for in filter', () => {
+        const filterSchema: FilterSchemasAndGroups = {
+            groups: [{ name: 'test', label: 'Test Group' }],
+            filters: [
+                {
+                    id: 'in-filter',
+                    label: 'In Filter',
+                    group: 'test',
+                    expression: {
+                        type: 'in',
+                        field: 'category',
+                        value: { type: 'text' }
+                    },
+                    aiGenerated: false
+                }
+            ]
+        };
+
+        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const aiState = {
+            type: 'or',
+            children: [
+                { type: 'leaf', field: 'category', value: 'A' },
+                { type: 'leaf', field: 'category', value: 'B' },
+                { type: 'leaf', field: 'category', value: 'A' } // duplicate to test uniqueness
+            ]
+        };
+
+        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        expect(result.type).toBe('leaf');
+        if (result.type === 'leaf') {
+            expect(result.value).toEqual(['A', 'B']);
+        }
+    });
+
+    it('should collapse OR children into array for notIn filter', () => {
+        const filterSchema: FilterSchemasAndGroups = {
+            groups: [{ name: 'test', label: 'Test Group' }],
+            filters: [
+                {
+                    id: 'nin-filter',
+                    label: 'Not In Filter',
+                    group: 'test',
+                    expression: {
+                        type: 'notIn',
+                        field: 'status',
+                        value: { type: 'text' }
+                    },
+                    aiGenerated: false
+                }
+            ]
+        };
+
+        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const aiState = {
+            type: 'or',
+            children: [
+                { type: 'leaf', field: 'status', value: 'NEW' },
+                { type: 'leaf', field: 'status', value: 'ARCHIVED' }
+            ]
+        };
+
+        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        expect(result.type).toBe('leaf');
+        if (result.type === 'leaf') {
+            expect(result.value).toEqual(['NEW', 'ARCHIVED']);
+        }
+    });
 });

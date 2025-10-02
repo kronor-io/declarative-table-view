@@ -99,6 +99,29 @@ function mergeAiStateWithCurrent(currentState: FilterState, aiStateObject: Recor
 export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFormState, aiState: any): FilterFormState {
     if (!aiState) return currentState;
 
+    // Patch: If schema expects an 'in' or 'notIn' array but AI produced an OR list of single values, collapse to array
+    // Example AI output (FilterFormState shape): { type: 'or', children: [ { type: 'leaf', value: 'a' }, { type: 'leaf', value: 'b' } ] }
+    // We convert it to a single leaf with value ['a','b'] so downstream logic treats it as an IN list.
+    if ((schema.type === 'in' || schema.type === 'notIn') && aiState.type === 'or' && Array.isArray(aiState.children)) {
+        const collectValues = (node: any, acc: any[]) => {
+            if (!node) return acc;
+            if (node.type === 'leaf') {
+                if (node.value !== undefined && node.value !== '') {
+                    acc.push(node.value);
+                }
+            } else if (node.type === 'or' && Array.isArray(node.children)) {
+                node.children.forEach((c: any) => collectValues(c, acc));
+            }
+            return acc;
+        };
+        const values = Array.from(new Set(collectValues(aiState, [])));
+        return {
+            ...currentState,
+            type: 'leaf',
+            value: values
+        };
+    }
+
     // Special case: AI returns NOT wrapped around a leaf for a customOperator field - convert to not-equals
     if (currentState.type === 'leaf' && aiState.type === 'not' && aiState.child?.type === 'leaf') {
         const schemaField = schema as FilterExprFieldNode;
@@ -202,7 +225,7 @@ export const GeminiApi: AIApi = {
     async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast) {
         const prompt = buildAiPrompt(filterSchema, userPrompt);
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
                 {
                     method: 'POST',
                     headers: {
