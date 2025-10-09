@@ -254,6 +254,7 @@ function FilterForm({
         setFilterState(
             createDefaultFilterState(filterSchemasAndGroups, FormStateInitMode.Empty)
         );
+        onSubmit();
     }
 
     // Group filters by group name
