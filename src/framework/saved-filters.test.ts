@@ -259,11 +259,12 @@ describe('SavedFilterManager', () => {
             // Load filters - should trigger warning about invalid state format
             const filters = manager.loadFilters('test-view', basicSchema);
 
-            // Should still return the filter but with empty state Map
+            // Should still return the filter; state now contains default leaf entries for schema-defined filters
             expect(filters).toHaveLength(1);
             expect(filters[0].name).toBe('Invalid State Filter');
             expect(filters[0].state).toBeInstanceOf(Map);
-            expect(filters[0].state.size).toBe(0);
+            // basicSchema has 1 filter (email-filter)
+            expect(filters[0].state.size).toBe(1);
 
             // Verify warning was logged and restore console
             expect(consoleWarnSpy).toHaveBeenCalledWith('Expected array for conversion but got:', 'string');

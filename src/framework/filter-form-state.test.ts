@@ -144,19 +144,15 @@ describe('filter-form-state', () => {
             expect(parsed.size).toBe(2);
 
             const emailFilter = parsed.get('email-filter');
-            expect(emailFilter).toBeDefined();
-            expect((emailFilter as any).value).toBe('test@example.com');
+            expect(emailFilter).toEqual({ type: 'leaf', value: 'test@example.com' });
 
             const dateFilter = parsed.get('date-filter');
-            expect(dateFilter).toBeDefined();
+            expect(dateFilter?.type).toBe('leaf');
             expect((dateFilter as any).value).toBeInstanceOf(Date);
             expect(((dateFilter as any).value as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
         });
 
-        it('should handle invalid date strings gracefully', () => {
-            // Mock console.warn to suppress expected warning
-            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
+        it('should treat invalid date strings as plain strings', () => {
             const serialized = {
                 'date-filter': {
                     type: 'leaf',
@@ -166,32 +162,9 @@ describe('filter-form-state', () => {
                     filterType: 'equals'
                 }
             };
-
             const parsed = parseFilterFormState(serialized, mockFilterSchema);
-            expect(parsed).toBeInstanceOf(Map);
-            expect(parsed.size).toBe(1);
-
             const dateFilter = parsed.get('date-filter');
-            expect(dateFilter).toBeDefined();
-            // Should handle invalid date gracefully
-            expect((dateFilter as any).value).toBe('invalid-date');
-
-            // Verify warning was called and restore console
-            expect(consoleSpy).toHaveBeenCalledWith('Failed to parse date for field created_at:', 'invalid-date');
-            consoleSpy.mockRestore();
-        });
-
-        it('should return empty Map on parse error', () => {
-            // Mock console.error to suppress expected error
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-            const result = parseFilterFormState(null as any, mockFilterSchema);
-            expect(result).toBeInstanceOf(Map);
-            expect(result.size).toBe(0);
-
-            // Verify error was logged and restore console
-            expect(consoleSpy).toHaveBeenCalledWith('Failed to parse filter state');
-            consoleSpy.mockRestore();
+            expect(dateFilter).toEqual({ type: 'leaf', value: 'invalid-date' });
         });
     });
 
@@ -207,12 +180,8 @@ describe('filter-form-state', () => {
             const emailFilter = parsed.get('email-filter');
             const dateFilter = parsed.get('date-filter');
 
-            expect(emailFilter).toBeDefined();
-            expect((emailFilter as any).field).toBe('email');
-            expect((emailFilter as any).value).toBe('test@example.com');
-
-            expect(dateFilter).toBeDefined();
-            expect((dateFilter as any).field).toBe('created_at');
+            expect(emailFilter).toEqual({ type: 'leaf', value: 'test@example.com' });
+            expect(dateFilter?.type).toBe('leaf');
             expect((dateFilter as any).value).toBeInstanceOf(Date);
             expect(((dateFilter as any).value as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
         });

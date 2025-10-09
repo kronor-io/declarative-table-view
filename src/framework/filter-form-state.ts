@@ -1,5 +1,5 @@
 import { FilterSchemasAndGroups, FilterField, FilterControl, FilterExpr, FilterTransform } from './filters';
-import { FilterState } from './state';
+import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
@@ -146,71 +146,40 @@ export function serializeFilterFormStateMap(state: FilterState): Record<string, 
 }
 
 /**
- * Helper to collect all date field names from a filter schema
+ * Rehydrate a single filter's stored state using its schema expression.
+ * Safely returns the original node on any mismatch / error.
  */
-function collectDateFieldsFromSchema(schema: FilterSchemasAndGroups): Set<string> {
-    const dateFields = new Set<string>();
-
-    function traverse(expr: any) {
-        if (expr.type === 'and' || expr.type === 'or') {
-            expr.filters.forEach(traverse);
-        } else if ('field' in expr && 'value' in expr && expr.value.type === 'date') {
-            // Handle FilterField - extract all individual field names
-            if (typeof expr.field === 'string') {
-                dateFields.add(expr.field);
-            } else if ('and' in expr.field) {
-                expr.field.and.forEach((field: string) => dateFields.add(field));
-            } else if ('or' in expr.field) {
-                expr.field.or.forEach((field: string) => dateFields.add(field));
-            }
-        }
-    }
-
-    schema.filters.forEach(filter => traverse(filter.expression));
-    return dateFields;
-}
-
-/**
- * Helper to deserialize a node and convert ISO date strings back to Date objects
- */
-function deserializeFilterFormStateNode(node: any, dateFields: Set<string>): FilterFormState {
-    if (node.type === 'leaf') {
-        let value = node.value;
-        if (dateFields.has(node.field) && typeof value === 'string') {
-            try {
+function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFormState): FilterFormState {
+    return traverseFilterSchemaAndState<FilterFormState>(expression, stored, {
+        leaf: (schemaLeaf, stateLeaf) => {
+            let value = stateLeaf.value;
+            if (schemaLeaf.value.type === 'date' && typeof value === 'string') {
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
                     value = date;
-                } else {
-                    console.warn(`Failed to parse date for field ${node.field}:`, value);
                 }
-            } catch {
-                console.warn(`Failed to parse date for field ${node.field}:`, value);
             }
-        }
-        return { ...node, value };
-    } else if (node.type === 'not') {
-        return {
-            type: 'not',
-            child: deserializeFilterFormStateNode(node.child, dateFields)
-        };
-    } else {
-        return {
-            type: node.type,
-            children: node.children.map((child: any) => deserializeFilterFormStateNode(child, dateFields))
-        };
-    }
+            return { type: 'leaf', value };
+        },
+        and: (_schemaAnd, _stateAnd, childResults) => ({ type: 'and', children: childResults }),
+        or: (_schemaOr, _stateOr, childResults) => ({ type: 'or', children: childResults }),
+        not: (_schemaNot, _stateNot, childResult) => ({ type: 'not', child: childResult })
+    });
 }
 
 /**
- * Parse serialized filter state back to FilterFormState map
+ * Parse serialized filter state (object keyed by filter id) back into a FilterState Map,
+ * converting date string values to Date objects by consulting the filter schema.
  */
 export function parseFilterFormState(serializedState: any, schema: FilterSchemasAndGroups): FilterState {
-    try {
-        const dateFields = collectDateFieldsFromSchema(schema);
-        return new Map(Object.entries(serializedState).map(([id, node]) => [id, deserializeFilterFormStateNode(node, dateFields)]));
-    } catch {
-        console.error('Failed to parse filter state');
-        return new Map();
-    }
+    return new Map(
+        schema.filters.map(filter => {
+            const raw = serializedState ? serializedState[filter.id] : undefined;
+            if (raw && typeof raw === 'object' && 'type' in raw) {
+                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)] as [string, FilterFormState];
+            }
+            // If invalid/missing, fall back to an empty initialized state derived from schema
+            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)] as [string, FilterFormState];
+        })
+    );
 }
