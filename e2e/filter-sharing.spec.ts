@@ -91,7 +91,7 @@ test.describe('Filter Sharing', () => {
 
     test('should handle invalid filter URL parameter', async ({ page }) => {
         // Navigate with an invalid filter parameter
-        await page.goto('/?test-view=simple-test-view&dtv-shared-filter=invalid-base64-data');
+        await page.goto('/?test-view=simple-test-view&dtv-filter-state=invalid-base64-data');
 
         // Wait for the table to be present and visible (app should still load)
         const table = page.getByRole('table');

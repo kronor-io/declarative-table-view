@@ -21,6 +21,7 @@ This project is a React + TypeScript monorepo for building schema-driven, declar
 - Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).
 - Views define their own GraphQL queries and filter schemas.
 - Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
+ - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
 
 ## Development
 

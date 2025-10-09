@@ -127,8 +127,14 @@ function setFilterState(state: AppState, newFilterState: FilterState): AppState 
     };
 }
 
-export const useAppState = (views: View[]) => {
-    const [appState, setAppState] = useState<AppState>(() => createDefaultAppState(views));
+export const useAppState = (views: View[], initialFilterStateOverride?: FilterState) => {
+    const [appState, setAppState] = useState<AppState>(() => {
+        const base = createDefaultAppState(views);
+        if (initialFilterStateOverride) {
+            return { ...base, filterState: initialFilterStateOverride };
+        }
+        return base;
+    });
     return {
         state: appState,
         selectedView: getSelectedView(appState),

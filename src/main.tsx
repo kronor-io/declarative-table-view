@@ -13,6 +13,7 @@ export interface RenderTableViewOptions {
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
+    syncFilterStateToUrl?: boolean; // When true, keeps current filter state encoded in URL param `dtv-filter-state`
 }
 
 
@@ -31,6 +32,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     showViewTitle={options.showViewTitle ?? false}
                     viewsJson={options.viewsJson}
                     externalRuntime={options.externalRuntime}
+                    syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
                 />
             </PrimeReactProvider>
         </StrictMode>
@@ -50,13 +52,15 @@ if (import.meta.env.DEV) {
             const viewJson = JSON.parse(viewModule.default);
             const runtime = Object.values(runtimeModule)[0] as Runtime;
 
+            const urlParams = new URLSearchParams(window.location.search);
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
                 geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
                 viewsJson: JSON.stringify([viewJson]),
                 showViewsMenu: false,
-                externalRuntime: runtime
+                externalRuntime: runtime,
+                syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true'
             });
         };
 

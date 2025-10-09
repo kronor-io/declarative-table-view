@@ -24,7 +24,7 @@ import { savedFilterManager, SavedFilter } from './framework/saved-filters';
 import { parseFilterFormState } from './framework/filter-form-state';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
-import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard } from './framework/filter-sharing';
+import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
 
 export interface AppProps {
@@ -38,11 +38,12 @@ export interface AppProps {
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
     onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
+    syncFilterStateToUrl?: boolean; // When true, keep current filter state encoded in URL (dtv-filter-state)
 }
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -55,14 +56,22 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         },
     }), [graphqlHost, graphqlToken]);
 
-    const {
-        state,
-        selectedView,
-        setSelectedViewId,
-        setFilterSchema,
-        setFilterState,
-        setDataRows
-    } = useAppState(views);
+    // Determine initial filter state (shared param precedence) BEFORE initializing app state
+    const initialFilterStateFromUrl = useMemo(() => {
+        const raw = getFilterFromUrl();
+        if (!raw) return undefined;
+        try {
+            const firstView = views[0];
+            if (!firstView) return undefined;
+            return parseFilterFormState(raw, firstView.filterSchema);
+        } catch (e) {
+            console.warn('Invalid initial filter state from URL, falling back to defaults', e);
+            return undefined;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewsJson]);
+
+    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows } = useAppState(views, initialFilterStateFromUrl as any);
 
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
@@ -118,37 +127,22 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
         setSavedFilters(filters);
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load filter from URL parameter on mount and view change
+    // After initial mount, if we consumed a URL param and persistence is off, clear it
     useEffect(() => {
-        const urlFilterState = getFilterFromUrl();
-        if (urlFilterState) {
-            try {
-                // Parse the URL filter state with the current view's schema
-                const parsedState = parseFilterFormState(urlFilterState, selectedView.filterSchema);
-
-                setFilterState(parsedState);
-                setRefetchTrigger(prev => prev + 1);
-
-                // Clear the filter parameter from URL to keep URL clean
-                clearFilterFromUrl();
-
-                toast.current?.show({
-                    severity: 'info',
-                    summary: 'Filter Loaded',
-                    detail: 'Filter has been loaded from the shared URL',
-                    life: 3000
-                });
-            } catch (error) {
-                console.error('Failed to load filter from URL:', error);
-                toast.current?.show({
-                    severity: 'warn',
-                    summary: 'Invalid Filter',
-                    detail: 'The shared filter link is invalid or corrupted',
-                    life: 3000
-                });
-            }
+        if (initialFilterStateFromUrl && !syncFilterStateToUrl) {
+            clearFilterFromUrl();
+            toast.current?.show({ severity: 'info', summary: 'Filter Loaded', detail: 'Loaded from URL', life: 3000 });
         }
-    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Persist current filter state only when filters are applied (refetchTrigger increments)
+    useEffect(() => {
+        if (!syncFilterStateToUrl) return;
+        // Only write after an application event (refetchTrigger change), not on every keystroke
+        setFilterInUrl(state.filterState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [syncFilterStateToUrl, refetchTrigger]);
 
     // Save a new filter
     const handleSaveFilter = (state: FilterState) => {

@@ -41,11 +41,13 @@ export function decodeFilterState(encodedState: string): any[] {
 /**
  * Create a shareable URL with the current filter state
  */
+const FILTER_PARAM = 'dtv-filter-state';
+
 export function createShareableUrl(filterState: FilterState): string {
     try {
         const encodedFilter = encodeFilterState(filterState);
         const url = new URL(window.location.href);
-        url.searchParams.set('dtv-shared-filter', encodedFilter);
+        url.searchParams.set(FILTER_PARAM, encodedFilter);
         return url.toString();
     } catch (error) {
         console.error('Failed to create shareable URL:', error);
@@ -84,12 +86,8 @@ export async function copyToClipboard(text: string): Promise<void> {
 export function getFilterFromUrl(): any[] | null {
     try {
         const params = new URLSearchParams(window.location.search);
-        const encodedFilter = params.get('dtv-shared-filter');
-
-        if (!encodedFilter) {
-            return null;
-        }
-
+        const encodedFilter = params.get(FILTER_PARAM);
+        if (!encodedFilter) return null;
         return decodeFilterState(encodedFilter);
     } catch (error) {
         console.warn('Failed to parse filter from URL:', error);
@@ -102,6 +100,19 @@ export function getFilterFromUrl(): any[] | null {
  */
 export function clearFilterFromUrl(): void {
     const url = new URL(window.location.href);
-    url.searchParams.delete('dtv-shared-filter');
+    url.searchParams.delete(FILTER_PARAM);
     window.history.replaceState({}, '', url.toString());
+}
+
+export function setFilterInUrl(filterState: FilterState): void {
+    try {
+        const encoded = encodeFilterState(filterState);
+        const url = new URL(window.location.href);
+        if (url.searchParams.get(FILTER_PARAM) !== encoded) {
+            url.searchParams.set(FILTER_PARAM, encoded);
+            window.history.replaceState({}, '', url.toString());
+        }
+    } catch (e) {
+        console.warn('Failed to set filter in URL', e);
+    }
 }
