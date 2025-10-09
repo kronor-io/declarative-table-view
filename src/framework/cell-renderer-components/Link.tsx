@@ -13,7 +13,7 @@ export interface LinkProps {
 export const Link: React.FC<LinkProps> = ({
     text,
     href,
-    className = "text-blue-500 underline hover:text-blue-700 cursor-pointer",
+    className = "tw:text-blue-500 tw:underline hover:tw:text-blue-700 tw:cursor-pointer",
 }) => {
     return (
         <a

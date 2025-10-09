@@ -27,7 +27,7 @@ const NoRowsExtendDateRange = ({ updateFilterById, applyFilters }: Pick<NoRowsCo
         applyFilters();
     };
     return (
-        <FlexColumn align="center" justify="center" className="py-8 text-gray-400">
+        <FlexColumn align="center" justify="center" className="tw:py-8 tw:text-gray-400">
             <span>No data rows match the current filter.</span>
             <Button label="Extend the date range back by 1 month" onClick={handleExtend} size="small" />
         </FlexColumn>

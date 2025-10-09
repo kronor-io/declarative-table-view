@@ -350,7 +350,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     };
 
     return (
-        <div className='p-2'>
+        <div className='tw:p-2'>
             <Toast ref={toast} />
             <ConfirmDialog />
             <Menubar
@@ -365,9 +365,9 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         }))
                     }] : [])
                 ]}
-                className="mb-4 border-b"
+                className="tw:mb-4 tw:border-b"
                 start={
-                    <div className="flex gap-2 items-center">
+                    <div className="tw:flex tw:gap-2 tw:items-center">
                         <Button
                             type="button"
                             icon={showFilterForm ? 'pi pi-filter-slash' : 'pi pi-filter'}
@@ -411,7 +411,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                     </div>
                 }
                 end={
-                    <div className="flex gap-2">
+                    <div className="tw:flex tw:gap-2">
                         <IconField iconPosition="left">
                             <InputIcon className="pi pi-search" />
                             <InputText value={search} onChange={e => setSearch(e.target.value)} placeholder="Search filters..." />
@@ -428,13 +428,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             />
             {
                 (showViewTitle || isOverlay) && (
-                    <h1 className="text-2xl mb-4 font-bold">{selectedView.title}</h1>
+                    <h1 className="tw:text-2xl tw:mb-4 tw:font-bold">{selectedView.title}</h1>
                 )
             }
 
             {
                 showAIAssistantForm && (
-                    <div className="mb-6">
+                    <div className="tw:mb-6">
                         <AIAssistantForm
                             filterSchema={state.filterSchemasAndGroups}
                             filterState={state.filterState}
@@ -499,7 +499,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 )
             }
             {showPopout && !isOverlay && createPortal(
-                <div className="fixed inset-0 bg-white dark:bg-gray-900 overflow-auto">
+                <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto">
                     <App
                         graphqlHost={graphqlHost}
                         graphqlToken={graphqlToken}

@@ -33,7 +33,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
         case 'text':
             return (
                 <InputText
-                    className="w-full"
+                    className="tw:w-full"
                     placeholder={control.placeholder}
                     value={value ?? ''}
                     onChange={e => setValue(e.target.value)}
@@ -42,7 +42,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
         case 'number':
             return (
                 <InputNumber
-                    className="w-full"
+                    className="tw:w-full"
                     placeholder={control.placeholder}
                     value={value ?? null}
                     onValueChange={e => setValue(e.value)}
@@ -51,7 +51,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
         case 'date':
             return (
                 <Calendar
-                    className='w-full'
+                    className='tw:w-full'
                     placeholder={control.placeholder}
                     value={value ?? null}
                     onChange={e => setValue(e.value)}
@@ -64,7 +64,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
         case 'dropdown':
             return (
                 <Dropdown
-                    className='w-full'
+                    className='tw:w-full'
                     value={value ?? null}
                     options={control.items}
                     onChange={e => setValue(e.value)}
@@ -76,7 +76,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
         case 'multiselect':
             return (
                 <MultiSelect
-                    className='w-full'
+                    className='tw:w-full'
                     value={value ?? []}
                     options={control.items}
                     onChange={e => setValue(e.value)}
@@ -91,9 +91,9 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
             const operator = value?.operator ?? control.operators[0]?.value;
             const valueOrDefault = value?.value ?? '';
             return (
-                <div className="flex gap-2">
+                <div className="tw:flex tw:gap-2">
                     <Dropdown
-                        className="min-w-[90px]"
+                        className="tw:min-w-[90px]"
                         value={operator}
                         options={control.operators}
                         onChange={e => setValue({ operator: e.value, value: valueOrDefault })}
@@ -101,7 +101,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                         optionValue="value"
                         placeholder="operator"
                     />
-                    <div className="flex-1">
+                    <div className="tw:flex-1">
                         {renderInput(control.valueControl, valueOrDefault, v => setValue({ operator, value: v }))}
                     </div>
                 </div>
@@ -135,11 +135,11 @@ function renderFilterFormState(
         }
 
         return (
-            <div className="flex flex-col gap-2 border-l-2 pl-2 ml-2">
+            <div className="tw:flex tw:flex-col tw:gap-2 tw:border-l-2 tw:pl-2 tw:ml-2">
                 {
                     renderFilterType
                         ? (
-                            <div className="font-semibold text-xs mb-1 uppercase">{state.type}</div>
+                            <div className="tw:font-semibold tw:text-xs tw:mb-1 tw:uppercase">{state.type}</div>
                         )
                         : null
                 }
@@ -170,11 +170,11 @@ function renderFilterFormState(
         const childExpression = filterExpression.filter;
 
         return (
-            <div className="flex flex-col gap-2 border-l-2 pl-2 ml-2">
+            <div className="tw:flex tw:flex-col tw:gap-2 tw:border-l-2 tw:pl-2 tw:ml-2">
                 {
                     renderFilterType
                         ? (
-                            <div className="font-semibold text-xs mb-1 uppercase">{state.type}</div>
+                            <div className="tw:font-semibold tw:text-xs tw:mb-1 tw:uppercase">{state.type}</div>
                         )
                         : null
                 }
@@ -203,8 +203,8 @@ function renderFilterFormState(
         const displayValue = state.value;
 
         return (
-            <div className="flex flex-col min-w-[220px] mb-2">
-                <label className="text-sm font-medium mb-1">{filterExpression.value.label}</label>
+            <div className="tw:flex tw:flex-col tw:min-w-[220px] tw:mb-2">
+                <label className="tw:text-sm tw:font-medium tw:mb-1">{filterExpression.value.label}</label>
                 {renderInput(filterExpression.value, displayValue, handleSetValue)}
             </div>
         );
@@ -268,15 +268,15 @@ function FilterForm({
             }))
             .filter(grouping => grouping.filters.length > 0);
     return (
-        <form className="mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
+        <form className="tw:mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
             {/* Render default group filters above the dividers */}
             {defaultGroup && defaultFilters.length > 0 && (
-                <div className="flex flex-wrap gap-4 items-start mb-4">
+                <div className="tw:flex tw:flex-wrap tw:gap-4 tw:items-start tw:mb-4">
                     {
                         defaultFilters.map(filterSchema => (
-                            <div key={filterSchema.id} className="flex flex-col min-w-[220px] mb-2">
-                                <div className="flex items-center mb-1 max-h-[20px]">
-                                    <label className="text-sm font-bold">{filterSchema.label}</label>
+                            <div key={filterSchema.id} className="tw:flex tw:flex-col tw:min-w-[220px] tw:mb-2">
+                                <div className="tw:flex tw:items-center tw:mb-1 tw:max-h-[20px]">
+                                    <label className="tw:text-sm tw:font-bold">{filterSchema.label}</label>
                                     <Button
                                         type="button"
                                         size='small'
@@ -306,13 +306,13 @@ function FilterForm({
             {/* Render other groups with Panel and captions */}
             {
                 filtersByGroup.map(({ group, filters }) => (
-                    <Panel key={group.name} header={group.label} className="w-full mb-4">
-                        <div className="flex flex-wrap gap-4 items-start">
+                    <Panel key={group.name} header={group.label} className="tw:w-full tw:mb-4">
+                        <div className="tw:flex tw:flex-wrap tw:gap-4 tw:items-start">
                             {
                                 filters.map((filterSchema) => (
-                                    <div key={filterSchema.id} className="flex flex-col min-w-[220px] mb-2">
-                                        <div className="flex items-center mb-1 max-h-[20px]">
-                                            <label className="text-sm font-bold">{filterSchema.label}</label>
+                                    <div key={filterSchema.id} className="tw:flex tw:flex-col tw:min-w-[220px] mb-2">
+                                        <div className="tw:flex items-center tw:mb-1 tw:max-h-[20px]">
+                                            <label className="tw:text-sm tw:font-bold">{filterSchema.label}</label>
                                             <Button
                                                 type="button"
                                                 size='small'
@@ -341,7 +341,7 @@ function FilterForm({
                     </Panel>
                 ))
             }
-            <div className="flex gap-2 mb-3 justify-end">
+            <div className="tw:flex tw:gap-2 tw:mb-3 tw:justify-end">
                 <Button type="submit" size='small' label="Apply filter" icon='pi pi-filter' />
                 <Button type="button" size='small' outlined label="Reset All" icon='pi pi-filter-slash' onClick={resetAllFilters} className='p-button-secondary' />
                 <SplitButton

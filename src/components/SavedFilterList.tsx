@@ -88,7 +88,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         }
 
         return (
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className="tw:mt-2 tw:flex tw:flex-wrap tw:gap-1">
                 {
                     activeFilters.map(([filterId, filter], index) => {
                         // Handle different types of FilterFormState
@@ -109,7 +109,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                             <Tag
                                 key={index}
                                 value={displayText}
-                                className="text-xs"
+                                className="tw:text-xs"
                                 style={{
                                     backgroundColor: 'transparent',
                                     color: '#6366f1',
@@ -124,26 +124,26 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
     };
 
     return (
-        <div className="mb-4">
-            <div className="mb-3">
-                <h3 className="text-lg font-medium text-gray-900">Saved Filters</h3>
+        <div className="tw:mb-4">
+            <div className="tw:mb-3">
+                <h3 className="tw:text-lg tw:font-medium tw:text-gray-900">Saved Filters</h3>
             </div>
             {savedFilters.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No saved filters for this view</p>
+                <p className="tw:text-gray-500 tw:text-center tw:py-4">No saved filters for this view</p>
             ) : (
-                <div className="space-y-3">
+                <div className="tw:space-y-3">
                     {savedFilters.map((filter) => (
-                        <div key={filter.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-medium text-gray-900">{filter.name}</h4>
-                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        <div key={filter.id} className="tw:flex tw:items-center tw:justify-between tw:p-3 tw:border tw:border-gray-200 tw:rounded-lg">
+                            <div className="tw:flex-1">
+                                <div className="tw:flex tw:items-center tw:gap-2 tw:mb-1">
+                                    <h4 className="tw:font-medium tw:text-gray-900">{filter.name}</h4>
+                                    <span className="tw:text-xs tw:text-gray-500 tw:bg-gray-100 tw:px-2 tw:py-1 tw:rounded">
                                         Created: {formatDate(filter.createdAt)}
                                     </span>
                                 </div>
                                 {renderFilterState(filter.state)}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="tw:flex tw:gap-2">
                                 <Button
                                     size="small"
                                     outlined

@@ -12,16 +12,16 @@ const dateCellRenderer: CellRenderer = ({ data: { createdAt } }) =>
 
 // Idempotency key cell renderer
 const idempotencyKeyCellRenderer: CellRenderer = ({ data: { idempotencyKey } }) =>
-    <div className="whitespace-pre-wrap">{idempotencyKey}</div>;
+    <div className="tw:whitespace-pre-wrap">{idempotencyKey}</div>;
 
 // Namespace cell renderer
 const namespaceCellRenderer: CellRenderer = ({ data: { namespace } }) =>
-    <div className="whitespace-pre-wrap">{namespace}</div>;
+    <div className="tw:whitespace-pre-wrap">{namespace}</div>;
 
 // JSON cell renderer for request params
 const jsonCellRenderer: CellRenderer = ({ data: { requestParams } }) =>
     <FlexRow align="center" justify="start">
-        <pre className="text-left">{JSON.stringify(requestParams, null, 2)}</pre>
+        <pre className="tw:text-left">{JSON.stringify(requestParams, null, 2)}</pre>
     </FlexRow>;
 
 // JSON response cell renderer

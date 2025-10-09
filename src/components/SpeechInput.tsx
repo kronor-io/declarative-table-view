@@ -38,28 +38,28 @@ function SpeechInput({ value, onChange }: SpeechInputProps) {
     };
 
     return (
-        <div className="flex flex-1 items-center gap-2">
+        <div className="tw:flex tw:flex-1 tw:items-center tw:gap-2">
             <InputText
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder="Speak or type here..."
-                className="flex-1"
+                className="tw:flex-1"
             />
             <button
                 type="button"
                 onClick={handleMicClick}
-                className={`rounded-full p-2 border ${isListening ? 'bg-red-500 text-white' : 'bg-gray-200 text-black'} transition`}
+                className={`tw:rounded-full tw:p-2 tw:border ${isListening ? 'tw:bg-red-500 tw:text-white' : 'tw:bg-gray-200 tw:text-black'} tw:transition`}
                 aria-label={isListening ? 'Stop listening' : 'Start listening'}
             >
                 {/* Mic icon: classic microphone shape */}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="tw:h-5">
                     <rect x="9" y="2" width="6" height="12" rx="3" />
                     <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
                     <line x1="12" y1="19" x2="12" y2="22" />
                     <line x1="8" y1="22" x2="16" y2="22" />
                 </svg>
             </button>
-            <span className="text-s ml-2">{isListening ? 'Listening...' : ''}</span>
+            <span className="tw:text-s tw:ml-2">{isListening ? 'Listening...' : ''}</span>
         </div>
     );
 }

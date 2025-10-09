@@ -96,8 +96,8 @@ initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexRow, Fle
   return (
     <FlexRow align="center">
       <FlexColumn>
-        <span className="font-bold">{data['customer.name']}</span>
-        <button className="text-blue-500 underline" onClick={handleEmailClick}>
+        <span className="tw:font-bold">{data['customer.name']}</span>
+        <button className="tw:text-blue-500 tw:underline" onClick={handleEmailClick}>
           {data['customer.email']}
         </button>
       </FlexColumn>

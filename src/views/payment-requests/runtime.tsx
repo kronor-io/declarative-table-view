@@ -37,7 +37,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         // Transaction cell renderer
         transaction: ({ data: { transactionId, waitToken } }) => {
             const url = `/portal/payment-requests/${waitToken}`;
-            return <a className="underline" href={url}>{transactionId}</a>;
+            return <a className="tw:underline" href={url}>{transactionId}</a>;
         },
 
         // Merchant cell renderer
@@ -68,9 +68,9 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             return (
                 <FlexRow align="center" justify="start">
                     <FlexColumn align="start">
-                        <span className="font-bold">{data['customer.name']}</span>
+                        <span className="tw:font-bold">{data['customer.name']}</span>
                         <button
-                            className="text-blue-500 underline hover:text-blue-700 cursor-pointer text-left"
+                            className="tw:text-blue-500 tw:underline hover:tw:text-blue-700 tw:cursor-pointer tw:text-left"
                             onClick={handleEmailClick}
                             title={`Filter by email: ${data['customer.email']}`}
                         >

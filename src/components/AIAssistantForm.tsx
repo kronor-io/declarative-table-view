@@ -32,9 +32,9 @@ export default function AIAssistantForm({
     const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
     const [aiLoading, setAiLoading] = useState(false);
     return (
-        <div className="flex flex-col gap-2 mb-3">
-            <label className="text-sm font-semibold mb-1" htmlFor="ai-prompt">AI Prompt</label>
-            <div className="flex gap-2">
+        <div className="tw:flex tw:flex-col tw:gap-2 tw:mb-3">
+            <label className="tw:text-sm tw:font-semibold tw:mb-1" htmlFor="ai-prompt">AI Prompt</label>
+            <div className="tw:flex tw:gap-2">
                 <SpeechInput value={aiPrompt} onChange={setAiPrompt} />
                 <Button
                     type="button"
@@ -68,14 +68,14 @@ export default function AIAssistantForm({
                     className='p-button-secondary'
                 />
             </div>
-            <label className="text-sm font-semibold mt-4" htmlFor="ai-filterexpr-input">Add a custom filter with AI</label>
-            <div className="flex items-center gap-2">
+            <label className="tw:text-sm tw:font-semibold tw:mt-4" htmlFor="ai-filterexpr-input">Add a custom filter with AI</label>
+            <div className="tw:flex tw:items-center tw:gap-2">
                 <InputText
                     id="ai-filterexpr-input"
                     value={aiFilterExprInput}
                     onChange={e => setAiFilterExprInput(e.target.value)}
                     placeholder="Describe filter in natural language..."
-                    className="flex-1"
+                    className="tw:flex-1"
                 />
                 <Button
                     type="button"

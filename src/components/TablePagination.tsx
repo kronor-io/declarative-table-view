@@ -15,7 +15,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({ onPageChange, onPrevP
     const start = currentPage * rowsPerPage + 1;
     const end = start + actualRows - 1;
     return (
-        <div className="flex justify-center items-center mt-4 gap-2">
+        <div className="tw:flex tw:justify-center tw:items-center tw:mt-4 tw:gap-2">
             <Button
                 rounded
                 icon="pi pi-angle-left"
@@ -24,7 +24,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({ onPageChange, onPrevP
                 className="p-button-sm"
                 data-testid="pagination-prev"
             />
-            <span className="text-s text-gray-600 mx-3" data-testid="pagination-page">{start}-{end}</span>
+            <span className="tw:text-s tw:text-gray-600 tw:mx-3" data-testid="pagination-page">{start}-{end}</span>
             <Button
                 rounded
                 icon="pi pi-angle-right"

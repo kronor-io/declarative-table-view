@@ -14,47 +14,47 @@ function wrapStringChildren(children: React.ReactNode) {
 
 function getAlignClass(align?: string) {
     switch (align) {
-        case 'start': return 'items-start';
-        case 'center': return 'items-center';
-        case 'end': return 'items-end';
-        case 'stretch': return 'items-stretch';
-        case 'baseline': return 'items-baseline';
+        case 'start': return 'tw:items-start';
+        case 'center': return 'tw:items-center';
+        case 'end': return 'tw:items-end';
+        case 'stretch': return 'tw:items-stretch';
+        case 'baseline': return 'tw:items-baseline';
         default: return '';
     }
 }
 
 function getJustifyClass(justify?: string) {
     switch (justify) {
-        case 'start': return 'justify-start';
-        case 'center': return 'justify-center';
-        case 'end': return 'justify-end';
-        case 'between': return 'justify-between';
-        case 'around': return 'justify-around';
-        case 'evenly': return 'justify-evenly';
+        case 'start': return 'tw:justify-start';
+        case 'center': return 'tw:justify-center';
+        case 'end': return 'tw:justify-end';
+        case 'between': return 'tw:justify-between';
+        case 'around': return 'tw:justify-around';
+        case 'evenly': return 'tw:justify-evenly';
         default: return '';
     }
 }
 
 function getWrapClass(wrap?: string | boolean) {
-    if (wrap === true || wrap === 'wrap') return 'flex-wrap';
-    if (wrap === 'nowrap') return 'flex-nowrap';
-    if (wrap === 'wrap-reverse') return 'flex-wrap-reverse';
+    if (wrap === true || wrap === 'wrap') return 'tw:flex-wrap';
+    if (wrap === 'nowrap') return 'tw:flex-nowrap';
+    if (wrap === 'wrap-reverse') return 'tw:flex-wrap-reverse';
     return '';
 }
 
 // Horizontal stack (row) with gap
-export function FlexRow({ gap = "gap-2", className = "", align, justify, wrap, children }: { gap?: string; className?: string; align?: string; justify?: string; wrap?: string | boolean; children: React.ReactNode }) {
+export function FlexRow({ gap = "tw:gap-2", className = "", align, justify, wrap, children }: { gap?: string; className?: string; align?: string; justify?: string; wrap?: string | boolean; children: React.ReactNode }) {
     return (
-        <div className={`flex flex-row ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${getWrapClass(wrap)} ${className}`.trim()}>
+        <div className={`tw:flex tw:flex-row ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${getWrapClass(wrap)} ${className}`.trim()}>
             {wrapStringChildren(children)}
         </div>
     );
 }
 
 // Vertical stack (column) with gap
-export function FlexColumn({ gap = "gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
+export function FlexColumn({ gap = "tw:gap-2", className = "", align, justify, children }: { gap?: string; className?: string; align?: string; justify?: string; children: React.ReactNode }) {
     return (
-        <div className={`flex flex-col ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${className}`.trim()}>
+        <div className={`tw:flex tw:flex-col ${gap} ${getAlignClass(align)} ${getJustifyClass(justify)} ${className}`.trim()}>
             {wrapStringChildren(children)}
         </div>
     );
@@ -62,7 +62,7 @@ export function FlexColumn({ gap = "gap-2", className = "", align, justify, chil
 
 // Spacer for use in flex layouts
 export function Spacer() {
-    return <div className="flex-1" />;
+    return <div className="tw:flex-1" />;
 }
 
 // FormattedDate: formats a date string using toLocaleString

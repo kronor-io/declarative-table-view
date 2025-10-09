@@ -22,7 +22,7 @@ const emailCellRenderer: CellRenderer = ({ data, updateFilterById, applyFilters 
 
     return (
         <button
-            className="text-blue-500 underline hover:text-blue-700 cursor-pointer"
+            className="tw:text-blue-500 tw:underline hover:tw:text-blue-700 tw:cursor-pointer"
             onClick={handleEmailClick}
             title={`Filter by email: ${data.email}`}
         >
