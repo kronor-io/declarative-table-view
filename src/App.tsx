@@ -38,7 +38,7 @@ export interface AppProps {
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
     onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
-    syncFilterStateToUrl?: boolean; // When true, keep current filter state encoded in URL (dtv-filter-state)
+    syncFilterStateToUrl: boolean; // When true, keep current filter state encoded in URL (dtv-filter-state)
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -511,6 +511,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         externalRuntime={externalRuntime}
                         isOverlay={true}
                         onCloseOverlay={() => setShowPopout(false)}
+                        syncFilterStateToUrl={syncFilterStateToUrl}
                     />
                 </div>,
                 document.body
