@@ -94,6 +94,13 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
 
+    // Auto-expand filter panel when user starts typing a search (help discover filters)
+    useEffect(() => {
+        if (search && !showFilterForm) {
+            setShowFilterForm(true);
+        }
+    }, [search, showFilterForm]);
+
     // Lock body scroll when popout is open (only in root instance)
     useEffect(() => {
         if (!isOverlay && showPopout) {
@@ -443,6 +450,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             selectedView={selectedView}
                             geminiApiKey={geminiApiKey}
                             toast={toast}
+                            setShowFilterForm={setShowFilterForm}
                         />
                     </div>
                 )

@@ -1,10 +1,8 @@
-import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
-import { buildInitialFormState } from '../framework/state';
 import { useState, RefObject } from 'react';
-import { filterExprFromJSON, FilterSchemasAndGroups, getFieldNodes } from '../framework/filters';
+import { FilterSchemasAndGroups } from '../framework/filters';
 import { View } from '../framework/view';
 import { generateFilterWithAI, GeminiApi } from './aiAssistant';
 import { FilterState } from '../framework/state';
@@ -17,19 +15,19 @@ interface AIAssistantFormProps {
     selectedView: View;
     geminiApiKey: string;
     toast: RefObject<Toast | null>;
+    // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
+    setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 export default function AIAssistantForm({
-    filterSchema,
-    filterState,
-    setFilterSchema,
     setFilterState,
     selectedView,
     geminiApiKey,
-    toast
+    toast,
+    setShowFilterForm
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState('authorized payments in euro or danish krona in the first week of april 2025');
-    const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
+    // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
     const [aiLoading, setAiLoading] = useState(false);
     return (
         <div className="tw:flex tw:flex-col tw:gap-2 tw:mb-3">
@@ -46,6 +44,8 @@ export default function AIAssistantForm({
                         setAiLoading(true);
                         try {
                             await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey, toast);
+                            // Reveal filter form so user sees applied changes
+                            setShowFilterForm(true);
 
                             toast.current?.show({
                                 severity: 'success',
@@ -68,7 +68,7 @@ export default function AIAssistantForm({
                     className='p-button-secondary'
                 />
             </div>
-            <label className="tw:text-sm tw:font-semibold tw:mt-4" htmlFor="ai-filterexpr-input">Add a custom filter with AI</label>
+            {/* <label className="tw:text-sm tw:font-semibold tw:mt-4" htmlFor="ai-filterexpr-input">Add a custom filter with AI</label>
             <div className="tw:flex tw:items-center tw:gap-2">
                 <InputText
                     id="ai-filterexpr-input"
@@ -235,7 +235,7 @@ export default function AIAssistantForm({
                     }}
                     className='p-button-secondary'
                 />
-            </div>
+            </div> */}
         </div>
     );
 }
