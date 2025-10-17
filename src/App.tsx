@@ -381,7 +381,16 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             outlined
                             size='small'
                             label={showFilterForm ? 'Hide Filters' : 'Filters'}
-                            onClick={() => setShowFilterForm(v => !v)}
+                            onClick={() => {
+                                setShowFilterForm(prev => {
+                                    const next = !prev;
+                                    if (!next) {
+                                        // Clear search when hiding filters to avoid auto-expanding again
+                                        setSearch('');
+                                    }
+                                    return next;
+                                });
+                            }}
                         />
                         <Button
                             type="button"
