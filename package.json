@@ -1,7 +1,11 @@
 {
-  "name": "dtv",
+  "name": "@kronor/dtv",
   "version": "0.2.9",
   "type": "module",
+  "files": [
+    "dist",
+    "docs"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
