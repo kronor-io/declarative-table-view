@@ -21,14 +21,14 @@ export const fetchData = async ({
     view,
     query,
     filterState,
-    rows,
+    rowLimit,
     cursor
 }: {
     client: GraphQLClient;
     view: View;
     query: string;
     filterState: FilterState;
-    rows: number;
+    rowLimit: number;
     cursor: string | number | null;
 }): Promise<FetchDataResult> => {
     // Assign a unique ID to this request for ordering
@@ -40,22 +40,17 @@ export const fetchData = async ({
         // Merge staticConditions (always-on) if present
         if (view.staticConditions && view.staticConditions.length > 0) {
             // If existing conditions object is empty (no user filters), we still wrap both sides in _and for consistency
-            conditions = { _and: [conditions, ...view.staticConditions] } as any;
+            conditions = { _and: [conditions, ...view.staticConditions] };
         }
-        if (cursor !== null) {
-            const pagKey = view.paginationKey;
-            const pagCond = { [pagKey]: { _lt: cursor } };
-            // Always wrap in _and for pagination
-            // If static conditions already produced an _and wrapper, append to its array to avoid nesting
-            if (conditions && '_and' in conditions && Array.isArray((conditions as any)._and)) {
-                (conditions as any)._and.push(pagCond);
-            } else {
-                conditions = { _and: [conditions, pagCond] } as any;
-            }
-        }
+        // Pagination condition is now supplied as a separate GraphQL variable so that the _lt value
+        // (cursor) is parameterized instead of embedded inside the generic conditions variable.
+        const paginationCondition = cursor !== null
+            ? { [view.paginationKey]: { _lt: cursor } }
+            : {}; // Empty object is a no-op in an _and boolean expression
         const variables = {
             conditions,
-            limit: rows,
+            paginationCondition,
+            rowLimit,
             orderBy: [{ [view.paginationKey]: 'DESC' }],
         };
 

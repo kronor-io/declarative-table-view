@@ -284,7 +284,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
             view: selectedView,
             query: memoizedQuery,
             filterState: state.filterState,
-            rows: rowsPerPage,
+            rowLimit: rowsPerPage,
             cursor
         });
     }, [client, selectedView, memoizedQuery, state.filterState, rowsPerPage]);

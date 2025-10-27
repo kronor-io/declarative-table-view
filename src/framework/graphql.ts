@@ -286,17 +286,24 @@ export function generateGraphQLQueryAST(
     return {
         operation: 'query',
         variables: [
-            { name: 'conditions', type: boolExpType },
-            { name: 'limit', type: 'Int' },
+            { name: 'conditions', type: `${boolExpType}!` },
+            // Separate pagination condition so the cursor value is sent as its own GraphQL variable
+            // (rather than being baked into the generic conditions object). This allows better
+            // query plan reuse and avoids regenerating the full conditions object simply to swap
+            // a cursor value.
+            { name: 'paginationCondition', type: `${boolExpType}!` },
+            { name: 'rowLimit', type: 'Int' },
             { name: 'orderBy', type: orderByType }
         ],
-        rootField: `${rootField}(where: $conditions, limit: $limit, orderBy: $orderBy)`,
+        // Always compose the final where via an _and that combines user/static conditions with
+        // the pagination condition. When there is no active cursor the paginationCondition
+        // will simply be an empty object {} which Hasura will treat as a no-op in the boolean expression.
+        rootField: `${rootField}(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)`,
         selectionSet: selectionSet
     };
 }
 
 // Generates a full GraphQL query string for a given root field and schema, supporting only limit (Int), conditions (Hasura condition), and orderBy (Hasura ordering)
-// Generates a full GraphQL query string for a given root field and schema.
 // If paginationKey is provided and not already part of the selection set derived from columns,
 // it will be appended to ensure cursor-based pagination works even when the user has not defined
 // a column for that field.

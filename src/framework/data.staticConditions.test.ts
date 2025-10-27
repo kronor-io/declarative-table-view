@@ -32,15 +32,19 @@ describe('fetchData staticConditions merging', () => {
     });
 
     it('merges staticConditions when no user filters', async () => {
-        const result = await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rows: 10, cursor: null });
+        const result = await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rowLimit: 10, cursor: null });
         expect(requestSpy).toHaveBeenCalled();
         expect(capturedVariables.conditions).toEqual({ _and: [{}, { status: { _eq: 'ACTIVE' } }, { deleted_at: { _is_null: true } }] });
+        // When no cursor is provided the separate paginationCondition variable is an empty object
+        expect(capturedVariables.paginationCondition).toEqual({});
         expect(result.rows).toEqual([]);
     });
 
-    it('merges pagination condition efficiently by appending', async () => {
-        await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rows: 10, cursor: 50 });
-        expect(capturedVariables.conditions._and.length).toBe(4); // {}, two static, pagination
-        expect(capturedVariables.conditions._and[3]).toEqual({ id: { _lt: 50 } });
+    it('provides pagination condition via separate variable', async () => {
+        await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rowLimit: 10, cursor: 50 });
+        // The base conditions should only include user + static conditions (no pagination)
+        expect(capturedVariables.conditions._and.length).toBe(3); // {}, two static
+        // Pagination condition is isolated in its own variable
+        expect(capturedVariables.paginationCondition).toEqual({ id: { _lt: 50 } });
     });
 });

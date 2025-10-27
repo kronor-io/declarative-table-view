@@ -16,15 +16,17 @@ export async function mockPaginationGraphQL(route: Route) {
     // Use paginationKey (id._gt or id._lt) to determine the start index, depending on orderBy
     let startIdx = 0;
     let pageSize = 20;
-    let orderKey = 'id';
+    type Row = typeof allRows[number];
+    let orderKey: keyof Row = 'id';
     let orderDir = 'asc';
-    if (postData && postData.variables && typeof postData.variables.limit === 'number') {
-        pageSize = postData.variables.limit;
+    if (postData && postData.variables && typeof postData.variables.rowLimit === 'number') {
+        pageSize = postData.variables.rowLimit;
     }
     if (postData && postData.variables && Array.isArray(postData.variables.orderBy) && postData.variables.orderBy.length > 0) {
         const order = postData.variables.orderBy[0];
-        orderKey = Object.keys(order)[0];
-        orderDir = order[orderKey];
+        const key = Object.keys(order)[0] as keyof Row;
+        orderKey = key;
+        orderDir = (order as any)[orderKey];
     }
     // Sort allRows according to orderBy
     const sortedRows = allRows.slice();
@@ -120,14 +122,26 @@ export async function mockPaginationGraphQL(route: Route) {
     // Pagination: use _gt for asc, _lt for desc, recursively
     let cursorValue: number | undefined = undefined;
     let filteredRows = sortedRows;
-    if (postData && postData.variables && postData.variables.conditions) {
-        // Apply filters first
-        filteredRows = applyFilters(sortedRows, postData.variables.conditions);
-        // Then pagination cursor
-        cursorValue = findPaginationCursor(postData.variables.conditions, orderKey, orderDir);
-        if (cursorValue !== undefined) {
-            const idx = filteredRows.findIndex(r => Number((r as any)[orderKey]) === cursorValue);
-            startIdx = idx >= 0 ? idx + 1 : 0;
+    if (postData && postData.variables) {
+        const { conditions, paginationCondition } = postData.variables;
+
+        // Apply only the base conditions (user/static filters) for filtering
+        if (conditions) {
+            filteredRows = applyFilters(sortedRows, conditions);
+        }
+
+        // Cursor now lives in a separate variable (paginationCondition) after refactor.
+        // Fallback to legacy location (conditions) if needed for backward compatibility.
+        const cursorSource = paginationCondition && Object.keys(paginationCondition).length > 0
+            ? paginationCondition
+            : conditions;
+
+        if (cursorSource) {
+            cursorValue = findPaginationCursor(cursorSource, orderKey, orderDir);
+            if (cursorValue !== undefined) {
+                const idx = filteredRows.findIndex(r => Number((r as any)[orderKey]) === cursorValue);
+                startIdx = idx >= 0 ? idx + 1 : 0;
+            }
         }
     }
 

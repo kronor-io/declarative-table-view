@@ -8,7 +8,7 @@ describe("renderGraphQLQuery", () => {
             name: "GetUsers",
             variables: [
                 { name: "conditions", type: "UserBoolExp" },
-                { name: "limit", type: "Int" }
+                { name: "rowLimit", type: "Int" }
             ],
             rootField: "users",
             selectionSet: [
@@ -23,7 +23,7 @@ describe("renderGraphQLQuery", () => {
             ]
         };
         const result = renderGraphQLQuery(ast);
-        expect(result).toContain("query GetUsers($conditions: UserBoolExp, $limit: Int)");
+        expect(result).toContain("query GetUsers($conditions: UserBoolExp, $rowLimit: Int)");
         expect(result).toContain("users {");
         expect(result).toContain("id");
         expect(result).toContain("name");
@@ -38,7 +38,7 @@ describe("renderGraphQLQuery", () => {
             name: "GetUsersWithFilters",
             variables: [
                 { name: "conditions", type: "UserBoolExp" },
-                { name: "limit", type: "Int" }
+                { name: "rowLimit", type: "Int" }
             ],
             rootField: "users",
             selectionSet: [
@@ -63,7 +63,7 @@ describe("renderGraphQLQuery", () => {
             ]
         };
         const result = renderGraphQLQuery(ast);
-        expect(result).toContain("query GetUsersWithFilters($conditions: UserBoolExp, $limit: Int)");
+        expect(result).toContain("query GetUsersWithFilters($conditions: UserBoolExp, $rowLimit: Int)");
         expect(result).toContain("users {");
         expect(result).toContain("id");
         expect(result).toContain("name");
@@ -111,11 +111,12 @@ describe("generateGraphQLQueryAST", () => {
 
         expect(ast.operation).toBe("query");
         expect(ast.variables).toEqual([
-            { name: "conditions", type: "TestBoolExp" },
-            { name: "limit", type: "Int" },
+            { name: "conditions", type: "TestBoolExp!" },
+            { name: "paginationCondition", type: "TestBoolExp!" },
+            { name: "rowLimit", type: "Int" },
             { name: "orderBy", type: "TestOrderBy" },
         ]);
-        expect(ast.rootField).toBe("testRoot(where: $conditions, limit: $limit, orderBy: $orderBy)");
+        expect(ast.rootField).toBe("testRoot(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)");
         expect(ast.selectionSet).toEqual([
             { field: "id" },
             { field: "name" },
