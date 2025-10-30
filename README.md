@@ -2,6 +2,33 @@
 
 This project is a React + TypeScript monorepo for building schema-driven, declarative table views with advanced filtering, data fetching, and AI-assisted filter generation.
 
+## Library Consumption
+
+You can consume the `App` component as a library bundle with embedded styles (Tailwind + PrimeReact + PrimeIcons + PrimeFlex) without importing separate CSS files.
+
+### Build the library
+
+```sh
+npm run build:lib
+```
+
+Outputs:
+- `dist/index.es.js` (ES module bundle with runtime-injected CSS)
+- `dist/types` (Type declarations, root `index.d.ts`)
+
+### Import in your application
+
+```ts
+import { App } from '@kronor/dtv';
+import type { AppProps } from '@kronor/dtv';
+```
+
+All required styles are injected automatically via the JS bundle (using `vite-plugin-css-injected-by-js`).
+
+### Peer Dependencies
+
+React and ReactDOM 19 are peer dependencies; ensure they are installed in the host project.
+
 ## Project Overview
 - **Framework:** React, TypeScript, Vite
 - **Testing:** Jest (unit), Playwright (E2E)
