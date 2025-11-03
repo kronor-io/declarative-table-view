@@ -50,7 +50,7 @@
             name = "declarative-table-views";
             npmPackFlags = [ "--ignore-scripts" ];
             src = ./.;
-            npmDepsHash = "sha256-/lKWj1+r6kMSrnwhVhxt0gr4X2ZNIs2WAAiigTw7sfE=";
+            npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
             makeCacheWriteable = true;
           }).overrideAttrs
             (old: {
@@ -70,7 +70,7 @@
               name = "lint-dtv";
               npmPackFlags = [ "--ignore-scripts" ];
               src = ./.;
-              npmDepsHash = "sha256-/lKWj1+r6kMSrnwhVhxt0gr4X2ZNIs2WAAiigTw7sfE=";
+              npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
               makeCacheWriteable = true;
             }).overrideAttrs
               (old: {
@@ -87,7 +87,7 @@
               name = "test-unit-dtv";
               npmPackFlags = [ "--ignore-scripts" ];
               src = ./.;
-              npmDepsHash = "sha256-/lKWj1+r6kMSrnwhVhxt0gr4X2ZNIs2WAAiigTw7sfE=";
+              npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
               makeCacheWriteable = true;
             }).overrideAttrs
               (old: {
