@@ -17,12 +17,9 @@
     "prepare": "husky"
   },
   "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.es.js"
-    }
+    "import": "./dist/index.es.js",
+    "types": "./dist/types/App.d.ts"
   },
-  "types": "./dist/types/index.d.ts",
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
