@@ -11,3 +11,4 @@ export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
 export type { FilterSchema } from '../framework/filters';
+export type { RowSelectionAPI } from '../components/Table';

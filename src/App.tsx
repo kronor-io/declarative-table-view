@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
-import Table from './components/Table';
+import Table, { RowSelectionAPI } from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
 import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
@@ -45,8 +45,8 @@ export interface AppProps {
         rowSelectionType: 'none' | 'multiple';
         /** Callback invoked whenever the row selection changes */
         onRowSelectionChange?: (selectedRows: any[]) => void;
-        /** Will be populated by the component – after mount you can call to clear current selection */
-        resetRowSelection?: () => void;
+        /** React ref that will be populated with RowSelectionAPI (e.g. resetRowSelection) */
+        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
 }
 

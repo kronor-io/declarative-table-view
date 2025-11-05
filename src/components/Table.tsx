@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
 import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
@@ -12,6 +13,11 @@ import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 import { FilterFormState } from '../framework/filter-form-state';
 
+export interface RowSelectionAPI {
+    /** Reset (clear) the current selection */
+    resetRowSelection(): void;
+}
+
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
@@ -24,7 +30,8 @@ type TableProps = {
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
         onRowSelectionChange?: (rows: any[]) => void;
-        resetRowSelection?: () => void; // Will be set by Table
+        /** Ref object populated by Table with RowSelectionAPI */
+        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
 };
 
@@ -75,17 +82,30 @@ function Table({
     const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
     const selectionType = rowSelection?.rowSelectionType ?? 'none';
 
-    // Expose reset only when selection is enabled (still safe if none)
+    // Populate imperative API ref if provided
     useEffect(() => {
-        if (rowSelection) {
-            rowSelection.resetRowSelection = () => setSelectedRows([]);
+        if (rowSelection?.apiRef) {
+            rowSelection.apiRef.current = {
+                resetRowSelection: () => setSelectedRows([])
+            };
         }
     }, [rowSelection]);
 
     const handleSelectionChange = (rows: any[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
         setSelectedRows(rows);
-        rowSelection?.onRowSelectionChange?.(rows);
+
+        // Transform each selected "row" (array of cell data objects) into a single flat object
+        const simplifiedRows = rows.map((row: any) => {
+            return row.reduce((acc: Record<string, any>, cell: any) => {
+                for (const [k, v] of Object.entries(cell)) {
+                    acc[k] = v;
+                }
+                return acc;
+            }, {});
+        });
+
+        rowSelection?.onRowSelectionChange?.(simplifiedRows);
     };
 
     return (
@@ -99,6 +119,7 @@ function Table({
             emptyMessage={noDataRowsComponent}
             exportFunction={exportFunction}
             exportFilename={viewId}
+            selectionPageOnly={true}
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}

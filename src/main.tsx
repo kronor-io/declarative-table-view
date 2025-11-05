@@ -1,4 +1,5 @@
-import { StrictMode } from 'react'
+import { StrictMode, createRef } from 'react'
+import type { RowSelectionAPI } from './components/Table';
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
@@ -18,7 +19,7 @@ export interface RenderTableViewOptions {
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
         onRowSelectionChange?: (rows: any[]) => void;
-        resetRowSelection?: () => void;
+        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
 }
 
@@ -64,9 +65,10 @@ if (import.meta.env.DEV) {
             const rowSelectionTypeParam = urlParams.get('rowSelectionType');
             const rowSelection = rowSelectionTypeParam ? {
                 rowSelectionType: (rowSelectionTypeParam === 'multiple' ? 'multiple' : 'none') as 'multiple' | 'none',
-                onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; }
+                onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; },
+                apiRef: createRef<RowSelectionAPI>()
             } : undefined;
-            // Expose for tests to call resetRowSelection later
+            // Expose for tests to call rowSelection.apiRef.current.resetRowSelection later
             (window as any).__rowSelection = rowSelection;
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
