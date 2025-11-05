@@ -1,0 +1,89 @@
+[
+    {
+        "title": "Playground Simple View",
+        "id": "playground-simple-view",
+        "collectionName": "simpleTestDataCollection",
+        "paginationKey": "id",
+        "boolExpType": "SimpleTestBoolExp",
+        "orderByType": "[SimpleTestOrderBy!]",
+        "columns": [
+            {
+                "data": [
+                    {
+                        "type": "field",
+                        "path": "testField"
+                    }
+                ],
+                "name": "Test Field",
+                "cellRenderer": {
+                    "section": "cellRenderers",
+                    "key": "text"
+                }
+            },
+            {
+                "data": [
+                    {
+                        "type": "field",
+                        "path": "amount"
+                    }
+                ],
+                "name": "Amount",
+                "cellRenderer": {
+                    "section": "cellRenderers",
+                    "key": "text"
+                }
+            },
+            {
+                "data": [
+                    {
+                        "type": "field",
+                        "path": "email"
+                    }
+                ],
+                "name": "Email",
+                "cellRenderer": {
+                    "section": "cellRenderers",
+                    "key": "text"
+                }
+            }
+        ],
+        "filterSchema": {
+            "groups": [
+                {
+                    "name": "default",
+                    "label": "Default"
+                }
+            ],
+            "filters": [
+                {
+                    "id": "test-field-eq",
+                    "label": "Test Field",
+                    "expression": {
+                        "type": "equals",
+                        "field": "testField",
+                        "value": {
+                            "type": "text",
+                            "placeholder": "Search test field"
+                        }
+                    },
+                    "group": "default",
+                    "aiGenerated": false
+                },
+                {
+                    "id": "email-eq",
+                    "label": "Email",
+                    "expression": {
+                        "type": "equals",
+                        "field": "email",
+                        "value": {
+                            "type": "text",
+                            "placeholder": "Search email"
+                        }
+                    },
+                    "group": "default",
+                    "aiGenerated": false
+                }
+            ]
+        }
+    }
+]

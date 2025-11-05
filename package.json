@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:lib": "tsc -p tsconfig.lib.json && vite build --config vite.lib.config.ts",
+    "dev:playground": "npm run build:lib -- --watch & vite --config vite.playground.config.ts",
     "clean": "rimraf dist",
     "lint": "eslint .",
     "preview": "vite preview",
