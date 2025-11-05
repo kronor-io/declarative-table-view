@@ -12,6 +12,7 @@ export interface RenderTableViewOptions {
     viewsJson: string; // JSON string containing array of view definitions
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
+    showCsvExportButton?: boolean; // Option to show/hide CSV export button
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     syncFilterStateToUrl?: boolean; // When true, keeps current filter state encoded in URL param `dtv-filter-state`
 }
@@ -30,6 +31,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     geminiApiKey={options.geminiApiKey}
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
+                    showCsvExportButton={options.showCsvExportButton ?? false}
                     viewsJson={options.viewsJson}
                     externalRuntime={options.externalRuntime}
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}

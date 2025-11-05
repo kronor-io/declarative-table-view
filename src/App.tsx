@@ -35,6 +35,7 @@ export interface AppProps {
     showViewsMenu: boolean;
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
+    showCsvExportButton?: boolean; // Controls visibility of the CSV export button (default false)
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
     onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
@@ -43,7 +44,7 @@ export interface AppProps {
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -400,14 +401,17 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
                             onClick={() => setShowSavedFilterList(v => !v)}
                         />
-                        <Button
-                            type="button"
-                            icon='pi pi-table'
-                            outlined
-                            size='small'
-                            label='Export page to CSV'
-                            onClick={handleExportCSV}
-                        />
+                        {showCsvExportButton && (
+                            <Button
+                                type="button"
+                                icon='pi pi-table'
+                                outlined
+                                size='small'
+                                label='Export page to CSV'
+                                onClick={handleExportCSV}
+                                data-testid="export-csv-button"
+                            />
+                        )}
                         {(!isOverlay || onCloseOverlay) && (
                             <Button
                                 type="button"
@@ -524,6 +528,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         showViewsMenu={showViewsMenu}
                         rowsPerPage={rowsPerPage}
                         showViewTitle={showViewTitle}
+                        showCsvExportButton={showCsvExportButton}
                         viewsJson={viewsJson}
                         externalRuntime={externalRuntime}
                         isOverlay={true}

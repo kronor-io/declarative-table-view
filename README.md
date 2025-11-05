@@ -25,6 +25,32 @@ import type { AppProps } from '@kronor/dtv';
 
 All required styles are injected automatically via the JS bundle (using `vite-plugin-css-injected-by-js`).
 
+### Runtime Options (AppProps)
+Key props you can pass to `App` (or via `renderTableView` in `main.tsx`):
+
+- `graphqlHost` / `graphqlToken`: GraphQL endpoint + bearer auth token.
+- `geminiApiKey`: API key used by the AI Filter Assistant.
+- `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
+- `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
+- `showViewTitle`: Toggle the view title heading (default: `false`).
+- `showCsvExportButton`: Toggle the "Export page to CSV" button (default: `false`). When enabled, current page rows are exported using PrimeReact's built-in DataTable CSV exporter.
+- `rowsPerPage`: Page size for pagination (default: `20`).
+- `externalRuntime`: Provide a runtime override for cell renderers / query transforms.
+- `syncFilterStateToUrl`: Persist applied filter state into the `dtv-filter-state` URL param (default: `false`).
+
+Example:
+```ts
+renderTableView('root', {
+  graphqlHost: 'https://example/graphql',
+  graphqlToken: 'token',
+  geminiApiKey: 'gemini-key',
+  viewsJson: JSON.stringify([myViewJson]),
+  showViewTitle: true,
+  showCsvExportButton: true,
+  syncFilterStateToUrl: true
+});
+```
+
 ### Peer Dependencies
 
 React and ReactDOM 19 are peer dependencies; ensure they are installed in the host project.
