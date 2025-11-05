@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
@@ -21,6 +21,11 @@ type TableProps = {
     filterState: FilterState; // Current filter state
     triggerRefetch: () => void; // Function to trigger data refetch
     ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
+    rowSelection?: {
+        rowSelectionType: 'none' | 'multiple';
+        onRowSelectionChange?: (rows: any[]) => void;
+        resetRowSelection?: () => void; // Will be set by Table
+    };
 };
 
 function Table({
@@ -31,7 +36,8 @@ function Table({
     setFilterState,
     filterState,
     triggerRefetch,
-    ref
+    ref,
+    rowSelection
 }: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
@@ -65,6 +71,23 @@ function Table({
         return data[Object.keys(data)[0]]
     }
 
+    // Internal selection state only relevant if enabled
+    const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
+    const selectionType = rowSelection?.rowSelectionType ?? 'none';
+
+    // Expose reset only when selection is enabled (still safe if none)
+    useEffect(() => {
+        if (rowSelection) {
+            rowSelection.resetRowSelection = () => setSelectedRows([]);
+        }
+    }, [rowSelection]);
+
+    const handleSelectionChange = (rows: any[]) => {
+        if (selectionType === 'none') return; // ignore events if disabled
+        setSelectedRows(rows);
+        rowSelection?.onRowSelectionChange?.(rows);
+    };
+
     return (
         <DataTable
             ref={ref}
@@ -76,7 +99,11 @@ function Table({
             emptyMessage={noDataRowsComponent}
             exportFunction={exportFunction}
             exportFilename={viewId}
+            selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
+            selection={selectionType === 'multiple' ? selectedRows : null}
+            onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
         >
+            {selectionType === 'multiple' && <Column selectionMode="multiple"></Column>}
             {columns.map((column, columnIndex) => (
                 <Column
                     key={columnIndex}

@@ -40,11 +40,19 @@ export interface AppProps {
     isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
     onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
     syncFilterStateToUrl: boolean; // When true, keep current filter state encoded in URL (dtv-filter-state)
+    rowSelection?: {
+        /** Type of row selection. 'none' disables selection UI. 'multiple' enables checkbox multi-select. */
+        rowSelectionType: 'none' | 'multiple';
+        /** Callback invoked whenever the row selection changes */
+        onRowSelectionChange?: (selectedRows: any[]) => void;
+        /** Will be populated by the component – after mount you can call to clear current selection */
+        resetRowSelection?: () => void;
+    };
 }
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false, rowSelection }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -505,6 +513,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                 setFilterState={setFilterState}
                 filterState={state.filterState}
                 triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                rowSelection={rowSelection}
             />
             {
                 state.data.rows.length > 0 && (

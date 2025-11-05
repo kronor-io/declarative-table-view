@@ -15,6 +15,11 @@ export interface RenderTableViewOptions {
     showCsvExportButton?: boolean; // Option to show/hide CSV export button
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     syncFilterStateToUrl?: boolean; // When true, keeps current filter state encoded in URL param `dtv-filter-state`
+    rowSelection?: {
+        rowSelectionType: 'none' | 'multiple';
+        onRowSelectionChange?: (rows: any[]) => void;
+        resetRowSelection?: () => void;
+    };
 }
 
 
@@ -35,6 +40,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     viewsJson={options.viewsJson}
                     externalRuntime={options.externalRuntime}
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
+                    rowSelection={options.rowSelection}
                 />
             </PrimeReactProvider>
         </StrictMode>
@@ -55,6 +61,13 @@ if (import.meta.env.DEV) {
             const runtime = Object.values(runtimeModule)[0] as Runtime;
 
             const urlParams = new URLSearchParams(window.location.search);
+            const rowSelectionTypeParam = urlParams.get('rowSelectionType');
+            const rowSelection = rowSelectionTypeParam ? {
+                rowSelectionType: (rowSelectionTypeParam === 'multiple' ? 'multiple' : 'none') as 'multiple' | 'none',
+                onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; }
+            } : undefined;
+            // Expose for tests to call resetRowSelection later
+            (window as any).__rowSelection = rowSelection;
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
@@ -62,7 +75,8 @@ if (import.meta.env.DEV) {
                 viewsJson: JSON.stringify([viewJson]),
                 showViewsMenu: false,
                 externalRuntime: runtime,
-                syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true'
+                syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true',
+                rowSelection
             });
         };
 
