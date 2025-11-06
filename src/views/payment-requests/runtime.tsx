@@ -97,7 +97,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         reference: {
             toQuery: (input: any) => {
                 if (input.operator === '_like' && input.value) {
-                    return { value: { value: `${input.value}%` } };
+                    return { value: { ...input, value: `${input.value}%` } };
                 }
                 return { value: input };
             }

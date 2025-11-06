@@ -87,7 +87,7 @@ export function buildHasuraConditions(
                     }
 
                     // Handle customOperator from schema control info
-                    if (schema.value && schema.value.type === 'customOperator') {
+                    if (schema.value.type === 'customOperator') {
                         const opVal = transformedValue;
                         if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
                         return buildNestedKey(transformedField, { [opVal.operator]: opVal.value });

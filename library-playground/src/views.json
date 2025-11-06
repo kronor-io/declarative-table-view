@@ -82,6 +82,36 @@
                     },
                     "group": "default",
                     "aiGenerated": false
+                },
+                {
+                    "id": "email-custom",
+                    "label": "Email custom",
+                    "expression": {
+                        "type": "equals",
+                        "field": "email",
+                        "value": {
+                            "type": "customOperator",
+                            "operators": [
+                                {
+                                    "label": "equals",
+                                    "value": "_eq"
+                                },
+                                {
+                                    "label": "starts with",
+                                    "value": "_like"
+                                }
+                            ],
+                            "valueControl": {
+                                "type": "text"
+                            }
+                        },
+                        "transform": {
+                            "section": "queryTransforms",
+                            "key": "genericTextFilter"
+                        }
+                    },
+                    "group": "default",
+                    "aiGenerated": false
                 }
             ]
         }

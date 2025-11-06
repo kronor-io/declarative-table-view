@@ -3,6 +3,7 @@ import { installFetchMock } from './mockFetch';
 import views from './views.json';
 import { useRef } from 'react';
 import { Button } from 'primereact/button';
+import { runtime } from './runtime';
 
 // Relative paths cause GraphQLClient to throw (it internally constructs a URL).
 // Resolve to an absolute URL based on current origin to avoid "Failed to construct 'URL'" errors.
@@ -30,8 +31,8 @@ export function PlaygroundApp() {
                 rowsPerPage={20}
                 showViewTitle={true}
                 viewsJson={JSON.stringify(views)}
-                externalRuntime={undefined}
                 syncFilterStateToUrl={false}
+                externalRuntime={runtime}
                 rowSelection={
                     {
                         rowSelectionType: 'multiple',
