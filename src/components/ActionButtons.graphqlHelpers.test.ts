@@ -32,6 +32,7 @@ let capturedAst: any = null;
 let capturedQuery: string | null = null;
 let capturedVariables: any = null;
 let capturedPagination: any = null;
+let capturedRowsPerPage: number | null = null;
 
 const action = {
     label: 'Capture AST',
@@ -46,6 +47,7 @@ const action = {
         capturedQuery = api.renderGraphQLQuery(capturedAst);
         capturedVariables = api.buildGraphQLQueryVariables(api.view, api.filterState, 5, null);
         capturedPagination = api.getPaginationState();
+        capturedRowsPerPage = api.rowsPerPage;
     }
 };
 
@@ -104,5 +106,6 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedPagination).toBeTruthy();
         expect(capturedPagination).toHaveProperty('page');
         expect(capturedPagination).toHaveProperty('cursors');
+        expect(capturedRowsPerPage).toBe(20); // default from App rowsPerPage prop
     });
 });

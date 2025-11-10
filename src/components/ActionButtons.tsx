@@ -14,9 +14,10 @@ export interface ActionButtonsProps {
     refetch: () => void;
     showToast: (opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => void;
     paginationState: { page: number; cursors: (string | number | null)[] };
+    rowsPerPage: number;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, setFilterState, refetch, showToast, paginationState }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, setFilterState, refetch, showToast, paginationState, rowsPerPage }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     return (
         <>
@@ -34,7 +35,8 @@ export function ActionButtons({ actions, selectedView, filterState, setFilterSta
                         generateGraphQLQueryAST,
                         renderGraphQLQuery,
                         buildGraphQLQueryVariables,
-                        getPaginationState: () => paginationState
+                        getPaginationState: () => paginationState,
+                        rowsPerPage
                     };
                     try {
                         await action.onClick(api);
