@@ -31,6 +31,7 @@ import App from '../App';
 let capturedAst: any = null;
 let capturedQuery: string | null = null;
 let capturedVariables: any = null;
+let capturedPagination: any = null;
 
 const action = {
     label: 'Capture AST',
@@ -44,6 +45,7 @@ const action = {
         );
         capturedQuery = api.renderGraphQLQuery(capturedAst);
         capturedVariables = api.buildGraphQLQueryVariables(api.view, api.filterState, 5, null);
+        capturedPagination = api.getPaginationState();
     }
 };
 
@@ -99,5 +101,8 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedVariables).toHaveProperty('conditions');
         expect(capturedVariables).toHaveProperty('paginationCondition');
         expect(capturedVariables).toHaveProperty('orderBy');
+        expect(capturedPagination).toBeTruthy();
+        expect(capturedPagination).toHaveProperty('page');
+        expect(capturedPagination).toHaveProperty('cursors');
     });
 });

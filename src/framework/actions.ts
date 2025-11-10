@@ -5,6 +5,7 @@ import type { View } from './view';
 import type { FilterState } from './state';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
 import { buildGraphQLQueryVariables } from './data';
+import type { PaginationState } from './state';
 
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
@@ -19,6 +20,8 @@ export interface ActionAPI {
     renderGraphQLQuery: typeof renderGraphQLQuery;
     /** Build GraphQL variables (conditions, paginationCondition, orderBy, rowLimit) for the current view. */
     buildGraphQLQueryVariables: typeof buildGraphQLQueryVariables;
+    /** Access current pagination state (page number and cursor history). */
+    getPaginationState: () => PaginationState;
 }
 
 // Definition for a single action button.

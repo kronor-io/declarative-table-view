@@ -447,6 +447,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             setFilterState={setFilterState}
                             refetch={() => setRefetchTrigger(prev => prev + 1)}
                             showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
+                            paginationState={state.pagination}
                         />
                     </div>
                 }
