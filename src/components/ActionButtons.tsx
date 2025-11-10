@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Button } from 'primereact/button';
 import { ActionDefinition, ActionAPI } from '../framework/actions';
+import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 import { View } from '../framework/view';
 import { FilterState } from '../framework/state';
 
@@ -27,7 +28,9 @@ export function ActionButtons({ actions, selectedView, filterState, setFilterSta
                         filterState,
                         setFilterState,
                         refetch,
-                        showToast
+                        showToast,
+                        generateGraphQLQueryAST,
+                        renderGraphQLQuery
                     };
                     try {
                         await action.onClick(api);
