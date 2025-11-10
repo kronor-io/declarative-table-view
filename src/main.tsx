@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { PrimeReactProvider } from 'primereact/api';
 import { Runtime } from './framework/runtime';
+import { ActionDefinition } from './framework/actions.ts';
 
 export interface RenderTableViewOptions {
     graphqlHost: string;
@@ -21,6 +22,7 @@ export interface RenderTableViewOptions {
         onRowSelectionChange?: (rows: any[]) => void;
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+    actions?: ActionDefinition[]; // Optional custom action buttons
 }
 
 
@@ -42,6 +44,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     externalRuntime={options.externalRuntime}
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
                     rowSelection={options.rowSelection}
+                    actions={options.actions}
                 />
             </PrimeReactProvider>
         </StrictMode>

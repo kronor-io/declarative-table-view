@@ -26,6 +26,8 @@ import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
+import { ActionDefinition } from './framework/actions';
+import ActionButtons from './components/ActionButtons';
 
 export interface AppProps {
     graphqlHost: string;
@@ -48,11 +50,13 @@ export interface AppProps {
         /** React ref that will be populated with RowSelectionAPI (e.g. resetRowSelection) */
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+    /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
+    actions?: ActionDefinition[];
 }
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false, rowSelection }: AppProps) {
+function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false, rowSelection, actions = [] }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -436,6 +440,14 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                                 }}
                             />
                         )}
+                        <ActionButtons
+                            actions={actions}
+                            selectedView={selectedView}
+                            filterState={state.filterState}
+                            setFilterState={setFilterState}
+                            refetch={() => setRefetchTrigger(prev => prev + 1)}
+                            showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
+                        />
                     </div>
                 }
                 end={
