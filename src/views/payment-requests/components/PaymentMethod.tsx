@@ -1,4 +1,3 @@
-import React from "react";
 import { FlexRow } from "../../../framework/cell-renderer-components/LayoutHelpers";
 
 type PaymentMethodEnum =
@@ -114,7 +113,7 @@ const cardImage = (scheme: string) => {
     }
 };
 
-export const PaymentMethod: React.FC<Props> = ({ cardType, paymentMethod, darkmode }) => {
+export function PaymentMethod({ cardType, paymentMethod, darkmode }: Props) {
     switch (paymentMethod) {
         case "SWISH":
             return (
@@ -181,4 +180,4 @@ export const PaymentMethod: React.FC<Props> = ({ cardType, paymentMethod, darkmo
         default:
             return <>UNKNOWN</>;
     }
-};
+}

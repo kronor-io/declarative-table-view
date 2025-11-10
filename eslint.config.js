@@ -24,6 +24,13 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       '@typescript-eslint/no-explicit-any': 'off',
+      // Enforce function declarations for components and disallow React.FC / FunctionComponent types
+      'no-restricted-syntax': [
+        'error',
+        { selector: "TSTypeReference > TSQualifiedName[object.name='React'][property.name='FC']", message: 'Do not use React.FC; use a named function declaration instead.' },
+        { selector: "TSTypeReference > TSQualifiedName[object.name='React'][property.name='FunctionComponent']", message: 'Do not use React.FunctionComponent; use a named function declaration instead.' },
+      ],
+      // Using ban-types is not available in flat config via @typescript-eslint yet; relying on no-restricted-syntax selectors above.
       'indent': ['error', 4, { 'SwitchCase': 1 }],
     },
   },

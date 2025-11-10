@@ -1,4 +1,5 @@
-import * as React from 'react';
+// React import retained only if JSX requires it per tooling; can remove in React 17+ with new JSX transform.
+// Removed unused React import (new JSX transform handles it)
 import { Button } from 'primereact/button';
 
 interface TablePaginationProps {
@@ -11,7 +12,7 @@ interface TablePaginationProps {
     actualRows: number; // number of rows in the current page
 }
 
-const TablePagination: React.FC<TablePaginationProps> = ({ onPageChange, onPrevPage, hasNextPage, hasPrevPage, currentPage, rowsPerPage, actualRows }) => {
+function TablePagination({ onPageChange, onPrevPage, hasNextPage, hasPrevPage, currentPage, rowsPerPage, actualRows }: TablePaginationProps) {
     const start = currentPage * rowsPerPage + 1;
     const end = start + actualRows - 1;
     return (
@@ -35,6 +36,6 @@ const TablePagination: React.FC<TablePaginationProps> = ({ onPageChange, onPrevP
             />
         </div>
     );
-};
+}
 
 export default TablePagination;

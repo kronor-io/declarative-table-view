@@ -56,7 +56,7 @@ function parsePhoneNumber(value: string | undefined): { code: string | null; num
     return { code: COUNTRY_CODES[0].value, number: value };
 }
 
-export const PhoneNumberFilter: React.FC<PhoneNumberFilterProps> = ({ value, onChange }) => {
+export function PhoneNumberFilter({ value, onChange }: PhoneNumberFilterProps) {
     const parsed = React.useMemo(() => {
         return parsePhoneNumber(value);
     }, [value]);
@@ -99,4 +99,4 @@ export const PhoneNumberFilter: React.FC<PhoneNumberFilterProps> = ({ value, onC
             />
         </div>
     );
-};
+}

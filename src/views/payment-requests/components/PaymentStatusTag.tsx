@@ -1,5 +1,4 @@
 import { Tag } from 'primereact/tag';
-import React from 'react';
 import { FlexRow } from '../../../framework/cell-renderer-components/LayoutHelpers';
 
 const paymentStatusEnumToText = (status: string): string => {
@@ -49,7 +48,7 @@ const badgeForPaymentStatus = (status: string): PaymentStatusSeverity | 'primary
     }
 };
 
-export const PaymentStatusTag: React.FC<{ status: string }> = ({ status }) => {
+export function PaymentStatusTag({ status }: { status: string }) {
     const severity = badgeForPaymentStatus(status);
     // 'primary' is not a valid severity for Tag, fallback to 'info'
     const validSeverity: PaymentStatusSeverity = severity === 'primary' ? 'info' : severity;
@@ -58,4 +57,4 @@ export const PaymentStatusTag: React.FC<{ status: string }> = ({ status }) => {
             <Tag value={paymentStatusEnumToText(status)} severity={validSeverity} style={{ fontSize: '.8rem', padding: '0.3em 1em' }} />
         </FlexRow>
     )
-};
+}
