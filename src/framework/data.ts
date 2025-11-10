@@ -16,6 +16,38 @@ function hasKey<K extends string | number | symbol, T extends { [key in K]: unkn
 // Request counter to be able to cancel handling of previous requests
 let requestCounter = 0;
 
+// Helper to build the GraphQL variables object for a data fetch.
+// Extracted from fetchData for reuse (e.g., custom actions, debugging, or tests).
+// It composes:
+//  - conditions: user filter conditions merged with staticConditions (if any)
+//  - paginationCondition: isolated cursor condition so the cursor value is parameterized separately
+//  - rowLimit: result size cap
+//  - orderBy: descending on the view.paginationKey (matches existing pagination behavior)
+export const buildGraphQLQueryVariables = (
+    view: View,
+    filterState: FilterState,
+    rowLimit: number,
+    cursor: string | number | null
+) => {
+    let conditions = buildHasuraConditions(filterState, view.filterSchema);
+
+    if (view.staticConditions && view.staticConditions.length > 0) {
+        // Wrap even when user conditions object is empty for consistent shape
+        conditions = { _and: [conditions, ...view.staticConditions] };
+    }
+
+    const paginationCondition = cursor !== null
+        ? { [view.paginationKey]: { _lt: cursor } }
+        : {}; // Empty object becomes a no-op inside an _and
+
+    return {
+        conditions,
+        paginationCondition,
+        rowLimit,
+        orderBy: [{ [view.paginationKey]: 'DESC' }]
+    };
+};
+
 export const fetchData = async ({
     client,
     view,
@@ -35,24 +67,7 @@ export const fetchData = async ({
     const currentRequestId = ++requestCounter;
 
     try {
-        let conditions = buildHasuraConditions(filterState, view.filterSchema);
-
-        // Merge staticConditions (always-on) if present
-        if (view.staticConditions && view.staticConditions.length > 0) {
-            // If existing conditions object is empty (no user filters), we still wrap both sides in _and for consistency
-            conditions = { _and: [conditions, ...view.staticConditions] };
-        }
-        // Pagination condition is now supplied as a separate GraphQL variable so that the _lt value
-        // (cursor) is parameterized instead of embedded inside the generic conditions variable.
-        const paginationCondition = cursor !== null
-            ? { [view.paginationKey]: { _lt: cursor } }
-            : {}; // Empty object is a no-op in an _and boolean expression
-        const variables = {
-            conditions,
-            paginationCondition,
-            rowLimit,
-            orderBy: [{ [view.paginationKey]: 'DESC' }],
-        };
+        const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor);
 
         const response = await client.request(query, variables);
 

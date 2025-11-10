@@ -280,17 +280,25 @@ export function generateGraphQLQueryAST(
     rootField: string,
     columns: ColumnDefinition[],
     boolExpType: string,
-    orderByType: string
+    orderByType: string,
+    paginationKey: string
 ): GraphQLQueryAST {
     const selectionSet = generateSelectionSetFromColumns(columns);
+    // Ensure pagination key is present in selection set (append if missing)
+    const hasPaginationKey = selectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
+    if (!hasPaginationKey) {
+        const buildNested = (path: string): GraphQLSelectionSetItem => {
+            const parts = path.split('.');
+            const head = parts[0];
+            if (parts.length === 1) return { field: head };
+            return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
+        };
+        selectionSet.push(buildNested(paginationKey));
+    }
     return {
         operation: 'query',
         variables: [
             { name: 'conditions', type: `${boolExpType}!` },
-            // Separate pagination condition so the cursor value is sent as its own GraphQL variable
-            // (rather than being baked into the generic conditions object). This allows better
-            // query plan reuse and avoids regenerating the full conditions object simply to swap
-            // a cursor value.
             { name: 'paginationCondition', type: `${boolExpType}!` },
             { name: 'rowLimit', type: 'Int' },
             { name: 'orderBy', type: orderByType }
@@ -299,7 +307,7 @@ export function generateGraphQLQueryAST(
         // the pagination condition. When there is no active cursor the paginationCondition
         // will simply be an empty object {} which Hasura will treat as a no-op in the boolean expression.
         rootField: `${rootField}(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)`,
-        selectionSet: selectionSet
+        selectionSet
     };
 }
 
@@ -314,21 +322,7 @@ export function generateGraphQLQuery(
     orderByType: string,
     paginationKey: string
 ): string {
-    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType);
-
-    // Check if the pagination key is already present in the top-level selection set
-    const hasPagKey = ast.selectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
-    if (!hasPagKey) {
-        // Support dotted paths (e.g., parent.child.id) by building nested selections
-        const buildNested = (path: string): GraphQLSelectionSetItem => {
-            const parts = path.split('.');
-            const head = parts[0];
-            if (parts.length === 1) return { field: head };
-            return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
-        };
-        ast.selectionSet.push(buildNested(paginationKey));
-    }
-
+    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey);
     return renderGraphQLQuery(ast);
 }
 

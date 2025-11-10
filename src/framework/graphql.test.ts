@@ -107,7 +107,7 @@ describe("generateGraphQLQueryAST", () => {
             },
         ];
 
-        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
 
         expect(ast.operation).toBe("query");
         expect(ast.variables).toEqual([
@@ -138,7 +138,7 @@ describe("generateGraphQLQueryAST", () => {
             { name: "First Commenter", data: [{ type: "field", path: "comments.0.user.name" }], cellRenderer: () => null },
         ];
 
-        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
 
         expect(ast.selectionSet).toEqual([
             { field: "id" },
@@ -200,7 +200,7 @@ describe("generateGraphQLQueryAST", () => {
             },
         ];
 
-        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
 
         expect(ast.selectionSet).toEqual([
             { field: "id" },
@@ -264,7 +264,7 @@ describe("generateGraphQLQueryAST", () => {
             },
         ];
 
-        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy");
+        const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
 
         expect(ast.selectionSet).toEqual([
             { field: "id" },

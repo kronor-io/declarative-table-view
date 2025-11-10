@@ -4,6 +4,7 @@
 import type { View } from './view';
 import type { FilterState } from './state';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
+import { buildGraphQLQueryVariables } from './data';
 
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
@@ -16,6 +17,8 @@ export interface ActionAPI {
     generateGraphQLQueryAST: typeof generateGraphQLQueryAST;
     /** Render a GraphQLQueryAST to a string. */
     renderGraphQLQuery: typeof renderGraphQLQuery;
+    /** Build GraphQL variables (conditions, paginationCondition, orderBy, rowLimit) for the current view. */
+    buildGraphQLQueryVariables: typeof buildGraphQLQueryVariables;
 }
 
 // Definition for a single action button.

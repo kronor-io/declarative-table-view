@@ -14,3 +14,4 @@ export type { FilterSchema } from '../framework/filters';
 export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
 export { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
+export { buildGraphQLQueryVariables } from '../framework/data';

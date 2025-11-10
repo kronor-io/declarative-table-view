@@ -16,7 +16,13 @@ jest.mock('graphql-request', () => {
 
 jest.mock('../framework/data', () => {
     return {
-        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as Record<string, unknown>[][] }))
+        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as Record<string, unknown>[][] })),
+        buildGraphQLQueryVariables: jest.fn((view: any, _filterState: any, rowLimit: number, cursor: any) => ({
+            conditions: {},
+            paginationCondition: cursor !== null ? { [view.paginationKey]: { _lt: cursor } } : {},
+            rowLimit,
+            orderBy: [{ [view.paginationKey]: 'DESC' }]
+        }))
     };
 });
 
@@ -24,6 +30,7 @@ import App from '../App';
 
 let capturedAst: any = null;
 let capturedQuery: string | null = null;
+let capturedVariables: any = null;
 
 const action = {
     label: 'Capture AST',
@@ -32,14 +39,16 @@ const action = {
             api.view.collectionName,
             api.view.columnDefinitions,
             api.view.boolExpType,
-            api.view.orderByType
+            api.view.orderByType,
+            api.view.paginationKey
         );
         capturedQuery = api.renderGraphQLQuery(capturedAst);
+        capturedVariables = api.buildGraphQLQueryVariables(api.view, api.filterState, 5, null);
     }
 };
 
 describe('ActionAPI GraphQL helpers', () => {
-    it('provides generateGraphQLQueryAST and renderGraphQLQuery to actions', async () => {
+    it('provides GraphQL helpers and variable builder to actions', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
 
@@ -86,5 +95,9 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedAst.rootField).toContain('testCollection');
         expect(capturedQuery).toBeTruthy();
         expect(capturedQuery).toContain('testCollection');
+        expect(capturedVariables).toBeTruthy();
+        expect(capturedVariables).toHaveProperty('conditions');
+        expect(capturedVariables).toHaveProperty('paginationCondition');
+        expect(capturedVariables).toHaveProperty('orderBy');
     });
 });
