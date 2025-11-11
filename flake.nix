@@ -45,12 +45,13 @@
         pkgs = import nixpkgs {
           inherit system;
         };
+        dtvDepHash = "sha256-WKVHBTaClfR1L2yETRJRyurSi6Fdl4Rbmw2XdGlWlaw=";
         dtv =
           (pkgs.buildNpmPackage {
             name = "declarative-table-views";
             npmPackFlags = [ "--ignore-scripts" ];
             src = ./.;
-            npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
+            npmDepsHash = dtvDepHash;
             makeCacheWriteable = true;
           }).overrideAttrs
             (old: {
@@ -70,7 +71,7 @@
               name = "lint-dtv";
               npmPackFlags = [ "--ignore-scripts" ];
               src = ./.;
-              npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
+              npmDepsHash = dtvDepHash;
               makeCacheWriteable = true;
             }).overrideAttrs
               (old: {
@@ -87,7 +88,7 @@
               name = "test-unit-dtv";
               npmPackFlags = [ "--ignore-scripts" ];
               src = ./.;
-              npmDepsHash = "sha256-oZQ74RRZ7EmMcuEYRSdxHpMxt7EBupDPh1VL9YSH0Mk=";
+              npmDepsHash = dtvDepHash;
               makeCacheWriteable = true;
             }).overrideAttrs
               (old: {
