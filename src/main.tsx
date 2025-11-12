@@ -15,6 +15,7 @@ export interface RenderTableViewOptions {
     showViewsMenu?: boolean; // Controls whether the views menu is shown
     showViewTitle?: boolean; // Option to show/hide view title
     showCsvExportButton?: boolean; // Option to show/hide CSV export button
+    showPopoutButton?: boolean; // Option to show/hide Popout button (default true)
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     syncFilterStateToUrl?: boolean; // When true, keeps current filter state encoded in URL param `dtv-filter-state`
     rowSelection?: {
@@ -40,6 +41,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
                     showCsvExportButton={options.showCsvExportButton ?? false}
+                    showPopoutButton={options.showPopoutButton ?? true}
                     viewsJson={options.viewsJson}
                     externalRuntime={options.externalRuntime}
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
@@ -81,6 +83,7 @@ if (import.meta.env.DEV) {
                 showViewsMenu: false,
                 externalRuntime: runtime,
                 syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true',
+                showPopoutButton: urlParams.get('show-popout-button') === 'false' ? false : true,
                 rowSelection
             });
         };
