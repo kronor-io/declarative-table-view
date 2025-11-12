@@ -38,6 +38,7 @@ export interface AppProps {
     rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
     showCsvExportButton?: boolean; // Controls visibility of the CSV export button (default false)
+    showPopoutButton?: boolean; // Controls visibility of the Popout open button (default true)
     externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
     isOverlay?: boolean; // Internal flag to avoid nesting popout buttons
     onCloseOverlay?: () => void; // Provided only to overlay instance to close parent overlay
@@ -56,7 +57,23 @@ export interface AppProps {
 
 const builtInRuntime: Runtime = nativeRuntime
 
-function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPage = 20, showViewTitle, showCsvExportButton = false, viewsJson, externalRuntime, isOverlay = false, onCloseOverlay, syncFilterStateToUrl = false, rowSelection, actions = [] }: AppProps) {
+function App({
+    graphqlHost,
+    graphqlToken,
+    geminiApiKey,
+    showViewsMenu,
+    rowsPerPage = 20,
+    showViewTitle,
+    showCsvExportButton = false,
+    showPopoutButton = true,
+    viewsJson,
+    externalRuntime,
+    isOverlay = false,
+    onCloseOverlay,
+    syncFilterStateToUrl = false,
+    rowSelection,
+    actions = []
+}: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -413,33 +430,37 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                             label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
                             onClick={() => setShowSavedFilterList(v => !v)}
                         />
-                        {showCsvExportButton && (
-                            <Button
-                                type="button"
-                                icon='pi pi-table'
-                                outlined
-                                size='small'
-                                label='Export page to CSV'
-                                onClick={handleExportCSV}
-                                data-testid="export-csv-button"
-                            />
-                        )}
-                        {(!isOverlay || onCloseOverlay) && (
-                            <Button
-                                type="button"
-                                icon={isOverlay ? 'pi pi-times' : 'pi pi-window-maximize'}
-                                outlined
-                                size='small'
-                                label={isOverlay ? 'Close Popout' : 'Popout'}
-                                onClick={() => {
-                                    if (isOverlay) {
-                                        onCloseOverlay?.();
-                                    } else {
-                                        setShowPopout(true);
-                                    }
-                                }}
-                            />
-                        )}
+                        {
+                            showCsvExportButton && (
+                                <Button
+                                    type="button"
+                                    icon='pi pi-table'
+                                    outlined
+                                    size='small'
+                                    label='Export page to CSV'
+                                    onClick={handleExportCSV}
+                                    data-testid="export-csv-button"
+                                />
+                            )
+                        }
+                        {
+                            showPopoutButton && (
+                                <Button
+                                    type="button"
+                                    icon={isOverlay ? 'pi pi-times' : 'pi pi-window-maximize'}
+                                    outlined
+                                    size='small'
+                                    label={isOverlay ? 'Close Popout' : 'Popout'}
+                                    onClick={() => {
+                                        if (isOverlay) {
+                                            onCloseOverlay?.();
+                                        } else {
+                                            setShowPopout(true);
+                                        }
+                                    }}
+                                />
+                            )
+                        }
                         <ActionButtons
                             actions={actions}
                             selectedView={selectedView}
@@ -552,6 +573,7 @@ function App({ graphqlHost, graphqlToken, geminiApiKey, showViewsMenu, rowsPerPa
                         rowsPerPage={rowsPerPage}
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
+                        showPopoutButton={showPopoutButton}
                         viewsJson={viewsJson}
                         externalRuntime={externalRuntime}
                         isOverlay={true}

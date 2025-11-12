@@ -34,6 +34,7 @@ Key props you can pass to `App` (or via `renderTableView` in `main.tsx`):
 - `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
 - `showViewTitle`: Toggle the view title heading (default: `false`).
 - `showCsvExportButton`: Toggle the "Export page to CSV" button (default: `false`). When enabled, current page rows are exported using PrimeReact's built-in DataTable CSV exporter.
+- `showPopoutButton`: Toggle the Popout button that opens the table view in a fullscreen overlay (default: `true`). Set to `false` to suppress this UI in embedded contexts.
 - `rowsPerPage`: Page size for pagination (default: `20`).
 - `externalRuntime`: Provide a runtime override for cell renderers / query transforms.
 - `syncFilterStateToUrl`: Persist applied filter state into the `dtv-filter-state` URL param (default: `false`).
