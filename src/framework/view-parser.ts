@@ -21,12 +21,12 @@ export function resolveRuntimeReference<T>(
     const { section, key } = reference;
 
     // First check external runtime if available
-    if (externalRuntime && externalRuntime[section] && externalRuntime[section][key]) {
+    if (externalRuntime && externalRuntime[section] && externalRuntime[section][key] !== undefined) {
         return externalRuntime[section][key] as T;
     }
 
     // Fall back to built-in runtime
-    if (builtInRuntime[section] && builtInRuntime[section][key]) {
+    if (builtInRuntime[section] && builtInRuntime[section][key] !== undefined) {
         return builtInRuntime[section][key] as T;
     }
 
