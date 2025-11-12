@@ -1,7 +1,7 @@
 import type { FilterExpr, FilterFieldGroup, FilterSchema, FilterId } from '../framework/filters';
 import { FilterControl, FilterSchemasAndGroups } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
-import { FilterFormState } from '../framework/filter-form-state';
+import { FilterFormState, isFilterEmpty } from '../framework/filter-form-state';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
@@ -212,16 +212,6 @@ function renderFilterFormState(
     return null;
 }
 
-// Helper to check if a filter is empty
-function isFilterEmpty(state: FilterFormState): boolean {
-    if (state.type === 'leaf') {
-        return state.value === '' || state.value === null || (Array.isArray(state.value) && state.value.length === 0);
-    }
-    if (state.type === 'not') {
-        return isFilterEmpty(state.child);
-    }
-    return state.children.every(isFilterEmpty);
-}
 
 function FilterForm({
     filterSchemasAndGroups,
@@ -286,7 +276,7 @@ function FilterForm({
                                         text
                                         title="Reset filter"
                                         onClick={() => resetFilter(filterSchema.id)}
-                                        visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id))}
+                                        visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id), filterSchema.expression)}
                                     />
                                 </div>
                                 {
@@ -322,7 +312,7 @@ function FilterForm({
                                                 text
                                                 title="Reset filter"
                                                 onClick={() => resetFilter(filterSchema.id)}
-                                                visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id))}
+                                                visible={!isFilterEmpty(getFilterStateById(filterState, filterSchema.id), filterSchema.expression)}
                                             />
                                         </div>
                                         {
