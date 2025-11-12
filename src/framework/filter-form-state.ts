@@ -136,6 +136,27 @@ export function makeFilterFormStateSerializable(node: FilterFormState): FilterFo
 }
 
 /**
+ * Schema-aware emptiness check for a FilterFormState tree.
+ * A leaf is considered empty when its primitive value is '' | null | [] (if array).
+ * For customOperator controls we look at the nested `value` field inside { operator, value }.
+ */
+export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): boolean {
+    return traverseFilterSchemaAndState<boolean>(schemaExpr, state, {
+        leaf: (schemaLeaf, stateLeaf) => {
+            const value = stateLeaf.value;
+            if (schemaLeaf.value.type === 'customOperator') {
+                const inner = value?.value; // { operator, value }
+                return inner === '' || inner === null || (Array.isArray(inner) && inner.length === 0);
+            }
+            return value === '' || value === null || (Array.isArray(value) && value.length === 0);
+        },
+        and: (_schemaAnd, _stateAnd, childResults) => childResults.every(Boolean),
+        or: (_schemaOr, _stateOr, childResults) => childResults.every(Boolean),
+        not: (_schemaNot, _stateNot, childResult) => childResult
+    });
+}
+
+/**
  * Serialize a FilterState Map to JSON object for storage
  */
 export function serializeFilterFormStateMap(state: FilterState): Record<string, any> {
