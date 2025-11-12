@@ -302,7 +302,7 @@ function FilterForm({
                             {
                                 filters.map((filterSchema) => (
                                     <div key={filterSchema.id} className="tw:flex tw:flex-col tw:min-w-[220px] mb-2">
-                                        <div className="tw:flex items-center tw:mb-1 tw:max-h-[20px]">
+                                        <div className="tw:flex tw:items-center tw:mb-1 tw:max-h-[20px]">
                                             <label className="tw:text-sm tw:font-bold">{filterSchema.label}</label>
                                             <Button
                                                 type="button"
