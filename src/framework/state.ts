@@ -24,9 +24,33 @@ export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode 
             child: buildInitialFormState(expr.filter, mode)
         };
     } else {
+        // Leaf node – build initial value depending on control type
+        if (expr.value.type === 'customOperator') {
+            // For customOperator we store an object: { operator, value }
+            // Operator defaults to first provided operator value
+            const operator = expr.value.operators[0]?.value;
+            // Determine base initial value (NOT already wrapped):
+            // - Empty mode => ''
+            // - Top-level initialValue if present
+            // - Nested valueControl.initialValue if present
+            // - Fallback ''
+            const baseValue = mode === FormStateInitMode.Empty
+                ? ''
+                : (('initialValue' in expr.value && expr.value.initialValue !== undefined)
+                    ? expr.value.initialValue
+                    : (('initialValue' in expr.value.valueControl && (expr.value.valueControl as any).initialValue !== undefined)
+                        ? (expr.value.valueControl as any).initialValue
+                        : ''));
+            return {
+                type: 'leaf',
+                value: { operator, value: baseValue }
+            };
+        }
         return {
             type: 'leaf',
-            value: mode === FormStateInitMode.Empty ? '' : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '')
+            value: mode === FormStateInitMode.Empty
+                ? ''
+                : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '')
         };
     }
 }
