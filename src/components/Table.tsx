@@ -33,6 +33,7 @@ type TableProps = {
         /** Ref object populated by Table with RowSelectionAPI */
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+    rowClass?: (row: any[]) => Record<string, boolean>;
 };
 
 function Table({
@@ -44,7 +45,8 @@ function Table({
     filterState,
     triggerRefetch,
     ref,
-    rowSelection
+    rowSelection,
+    rowClass
 }: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
@@ -123,6 +125,7 @@ function Table({
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
+            rowClassName={rowClass}
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple"></Column>}
             {columns

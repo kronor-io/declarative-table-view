@@ -20,6 +20,13 @@ if (typeof window !== 'undefined') {
 
 export function PlaygroundApp() {
     const rowSelectionApiRef = useRef<RowSelectionAPI | null>(null);
+    const rowClass = (row: any[]) => {
+        const flat = row.reduce((acc: any, cell: any) => ({ ...acc, ...cell }), {});
+
+        return {
+            'bg-primary': flat.paymentProvider === 'MOBILEPAY'
+        };
+    };
 
     return (
         <>
@@ -40,6 +47,7 @@ export function PlaygroundApp() {
                         apiRef: rowSelectionApiRef
                     }
                 }
+                rowClass={rowClass}
             />
             <Button onClick={() => { rowSelectionApiRef.current?.resetRowSelection(); }}>Reset Row Selection</Button>
         </>
