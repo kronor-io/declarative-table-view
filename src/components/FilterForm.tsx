@@ -57,7 +57,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                     onChange={e => setValue(e.value)}
                     showIcon
                     showButtonBar
-                    showTime
+                    showTime={control.showTime ?? true}
                     dateFormat='yy-mm-dd'
                 />
             )
