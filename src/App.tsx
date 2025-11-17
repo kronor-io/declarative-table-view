@@ -579,6 +579,7 @@ function App({
                         isOverlay={true}
                         onCloseOverlay={() => setShowPopout(false)}
                         syncFilterStateToUrl={syncFilterStateToUrl}
+                        rowSelection={rowSelection}
                     />
                 </div>,
                 document.body
