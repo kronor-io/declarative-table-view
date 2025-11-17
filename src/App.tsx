@@ -53,6 +53,7 @@ export interface AppProps {
     };
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
+    rowClass?: (row: any[]) => Record<string, boolean>;
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -72,7 +73,8 @@ function App({
     onCloseOverlay,
     syncFilterStateToUrl = false,
     rowSelection,
-    actions = []
+    actions = [],
+    rowClass
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -549,6 +551,7 @@ function App({
                 filterState={state.filterState}
                 triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
                 rowSelection={rowSelection}
+                rowClass={rowClass}
             />
             {
                 state.data.rows.length > 0 && (
