@@ -17,7 +17,7 @@ export type FilterTransform = {
 export type FilterControl =
     | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
-    | { type: 'date'; label?: string; placeholder?: string; initialValue?: any }
+    | { type: 'date'; label?: string; placeholder?: string; initialValue?: any, showTime?: boolean }
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
