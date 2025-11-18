@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { FieldQuery, QueryConfig, Field, QueryConfigs, FieldAlias } from './column-definition';
+import type { FieldQuery, QueryConfig, Field, QueryConfigs, FieldAlias, ColumnDefinition } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
@@ -97,11 +97,21 @@ export type FilterFieldSchemaJson = {
 };
 
 // JSON Schema types for view definitions
-export type ColumnDefinitionJson = {
-    data: FieldQueryJson[]; // Array of FieldQuery objects
-    name: string;   // Column display name
-    cellRenderer: RuntimeReference; // Reference to cell renderer from runtime
+// ColumnDefinitionJson now supports discriminated union between
+// tableColumn (rendered) and virtualColumn (data-only)
+export type TableColumnDefinitionJson = {
+    type: 'tableColumn';
+    data: FieldQueryJson[];
+    name: string;
+    cellRenderer: RuntimeReference;
 };
+
+export type VirtualColumnDefinitionJson = {
+    type: 'virtualColumn';
+    data: FieldQueryJson[];
+};
+
+export type ColumnDefinitionJson = TableColumnDefinitionJson | VirtualColumnDefinitionJson;
 
 export type ViewJson = {
     title: string;
@@ -256,50 +266,61 @@ export function parseColumnDefinitionJson(
 
     const obj = json as Record<string, unknown>;
 
-    // Validate required fields
-    if (!Array.isArray(obj.data)) {
-        throw new Error('Invalid JSON: "data" field must be an array of FieldQuery objects');
-    }
-
-    if (typeof obj.name !== 'string') {
-        throw new Error('Invalid JSON: "name" field must be a string');
-    }
-
-    // Parse cellRenderer as RuntimeReference
-    if (!obj.cellRenderer) {
-        throw new Error('Invalid JSON: "cellRenderer" field is required');
-    }
-
-    const cellRenderer = parseRuntimeReference(obj.cellRenderer);
-    if (cellRenderer.section !== 'cellRenderers') {
-        throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
-    }
-
-    // Parse and validate data array as FieldQuery objects
-    const parsedData: FieldQueryJson[] = obj.data.map((item, index) => {
-        try {
-            return parseFieldQueryJson(item);
-        } catch (error) {
-            throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    switch (obj.type) {
+        case 'tableColumn': {
+            // Validate name & cellRenderer first (test expectations rely on order)
+            if (typeof obj.name !== 'string') {
+                throw new Error('Invalid JSON: "name" field must be a string for tableColumn');
+            }
+            if (!obj.cellRenderer) {
+                throw new Error('Invalid JSON: "cellRenderer" field is required for tableColumn');
+            }
+            const cellRenderer = parseRuntimeReference(obj.cellRenderer);
+            if (cellRenderer.section !== 'cellRenderers') {
+                throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
+            }
+            const externalKeys = externalRuntime ? Object.keys(externalRuntime.cellRenderers || {}) : [];
+            const builtInKeys = Object.keys(builtInRuntime.cellRenderers || {});
+            const allKeys = [...new Set([...externalKeys, ...builtInKeys])];
+            if (!allKeys.includes(cellRenderer.key)) {
+                throw new Error(`Invalid cellRenderer reference: "${cellRenderer.key}". Valid keys are: ${allKeys.join(', ')}`);
+            }
+            if (!Array.isArray(obj.data)) {
+                throw new Error('Invalid JSON: "data" field must be an array of FieldQuery objects');
+            }
+            const parsedData: FieldQueryJson[] = obj.data.map((item, index) => {
+                try {
+                    return parseFieldQueryJson(item);
+                } catch (error) {
+                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            });
+            return {
+                type: 'tableColumn',
+                data: parsedData,
+                name: obj.name,
+                cellRenderer
+            };
         }
-    });
-
-    // Validate that cellRenderer key exists in at least one runtime
-    const externalKeys = externalRuntime ? Object.keys(externalRuntime.cellRenderers || {}) : [];
-    const builtInKeys = Object.keys(builtInRuntime.cellRenderers || {});
-    const allKeys = [...new Set([...externalKeys, ...builtInKeys])];
-
-    if (!allKeys.includes(cellRenderer.key)) {
-        throw new Error(
-            `Invalid cellRenderer reference: "${cellRenderer.key}". Valid keys are: ${allKeys.join(', ')}`
-        );
+        case 'virtualColumn': {
+            if (!Array.isArray(obj.data)) {
+                throw new Error('Invalid JSON: "data" field must be an array of FieldQuery objects');
+            }
+            const parsedData: FieldQueryJson[] = obj.data.map((item, index) => {
+                try {
+                    return parseFieldQueryJson(item);
+                } catch (error) {
+                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            });
+            return {
+                type: 'virtualColumn',
+                data: parsedData
+            };
+        }
+        default:
+            throw new Error('Invalid JSON: "type" must be "tableColumn" or "virtualColumn"');
     }
-
-    return {
-        data: parsedData,
-        name: obj.name,
-        cellRenderer
-    };
 }
 
 // Helper function to validate FilterFieldJson
@@ -640,26 +661,34 @@ export function parseViewJson(
     }
 
     // Parse columns with runtime resolution
-    const columnDefinitions = view.columns.map((col, index) => {
-        let colJson;
+    const columnDefinitions: ColumnDefinition[] = view.columns.map((col, index) => {
+        let columnJson: ColumnDefinitionJson;
         try {
-            colJson = parseColumnDefinitionJson(col, builtInRuntime, externalRuntime);
+            columnJson = parseColumnDefinitionJson(col, builtInRuntime, externalRuntime);
         } catch (error) {
             throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
-        // Convert ColumnDefinitionJson to ColumnDefinition by resolving cellRenderer
-        const cellRenderer = resolveRuntimeReference<any>(
-            colJson.cellRenderer,
-            externalRuntime,
-            builtInRuntime
-        );
-
-        return {
-            data: colJson.data,
-            name: colJson.name,
-            cellRenderer
-        };
+        switch (columnJson.type) {
+            case 'virtualColumn':
+                return {
+                    type: 'virtualColumn',
+                    data: columnJson.data
+                } as ColumnDefinition;
+            case 'tableColumn': {
+                const cellRenderer = resolveRuntimeReference<any>(
+                    columnJson.cellRenderer,
+                    externalRuntime,
+                    builtInRuntime
+                );
+                return {
+                    type: 'tableColumn',
+                    data: columnJson.data,
+                    name: columnJson.name,
+                    cellRenderer
+                } as ColumnDefinition;
+            }
+        }
     });
 
     // Parse filter schema with runtime resolution

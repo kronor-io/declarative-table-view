@@ -4,7 +4,7 @@ import { ColumnDefinition, field } from './column-definition';
 describe('generateGraphQLQuery paginationKey inclusion', () => {
     it('includes paginationKey field when not present in column definitions', () => {
         const columns: ColumnDefinition[] = [
-            { name: 'Name', data: [field('name')], cellRenderer: () => null }
+            { type: 'tableColumn', name: 'Name', data: [field('name')], cellRenderer: () => null }
         ];
         const query = generateGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'id');
         // Expect both name and id to appear. The selection set is at the end of the query string.
@@ -17,8 +17,8 @@ describe('generateGraphQLQuery paginationKey inclusion', () => {
 
     it('does not duplicate paginationKey if already present', () => {
         const columns: ColumnDefinition[] = [
-            { name: 'ID', data: [field('id')], cellRenderer: () => null },
-            { name: 'Name', data: [field('name')], cellRenderer: () => null }
+            { type: 'tableColumn', name: 'ID', data: [field('id')], cellRenderer: () => null },
+            { type: 'tableColumn', name: 'Name', data: [field('name')], cellRenderer: () => null }
         ];
         const query = generateGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'id');
         // Count occurrences of id field (rough heuristic). Should not exceed 1 meaningful occurrence inside selection set excluding variable definitions etc.

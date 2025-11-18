@@ -84,6 +84,7 @@ describe('RuntimeReference', () => {
 
         it('should parse column with RuntimeReference format', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {
@@ -93,12 +94,16 @@ describe('RuntimeReference', () => {
             };
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-            expect(result.cellRenderer.section).toBe('cellRenderers');
-            expect(result.cellRenderer.key).toBe('myRenderer');
+            expect(result.type).toBe('tableColumn');
+            if (result.type === 'tableColumn') {
+                expect(result.cellRenderer.section).toBe('cellRenderers');
+                expect(result.cellRenderer.key).toBe('myRenderer');
+            }
         });
 
         it('should require cellRenderer field', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'test' }],
                 name: 'Test Column'
                 // Missing cellRenderer
@@ -106,11 +111,12 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "cellRenderer" field is required');
+            }).toThrow('Invalid JSON: "cellRenderer" field is required for tableColumn');
         });
 
         it('should validate cellRenderer section is cellRenderers', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {
@@ -126,6 +132,7 @@ describe('RuntimeReference', () => {
 
         it('should validate cellRenderer reference key exists in runtime', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {

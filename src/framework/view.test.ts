@@ -18,6 +18,7 @@ describe('parseColumnDefinitionJson', () => {
     describe('successful parsing', () => {
         it('should parse valid JSON with single data field', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'user.name' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -26,6 +27,7 @@ describe('parseColumnDefinitionJson', () => {
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
 
             expect(result).toEqual({
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'user.name' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -34,6 +36,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse valid JSON with multiple data fields', () => {
             const json = {
+                type: 'tableColumn',
                 data: [
                     { type: 'field', path: 'user.firstName' },
                     { type: 'field', path: 'user.lastName' }
@@ -45,6 +48,7 @@ describe('parseColumnDefinitionJson', () => {
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
 
             expect(result).toEqual({
+                type: 'tableColumn',
                 data: [
                     { type: 'field', path: 'user.firstName' },
                     { type: 'field', path: 'user.lastName' }
@@ -63,14 +67,18 @@ describe('parseColumnDefinitionJson', () => {
 
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
+                    type: 'tableColumn',
                     data: [{ type: 'field', path: 'field' }],
                     name: 'Test',
                     cellRenderer
                 };
 
                 const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-                expect(result.cellRenderer.section).toBe('cellRenderers');
-                expect(result.cellRenderer.key).toBe(expected);
+                expect(result.type).toBe('tableColumn');
+                if (result.type === 'tableColumn') {
+                    expect(result.cellRenderer.section).toBe('cellRenderers');
+                    expect(result.cellRenderer.key).toBe(expected);
+                }
             });
         });
 
@@ -83,32 +91,41 @@ describe('parseColumnDefinitionJson', () => {
 
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
+                    type: 'tableColumn',
                     data: [{ type: 'field', path: 'field' }],
                     name: 'Test',
                     cellRenderer
                 };
 
                 const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-                expect(result.cellRenderer.section).toBe('cellRenderers');
-                expect(result.cellRenderer.key).toBe(expected);
+                expect(result.type).toBe('tableColumn');
+                if (result.type === 'tableColumn') {
+                    expect(result.cellRenderer.section).toBe('cellRenderers');
+                    expect(result.cellRenderer.key).toBe(expected);
+                }
             });
         });
 
         it('should parse JSON with empty data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [],
                 name: 'Empty',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+            expect(result.type).toBe('tableColumn');
             expect(result.data).toEqual([]);
-            expect(result.cellRenderer.section).toBe('cellRenderers');
-            expect(result.cellRenderer.key).toBe('name');
+            if (result.type === 'tableColumn') {
+                expect(result.cellRenderer.section).toBe('cellRenderers');
+                expect(result.cellRenderer.key).toBe('name');
+            }
         });
 
         it('should parse JSON with queryConfigs data', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -132,6 +149,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse JSON with queryConfigs including orderBy', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -163,6 +181,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should handle null orderBy and limit in queryConfigs', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -190,6 +209,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should handle mixed null and valid values in queryConfigs', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -221,6 +241,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse JSON with queryConfigs including path property', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -248,6 +269,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse JSON with queryConfigs including path, limit, and orderBy', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -279,6 +301,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse JSON with fieldAlias data', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
@@ -298,6 +321,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should parse JSON with nested fieldAlias data', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userPosts',
@@ -361,6 +385,7 @@ describe('parseColumnDefinitionJson', () => {
     describe('data field validation', () => {
         it('should throw error for missing data field', () => {
             const json = {
+                type: 'tableColumn',
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -372,6 +397,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for null data field', () => {
             const json = {
+                type: 'tableColumn',
                 data: null,
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -384,6 +410,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for string data field', () => {
             const json = {
+                type: 'tableColumn',
                 data: 'not an array',
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -396,6 +423,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for object data field', () => {
             const json = {
+                type: 'tableColumn',
                 data: { field: 'value' },
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -410,17 +438,19 @@ describe('parseColumnDefinitionJson', () => {
     describe('name field validation', () => {
         it('should throw error for missing name field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "name" field must be a string');
+            }).toThrow('Invalid JSON: "name" field must be a string for tableColumn');
         });
 
         it('should throw error for number name field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: 123,
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -428,11 +458,12 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "name" field must be a string');
+            }).toThrow('Invalid JSON: "name" field must be a string for tableColumn');
         });
 
         it('should throw error for null name field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: null,
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -440,11 +471,12 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "name" field must be a string');
+            }).toThrow('Invalid JSON: "name" field must be a string for tableColumn');
         });
 
         it('should throw error for object name field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: { value: 'Name' },
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -452,11 +484,12 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "name" field must be a string');
+            }).toThrow('Invalid JSON: "name" field must be a string for tableColumn');
         });
 
         it('should throw error for array name field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: ['Name'],
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -464,24 +497,26 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "name" field must be a string');
+            }).toThrow('Invalid JSON: "name" field must be a string for tableColumn');
         });
     });
 
     describe('cellRenderer field validation', () => {
         it('should throw error for missing cellRenderer field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: 'Name'
             };
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "cellRenderer" field is required');
+            }).toThrow('Invalid JSON: "cellRenderer" field is required for tableColumn');
         });
 
         it('should throw error for number cellRenderer field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 123 }
@@ -494,6 +529,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for null cellRenderer field', () => {
             const json = {
+                type: 'tableColumn',
                 data: ['field'],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: null }
@@ -508,6 +544,7 @@ describe('parseColumnDefinitionJson', () => {
     describe('data array content validation', () => {
         it('should throw error for number in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'valid' }, 123, { type: 'field', path: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -520,6 +557,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for null in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'valid' }, null, { type: 'field', path: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -532,6 +570,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for object in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'valid' }, { field: 'value' }, { type: 'field', path: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -544,6 +583,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for array in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'valid' }, ['nested'], { type: 'field', path: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -556,6 +596,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for undefined in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'valid' }, undefined, { type: 'field', path: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -568,6 +609,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for invalid path type in queryConfigs', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -588,6 +630,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for null path in queryConfigs when provided', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'queryConfigs',
                     configs: [
@@ -613,6 +656,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for fieldAlias missing alias property', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     field: { type: 'field', path: 'user.name' }
@@ -629,6 +673,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for fieldAlias missing field property', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName'
@@ -645,6 +690,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for fieldAlias with invalid nested field', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
@@ -663,6 +709,7 @@ describe('parseColumnDefinitionJson', () => {
     describe('runtime key validation', () => {
         it('should throw error for invalid cellRenderer reference', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'invalidKey' }
@@ -675,6 +722,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for empty string cellRenderer reference', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: '' }
@@ -687,6 +735,7 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should throw error for case-sensitive mismatch', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'NAME' } // Wrong case
@@ -701,6 +750,7 @@ describe('parseColumnDefinitionJson', () => {
     describe('edge cases', () => {
         it('should handle empty string in data array', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: '' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -712,17 +762,22 @@ describe('parseColumnDefinitionJson', () => {
 
         it('should handle empty string as name', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: '',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-            expect(result.name).toBe('');
+            expect(result.type).toBe('tableColumn');
+            if (result.type === 'tableColumn') {
+                expect(result.name).toBe('');
+            }
         });
 
         it('should handle extra properties in JSON', () => {
             const json = {
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' },
@@ -731,6 +786,7 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result).toEqual({
+                type: 'tableColumn',
                 data: [{ type: 'field', path: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -1381,6 +1437,7 @@ describe('parseViewJson', () => {
                 ],
                 columns: [
                     {
+                        type: 'tableColumn',
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
@@ -1430,6 +1487,7 @@ describe('parseViewJson', () => {
                 noRowsComponent: { section: 'noRowsComponents', key: 'noRowsExtendDateRange' },
                 columns: [
                     {
+                        type: 'tableColumn',
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
@@ -1456,11 +1514,13 @@ describe('parseViewJson', () => {
                 orderByType: '[ComplexOrderBy!]',
                 columns: [
                     {
+                        type: 'tableColumn',
                         data: [{ type: 'field', path: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
                     },
                     {
+                        type: 'tableColumn',
                         data: [
                             { type: 'field', path: 'amount' },
                             {
@@ -1699,6 +1759,7 @@ describe('parseViewJson', () => {
                 orderByType: '[TestOrderBy!]',
                 columns: [
                     {
+                        type: 'tableColumn',
                         data: [],
                         name: 'Test',
                         cellRenderer: { section: 'cellRenderers', key: 'nonexistent' }

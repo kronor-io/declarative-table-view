@@ -78,8 +78,18 @@ export function fieldAlias(alias: string, fieldQuery: FieldQuery): FieldQuery {
     return { type: 'fieldAlias', alias, field: fieldQuery };
 }
 
-export type ColumnDefinition = {
+
+export type TableColumnDefinition = {
+    type: 'tableColumn';
     data: FieldQuery[];
     name: string; // column display name
     cellRenderer: CellRenderer;
 };
+
+// data-only column included in the GraphQL selection set but not rendered.
+export type VirtualColumnDefinition = {
+    type: 'virtualColumn';
+    data: FieldQuery[];
+};
+
+export type ColumnDefinition = TableColumnDefinition | VirtualColumnDefinition;

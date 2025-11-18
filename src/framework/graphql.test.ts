@@ -77,16 +77,19 @@ describe("generateGraphQLQueryAST", () => {
     it("should convert column definitions to a GraphQLQueryAST", () => {
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
                 name: "ID",
                 data: [{ type: "field", path: "id" }],
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "Name",
                 data: [{ type: "field", path: "name" }],
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "Posts",
                 data: [
                     {
@@ -131,11 +134,11 @@ describe("generateGraphQLQueryAST", () => {
 
     it("should handle nested fields and merge selection sets", () => {
         const columns: ColumnDefinition[] = [
-            { name: "ID", data: [{ type: "field", path: "id" }], cellRenderer: () => null },
-            { name: "Author Name", data: [{ type: "field", path: "author.name" }], cellRenderer: () => null },
-            { name: "Author ID", data: [{ type: "field", path: "author.id" }], cellRenderer: () => null },
-            { name: "First Comment", data: [{ type: "field", path: "comments.0.text" }], cellRenderer: () => null },
-            { name: "First Commenter", data: [{ type: "field", path: "comments.0.user.name" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "ID", data: [{ type: "field", path: "id" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "Author Name", data: [{ type: "field", path: "author.name" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "Author ID", data: [{ type: "field", path: "author.id" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "First Comment", data: [{ type: "field", path: "comments.0.text" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "First Commenter", data: [{ type: "field", path: "comments.0.user.name" }], cellRenderer: () => null },
         ];
 
         const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
@@ -170,11 +173,13 @@ describe("generateGraphQLQueryAST", () => {
     it("generates GraphQL query with field aliases", () => {
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
                 name: "ID",
                 data: [field("id")],
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "Recent Posts",
                 data: [
                     fieldAlias(
@@ -194,6 +199,7 @@ describe("generateGraphQLQueryAST", () => {
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "User Name",
                 data: [fieldAlias("userName", field("user.name"))],
                 cellRenderer: () => null,
@@ -230,11 +236,13 @@ describe("generateGraphQLQueryAST", () => {
     it("generates GraphQL query with path support for JSON columns", () => {
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
                 name: "ID",
                 data: [field("id")],
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "JSON Field Value",
                 data: [
                     queryConfigs([
@@ -247,6 +255,7 @@ describe("generateGraphQLQueryAST", () => {
                 cellRenderer: () => null,
             },
             {
+                type: 'tableColumn',
                 name: "JSON Array Element",
                 data: [
                     fieldAlias(

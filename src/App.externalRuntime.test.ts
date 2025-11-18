@@ -42,6 +42,7 @@ describe('External Runtime Integration', () => {
             orderByType: '[TestOrderBy!]',
             columns: [
                 {
+                    type: 'tableColumn',
                     data: [{ type: 'field', path: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'customCellRenderer' },
@@ -58,8 +59,12 @@ describe('External Runtime Integration', () => {
             const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test External Runtime View');
             expect(view.columnDefinitions).toHaveLength(1);
-            expect(view.columnDefinitions[0].name).toBe('ID');
-            expect(typeof view.columnDefinitions[0].cellRenderer).toBe('function');
+            const firstCol = view.columnDefinitions[0];
+            expect(firstCol.type).toBe('tableColumn');
+            if (firstCol.type === 'tableColumn') {
+                expect(firstCol.name).toBe('ID');
+                expect(typeof firstCol.cellRenderer).toBe('function');
+            }
         }).not.toThrow();
     });
 
@@ -84,6 +89,7 @@ describe('External Runtime Integration', () => {
             orderByType: '[TestOrderBy!]',
             columns: [
                 {
+                    type: 'tableColumn',
                     data: [{ type: 'field', path: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'text' },
@@ -100,7 +106,9 @@ describe('External Runtime Integration', () => {
             const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test Fallback Runtime View');
             // Test the cell renderer function
-            const cellRenderer = view.columnDefinitions[0].cellRenderer;
+            const firstCol = view.columnDefinitions[0];
+            expect(firstCol.type).toBe('tableColumn');
+            const cellRenderer = firstCol.type === 'tableColumn' ? firstCol.cellRenderer : () => null;
             const mockProps = {
                 data: { id: 'test' },
                 setFilterState: () => { },
@@ -151,6 +159,7 @@ describe('External Runtime Integration', () => {
             orderByType: '[TestOrderBy!]',
             columns: [
                 {
+                    type: 'tableColumn',
                     data: [{ type: 'field', path: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'text' },
@@ -166,7 +175,9 @@ describe('External Runtime Integration', () => {
             const view = parseViewJson(testView, builtInRuntime, externalRuntime);
             expect(view.title).toBe('Test Precedence View');
             // Test that external runtime took precedence
-            const cellRenderer = view.columnDefinitions[0].cellRenderer;
+            const firstCol = view.columnDefinitions[0];
+            expect(firstCol.type).toBe('tableColumn');
+            const cellRenderer = firstCol.type === 'tableColumn' ? firstCol.cellRenderer : () => null;
             const mockProps = {
                 data: { id: 'test' },
                 setFilterState: () => { },

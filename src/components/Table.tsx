@@ -125,41 +125,43 @@ function Table({
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple"></Column>}
-            {columns.map((column, columnIndex) => (
-                <Column
-                    key={columnIndex}
-                    field={columnIndex.toString()}
-                    header={column.name}
-                    body={rowData => column.cellRenderer({
-                        data: rowData[columnIndex],
-                        setFilterState: wrappedSetFilterState,
-                        applyFilters: triggerRefetch,
-                        updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
-                            wrappedSetFilterState(currentState => {
-                                try {
-                                    const currentFilter = getFilterStateById(currentState, filterId);
-                                    const updatedFilter = updater(currentFilter);
-                                    if (updatedFilter === currentFilter) return currentState;
-                                    return setFilterStateById(currentState, filterId, updatedFilter);
-                                } catch {
-                                    return currentState;
-                                }
-                            });
-                        },
-                        createElement: React.createElement,
-                        components: {
-                            Badge: Tag,
-                            FlexRow,
-                            FlexColumn,
-                            Mapping,
-                            DateTime,
-                            CurrencyAmount,
-                            Link
-                        },
-                        currency: { minorToMajor, majorToMinor }
-                    })}
-                />
-            ))}
+            {columns
+                .filter(column => column.type === 'tableColumn')
+                .map((column, columnIndex) => (
+                    <Column
+                        key={columnIndex}
+                        field={columnIndex.toString()}
+                        header={column.name}
+                        body={rowData => column.cellRenderer({
+                            data: rowData[columnIndex],
+                            setFilterState: wrappedSetFilterState,
+                            applyFilters: triggerRefetch,
+                            updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
+                                wrappedSetFilterState(currentState => {
+                                    try {
+                                        const currentFilter = getFilterStateById(currentState, filterId);
+                                        const updatedFilter = updater(currentFilter);
+                                        if (updatedFilter === currentFilter) return currentState;
+                                        return setFilterStateById(currentState, filterId, updatedFilter);
+                                    } catch {
+                                        return currentState;
+                                    }
+                                });
+                            },
+                            createElement: React.createElement,
+                            components: {
+                                Badge: Tag,
+                                FlexRow,
+                                FlexColumn,
+                                Mapping,
+                                DateTime,
+                                CurrencyAmount,
+                                Link
+                            },
+                            currency: { minorToMajor, majorToMinor }
+                        })}
+                    />
+                ))}
         </DataTable>
     );
 }

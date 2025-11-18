@@ -19,7 +19,7 @@ describe('fetchData staticConditions merging', () => {
         title: 'Test',
         id: 'test',
         collectionName: 'testCollection',
-        columnDefinitions: [{ data: [{ type: 'field', path: 'id' }] } as ColumnDefinition],
+        columnDefinitions: [{ type: 'virtualColumn', data: [{ type: 'field', path: 'id' }] } as ColumnDefinition],
         filterSchema: { groups: [], filters: [] } as FilterSchemasAndGroups,
         boolExpType: 'BoolExp',
         orderByType: '[OrderBy!]',

@@ -11,6 +11,7 @@
     },
     "columns": [
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -28,6 +29,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -41,6 +43,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -54,6 +57,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -67,6 +71,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -96,6 +101,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -113,6 +119,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
@@ -126,6 +133,7 @@
             }
         },
         {
+            "type": "tableColumn",
             "data": [
                 {
                     "type": "field",
