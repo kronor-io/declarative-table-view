@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
 import Table, { RowSelectionAPI } from './components/Table';
@@ -54,6 +54,7 @@ export interface AppProps {
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
     rowClass?: (row: any[]) => Record<string, boolean>;
+    customContent?: ReactNode;
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -74,7 +75,8 @@ function App({
     syncFilterStateToUrl = false,
     rowSelection,
     actions = [],
-    rowClass
+    rowClass,
+    customContent
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -541,6 +543,7 @@ function App({
                     />
                 )
             }
+            {customContent}
             <Table
                 viewId={selectedView.id}
                 ref={tableRef}
@@ -583,6 +586,7 @@ function App({
                         onCloseOverlay={() => setShowPopout(false)}
                         syncFilterStateToUrl={syncFilterStateToUrl}
                         rowSelection={rowSelection}
+                        rowClass={rowClass}
                     />
                 </div>,
                 document.body

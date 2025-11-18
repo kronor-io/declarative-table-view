@@ -24,6 +24,7 @@ export interface RenderTableViewOptions {
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
     actions?: ActionDefinition[]; // Optional custom action buttons
+    rowClass?: (row: any[]) => Record<string, boolean>;
 }
 
 
@@ -47,6 +48,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
                     rowSelection={options.rowSelection}
                     actions={options.actions}
+                    rowClass={options.rowClass}
                 />
             </PrimeReactProvider>
         </StrictMode>
@@ -73,8 +75,13 @@ if (import.meta.env.DEV) {
                 onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; },
                 apiRef: createRef<RowSelectionAPI>()
             } : undefined;
+            const rowClass = (row: any[]) => {
+                (window as any).__lastRowClassArgs = row;
+                return {};
+            };
             // Expose for tests to call rowSelection.apiRef.current.resetRowSelection later
             (window as any).__rowSelection = rowSelection;
+            (window as any).__rowClass = rowClass;
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
@@ -84,7 +91,8 @@ if (import.meta.env.DEV) {
                 externalRuntime: runtime,
                 syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true',
                 showPopoutButton: urlParams.get('show-popout-button') === 'false' ? false : true,
-                rowSelection
+                rowSelection,
+                rowClass
             });
         };
 
