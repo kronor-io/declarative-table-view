@@ -6,6 +6,7 @@ import App from './App.tsx'
 import { PrimeReactProvider } from 'primereact/api';
 import { Runtime } from './framework/runtime';
 import { ActionDefinition } from './framework/actions.ts';
+import packageFile from '../package.json';
 
 export interface RenderTableViewOptions {
     graphqlHost: string;
@@ -53,9 +54,15 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
     );
 }
 
-// Make renderTableView available globally
-// @ts-expect-error Adding renderTableView to window object for global access
-window.renderTableView = renderTableView;
+// Public namespace object
+export const dtv = {
+    version: packageFile.version,
+    renderTableView
+};
+
+// Expose namespace on window (script-tag consumers)
+// @ts-expect-error Expose dtv namespace globally
+window.dtv = dtv;
 
 // In development, preload views based on URL parameter or load payment requests by default
 if (import.meta.env.DEV) {

@@ -26,7 +26,7 @@ import type { AppProps } from '@kronor/dtv';
 All required styles are injected automatically via the JS bundle (using `vite-plugin-css-injected-by-js`).
 
 ### Runtime Options (AppProps)
-Key props you can pass to `App` (or via `renderTableView` in `main.tsx`):
+Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 
 - `graphqlHost` / `graphqlToken`: GraphQL endpoint + bearer auth token.
 - `geminiApiKey`: API key used by the AI Filter Assistant.
@@ -41,7 +41,7 @@ Key props you can pass to `App` (or via `renderTableView` in `main.tsx`):
 
 Example:
 ```ts
-renderTableView('root', {
+dtv.renderTableView('root', {
   graphqlHost: 'https://example/graphql',
   graphqlToken: 'token',
   geminiApiKey: 'gemini-key',
@@ -75,7 +75,7 @@ React and ReactDOM 19 are peer dependencies; ensure they are installed in the ho
 - Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).
 - Views define their own GraphQL queries and filter schemas.
 - Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
- - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
+ - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `dtv.renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
 
 ## Development
 
