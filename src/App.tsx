@@ -1,3 +1,4 @@
+// --- FULL FILE WITH MINIMAL CHANGES ---
 import { useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
@@ -78,6 +79,7 @@ function App({
     rowClass,
     customContent
 }: AppProps) {
+    const [localRowsPerPage, setLocalRowsPerPage] = useState(rowsPerPage);
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
@@ -318,10 +320,10 @@ function App({
             view: selectedView,
             query: memoizedQuery,
             filterState: state.filterState,
-            rowLimit: rowsPerPage,
+            rowLimit: localRowsPerPage,
             cursor
         });
-    }, [client, selectedView, memoizedQuery, state.filterState, rowsPerPage]);
+    }, [client, selectedView, memoizedQuery, state.filterState, localRowsPerPage]);
 
     // Fetch data when view changes or refetch is triggered
     useEffect(() => {
@@ -383,11 +385,18 @@ function App({
         if (state.pagination.page === 0) return;
         const prevCursors = state.pagination.cursors.slice(0, -1)
         const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-        const newData = await fetchDataWrapper(prevCursor)
-        setDataRows(
-            newData,
-            { page: state.pagination.page - 1, cursors: prevCursors }
-        );
+        const newData = await fetchDataWrapper(prevCursor);
+
+        setDataRows(newData, {
+            page: state.pagination.page - 1,
+            cursors: prevCursors
+        });
+    };
+
+    const handleRowsPerPageChange = (value: number) => {
+        setLocalRowsPerPage(value);
+        setDataRows(state.data, { page: 0, cursors: [] });
+        setRefetchTrigger(prev => prev + 1);
     };
 
     return (
@@ -473,7 +482,7 @@ function App({
                             refetch={() => setRefetchTrigger(prev => prev + 1)}
                             showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
                             paginationState={state.pagination}
-                            rowsPerPage={rowsPerPage}
+                            rowsPerPage={localRowsPerPage}
                         />
                     </div>
                 }
@@ -564,7 +573,8 @@ function App({
                         hasNextPage={hasNextPage}
                         hasPrevPage={hasPrevPage}
                         currentPage={state.pagination.page}
-                        rowsPerPage={rowsPerPage}
+                        rowsPerPage={localRowsPerPage}
+                        onRowsPerPageChange={handleRowsPerPageChange}
                         actualRows={state.data.rows.length}
                     />
                 )
@@ -576,7 +586,7 @@ function App({
                         graphqlToken={graphqlToken}
                         geminiApiKey={geminiApiKey}
                         showViewsMenu={showViewsMenu}
-                        rowsPerPage={rowsPerPage}
+                        rowsPerPage={localRowsPerPage}
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
                         showPopoutButton={showPopoutButton}
