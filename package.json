@@ -1,6 +1,6 @@
 {
   "name": "@kronor/dtv",
-  "version": "0.7.1",
+  "version": "1.0.0",
   "type": "module",
   "files": [
     "dist",
