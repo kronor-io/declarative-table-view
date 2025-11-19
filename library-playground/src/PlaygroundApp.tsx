@@ -40,6 +40,11 @@ export function PlaygroundApp() {
                         apiRef: rowSelectionApiRef
                     }
                 }
+                rowClassFunction={(row: Record<string, any>) => {
+                    return {
+                        'p-highlight': row.amount > 200
+                    };
+                }}
             />
             <Button onClick={() => { rowSelectionApiRef.current?.resetRowSelection(); }}>Reset Row Selection</Button>
         </>

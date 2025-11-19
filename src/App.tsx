@@ -53,7 +53,7 @@ export interface AppProps {
     };
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
-    rowClass?: (row: any[]) => Record<string, boolean>;
+    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -74,7 +74,7 @@ function App({
     syncFilterStateToUrl = false,
     rowSelection,
     actions = [],
-    rowClass
+    rowClassFunction
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -551,7 +551,7 @@ function App({
                 filterState={state.filterState}
                 triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
                 rowSelection={rowSelection}
-                rowClass={rowClass}
+                rowClassFunction={rowClassFunction}
             />
             {
                 state.data.rows.length > 0 && (
@@ -583,7 +583,7 @@ function App({
                         onCloseOverlay={() => setShowPopout(false)}
                         syncFilterStateToUrl={syncFilterStateToUrl}
                         rowSelection={rowSelection}
-                        rowClass={rowClass}
+                        rowClassFunction={rowClassFunction}
                     />
                 </div>,
                 document.body
