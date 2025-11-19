@@ -111,6 +111,41 @@ npm test
 npm run test
 ```
 
+## Release Process
+
+Automated release script performs validation (lint, build, unit + e2e tests), builds the library bundle, bumps the version, pushes git tags, and publishes to npm.
+
+### Run a release
+```sh
+npm run release
+```
+You'll be prompted for the semver bump (`patch`, `minor`, or `major`). Default is `patch` if you press Enter.
+
+### Options / Flags
+```sh
+npm run release -- --type=minor      # Non-interactive minor release
+npm run release -- --dry             # Run validations only; skip version/tag/publish
+npm run release -- --skip-e2e        # Skip Playwright tests (use sparingly)
+npm run release -- --skip-unit       # Skip Jest tests (NOT recommended)
+npm run release -- --allow-dirty     # Allow running with uncommitted changes (avoids safety check)
+```
+
+### Requirements
+- You must be authenticated with npm (`npm login`).
+- Git working tree must be clean (unless using `--allow-dirty`).
+- CI should pass for the commit you are releasing.
+
+### What it does
+1. Lints source code.
+2. Builds application (`npm run build`).
+3. Runs unit tests (Jest) and E2E tests (Playwright).
+4. Builds library bundle (`npm run build:lib`).
+5. Bumps version via `npm version <type>` (commit + tag).
+6. Pushes commit and tags.
+7. Publishes to npm (`npm publish --access public`).
+
+Use `--dry` first if you want to verify everything without changing the version or publishing.
+
 ## Examples
 - See `src/views/paymentRequest.tsx` for a full-featured view definition.
 - See `src/components/AIAssistantForm.tsx` for AI-driven filter generation.

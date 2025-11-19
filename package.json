@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "test": "playwright test",
     "test-unit": "jest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release": "node scripts/release.mjs"
   },
   "exports": {
     ".": {
