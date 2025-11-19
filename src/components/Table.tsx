@@ -12,6 +12,7 @@ import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 import { FilterFormState } from '../framework/filter-form-state';
+import { simplifyRow, simplifyRows } from '../framework/rows';
 
 export interface RowSelectionAPI {
     /** Reset (clear) the current selection */
@@ -33,6 +34,8 @@ type TableProps = {
         /** Ref object populated by Table with RowSelectionAPI */
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+    // Row class callback now receives a simplified/flattened row object (merged cells)
+    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
 
 function Table({
@@ -44,7 +47,8 @@ function Table({
     filterState,
     triggerRefetch,
     ref,
-    rowSelection
+    rowSelection,
+    rowClassFunction
 }: TableProps) {
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
@@ -94,18 +98,8 @@ function Table({
     const handleSelectionChange = (rows: any[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
         setSelectedRows(rows);
-
-        // Transform each selected "row" (array of cell data objects) into a single flat object
-        const simplifiedRows = rows.map((row: any) => {
-            return row.reduce((acc: Record<string, any>, cell: any) => {
-                for (const [k, v] of Object.entries(cell)) {
-                    acc[k] = v;
-                }
-                return acc;
-            }, {});
-        });
-
-        rowSelection?.onRowSelectionChange?.(simplifiedRows);
+        // Use shared helper to flatten rows before emitting selection change
+        rowSelection?.onRowSelectionChange?.(simplifyRows(rows));
     };
 
     return (
@@ -123,8 +117,9 @@ function Table({
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
+            rowClassName={rowClassFunction ? (row: any[]) => rowClassFunction(simplifyRow(row)) : undefined}
         >
-            {selectionType === 'multiple' && <Column selectionMode="multiple"></Column>}
+            {selectionType === 'multiple' && <Column selectionMode="multiple" />}
             {columns
                 .filter(column => column.type === 'tableColumn')
                 .map((column, columnIndex) => (

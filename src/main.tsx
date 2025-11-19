@@ -25,6 +25,7 @@ export interface RenderTableViewOptions {
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
     actions?: ActionDefinition[]; // Optional custom action buttons
+    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 }
 
 
@@ -48,6 +49,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
                     rowSelection={options.rowSelection}
                     actions={options.actions}
+                    rowClassFunction={options.rowClassFunction}
                 />
             </PrimeReactProvider>
         </StrictMode>
@@ -80,6 +82,8 @@ if (import.meta.env.DEV) {
                 onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; },
                 apiRef: createRef<RowSelectionAPI>()
             } : undefined;
+
+
             // Expose for tests to call rowSelection.apiRef.current.resetRowSelection later
             (window as any).__rowSelection = rowSelection;
             renderTableView(rootEl, {
