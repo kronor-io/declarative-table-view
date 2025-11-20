@@ -44,6 +44,7 @@ export function PlaygroundApp() {
                         'p-highlight': row.amount > 200
                     };
                 }}
+                rowsPerPageOptions={[10, 20, 50]}
             />
             <Button onClick={() => { rowSelectionApiRef.current?.resetRowSelection(); }}>Reset Row Selection</Button>
         </>
