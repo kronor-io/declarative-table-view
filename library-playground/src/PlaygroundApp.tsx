@@ -28,7 +28,6 @@ export function PlaygroundApp() {
                 graphqlToken="PLAYGROUND_TOKEN"
                 geminiApiKey=""
                 showViewsMenu={false}
-                rowsPerPage={20}
                 showViewTitle={true}
                 viewsJson={JSON.stringify(views)}
                 syncFilterStateToUrl={false}

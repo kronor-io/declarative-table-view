@@ -35,7 +35,6 @@ Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 - `showViewTitle`: Toggle the view title heading (default: `false`).
 - `showCsvExportButton`: Toggle the "Export page to CSV" button (default: `false`). When enabled, current page rows are exported using PrimeReact's built-in DataTable CSV exporter.
 - `showPopoutButton`: Toggle the Popout button that opens the table view in a fullscreen overlay (default: `true`). Set to `false` to suppress this UI in embedded contexts.
-- `rowsPerPage`: Page size for pagination (default: `20`).
 - `externalRuntime`: Provide a runtime override for cell renderers / query transforms.
 - `syncFilterStateToUrl`: Persist applied filter state into the `dtv-filter-state` URL param (default: `false`).
 
@@ -76,6 +75,18 @@ React and ReactDOM 19 are peer dependencies; ensure they are installed in the ho
 - Views define their own GraphQL queries and filter schemas.
 - Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
  - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `dtv.renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
+
+## Features
+
+Core runtime capabilities:
+
+- Schema-driven column + filter definitions (JSON or TSX view formats).
+- AI assistant to generate filters (`AIAssistantForm`).
+- Cursor-based pagination with Previous / Next navigation.
+- Adjustable page size via "Rows per page" selector (10, 20, 50, 100). Changing the page size resets pagination and refetches from the first page.
+- Saved filters (local persistence + shareable URL encoding).
+- Optional CSV export of current page rows.
+- Popout (fullscreen overlay) rendering of the table view.
 
 ## Development
 
@@ -145,8 +156,3 @@ npm run release -- --allow-dirty     # Allow running with uncommitted changes (a
 7. Publishes to npm (`npm publish --access public`).
 
 Use `--dry` first if you want to verify everything without changing the version or publishing.
-
-## Examples
-- See `src/views/paymentRequest.tsx` for a full-featured view definition.
-- See `src/components/AIAssistantForm.tsx` for AI-driven filter generation.
-- See `src/framework/filters.ts` for filter schema/type definitions and utilities.

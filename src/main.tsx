@@ -26,6 +26,7 @@ export interface RenderTableViewOptions {
     };
     actions?: ActionDefinition[]; // Optional custom action buttons
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+    rowsPerPageOptions?: number[]; // custom page size options for pagination dropdown
 }
 
 
@@ -50,6 +51,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     rowSelection={options.rowSelection}
                     actions={options.actions}
                     rowClassFunction={options.rowClassFunction}
+                    rowsPerPageOptions={options.rowsPerPageOptions}
                 />
             </PrimeReactProvider>
         </StrictMode>

@@ -35,7 +35,6 @@ export interface AppProps {
     geminiApiKey: string;
     viewsJson: string; // JSON string containing array of view definitions
     showViewsMenu: boolean;
-    rowsPerPage?: number;
     showViewTitle: boolean; // Option to show/hide view title
     showCsvExportButton?: boolean; // Controls visibility of the CSV export button (default false)
     showPopoutButton?: boolean; // Controls visibility of the Popout open button (default true)
@@ -54,6 +53,7 @@ export interface AppProps {
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+    rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -63,7 +63,6 @@ function App({
     graphqlToken,
     geminiApiKey,
     showViewsMenu,
-    rowsPerPage = 20,
     showViewTitle,
     showCsvExportButton = false,
     showPopoutButton = true,
@@ -74,7 +73,8 @@ function App({
     syncFilterStateToUrl = false,
     rowSelection,
     actions = [],
-    rowClassFunction
+    rowClassFunction,
+    rowsPerPageOptions = [20, 50, 100, 200]
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -103,7 +103,7 @@ function App({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewsJson]);
 
-    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows } = useAppState(views, initialFilterStateFromUrl as any);
+    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl as any);
 
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
@@ -156,7 +156,8 @@ function App({
         return () => window.removeEventListener('keydown', handleKey);
     }, [isOverlay, onCloseOverlay]);
 
-    // Pagination state
+    // Pagination derived values
+    const rowsPerPage = state.pagination.rowsPerPage;
     const hasNextPage = state.data.rows.length === rowsPerPage;
     const hasPrevPage = state.pagination.page > 0;
 
@@ -310,20 +311,20 @@ function App({
         }
     };
 
-    const fetchDataWrapper = useCallback((cursor: string | number | null): Promise<FetchDataResult> => {
+    const fetchDataWrapper = useCallback((cursor: string | number | null, rowLimit: number): Promise<FetchDataResult> => {
         return fetchData({
             client,
             view: selectedView,
             query: memoizedQuery,
             filterState: state.filterState,
-            rowLimit: rowsPerPage,
+            rowLimit,
             cursor
         });
-    }, [client, selectedView, memoizedQuery, state.filterState, rowsPerPage]);
+    }, [client, selectedView, memoizedQuery, state.filterState]);
 
     // Fetch data when view changes or refetch is triggered
     useEffect(() => {
-        fetchDataWrapper(null)
+        fetchDataWrapper(null, rowsPerPage)
             .then(dataRows => setDataRows(dataRows))
             .catch(error => {
                 if (error instanceof DOMException && error.name === 'AbortError') {
@@ -369,10 +370,10 @@ function App({
             console.error('Invalid cursor type:', cursor);
             return;
         }
-        const newData = await fetchDataWrapper(cursor);
+        const newData = await fetchDataWrapper(cursor, rowsPerPage);
         setDataRows(
             newData,
-            { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor] }
+            { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor], rowsPerPage }
         );
     };
 
@@ -381,11 +382,19 @@ function App({
         if (state.pagination.page === 0) return;
         const prevCursors = state.pagination.cursors.slice(0, -1)
         const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-        const newData = await fetchDataWrapper(prevCursor)
+        const newData = await fetchDataWrapper(prevCursor, rowsPerPage)
         setDataRows(
             newData,
-            { page: state.pagination.page - 1, cursors: prevCursors }
+            { page: state.pagination.page - 1, cursors: prevCursors, rowsPerPage }
         );
+    };
+
+    // Rows-per-page change handler: reset pagination and refetch first page
+    const handleRowsPerPageChange = async (value: number) => {
+        if (value === rowsPerPage) return;
+        setRowsPerPage(value);
+        const newData = await fetchDataWrapper(null, value);
+        setDataRows(newData, { page: 0, cursors: [], rowsPerPage: value });
     };
 
     return (
@@ -563,6 +572,8 @@ function App({
                         currentPage={state.pagination.page}
                         rowsPerPage={rowsPerPage}
                         actualRows={state.data.rows.length}
+                        onRowsPerPageChange={handleRowsPerPageChange}
+                        rowsPerPageOptions={rowsPerPageOptions}
                     />
                 )
             }
@@ -573,7 +584,6 @@ function App({
                         graphqlToken={graphqlToken}
                         geminiApiKey={geminiApiKey}
                         showViewsMenu={showViewsMenu}
-                        rowsPerPage={rowsPerPage}
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
                         showPopoutButton={showPopoutButton}
@@ -584,6 +594,7 @@ function App({
                         syncFilterStateToUrl={syncFilterStateToUrl}
                         rowSelection={rowSelection}
                         rowClassFunction={rowClassFunction}
+                        rowsPerPageOptions={rowsPerPageOptions}
                     />
                 </div>,
                 document.body
