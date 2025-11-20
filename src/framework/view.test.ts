@@ -12,7 +12,8 @@ describe('parseColumnDefinitionJson', () => {
         queryTransforms: {},
         noRowsComponents: {},
         customFilterComponents: {},
-        initialValues: {}
+        initialValues: {},
+        suggestionFetchers: {}
     };
 
     describe('successful parsing', () => {
@@ -812,7 +813,8 @@ describe('parseFilterFieldSchemaJson', () => {
                 toQuery: (input: any) => ({ value: `%${input}%` })
             }
         },
-        initialValues: {}
+        initialValues: {},
+        suggestionFetchers: {}
     };
 
     describe('successful parsing', () => {
@@ -1419,7 +1421,8 @@ describe('parseViewJson', () => {
             noRowsExtendDateRange: mockNoRowsComponent
         },
         customFilterComponents: {},
-        initialValues: {}
+        initialValues: {},
+        suggestionFetchers: {}
     };
 
 

@@ -13,7 +13,8 @@ describe('External Runtime Integration', () => {
             queryTransforms: {},
             noRowsComponents: {},
             customFilterComponents: {},
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
         const externalRuntime = {
             cellRenderers: {
@@ -30,7 +31,8 @@ describe('External Runtime Integration', () => {
             customFilterComponents: {
                 customFilter: () => 'Custom filter',
             },
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
 
         const testView = {
@@ -76,7 +78,8 @@ describe('External Runtime Integration', () => {
             queryTransforms: {},
             noRowsComponents: {},
             customFilterComponents: {},
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
         const externalRuntime = undefined; // No external runtime provided
 
@@ -138,7 +141,8 @@ describe('External Runtime Integration', () => {
             queryTransforms: {},
             noRowsComponents: {},
             customFilterComponents: {},
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
         const externalRuntime = {
             cellRenderers: {
@@ -147,7 +151,8 @@ describe('External Runtime Integration', () => {
             queryTransforms: {},
             noRowsComponents: {},
             customFilterComponents: {},
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
 
         const testView = {

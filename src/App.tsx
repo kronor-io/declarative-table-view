@@ -547,6 +547,7 @@ function App({
                         onSubmit={() => {
                             setRefetchTrigger(prev => prev + 1);
                         }}
+                        graphqlClient={client}
                     />
                 )
             }

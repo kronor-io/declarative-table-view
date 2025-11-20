@@ -12,7 +12,8 @@ describe('FilterControlJson initialValue runtime reference parsing', () => {
             defaultAge: 25,
             defaultTags: ['admin', 'user'],
             defaultConfig: { theme: 'dark', layout: 'grid' }
-        }
+        },
+        suggestionFetchers: {}
     };
 
     const externalRuntime: Runtime = {
@@ -23,7 +24,8 @@ describe('FilterControlJson initialValue runtime reference parsing', () => {
         initialValues: {
             defaultEmail: 'external@example.com', // Should override built-in runtime
             externalValue: 'external-only'
-        }
+        },
+        suggestionFetchers: {}
     };
 
     describe('parseInitialValue', () => {

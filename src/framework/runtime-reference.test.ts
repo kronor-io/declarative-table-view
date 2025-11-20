@@ -24,7 +24,7 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseRuntimeReference(json);
-            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues');
+            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues, suggestionFetchers');
         });
 
         it('should validate that section is a string', () => {
@@ -79,7 +79,8 @@ describe('RuntimeReference', () => {
             queryTransforms: {},
             noRowsComponents: {},
             customFilterComponents: {},
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
 
         it('should parse column with RuntimeReference format', () => {
@@ -156,8 +157,26 @@ describe('RuntimeReference', () => {
                 phoneNumberFilter: () => 'PhoneNumberFilter',
                 emailFilter: () => 'EmailFilter'
             },
-            initialValues: {}
+            initialValues: {},
+            suggestionFetchers: {}
         };
+
+        it('should resolve suggestionFetcher RuntimeReference', () => {
+            const runtime: Runtime = {
+                cellRenderers: {},
+                queryTransforms: {},
+                noRowsComponents: {},
+                customFilterComponents: {},
+                initialValues: {},
+                suggestionFetchers: {
+                    exampleFetcher: async (query: string) => [query]
+                }
+            };
+            const ref = parseRuntimeReference({ section: 'suggestionFetchers', key: 'exampleFetcher' });
+            expect(ref).toEqual({ section: 'suggestionFetchers', key: 'exampleFetcher' });
+            // Ensure key exists
+            expect(runtime.suggestionFetchers[ref.key]).toBeDefined();
+        });
 
         it('should resolve custom filter component with RuntimeReference', () => {
             // This would be tested as part of filter parsing, but we can test the concept

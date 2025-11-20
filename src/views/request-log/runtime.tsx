@@ -43,5 +43,6 @@ export const requestLogViewRuntime: Runtime = {
     queryTransforms: {},
     noRowsComponents: {},
     customFilterComponents: {},
-    initialValues: {}
+    initialValues: {},
+    suggestionFetchers: {}
 };

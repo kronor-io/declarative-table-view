@@ -10,8 +10,10 @@ import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
 import { ReactNode, useMemo } from 'react';
+import { GraphQLClient } from 'graphql-request';
 import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
+import { Autocomplete } from './Autocomplete';
 
 // Re-export FilterFormState from the dedicated module
 export type { FilterFormState } from '../framework/filter-form-state';
@@ -26,9 +28,10 @@ interface FilterFormProps {
     savedFilters: SavedFilter[];
     visibleFilterIds: FilterId[]; // indices of filters to display
     onSubmit: () => void;
+    graphqlClient: GraphQLClient;
 }
 
-function renderInput(control: FilterControl, value: any, setValue: (v: unknown) => void): ReactNode {
+function renderInput(control: FilterControl, value: any, setValue: (v: unknown) => void, graphqlClient: GraphQLClient): ReactNode {
     switch (control.type) {
         case 'text':
             return (
@@ -102,7 +105,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                         placeholder="operator"
                     />
                     <div className="tw:flex-1">
-                        {renderInput(control.valueControl, valueOrDefault, v => setValue({ operator, value: v }))}
+                        {renderInput(control.valueControl, valueOrDefault, v => setValue({ operator, value: v }), graphqlClient)}
                     </div>
                 </div>
             );
@@ -111,6 +114,16 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
             return control.component ? (
                 <control.component {...(control.props || {})} value={value} onChange={setValue} />
             ) : null;
+        case 'autocomplete': {
+            return <Autocomplete
+                value={value}
+                placeholder={control.placeholder}
+                onChange={setValue}
+                graphqlClient={graphqlClient}
+                queryMinLength={control.queryMinLength}
+                suggestionFetcher={control.suggestionFetcher}
+            />
+        }
     }
 }
 
@@ -119,7 +132,8 @@ function renderFilterFormState(
     state: FilterFormState,
     setState: (state: FilterFormState) => void,
     renderFilterType: boolean,
-    filterExpression: FilterExpr
+    filterExpression: FilterExpr,
+    graphqlClient: GraphQLClient
 ): ReactNode {
     if (state.type === 'and' || state.type === 'or') {
         // Schema consistency check: filter expression must match state type
@@ -154,7 +168,8 @@ function renderFilterFormState(
                                     setState({ ...state, children: newChildren });
                                 },
                                 renderFilterType,
-                                childExpressions[i]
+                                childExpressions[i],
+                                graphqlClient
                             )}
                         </div>
                     ))
@@ -183,7 +198,8 @@ function renderFilterFormState(
                         state.child,
                         newChild => setState({ ...state, child: newChild }),
                         renderFilterType,
-                        childExpression
+                        childExpression,
+                        graphqlClient
                     )
                 }
             </div>
@@ -205,7 +221,7 @@ function renderFilterFormState(
         return (
             <div className="tw:flex tw:flex-col tw:min-w-[220px] tw:mb-2">
                 <label className="tw:text-sm tw:font-medium tw:mb-1">{filterExpression.value.label}</label>
-                {renderInput(filterExpression.value, displayValue, handleSetValue)}
+                {renderInput(filterExpression.value, displayValue, handleSetValue, graphqlClient)}
             </div>
         );
     }
@@ -222,7 +238,8 @@ function FilterForm({
     onShareFilter,
     savedFilters,
     visibleFilterIds,
-    onSubmit
+    onSubmit,
+    graphqlClient
 }: FilterFormProps) {
 
     const filterSchemaById: Map<FilterId, FilterSchema> = useMemo(() => new Map(
@@ -286,7 +303,8 @@ function FilterForm({
                                             setFilterState(setFilterStateById(filterState, filterSchema.id, newState));
                                         },
                                         filterSchema.aiGenerated,
-                                        filterSchema.expression
+                                        filterSchema.expression,
+                                        graphqlClient
                                     )
                                 }
                             </div>
@@ -322,7 +340,8 @@ function FilterForm({
                                                     setFilterState(setFilterStateById(filterState, filterSchema.id, newState));
                                                 },
                                                 filterSchema.aiGenerated,
-                                                filterSchema.expression
+                                                filterSchema.expression,
+                                                graphqlClient
                                             )
                                         }
                                     </div>

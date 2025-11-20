@@ -29,5 +29,6 @@ export const nativeRuntime: NativeRuntime = {
     customFilterComponents: {
         PhoneNumberFilter
     },
-    initialValues: {}
+    initialValues: {},
+    suggestionFetchers: {}
 };

@@ -17,7 +17,8 @@ describe('Payment Requests Date Range Initial Values', () => {
                 const date = new Date();
                 return date; // Return Date object for calendar component
             })()
-        }
+        },
+        suggestionFetchers: {}
     };
 
     it('should resolve date range start initial value correctly', () => {
