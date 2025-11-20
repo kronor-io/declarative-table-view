@@ -81,5 +81,6 @@ export const simpleTestViewRuntime: Runtime = {
     customFilterComponents: {
         PhoneNumberFilter
     },
-    initialValues: {}
+    initialValues: {},
+    suggestionFetchers: {}
 };

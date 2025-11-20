@@ -8,7 +8,7 @@ import type { Runtime } from './runtime';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms' | 'initialValues';
+    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
     key: string;
 };
 
@@ -55,6 +55,7 @@ export type FilterControlJson =
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControlJson; initialValue?: any }
+    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: RuntimeReference }
     | { type: 'custom'; component: RuntimeReference; props?: Record<string, any>; label?: string; initialValue?: any };
 
 // JSON Schema types for FilterField (multi-field support)
@@ -141,7 +142,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms', 'initialValues'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -423,6 +424,23 @@ export function parseFilterControlJson(
         return {
             ...filterControlJson,
             component,
+            initialValue: parsedInitialValue
+        } as FilterControl;
+    }
+
+    // Handle autocomplete controls (resolve suggestionFetcher runtime reference)
+    if (filterControlJson.type === 'autocomplete') {
+        if (!filterControlJson.suggestionFetcher) {
+            throw new Error('Invalid autocomplete FilterControl: "suggestionFetcher" is required');
+        }
+        const fetcherRef = parseRuntimeReference(filterControlJson.suggestionFetcher);
+        if (fetcherRef.section !== 'suggestionFetchers') {
+            throw new Error('Invalid autocomplete suggestionFetcher: section must be "suggestionFetchers"');
+        }
+        const fetcher = resolveRuntimeReference<any>(fetcherRef, externalRuntime, builtInRuntime);
+        return {
+            ...filterControlJson,
+            suggestionFetcher: fetcher,
             initialValue: parsedInitialValue
         } as FilterControl;
     }

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { GraphQLClient } from 'graphql-request';
 
 // Multi-field specification
 export type FilterField =
@@ -21,6 +22,7 @@ export type FilterControl =
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
+    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: (query: string, client: GraphQLClient) => Promise<string[]>, queryMinLength?: number }
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
@@ -39,8 +41,6 @@ export type FilterExpr =
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };
 
-
-
 // Predefined list of supported operators for customOperator controls
 export const SUPPORTED_OPERATORS = [
     { label: 'equals', value: '_eq' },
@@ -56,6 +56,8 @@ export const SUPPORTED_OPERATORS = [
     { label: 'is null', value: '_is_null' }
 ];
 
+export type SuggestionFetcher = (query: string, client: GraphQLClient) => Promise<string[]>
+
 // Helper functions for building FilterControl values
 export const filterControl = {
     text: (options?: { label?: string; placeholder?: string }): FilterControl => ({ type: 'text', ...options }),
@@ -64,6 +66,7 @@ export const filterControl = {
     dropdown: (options: { label?: string; items: { label: string; value: any }[] }): FilterControl => ({ type: 'dropdown', ...options }),
     multiselect: (options: { label?: string; items: { label: string; value: any }[], filterable?: boolean }): FilterControl => ({ type: 'multiselect', ...options }),
     customOperator: (options: { label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }): FilterControl => ({ type: 'customOperator', ...options }),
+    autocomplete: (options: { label?: string; placeholder?: string; suggestionFetcher: SuggestionFetcher }): FilterControl => ({ type: 'autocomplete', ...options }),
     custom: (component: React.ComponentType<any>, options?: { label?: string; props?: Record<string, any> }): FilterControl => ({ type: 'custom', component, ...options }),
 };
 
@@ -168,7 +171,7 @@ export function filterExprFromJSON(json: any): FilterExpr | null {
         case 'isNull': {
             // Only support basic FilterControl types (text, number, date, dropdown, multiselect)
             if (!json.field || !json.value || typeof json.value !== 'object' || !json.value.type) return null;
-            const allowedTypes = ['text', 'number', 'date', 'dropdown', 'multiselect'];
+            const allowedTypes = ['text', 'number', 'date', 'dropdown', 'multiselect', 'autocomplete'];
             if (!allowedTypes.includes(json.value.type)) return null;
             return {
                 type: json.type,

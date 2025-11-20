@@ -694,6 +694,24 @@
                 },
                 "group": "customer",
                 "aiGenerated": false
+            },
+            {
+                "id": "transaction-id-autocomplete",
+                "label": "Transaction ID",
+                "expression": {
+                    "type": "equals",
+                    "field": "transactionId",
+                    "value": {
+                        "type": "autocomplete",
+                        "queryMinLength": 2,
+                        "suggestionFetcher": {
+                            "section": "suggestionFetchers",
+                            "key": "transactionId"
+                        }
+                    }
+                },
+                "group": "additional",
+                "aiGenerated": false
             }
         ]
     }

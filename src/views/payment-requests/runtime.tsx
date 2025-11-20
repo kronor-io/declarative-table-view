@@ -141,5 +141,27 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             const date = new Date();
             return date; // Return Date object for calendar component
         })()
+    },
+    suggestionFetchers: {
+        transactionId: async (query: string, client) => {
+            try {
+                const gql =
+                    `query TransactionIdSuggestions($where: PaymentRequestBoolExp!, $limit: Int!) {
+                        paymentRequests(where: $where, limit: $limit, orderBy: [{ createdAt: DESC }]) {
+                            transactionId
+                        }
+                    }`;
+                const variables = {
+                    where: { transactionId: { _ilike: `${query}%` } },
+                    limit: 10
+                };
+                const data: any = await client.request(gql, variables);
+                const rows = data?.paymentRequests ?? [];
+                return rows.map((r: any) => r.transactionId);
+            } catch (e) {
+                console.warn('transactionId suggestionFetcher error', e);
+                return [];
+            }
+        }
     }
 };

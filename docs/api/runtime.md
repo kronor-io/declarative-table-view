@@ -10,6 +10,7 @@ export type Runtime = {
   noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;
   customFilterComponents: Record<string, React.ComponentType<any>>;
   initialValues: Record<string, any>;
+  suggestionFetchers: Record<string, SuggestionFetcher>;
 };
 ```
 
@@ -21,6 +22,7 @@ export type Runtime = {
 | `noRowsComponents` | UI when a data query yields zero rows | View `noRowsComponent` | `(props) => ReactNode` |
 | `customFilterComponents` | Custom input widgets inside filter forms | Filter control `{ type: 'custom' }` | React component |
 | `initialValues` | Dynamic initial values resolved at parse time | Any `initialValue` field | any |
+| `suggestionFetchers` | Async suggestion providers for autocomplete filter controls | Autocomplete FilterControl `suggestionFetcher` | `(query: string, client: GraphQLClient) => Promise<{ label: string; value: any }[]>` |
 
 ## Resolution Precedence
 When parsing a view JSON, runtime references are resolved via:
@@ -42,6 +44,16 @@ export const paymentRequestsRuntime: Runtime = {
   initialValues: {
     dateRangeStart: (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d; })(),
     dateRangeEnd: new Date()
+  },
+  suggestionFetchers: {
+    emailDomainSuggestions: async (query: string, client: GraphQLClient) => {
+      // client can be used for remote lookups; demo keeps it local
+      if (!query.includes('@')) return [];
+      const domain = query.split('@')[1] ?? '';
+      return ['gmail.com','yahoo.com','outlook.com','icloud.com']
+        .filter(d => d.startsWith(domain))
+        .map(d => ({ label: `${query.split('@')[0]}@${d}`, value: `${query.split('@')[0]}@${d}` }));
+    }
   }
 };
 ```
@@ -51,6 +63,14 @@ export const paymentRequestsRuntime: Runtime = {
 // Add a transform
 runtime.queryTransforms.orderId = {
   toQuery: (input) => input ? { value: input.trim().toUpperCase() } : { value: input }
+};
+
+// Add a suggestion fetcher
+runtime.suggestionFetchers.productNames = async (query, client) => {
+  if (!query) return [];
+  const all = ['Shoe', 'Shirt', 'Sock', 'Scarf'];
+  return all.filter(name => name.toLowerCase().startsWith(query.toLowerCase()))
+            .map(name => ({ label: name, value: name }));
 };
 ```
 
@@ -75,4 +95,24 @@ If parsing fails with: `Reference "foo" not found in cellRenderers. Available ke
 - There are no typos (keys are case-sensitive).
 
 ## Testing
+## Autocomplete Filter Control
+Define an autocomplete filter in JSON using a runtime reference to a `suggestionFetcher`:
+
+```jsonc
+{
+  "type": "equals",
+  "field": "customer_email",
+  "value": {
+    "type": "autocomplete",
+    "label": "Customer Email",
+    "placeholder": "Type email...",
+    "suggestionFetcher": { "section": "suggestionFetchers", "key": "emailDomainSuggestions" }
+  }
+}
+```
+
+Contract: The suggestion fetcher receives the current user input and the active GraphQL client and returns a promise of an array like:
+`[{ "label": "User Friendly Label", "value": "StoredValue" }]`.
+
+The filter form invokes the suggestion fetcher on each change and renders dropdown suggestions (Primereact `AutoComplete` with `dropdown` enabled).
 See `runtime-reference.test.ts` for validation tests around resolution and error messages.

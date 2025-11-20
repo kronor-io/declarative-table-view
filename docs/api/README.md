@@ -14,7 +14,7 @@ Each extension point is referenced from JSON view definitions using a Runtime Re
 
 ```jsonc
 {
-    "section": "cellRenderers", // one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues
+    "section": "cellRenderers", // one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues, suggestionFetchers
     "key": "transaction"        // the key inside the runtime section
 }
 ```
