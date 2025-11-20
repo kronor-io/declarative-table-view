@@ -85,33 +85,41 @@ export interface AppState {
 export interface PaginationState {
     page: number;
     cursors: (string | number | null)[];
+    rowsPerPage: number;
 }
 
-const defaultPagination: PaginationState = {
-    page: 0,
-    cursors: []
-};
+function createPaginationState(rowsPerPage: number): PaginationState {
+    return {
+        page: 0,
+        cursors: [],
+        rowsPerPage
+    };
+}
 
 export function createDefaultFilterState(filterSchema: FilterSchemasAndGroups, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
     return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
 }
 
-export function createDefaultAppState(views: View[]): AppState {
+const DEFAULT_ROWS_PER_PAGE = 20
+
+export function createDefaultAppState(views: View[], rowsPerPageOptions: number[]): AppState {
     const selectedViewId = views[0]?.id;
     const view = views.find(v => v.id === selectedViewId) as View;
     const filterSchema: FilterSchemasAndGroups = view.filterSchema;
     const initialFilterState = createDefaultFilterState(filterSchema);
+    const initialRowsPerPage = rowsPerPageOptions.length > 0
+        ? rowsPerPageOptions[0]
+        : DEFAULT_ROWS_PER_PAGE;
     return {
         views,
         selectedViewId,
         filterSchemasAndGroups: filterSchema,
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
-        pagination: defaultPagination
+        pagination: createPaginationState(initialRowsPerPage)
     };
 }
 
-// Update selectedViewId
 function setSelectedViewId(state: AppState, newId: ViewId): AppState {
     const view = state.views.find(v => v.id === newId);
     const filterSchema = view?.filterSchema || { groups: [], filters: [] };
@@ -120,7 +128,8 @@ function setSelectedViewId(state: AppState, newId: ViewId): AppState {
         selectedViewId: newId,
         filterSchemasAndGroups: filterSchema,
         filterState: createDefaultFilterState(filterSchema),
-        pagination: defaultPagination
+        // Retain current rowsPerPage while resetting page & cursors
+        pagination: createPaginationState(state.pagination.rowsPerPage)
     };
 }
 
@@ -128,11 +137,23 @@ function getSelectedView(state: AppState): View {
     return state.views.find(v => v.id === state.selectedViewId) as View;
 }
 
-function setDataRows(state: AppState, newRows: FetchDataResult, pagination: PaginationState = defaultPagination): AppState {
+function setDataRows(state: AppState, newRows: FetchDataResult, pagination?: PaginationState): AppState {
+    // If caller provides a pagination object, ensure rowsPerPage is preserved when omitted
+    let nextPagination: PaginationState;
+    if (pagination) {
+        nextPagination = {
+            page: pagination.page,
+            cursors: pagination.cursors,
+            rowsPerPage: pagination.rowsPerPage
+        };
+    } else {
+        // No pagination override; keep existing pagination (useful for simple data refresh)
+        nextPagination = state.pagination;
+    }
     return {
         ...state,
         data: newRows,
-        pagination
+        pagination: nextPagination
     };
 }
 
@@ -147,13 +168,22 @@ function setFilterState(state: AppState, newFilterState: FilterState): AppState 
     return {
         ...state,
         filterState: newFilterState,
-        pagination: defaultPagination
+        // Reset page & cursors but keep current rowsPerPage
+        pagination: createPaginationState(state.pagination.rowsPerPage)
     };
 }
 
-export const useAppState = (views: View[], initialFilterStateOverride?: FilterState) => {
+function setRowsPerPage(state: AppState, newRowsPerPage: number): AppState {
+    if (state.pagination.rowsPerPage === newRowsPerPage) return state; // no change
+    return {
+        ...state,
+        pagination: { page: 0, cursors: [], rowsPerPage: newRowsPerPage }
+    };
+}
+
+export const useAppState = (views: View[], rowsPerPageOptions: number[], initialFilterStateOverride?: FilterState) => {
     const [appState, setAppState] = useState<AppState>(() => {
-        const base = createDefaultAppState(views);
+        const base = createDefaultAppState(views, rowsPerPageOptions);
         if (initialFilterStateOverride) {
             return { ...base, filterState: initialFilterStateOverride };
         }
@@ -165,8 +195,9 @@ export const useAppState = (views: View[], initialFilterStateOverride?: FilterSt
         setSelectedViewId: (id: ViewId) => setAppState(prev => setSelectedViewId(prev, id)),
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
         setFilterSchema: (schema: FilterSchemasAndGroups) => setAppState(prev => setFilterSchema(prev, schema)),
-        setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState))
+        setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState)),
+        setRowsPerPage: (value: number) => setAppState(prev => setRowsPerPage(prev, value))
     };
 }
 
-export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState };
+export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState, setRowsPerPage };

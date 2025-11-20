@@ -36,7 +36,7 @@ const mockViews: View[] = [
 
 describe('AppState', () => {
     it('creates default state with correct initial view and filter state', () => {
-        const state = createDefaultAppState(mockViews);
+        const state = createDefaultAppState(mockViews, []);
         expect(state.selectedViewId).toBe('foo');
         expect(state.views).toBe(mockViews);
         expect(state.filterSchemasAndGroups).toEqual(mockViews[0].filterSchema);
@@ -47,7 +47,7 @@ describe('AppState', () => {
     });
 
     it('setSelectedViewId updates selectedViewIndex, filterSchema, and filterState', () => {
-        let state = createDefaultAppState(mockViews);
+        let state = createDefaultAppState(mockViews, []);
         state = setSelectedViewId(state, mockViews[1].id);
         expect(state.selectedViewId).toBe('bar');
         expect(state.filterSchemasAndGroups).toEqual(mockViews[1].filterSchema);
@@ -57,16 +57,16 @@ describe('AppState', () => {
     });
 
     it('setDataRows updates data and pagination', () => {
-        let state = createDefaultAppState(mockViews);
+        let state = createDefaultAppState(mockViews, []);
         const data = { rows: [{ id: 1 }, { id: 2 }], flattenedRows: [[{ id: 1 }], [{ id: 2 }]] };
-        const pagination = { page: 2, cursors: ['a', 'b'] };
+        const pagination = { page: 2, cursors: ['a', 'b'], rowsPerPage: 20 };
         state = setDataRows(state, data, pagination);
         expect(state.data).toBe(data);
         expect(state.pagination).toEqual(pagination);
     });
 
     it('setFilterSchema updates filterSchema', () => {
-        let state = createDefaultAppState(mockViews);
+        let state = createDefaultAppState(mockViews, []);
         const newSchema = {
             groups: [{ name: 'default', label: 'Default' }],
             filters: [
@@ -78,7 +78,7 @@ describe('AppState', () => {
     });
 
     it('setFilterState updates filterState', () => {
-        let state = createDefaultAppState(mockViews);
+        let state = createDefaultAppState(mockViews, []);
         const newFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
         state = setFilterState(state, newFilterState);
         expect(state.filterState).toBe(newFilterState);

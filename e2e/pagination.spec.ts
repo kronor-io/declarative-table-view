@@ -30,9 +30,40 @@ test.describe('Simple View Pagination', () => {
     });
 
     test('next button disables on last page', async ({ page }) => {
-        await page.click(nextButton); // to 2nd page
+        await page.click(nextButton); // to second (last) page (21-30)
         await expect(page.locator(pageIndicator)).toHaveText('21-30');
         await expect(page.locator(tableRows)).toHaveCount(10);
         await expect(page.locator(nextButton)).toBeDisabled();
+    });
+
+    test('changing rows per page to larger option fetches all rows and disables next', async ({ page }) => {
+        // Open dropdown and select 50
+        await page.getByTestId('rows-per-page-dropdown').click();
+        await page.getByRole('option', { name: '50' }).click();
+        // Expect full dataset loaded on first page
+        await expect(page.locator(pageIndicator)).toHaveText('1-30');
+        await expect(page.locator(tableRows)).toHaveCount(30);
+        await expect(page.locator(prevButton)).toBeDisabled();
+        await expect(page.locator(nextButton)).toBeDisabled();
+    });
+
+    test('changing rows per page after navigating resets to first page', async ({ page }) => {
+        // Go to second page first
+        await page.click(nextButton);
+        await expect(page.locator(pageIndicator)).toHaveText('21-30');
+        // Change page size to 50
+        await page.getByTestId('rows-per-page-dropdown').click();
+        await page.getByRole('option', { name: '50' }).click();
+        // Should reset to first page with all rows
+        await expect(page.locator(pageIndicator)).toHaveText('1-30');
+        await expect(page.locator(tableRows)).toHaveCount(30);
+        await expect(page.locator(prevButton)).toBeDisabled();
+        await expect(page.locator(nextButton)).toBeDisabled();
+    });
+
+    test('rows per page control renders dropdown for multiple options', async ({ page }) => {
+        const dropdown = page.getByTestId('rows-per-page-dropdown');
+        await expect(dropdown).toBeVisible();
+        await expect(page.locator('[data-testid="rows-per-page-static"]')).toHaveCount(0);
     });
 });

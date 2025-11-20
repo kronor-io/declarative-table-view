@@ -15,7 +15,6 @@ import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
 
 export interface RowSelectionAPI {
-    /** Reset (clear) the current selection */
     resetRowSelection(): void;
 }
 
@@ -34,7 +33,7 @@ type TableProps = {
         /** Ref object populated by Table with RowSelectionAPI */
         apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
-    // Row class callback now receives a simplified/flattened row object (merged cells)
+    // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
 
@@ -98,7 +97,6 @@ function Table({
     const handleSelectionChange = (rows: any[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
         setSelectedRows(rows);
-        // Use shared helper to flatten rows before emitting selection change
         rowSelection?.onRowSelectionChange?.(simplifyRows(rows));
     };
 
