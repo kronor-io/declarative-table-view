@@ -22,7 +22,15 @@ export type FilterControl =
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
-    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: SuggestionFetcher, queryMinLength?: number }
+    | {
+        type: 'autocomplete';
+        label?: string;
+        placeholder?: string;
+        initialValue?: any;
+        suggestionFetcher: SuggestionFetcher,
+        queryMinLength?: number,
+        suggestionLabelField?: string
+    }
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
