@@ -122,6 +122,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                 graphqlClient={graphqlClient}
                 queryMinLength={control.queryMinLength}
                 suggestionFetcher={control.suggestionFetcher}
+                suggestionLabelField={control.suggestionLabelField}
             />
         }
     }

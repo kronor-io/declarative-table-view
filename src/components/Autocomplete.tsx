@@ -10,10 +10,11 @@ type AutocompleteProps = {
     graphqlClient: GraphQLClient;
     suggestionFetcher: SuggestionFetcher;
     queryMinLength?: number;
+    suggestionLabelField?: string;
 };
 
 // Autocomplete requires local suggestions state; implement inline component to manage it.
-export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, suggestionFetcher, queryMinLength = 1 }: AutocompleteProps) => {
+export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, suggestionFetcher, queryMinLength = 1, suggestionLabelField = 'label' }: AutocompleteProps) => {
     const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
 
     const fetchSuggestions = useCallback(async (query: string) => {
@@ -40,7 +41,7 @@ export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, sugg
                 suggestions={suggestions}
                 completeMethod={e => fetchSuggestions(e.query)}
                 placeholder={placeholder}
-                field='label'
+                field={suggestionLabelField}
             />
             <small>
                 Type at least {queryMinLength} character{queryMinLength > 1 ? 's' : ''} to see suggestions.
