@@ -22,7 +22,7 @@ export type FilterControl =
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
-    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: (query: string, client: GraphQLClient) => Promise<string[]>, queryMinLength?: number }
+    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: SuggestionFetcher, queryMinLength?: number }
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
 export type FilterExpr =
@@ -56,7 +56,8 @@ export const SUPPORTED_OPERATORS = [
     { label: 'is null', value: '_is_null' }
 ];
 
-export type SuggestionFetcher = (query: string, client: GraphQLClient) => Promise<string[]>
+export type SuggestionItem = { label: string };
+export type SuggestionFetcher = (query: string, client: GraphQLClient) => Promise<SuggestionItem[]>
 
 // Helper functions for building FilterControl values
 export const filterControl = {
@@ -128,7 +129,6 @@ export function getFieldNodes(expr: FilterExpr): FilterExprFieldNode[] {
     }
     return nodes;
 }
-
 
 
 export type FilterFieldGroup = {
