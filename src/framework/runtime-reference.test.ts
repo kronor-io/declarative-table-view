@@ -169,7 +169,7 @@ describe('RuntimeReference', () => {
                 customFilterComponents: {},
                 initialValues: {},
                 suggestionFetchers: {
-                    exampleFetcher: async (query: string) => [query]
+                    exampleFetcher: async (query: string) => [{ label: query, value: query }]
                 }
             };
             const ref = parseRuntimeReference({ section: 'suggestionFetchers', key: 'exampleFetcher' });

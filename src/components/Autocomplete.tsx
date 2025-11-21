@@ -1,7 +1,7 @@
 import { GraphQLClient } from "graphql-request";
 import { AutoComplete } from "primereact/autocomplete";
 import { useCallback, useState } from "react";
-import { SuggestionFetcher } from "../framework/filters";
+import { SuggestionFetcher, SuggestionItem } from "../framework/filters";
 
 type AutocompleteProps = {
     value: any;
@@ -14,7 +14,7 @@ type AutocompleteProps = {
 
 // Autocomplete requires local suggestions state; implement inline component to manage it.
 export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, suggestionFetcher, queryMinLength = 1 }: AutocompleteProps) => {
-    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
 
     const fetchSuggestions = useCallback(async (query: string) => {
         if (query.length < queryMinLength) {
@@ -40,6 +40,7 @@ export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, sugg
                 suggestions={suggestions}
                 completeMethod={e => fetchSuggestions(e.query)}
                 placeholder={placeholder}
+                field='label'
             />
             <small>
                 Type at least {queryMinLength} character{queryMinLength > 1 ? 's' : ''} to see suggestions.

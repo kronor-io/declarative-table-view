@@ -121,6 +121,15 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                 }
                 return { value: input };
             }
+        },
+
+        transactionId: {
+            toQuery: (input: any) => {
+                if (input) {
+                    return { value: input.value };
+                }
+                return { value: input };
+            }
         }
     },
 
@@ -157,7 +166,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                 };
                 const data: any = await client.request(gql, variables);
                 const rows = data?.paymentRequests ?? [];
-                return rows.map((r: any) => r.transactionId);
+                return rows.map((r: any) => ({ label: `${r.transactionId}`, value: r.transactionId }));
             } catch (e) {
                 console.warn('transactionId suggestionFetcher error', e);
                 return [];

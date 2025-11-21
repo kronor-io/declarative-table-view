@@ -708,6 +708,10 @@
                             "section": "suggestionFetchers",
                             "key": "transactionId"
                         }
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "transactionId"
                     }
                 },
                 "group": "additional",
