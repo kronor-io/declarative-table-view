@@ -41,7 +41,25 @@ export const nativeRuntime: NativeRuntime = {
 
         json: ({ data }) => JSON.stringify(data),
     },
-    queryTransforms: {},
+    queryTransforms: {
+        autocomplete: {
+            toQuery: (input: any) => {
+                if (input) {
+                    return { value: input.value };
+                }
+                return { value: input };
+            }
+        },
+
+        autocompleteMultiple: {
+            toQuery: (input: any) => {
+                if (input) {
+                    return { value: input.map((item: any) => item.value) };
+                }
+                return { value: input };
+            }
+        }
+    },
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsExtendDateRange
     },
