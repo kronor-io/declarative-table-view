@@ -29,7 +29,9 @@ export type FilterControl =
         initialValue?: any;
         suggestionFetcher: SuggestionFetcher,
         queryMinLength?: number,
-        suggestionLabelField?: string
+        suggestionLabelField?: string,
+        multiple?: boolean,
+        selectionLimit?: number
     }
     | { type: 'custom'; component: React.ComponentType<any>; props?: Record<string, any>; label?: string; initialValue?: any };
 
@@ -75,7 +77,7 @@ export const filterControl = {
     dropdown: (options: { label?: string; items: { label: string; value: any }[] }): FilterControl => ({ type: 'dropdown', ...options }),
     multiselect: (options: { label?: string; items: { label: string; value: any }[], filterable?: boolean }): FilterControl => ({ type: 'multiselect', ...options }),
     customOperator: (options: { label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }): FilterControl => ({ type: 'customOperator', ...options }),
-    autocomplete: (options: { label?: string; placeholder?: string; suggestionFetcher: SuggestionFetcher }): FilterControl => ({ type: 'autocomplete', ...options }),
+    autocomplete: (options: { label?: string; placeholder?: string; suggestionFetcher: SuggestionFetcher; queryMinLength?: number; suggestionLabelField?: string; multiple?: boolean; selectionLimit?: number }): FilterControl => ({ type: 'autocomplete', ...options }),
     custom: (component: React.ComponentType<any>, options?: { label?: string; props?: Record<string, any> }): FilterControl => ({ type: 'custom', component, ...options }),
 };
 

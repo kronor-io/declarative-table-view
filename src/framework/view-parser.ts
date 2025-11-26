@@ -51,7 +51,7 @@ export type FilterControlJson =
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControlJson; initialValue?: any }
-    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: RuntimeReference }
+    | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: RuntimeReference; queryMinLength?: number; suggestionLabelField?: string; multiple?: boolean; selectionLimit?: number }
     | { type: 'custom'; component: RuntimeReference; props?: Record<string, any>; label?: string; initialValue?: any };
 
 // JSON Schema types for FilterField (multi-field support)

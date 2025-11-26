@@ -120,6 +120,8 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                 placeholder={control.placeholder}
                 onChange={setValue}
                 graphqlClient={graphqlClient}
+                multiple={control.multiple}
+                selectionLimit={control.selectionLimit}
                 queryMinLength={control.queryMinLength}
                 suggestionFetcher={control.suggestionFetcher}
                 suggestionLabelField={control.suggestionLabelField}
