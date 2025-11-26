@@ -1,279 +1,111 @@
-import { FilterFormState } from '../components/FilterForm';
-import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
-import { ColumnDefinition, FieldQuery, OrderByConfig, QueryConfig } from './column-definition';
-import { FilterState } from './state';
-import { traverseFilterSchemaAndState } from './filter-form-state';
+import { ColumnDefinition, FieldQuery, OrderByConfig } from './column-definition';
+import { HasuraCondition, HasuraOperator, hasuraConditionsAreEqual, unorderedArrayEqual } from './hasura';
+export type { HasuraCondition, HasuraOperator } from './hasura';
+export { hasuraConditionsAreEqual, hasuraOperatorsAreEqual, buildHasuraConditions } from './hasura';
 
-// All supported Hasura operators for a field
-export type HasuraOperator =
-    | { _eq?: any }
-    | { _neq?: any }
-    | { _gt?: any }
-    | { _lt?: any }
-    | { _gte?: any }
-    | { _lte?: any }
-    | { _in?: any[] }
-    | { _nin?: any[] }
-    | { _like?: string }
-    | { _ilike?: string }
-    | { _is_null?: boolean }
-    | { _similar?: string }
-    | { _nsimilar?: string }
-    | { _regex?: string }
-    | { _nregex?: string }
-    | { _iregex?: string }
-    | { _niregex?: string };
-
-// Type for Hasura boolean expressions (conditions)
-export type HasuraCondition =
-    | { _and: HasuraCondition[] }
-    | { _or: HasuraCondition[] }
-    | { _not: HasuraCondition }
-    | { [field: string]: HasuraOperator | HasuraOperator[] };
-
-// Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
-export function buildHasuraConditions(
-    filterState: FilterState,
-    filterSchema: FilterSchemasAndGroups
-): HasuraCondition {
-    // Support dot-separated keys by building nested objects and handle and/or field expressions
-    function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
-        // Handle object format for multi-field expressions
-        if (typeof field === 'object') {
-            if ('and' in field) {
-                const conditions = field.and.map(fieldName => buildSingleNestedKey(fieldName, cond));
-                return { _and: conditions };
-            }
-            if ('or' in field) {
-                const conditions = field.or.map(fieldName => buildSingleNestedKey(fieldName, cond));
-                return { _or: conditions };
-            }
-        }
-
-        // Handle single field name (string)
-        if (typeof field === 'string') {
-            return buildSingleNestedKey(field, cond);
-        }
-
-        // Fallback
-        return {};
-    }
-
-    // Helper to build nested object from dot notation key for a single field
-    function buildSingleNestedKey(key: string, cond: any): HasuraCondition {
-        if (!key.includes('.')) return { [key]: cond };
-        const parts = key.split('.');
-        return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
-    }
-
-    // Recursive function that uses traversal helper to build conditions
-    function buildConditionsRecursive(
-        schemaNode: FilterExpr,
-        stateNode: FilterFormState
-    ): HasuraCondition | null {
-        return traverseFilterSchemaAndState(
-            schemaNode,
-            stateNode,
-            {
-                leaf: (schema, state): HasuraCondition | null => {
-                    // Apply transforms if they exist
-                    let transformedValue = state.value;
-                    let transformedField = schema.field;
-
-                    if (schema.transform?.toQuery !== undefined) {
-                        const transformResult = schema.transform.toQuery(state.value);
-                        if (transformResult.field !== undefined) transformedField = transformResult.field as FilterField;
-                        if (transformResult.value !== undefined) transformedValue = transformResult.value;
-                    }
-
-                    // Handle customOperator from schema control info
-                    if (schema.value.type === 'customOperator') {
-                        const opVal = transformedValue;
-                        if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
-                        return buildNestedKey(transformedField, { [opVal.operator]: opVal.value });
-                    }
-
-                    if (transformedValue === undefined || transformedValue === '' || transformedValue === null || (Array.isArray(transformedValue) && transformedValue.length === 0)) return null;
-
-                    // Map filterType to Hasura operator using schema info
-                    const opMap: Record<string, string> = {
-                        equals: '_eq',
-                        notEquals: '_neq',
-                        greaterThan: '_gt',
-                        lessThan: '_lt',
-                        greaterThanOrEqual: '_gte',
-                        lessThanOrEqual: '_lte',
-                        in: '_in',
-                        notIn: '_nin',
-                        like: '_like',
-                        iLike: '_ilike',
-                        isNull: '_is_null',
-                    };
-                    const op = opMap[schema.type];
-                    if (!op) return null;
-
-                    // Support dot-separated keys by building nested objects
-                    return buildNestedKey(transformedField, { [op]: transformedValue });
-                },
-                and: (_schema, _state, childResults): HasuraCondition | null => {
-                    const validChildren = childResults.filter((c): c is HasuraCondition => c !== null);
-                    if (validChildren.length === 0) return null;
-                    return { _and: validChildren };
-                },
-                or: (_schema, _state, childResults): HasuraCondition | null => {
-                    const validChildren = childResults.filter((c): c is HasuraCondition => c !== null);
-                    if (validChildren.length === 0) return null;
-                    return { _or: validChildren };
-                },
-                not: (_schema, _state, childResult): HasuraCondition | null => {
-                    return childResult ? { _not: childResult } : null;
-                }
-            }
-        );
-    }
-
-    // Process each filter in the state
-    const conditions: HasuraCondition[] = [];
-
-    for (const [filterId, formState] of filterState.entries()) {
-        // Find the corresponding schema
-        const filterDef = filterSchema.filters.find(f => f.id === filterId);
-        if (!filterDef) continue;
-
-        const condition = buildConditionsRecursive(filterDef.expression, formState);
-        if (condition) {
-            conditions.push(condition);
-        }
-    }
-
-    if (conditions.length === 0) return {};
-    if (conditions.length === 1) return conditions[0];
-    return { _and: conditions };
-}
+// Hasura-specific types and helpers moved to ./hasura
 
 // Helper to merge two GraphQLSelectionSets
 function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet): GraphQLSelectionSet {
     const merged = [...set1];
 
+    const selectionsEqual = (a?: GraphQLSelectionSet, b?: GraphQLSelectionSet): boolean => {
+        if (!a && !b) return true;
+        if (!a || !b) return false;
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (!selectionItemsEqual(a[i], b[i])) return false;
+        }
+        return true;
+    };
+
+    const orderByEqual = (a?: HasuraOrderBy | HasuraOrderBy[], b?: HasuraOrderBy | HasuraOrderBy[]): boolean => {
+        if (a === b) return true;
+        if (!a || !b) return false;
+        const norm = (v: HasuraOrderBy | HasuraOrderBy[]) => Array.isArray(v) ? v.map(o => JSON.stringify(o)).join('|') : JSON.stringify(v);
+        return norm(a) === norm(b);
+    };
+
+    const selectionItemsEqual = (a: GraphQLSelectionSetItem, b: GraphQLSelectionSetItem): boolean => {
+        return a.field === b.field &&
+            a.alias === b.alias &&
+            a.path === b.path &&
+            a.limit === b.limit &&
+            unorderedArrayEqual(a.distinct_on || [], b.distinct_on || [], (x, y) => x === y) &&
+            orderByEqual(a.order_by, b.order_by) &&
+            ((a.where && b.where) ? hasuraConditionsAreEqual(a.where, b.where) : a.where === b.where) &&
+            selectionsEqual(a.selections, b.selections);
+    };
+
     for (const item2 of set2) {
-        // For aliased fields, we need to match on both alias and field name
-        const existingItem = merged.find(item1 =>
-            item1.field === item2.field &&
-            item1.alias === item2.alias &&
-            item1.path === item2.path
-        );
-        if (existingItem) {
-            // Deep merge selections if both have them
-            if (existingItem.selections && item2.selections) {
-                existingItem.selections = mergeSelectionSets(existingItem.selections, item2.selections);
-            }
-            // Naive merge of other properties, assuming they don't conflict or last one wins
-            if (item2.limit !== undefined) existingItem.limit = item2.limit;
-            if (item2.order_by) existingItem.order_by = item2.order_by;
-            if (item2.where) existingItem.where = item2.where;
-            if (item2.path) existingItem.path = item2.path;
-            // etc. for other properties
-        } else {
-            merged.push(item2);
+        const duplicate = merged.find(m => selectionItemsEqual(m, item2));
+        if (!duplicate) {
+            merged.push(item2); // add as-is if not identical
         }
     }
-
     return merged;
 }
 
-// Generates a GraphQL selection set from a FieldQuery[] (tagged ADT)
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
-    // Helper to apply alias to the deepest field in a nested structure
-    function applyAliasToDeepestField(item: GraphQLSelectionSetItem, alias: string): GraphQLSelectionSetItem {
-        if (item.selections && item.selections.length > 0) {
-            // If there are nested selections, recursively apply to the deepest one
-            const lastSelection = item.selections[item.selections.length - 1];
-            const updatedLastSelection = applyAliasToDeepestField(lastSelection, alias);
-            return {
-                ...item,
-                selections: [
-                    ...item.selections.slice(0, -1),
-                    updatedLastSelection
-                ]
-            };
-        } else {
-            // This is the deepest field, apply the alias here
-            return { ...item, alias };
+    // Helper to process new Query types (valueQuery, objectQuery, arrayQuery) recursively
+    function processNewQueryTypes(q: any): GraphQLSelectionSetItem | null { // 'any' due to discriminated union runtime checks
+        if (q.type === 'valueQuery') {
+            const item: GraphQLSelectionSetItem = { field: q.field };
+            if (q.path) item.path = q.path;
+            return item;
         }
-    }
-
-    // Helper to process FieldQuery recursively
-    function processFieldQuery(fieldQuery: FieldQuery): GraphQLSelectionSetItem | null {
-        if (fieldQuery.type === 'field') {
-            const parts = fieldQuery.path.split('.');
-            const buildNested = (p: string[]): GraphQLSelectionSetItem => {
-                const [head, ...tail] = p;
-                const item: GraphQLSelectionSetItem = { field: head };
-                if (tail.length > 0) {
-                    item.selections = [buildNested(tail)];
-                }
-                return item;
-            };
-            return buildNested(parts);
-        } else if (fieldQuery.type === 'queryConfigs') {
-            if (!fieldQuery.configs.length) return null;
-
-            // Recursive helper to build nested selection items
-            const buildNestedItem = (configs: QueryConfig[]): GraphQLSelectionSetItem => {
-                const [head, ...tail] = configs;
-                const item: GraphQLSelectionSetItem = { field: head.field };
-
-                if (head.orderBy) {
-                    const toHasuraOrderBy = (ob: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
-                        if (Array.isArray(ob)) {
-                            return ob.map(o => ({ [o.key]: o.direction.toUpperCase() as 'ASC' | 'DESC' }));
-                        }
-                        return { [ob.key]: ob.direction.toUpperCase() as 'ASC' | 'DESC' };
-                    };
-                    item.order_by = toHasuraOrderBy(head.orderBy);
-                }
-
-                if (head.limit !== undefined) {
-                    item.limit = head.limit;
-                }
-
-                if (head.path) {
-                    item.path = head.path;
-                }
-
-                if (tail.length) {
-                    item.selections = [buildNestedItem(tail)];
-                }
-
-                return item;
-            };
-
-            return buildNestedItem(fieldQuery.configs);
-        } else if (fieldQuery.type === 'fieldAlias') {
-            // Process the underlying field query
-            const underlyingItem = processFieldQuery(fieldQuery.field);
-            if (underlyingItem) {
-                // For different types of underlying fields, apply alias differently:
-                if (fieldQuery.field.type === 'field') {
-                    // For simple fields (potentially nested), apply alias to the deepest field
-                    return applyAliasToDeepestField(underlyingItem, fieldQuery.alias);
-                } else if (fieldQuery.field.type === 'queryConfigs') {
-                    // For queryConfigs, apply alias to the root field
-                    underlyingItem.alias = fieldQuery.alias;
-                    return underlyingItem;
-                }
+        if (q.type === 'objectQuery') {
+            const item: GraphQLSelectionSetItem = { field: q.field };
+            if (q.path) item.path = q.path;
+            if (Array.isArray(q.selectionSet) && q.selectionSet.length) {
+                item.selections = q.selectionSet
+                    .map(processNewQueryTypes)
+                    .filter((s: GraphQLSelectionSetItem | null): s is GraphQLSelectionSetItem => !!s);
             }
-            return underlyingItem;
+            return item;
+        }
+        if (q.type === 'arrayQuery') {
+            const item: GraphQLSelectionSetItem = { field: q.field };
+            if (q.path) item.path = q.path;
+            if (q.orderBy) {
+                const toHasuraOrderBy = (ob: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
+                    if (Array.isArray(ob)) {
+                        return ob.map(o => ({ [o.key]: o.direction.toUpperCase() as 'ASC' | 'DESC' }));
+                    }
+                    return { [ob.key]: ob.direction.toUpperCase() as 'ASC' | 'DESC' };
+                };
+                item.order_by = toHasuraOrderBy(q.orderBy);
+            }
+            if (q.distinctOn) item.distinct_on = q.distinctOn;
+            if (q.limit !== undefined) item.limit = q.limit;
+            if (q.where) item.where = q.where;
+            if (Array.isArray(q.selectionSet) && q.selectionSet.length) {
+                item.selections = q.selectionSet
+                    .map(processNewQueryTypes)
+                    .filter((s: GraphQLSelectionSetItem | null): s is GraphQLSelectionSetItem => !!s);
+            }
+            return item;
         }
         return null;
     }
-    // Build selection set for all columns and all FieldQuery[]
-    const allSelections = columns.flatMap(col => col.data.map(processFieldQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
 
-    // Deep merge all generated selection sets
-    return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => {
-        return mergeSelectionSets(acc, [current]);
-    }, []);
+    // Helper to process FieldQuery recursively (legacy + new query types)
+    function processFieldQuery(fieldQuery: FieldQuery): GraphQLSelectionSetItem | null {
+        if (fieldQuery.type === 'fieldAlias') {
+            const underlyingItem = processFieldQuery(fieldQuery.field);
+            if (underlyingItem) {
+                underlyingItem.alias = fieldQuery.alias;
+                return underlyingItem;
+            }
+            return underlyingItem;
+        } else if (fieldQuery.type === 'valueQuery' || fieldQuery.type === 'objectQuery' || fieldQuery.type === 'arrayQuery') {
+            return processNewQueryTypes(fieldQuery);
+        }
+        return null;
+    }
+    // Build selection set for all columns and all FieldQuery[] then apply dedupe-only merge
+    const allSelections = columns.flatMap(col => col.data.map(processFieldQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
+    return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => mergeSelectionSets(acc, [current]), []);
 }
 
 export function generateGraphQLQueryAST(
@@ -357,6 +189,10 @@ export type GraphQLQueryAST = {
     selectionSet: GraphQLSelectionSet;
 };
 
+// Deep equality for HasuraCondition values (order-insensitive for logical arrays like _and/_or)
+// Deep equality for HasuraOperator objects
+// Equality helpers now imported from ./hasura
+
 // Renders a GraphQLQueryAST to a GraphQL query string
 export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     function renderVariables(vars: GraphQLVariable[]): string {
@@ -410,6 +246,10 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             args.push(`limit: ${item.limit}`);
         if (item.path)
             args.push(`path: "${item.path}"`);
+        if (item.distinct_on && item.distinct_on.length) {
+            const cols = item.distinct_on.map(c => String(c)).join(', ');
+            args.push(`distinctOn: [${cols}]`);
+        }
         if (item.order_by) {
             // Custom rendering for orderBy to avoid quotes around asc/desc
             const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | undefined): string => {

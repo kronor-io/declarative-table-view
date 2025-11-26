@@ -1,5 +1,6 @@
 import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST } from "./graphql";
-import { ColumnDefinition, fieldAlias, field, queryConfigs } from "./column-definition";
+import { ColumnDefinition, fieldAlias } from "./column-definition";
+import { valueQuery, objectQuery, arrayQuery } from "../dsl/columns";
 
 describe("renderGraphQLQuery", () => {
     it("renders a simple query with variables and selection set", () => {
@@ -79,32 +80,20 @@ describe("generateGraphQLQueryAST", () => {
             {
                 type: 'tableColumn',
                 name: "ID",
-                data: [{ type: "field", path: "id" }],
+                data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
                 name: "Name",
-                data: [{ type: "field", path: "name" }],
+                data: [valueQuery("name")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
                 name: "Posts",
                 data: [
-                    {
-                        type: "queryConfigs",
-                        configs: [
-                            {
-                                field: "posts",
-                                limit: 5,
-                                orderBy: { key: "createdAt", direction: "DESC" },
-                            },
-                            {
-                                field: "title",
-                            },
-                        ],
-                    },
+                    arrayQuery("posts", [valueQuery("title")], undefined)
                 ],
                 cellRenderer: () => null,
             },
@@ -125,48 +114,29 @@ describe("generateGraphQLQueryAST", () => {
             { field: "name" },
             {
                 field: "posts",
-                limit: 5,
-                order_by: { createdAt: "DESC" },
                 selections: [{ field: "title" }],
             },
         ]);
     });
 
-    it("should handle nested fields and merge selection sets", () => {
+    it("should handle nested fields with separate selection entries (no merge)", () => {
         const columns: ColumnDefinition[] = [
-            { type: 'tableColumn', name: "ID", data: [{ type: "field", path: "id" }], cellRenderer: () => null },
-            { type: 'tableColumn', name: "Author Name", data: [{ type: "field", path: "author.name" }], cellRenderer: () => null },
-            { type: 'tableColumn', name: "Author ID", data: [{ type: "field", path: "author.id" }], cellRenderer: () => null },
-            { type: 'tableColumn', name: "First Comment", data: [{ type: "field", path: "comments.0.text" }], cellRenderer: () => null },
-            { type: 'tableColumn', name: "First Commenter", data: [{ type: "field", path: "comments.0.user.name" }], cellRenderer: () => null },
+            { type: 'tableColumn', name: "ID", data: [valueQuery("id")], cellRenderer: () => null },
+            { type: 'tableColumn', name: "Author Name", data: [objectQuery("author", [valueQuery("name")])], cellRenderer: () => null },
+            { type: 'tableColumn', name: "Author ID", data: [objectQuery("author", [valueQuery("id")])], cellRenderer: () => null },
+            { type: 'tableColumn', name: "First Comment", data: [objectQuery("comments", [objectQuery("0", [valueQuery("text")])])], cellRenderer: () => null },
+            { type: 'tableColumn', name: "First Commenter", data: [objectQuery("comments", [objectQuery("0", [objectQuery("user", [valueQuery("name")])])])], cellRenderer: () => null },
         ];
 
         const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
 
+        // New behavior: identical parent paths are not merged; entries remain separate unless identical
         expect(ast.selectionSet).toEqual([
             { field: "id" },
-            {
-                field: "author",
-                selections: [
-                    { field: "name" },
-                    { field: "id" },
-                ],
-            },
-            {
-                field: "comments",
-                selections: [
-                    {
-                        field: "0",
-                        selections: [
-                            { field: "text" },
-                            {
-                                field: "user",
-                                selections: [{ field: "name" }],
-                            },
-                        ],
-                    },
-                ],
-            },
+            { field: "author", selections: [{ field: "name" }] },
+            { field: "author", selections: [{ field: "id" }] },
+            { field: "comments", selections: [{ field: "0", selections: [{ field: "text" }] }] },
+            { field: "comments", selections: [{ field: "0", selections: [{ field: "user", selections: [{ field: "name" }] }] }] },
         ]);
     });
 
@@ -175,7 +145,7 @@ describe("generateGraphQLQueryAST", () => {
             {
                 type: 'tableColumn',
                 name: "ID",
-                data: [field("id")],
+                data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
@@ -184,16 +154,7 @@ describe("generateGraphQLQueryAST", () => {
                 data: [
                     fieldAlias(
                         "recentPosts",
-                        queryConfigs([
-                            {
-                                field: "posts",
-                                limit: 3,
-                                orderBy: { key: "created_at", direction: "DESC" },
-                            },
-                            {
-                                field: "title",
-                            },
-                        ])
+                        arrayQuery("posts", [valueQuery("title")], undefined)
                     ),
                 ],
                 cellRenderer: () => null,
@@ -201,7 +162,7 @@ describe("generateGraphQLQueryAST", () => {
             {
                 type: 'tableColumn',
                 name: "User Name",
-                data: [fieldAlias("userName", field("user.name"))],
+                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))],
                 cellRenderer: () => null,
             },
         ];
@@ -213,24 +174,22 @@ describe("generateGraphQLQueryAST", () => {
             {
                 field: "posts",
                 alias: "recentPosts",
-                limit: 3,
-                order_by: { created_at: "DESC" },
                 selections: [{ field: "title" }],
             },
             {
                 field: "user",
+                alias: "userName",
                 selections: [
                     {
                         field: "name",
-                        alias: "userName"
                     }
                 ],
             },
         ]);
 
         const query = renderGraphQLQuery(ast);
-        expect(query).toContain("recentPosts: posts(limit: 3, orderBy: {created_at: DESC})");
-        expect(query).toContain("userName: name");
+        expect(query).toContain("recentPosts: posts");
+        expect(query).toContain("userName: user");
     });
 
     it("generates GraphQL query with path support for JSON columns", () => {
@@ -238,19 +197,14 @@ describe("generateGraphQLQueryAST", () => {
             {
                 type: 'tableColumn',
                 name: "ID",
-                data: [field("id")],
+                data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
                 name: "JSON Field Value",
                 data: [
-                    queryConfigs([
-                        {
-                            field: "metadata",
-                            path: "$.user.preferences.theme",
-                        },
-                    ])
+                    valueQuery("metadata", { path: "$.user.preferences.theme" })
                 ],
                 cellRenderer: () => null,
             },
@@ -260,13 +214,7 @@ describe("generateGraphQLQueryAST", () => {
                 data: [
                     fieldAlias(
                         "firstTag",
-                        queryConfigs([
-                            {
-                                field: "tags",
-                                path: "$[0]",
-                                limit: 1,
-                            },
-                        ])
+                        valueQuery("tags", { path: "$[0]" })
                     )
                 ],
                 cellRenderer: () => null,
@@ -285,12 +233,11 @@ describe("generateGraphQLQueryAST", () => {
                 field: "tags",
                 alias: "firstTag",
                 path: "$[0]",
-                limit: 1,
             },
         ]);
 
         const query = renderGraphQLQuery(ast);
         expect(query).toContain('metadata(path: "$.user.preferences.theme")');
-        expect(query).toContain('firstTag: tags(limit: 1, path: "$[0]")');
+        expect(query).toContain('firstTag: tags(path: "$[0]")');
     });
 });

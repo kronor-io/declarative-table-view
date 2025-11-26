@@ -17,10 +17,10 @@ describe('parseColumnDefinitionJson', () => {
     };
 
     describe('successful parsing', () => {
-        it('should parse valid JSON with single data field', () => {
+        it('should parse valid JSON with single objectQuery for nested field', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'user.name' }],
+                data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -29,18 +29,18 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(result).toEqual({
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'user.name' }],
+                data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             });
         });
 
-        it('should parse valid JSON with multiple data fields', () => {
+        it('should parse valid JSON with multiple valueQueries', () => {
             const json = {
                 type: 'tableColumn',
                 data: [
-                    { type: 'field', path: 'user.firstName' },
-                    { type: 'field', path: 'user.lastName' }
+                    { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'firstName' }] },
+                    { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'lastName' }] }
                 ],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -51,8 +51,8 @@ describe('parseColumnDefinitionJson', () => {
             expect(result).toEqual({
                 type: 'tableColumn',
                 data: [
-                    { type: 'field', path: 'user.firstName' },
-                    { type: 'field', path: 'user.lastName' }
+                    { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'firstName' }] },
+                    { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'lastName' }] }
                 ],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -69,7 +69,7 @@ describe('parseColumnDefinitionJson', () => {
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
                     type: 'tableColumn',
-                    data: [{ type: 'field', path: 'field' }],
+                    data: [{ type: 'valueQuery', field: 'field' }],
                     name: 'Test',
                     cellRenderer
                 };
@@ -93,7 +93,7 @@ describe('parseColumnDefinitionJson', () => {
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
                     type: 'tableColumn',
-                    data: [{ type: 'field', path: 'field' }],
+                    data: [{ type: 'valueQuery', field: 'field' }],
                     name: 'Test',
                     cellRenderer
                 };
@@ -124,14 +124,15 @@ describe('parseColumnDefinitionJson', () => {
             }
         });
 
-        it('should parse JSON with queryConfigs data', () => {
+        it('should parse JSON with arrayQuery data', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        { field: 'posts', limit: 5 },
-                        { field: 'title' }
+                    type: 'arrayQuery',
+                    field: 'posts',
+                    limit: 5,
+                    selectionSet: [
+                        { type: 'valueQuery', field: 'title' }
                     ]
                 }],
                 name: 'Posts',
@@ -140,27 +141,24 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    { field: 'posts', limit: 5 },
-                    { field: 'title' }
+                type: 'arrayQuery',
+                field: 'posts',
+                limit: 5,
+                selectionSet: [
+                    { type: 'valueQuery', field: 'title' }
                 ]
             }]);
         });
 
-        it('should parse JSON with queryConfigs including orderBy', () => {
+        it('should parse JSON with arrayQuery including orderBy', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'posts',
-                            limit: 5,
-                            orderBy: { key: 'createdAt', direction: 'DESC' }
-                        },
-                        { field: 'title' }
-                    ]
+                    type: 'arrayQuery',
+                    field: 'posts',
+                    limit: 5,
+                    orderBy: { key: 'createdAt', direction: 'DESC' },
+                    selectionSet: [{ type: 'valueQuery', field: 'title' }]
                 }],
                 name: 'Recent Posts',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -168,31 +166,21 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    {
-                        field: 'posts',
-                        limit: 5,
-                        orderBy: { key: 'createdAt', direction: 'DESC' }
-                    },
-                    { field: 'title' }
-                ]
+                type: 'arrayQuery',
+                field: 'posts',
+                limit: 5,
+                orderBy: { key: 'createdAt', direction: 'DESC' },
+                selectionSet: [{ type: 'valueQuery', field: 'title' }]
             }]);
         });
 
-        it('should handle null orderBy and limit in queryConfigs', () => {
+        it('should handle arrayQuery without orderBy and limit', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'posts',
-                            limit: null,
-                            orderBy: null
-                        },
-                        { field: 'title' }
-                    ]
+                    type: 'arrayQuery',
+                    field: 'posts',
+                    selectionSet: [{ type: 'valueQuery', field: 'title' }]
                 }],
                 name: 'Posts with null values',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -200,31 +188,20 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    { field: 'posts' }, // null values should be omitted
-                    { field: 'title' }
-                ]
+                type: 'arrayQuery',
+                field: 'posts',
+                selectionSet: [{ type: 'valueQuery', field: 'title' }]
             }]);
         });
 
-        it('should handle mixed null and valid values in queryConfigs', () => {
+        it('should handle arrayQuery with limit only', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'posts',
-                            limit: 5,
-                            orderBy: null // null orderBy should be ignored
-                        },
-                        {
-                            field: 'comments',
-                            limit: null, // null limit should be ignored
-                            orderBy: { key: 'createdAt', direction: 'ASC' }
-                        }
-                    ]
+                    type: 'arrayQuery',
+                    field: 'posts',
+                    limit: 5,
+                    selectionSet: []
                 }],
                 name: 'Mixed null values',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -232,25 +209,20 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    { field: 'posts', limit: 5 },
-                    { field: 'comments', orderBy: { key: 'createdAt', direction: 'ASC' } }
-                ]
+                type: 'arrayQuery',
+                field: 'posts',
+                limit: 5,
+                selectionSet: []
             }]);
         });
 
-        it('should parse JSON with queryConfigs including path property', () => {
+        it('should parse JSON with valueQuery including path property', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'metadata',
-                            path: '$.user.preferences.theme'
-                        }
-                    ]
+                    type: 'valueQuery',
+                    field: 'metadata',
+                    path: '$.user.preferences.theme'
                 }],
                 name: 'JSON Path Query',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -258,29 +230,22 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    {
-                        field: 'metadata',
-                        path: '$.user.preferences.theme'
-                    }
-                ]
+                type: 'valueQuery',
+                field: 'metadata',
+                path: '$.user.preferences.theme'
             }]);
         });
 
-        it('should parse JSON with queryConfigs including path, limit, and orderBy', () => {
+        it('should parse JSON with arrayQuery including path, limit, and orderBy', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'activities',
-                            path: '$.recent',
-                            limit: 5,
-                            orderBy: { key: 'timestamp', direction: 'DESC' }
-                        }
-                    ]
+                    type: 'arrayQuery',
+                    field: 'activities',
+                    path: '$.recent',
+                    limit: 5,
+                    orderBy: { key: 'timestamp', direction: 'DESC' },
+                    selectionSet: []
                 }],
                 name: 'Complex JSON Query',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -288,25 +253,22 @@ describe('parseColumnDefinitionJson', () => {
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    {
-                        field: 'activities',
-                        path: '$.recent',
-                        limit: 5,
-                        orderBy: { key: 'timestamp', direction: 'DESC' }
-                    }
-                ]
+                type: 'arrayQuery',
+                field: 'activities',
+                path: '$.recent',
+                limit: 5,
+                orderBy: { key: 'timestamp', direction: 'DESC' },
+                selectionSet: []
             }]);
         });
 
-        it('should parse JSON with fieldAlias data', () => {
+        it('should parse JSON with fieldAlias data (nested via objectQuery)', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
-                    field: { type: 'field', path: 'user.name' }
+                    field: { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }
                 }],
                 name: 'User Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -316,7 +278,7 @@ describe('parseColumnDefinitionJson', () => {
             expect(result.data).toEqual([{
                 type: 'fieldAlias',
                 alias: 'userName',
-                field: { type: 'field', path: 'user.name' }
+                field: { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }
             }]);
         });
 
@@ -327,10 +289,10 @@ describe('parseColumnDefinitionJson', () => {
                     type: 'fieldAlias',
                     alias: 'userPosts',
                     field: {
-                        type: 'queryConfigs',
-                        configs: [
-                            { field: 'posts', limit: 3 }
-                        ]
+                        type: 'arrayQuery',
+                        field: 'posts',
+                        limit: 3,
+                        selectionSet: []
                     }
                 }],
                 name: 'User Posts',
@@ -342,10 +304,10 @@ describe('parseColumnDefinitionJson', () => {
                 type: 'fieldAlias',
                 alias: 'userPosts',
                 field: {
-                    type: 'queryConfigs',
-                    configs: [
-                        { field: 'posts', limit: 3 }
-                    ]
+                    type: 'arrayQuery',
+                    field: 'posts',
+                    limit: 3,
+                    selectionSet: []
                 }
             }]);
         });
@@ -546,7 +508,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for number in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'valid' }, 123, { type: 'field', path: 'valid2' }],
+                data: [{ type: 'valueQuery', field: 'valid' }, 123, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -559,7 +521,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'valid' }, null, { type: 'field', path: 'valid2' }],
+                data: [{ type: 'valueQuery', field: 'valid' }, null, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -572,20 +534,20 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for object in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'valid' }, { field: 'value' }, { type: 'field', path: 'valid2' }],
+                data: [{ type: 'valueQuery', field: 'valid' }, { field: 'value' }, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid data[1]: Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
+            }).toThrow('Invalid data[1]: Invalid FieldQuery: "type" must be "fieldAlias", "valueQuery", "objectQuery", or "arrayQuery"');
         });
 
         it('should throw error for array in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'valid' }, ['nested'], { type: 'field', path: 'valid2' }],
+                data: [{ type: 'valueQuery', field: 'valid' }, ['nested'], { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -598,7 +560,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for undefined in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'valid' }, undefined, { type: 'field', path: 'valid2' }],
+                data: [{ type: 'valueQuery', field: 'valid' }, undefined, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -608,17 +570,13 @@ describe('parseColumnDefinitionJson', () => {
             }).toThrow('Invalid data[1]: Invalid FieldQuery: Expected an object');
         });
 
-        it('should throw error for invalid path type in queryConfigs', () => {
+        it('should throw error for invalid path type in valueQuery', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'metadata',
-                            path: 123 // Invalid: path should be a string
-                        }
-                    ]
+                    type: 'valueQuery',
+                    field: 'metadata',
+                    path: 123 // Invalid: path should be a string
                 }],
                 name: 'Invalid Path',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -626,33 +584,24 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid data[0]: Invalid QueryConfig: "path" must be a string');
+            }).toThrow('Invalid data[0]: Invalid valueQuery: "path" must be a string');
         });
 
-        it('should throw error for null path in queryConfigs when provided', () => {
+        it('should throw error for null path in valueQuery when provided', () => {
             const json = {
                 type: 'tableColumn',
                 data: [{
-                    type: 'queryConfigs',
-                    configs: [
-                        {
-                            field: 'metadata',
-                            path: null // null path should be ignored, but this doesn't happen in parsing
-                        }
-                    ]
+                    type: 'valueQuery',
+                    field: 'metadata',
+                    path: null
                 }],
                 name: 'Null Path',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
-            // This should not throw because null path is handled and ignored
-            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-            expect(result.data).toEqual([{
-                type: 'queryConfigs',
-                configs: [
-                    { field: 'metadata' } // path should be omitted
-                ]
-            }]);
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid data[0]: Invalid valueQuery: "path" must be a string');
         });
 
         it('should throw error for fieldAlias missing alias property', () => {
@@ -660,7 +609,7 @@ describe('parseColumnDefinitionJson', () => {
                 type: 'tableColumn',
                 data: [{
                     type: 'fieldAlias',
-                    field: { type: 'field', path: 'user.name' }
+                    field: { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }
                     // missing alias property
                 }],
                 name: 'User Name',
@@ -695,7 +644,7 @@ describe('parseColumnDefinitionJson', () => {
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
-                    field: { type: 'invalid', path: 'user.name' }
+                    field: { type: 'invalid', field: 'user.name' }
                 }],
                 name: 'User Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -703,7 +652,7 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid data[0]: Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
+            }).toThrow('Invalid data[0]: Invalid FieldQuery: "type" must be "fieldAlias", "valueQuery", "objectQuery", or "arrayQuery"');
         });
     });
 
@@ -711,7 +660,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for invalid cellRenderer reference', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'invalidKey' }
             };
@@ -724,7 +673,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for empty string cellRenderer reference', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: '' }
             };
@@ -737,7 +686,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for case-sensitive mismatch', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'NAME' } // Wrong case
             };
@@ -752,19 +701,19 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle empty string in data array', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: '' }],
+                data: [{ type: 'valueQuery', field: '' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
 
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
-            expect(result.data).toEqual([{ type: 'field', path: '' }]);
+            expect(result.data).toEqual([{ type: 'valueQuery', field: '' }]);
         });
 
         it('should handle empty string as name', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: '',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -779,7 +728,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle extra properties in JSON', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' },
                 extraProperty: 'ignored'
@@ -788,7 +737,7 @@ describe('parseColumnDefinitionJson', () => {
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result).toEqual({
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'field' }],
+                data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             });
@@ -1441,7 +1390,7 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
-                        data: [{ type: 'field', path: 'id' }],
+                        data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
                     }
@@ -1491,7 +1440,7 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
-                        data: [{ type: 'field', path: 'id' }],
+                        data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
                     }
@@ -1518,19 +1467,19 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
-                        data: [{ type: 'field', path: 'id' }],
+                        data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
                     },
                     {
                         type: 'tableColumn',
                         data: [
-                            { type: 'field', path: 'amount' },
+                            { type: 'valueQuery', field: 'amount' },
                             {
-                                type: 'queryConfigs',
-                                configs: [
-                                    { field: 'currency', limit: 1 }
-                                ]
+                                type: 'arrayQuery',
+                                field: 'currency',
+                                limit: 1,
+                                selectionSet: []
                             }
                         ],
                         name: 'Amount',

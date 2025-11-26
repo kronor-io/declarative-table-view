@@ -1,39 +1,43 @@
 import { flattenFields } from './data';
-import { ColumnDefinition, fieldAlias, field, queryConfigs } from './column-definition';
+import { ColumnDefinition, fieldAlias } from './column-definition';
+import { valueQuery, objectQuery, arrayQuery } from '../dsl/columns';
 
 describe('flattenFields', () => {
-    it('extracts simple fields from rows', () => {
+    it('creates per-column cell objects for simple fields', () => {
         const rows = [
             { id: 1, name: 'Alice', age: 30 },
             { id: 2, name: 'Bob', age: 25 }
         ];
         const columns: ColumnDefinition[] = [
-            { data: [{ type: 'field', path: 'id' }] } as ColumnDefinition,
-            { data: [{ type: 'field', path: 'name' }] } as ColumnDefinition
+            { data: [valueQuery('id')] } as ColumnDefinition,
+            { data: [valueQuery('name')] } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result).toEqual([
-            [{ id: 1 }, { name: 'Alice' }],
-            [{ id: 2 }, { name: 'Bob' }]
-        ]);
+        expect(result.length).toBe(2);
+        expect(result[0].length).toBe(2);
+        expect(result[0][0]).toEqual({ id: 1 });
+        expect(result[0][1]).toEqual({ name: 'Alice' });
+        expect(result[1][0]).toEqual({ id: 2 });
+        expect(result[1][1]).toEqual({ name: 'Bob' });
     });
 
-    it('handles nested field paths', () => {
+    it('includes nested root object for nested field paths', () => {
         const rows = [
             { id: 1, user: { profile: { email: 'alice@example.com' } } },
             { id: 2, user: { profile: { email: 'bob@example.com' } } }
         ];
         const columns: ColumnDefinition[] = [
-            { data: [{ type: 'field', path: 'user.profile.email' }] } as ColumnDefinition
+            { data: [objectQuery('user', [objectQuery('profile', [valueQuery('email')])])] } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result).toEqual([
-            [{ 'user.profile.email': 'alice@example.com' }],
-            [{ 'user.profile.email': 'bob@example.com' }]
-        ]);
+        expect(result.length).toBe(2);
+        expect(result[0][0]).toEqual({ user: rows[0].user });
+        expect(result[1][0]).toEqual({ user: rows[1].user });
+        expect((result[0][0] as any).user.profile.email).toBe('alice@example.com');
+        expect((result[1][0] as any).user.profile.email).toBe('bob@example.com');
     });
 
-    it('handles multiple nested field paths with array parent', () => {
+    it('copies root array for multiple nested field paths with array parent', () => {
         const rows = [
             {
                 id: 1,
@@ -52,29 +56,20 @@ describe('flattenFields', () => {
         const columns: ColumnDefinition[] = [
             {
                 data: [
-                    { type: 'field', path: 'users.profile.email' },
-                    { type: 'field', path: 'users.profile.age' }
+                    arrayQuery('users', [objectQuery('profile', [valueQuery('email')])]),
+                    arrayQuery('users', [objectQuery('profile', [valueQuery('age')])])
                 ]
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result).toEqual([
-            [
-                {
-                    'users.profile.email': ['alice@example.com', 'bob@example.com'],
-                    'users.profile.age': [30, 25]
-                }
-            ],
-            [
-                {
-                    'users.profile.email': ['carol@example.com'],
-                    'users.profile.age': [28]
-                }
-            ]
-        ]);
+        expect(result.length).toBe(2);
+        expect(result[0][0]).toEqual({ users: rows[0].users });
+        expect(result[1][0]).toEqual({ users: rows[1].users });
+        expect((result[0][0] as any).users.length).toBe(2);
+        expect((result[1][0] as any).users.length).toBe(1);
     });
 
-    it('handles field aliases correctly', () => {
+    it('includes alias field only for simple alias', () => {
         // Simulate the response that would come from GraphQL with aliases
         const rows = [
             {
@@ -90,20 +85,16 @@ describe('flattenFields', () => {
         ];
         const columns: ColumnDefinition[] = [
             {
-                data: [fieldAlias("userName", field("user.name"))]
+                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))]
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-
-        // The flattened result should use the alias name "userName", not the original path "user.name"
-        expect(result).toEqual([
-            [{ userName: 'Alice' }],
-            [{ userName: 'Bob' }]
-        ]);
+        expect(result[0][0]).toEqual({ userName: 'Alice' });
+        expect(result[1][0]).toEqual({ userName: 'Bob' });
     });
 
-    it('handles field aliases with queryConfigs correctly', () => {
-        // Simulate the response that would come from GraphQL with aliases for nested queryConfigs
+    it('includes alias field for arrayQuery alias', () => {
+        // Simulate the response that would come from GraphQL with aliases for nested arrayQuery
         const rows = [
             {
                 id: 1,
@@ -120,27 +111,15 @@ describe('flattenFields', () => {
         const columns: ColumnDefinition[] = [
             {
                 data: [
-                    fieldAlias("recentPostTitles", queryConfigs([
-                        { field: "posts" },
-                        { field: "title" }
-                    ]))
+                    fieldAlias("recentPostTitles", arrayQuery("posts", [valueQuery("title")]))
                 ]
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-
-        // The flattened result should use the alias name "recentPostTitles", not the generated path "posts.title"
-        expect(result).toEqual([
-            [{
-                recentPostTitles: [
-                    'Post 2',
-                    'Post 1'
-                ]
-            }]
-        ]);
+        expect(result[0][0]).toEqual({ recentPostTitles: ['Post 2', 'Post 1'] });
     });
 
-    it('handles nested field aliases correctly', () => {
+    it('includes only outermost alias for nested alias hierarchy', () => {
         // Test aliasing a field alias (though this is a rare case, it should be supported)
         const rows = [
             {
@@ -153,15 +132,12 @@ describe('flattenFields', () => {
         const columns: ColumnDefinition[] = [
             {
                 data: [
-                    fieldAlias("displayName", fieldAlias("userName", field("user.name")))
+                    fieldAlias("displayName", fieldAlias("userName", objectQuery("user", [valueQuery("name")])))
                 ]
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-
-        // The flattened result should use the outermost alias name "displayName"
-        expect(result).toEqual([
-            [{ displayName: 'Alice' }]
-        ]);
+        expect(result[0][0]).toEqual({ displayName: 'Alice' });
+        expect((result[0][0] as any).userName).toBeUndefined();
     });
 });

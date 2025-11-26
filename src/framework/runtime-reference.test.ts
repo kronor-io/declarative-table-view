@@ -86,7 +86,7 @@ describe('RuntimeReference', () => {
         it('should parse column with RuntimeReference format', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'test' }],
+                data: [{ type: 'valueQuery', field: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {
                     section: 'cellRenderers',
@@ -105,7 +105,7 @@ describe('RuntimeReference', () => {
         it('should require cellRenderer field', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'test' }],
+                data: [{ type: 'valueQuery', field: 'test' }],
                 name: 'Test Column'
                 // Missing cellRenderer
             };
@@ -118,7 +118,7 @@ describe('RuntimeReference', () => {
         it('should validate cellRenderer section is cellRenderers', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'test' }],
+                data: [{ type: 'valueQuery', field: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {
                     section: 'queryTransforms',
@@ -134,7 +134,7 @@ describe('RuntimeReference', () => {
         it('should validate cellRenderer reference key exists in runtime', () => {
             const json = {
                 type: 'tableColumn',
-                data: [{ type: 'field', path: 'test' }],
+                data: [{ type: 'valueQuery', field: 'test' }],
                 name: 'Test Column',
                 cellRenderer: {
                     section: 'cellRenderers',

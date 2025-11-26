@@ -1,4 +1,5 @@
 import { ReactNode, createElement } from "react";
+import type { HasuraCondition } from './graphql';
 import { FlexRow, FlexColumn, DateTime } from "./cell-renderer-components/LayoutHelpers";
 import { CurrencyAmount } from './cell-renderer-components/CurrencyAmount';
 import { majorToMinor, minorToMajor } from './currency';
@@ -27,6 +28,11 @@ export type CellRendererProps = {
         minorToMajor: typeof minorToMajor;
         majorToMinor: typeof majorToMinor;
     }
+    /**
+     * The full column definition for the current cell. Allows renderers to
+     * introspect the FieldQuery definitions to derive display output generically.
+     */
+    columnDefinition: TableColumnDefinition;
 };
 
 export type CellRenderer = (props: CellRendererProps) => ReactNode;
@@ -36,42 +42,39 @@ export type OrderByConfig = {
     direction: 'ASC' | 'DESC';
 };
 
-// Tagged ADT for QueryConfig: either a path or a config group
-export type Field = {
-    type: 'field';
-    path: string; // dot-separated data path
-};
-
-export type QueryConfig = {
-    field: string
-    path?: string; // path for querying inside JSON columns
-    orderBy?: OrderByConfig | OrderByConfig[];
-    limit?: number;
-}
-
-export type QueryConfigs = {
-    type: 'queryConfigs'
-    configs: QueryConfig[]
-};
-
-// Field alias support - wraps any FieldQuery with an alias name
 export type FieldAlias = {
     type: 'fieldAlias';
     alias: string; // the alias name to use in GraphQL
     field: FieldQuery; // the underlying field query
 };
 
-export type FieldQuery = Field | QueryConfigs | FieldAlias;
-
-// Helper to create a Field
-export function field(path: string): FieldQuery {
-    return { type: 'field', path };
+export type ValueQuery = {
+    type: 'valueQuery';
+    field: string;
+    path?: string; // path for querying inside JSON columns
 }
 
-// Helper to create QueryConfigs
-export function queryConfigs(configs: QueryConfig[]): FieldQuery {
-    return { type: 'queryConfigs', configs };
+export type ObjectQuery = {
+    type: 'objectQuery';
+    field: string;
+    path?: string; // path for querying inside JSON columns
+    selectionSet: Query[];
 }
+
+export type ArrayQuery = {
+    type: 'arrayQuery';
+    field: string;
+    path?: string; // path for querying inside JSON columns
+    orderBy?: OrderByConfig | OrderByConfig[];
+    distinctOn?: string[];
+    limit?: number;
+    where?: HasuraCondition;
+    selectionSet: Query[];
+}
+
+export type Query = ValueQuery | ObjectQuery | ArrayQuery;
+
+export type FieldQuery = Query | FieldAlias;
 
 // Helper to create a FieldAlias
 export function fieldAlias(alias: string, fieldQuery: FieldQuery): FieldQuery {

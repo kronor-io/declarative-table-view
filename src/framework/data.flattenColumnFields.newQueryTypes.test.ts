@@ -1,0 +1,37 @@
+import { flattenColumnFields } from './data';
+import type { ColumnDefinition, FieldQuery } from './column-definition';
+import { objectQuery, valueQuery, arrayQuery } from '../dsl/columns';
+
+describe('flattenColumnFields mixed query types', () => {
+    it('returns object containing only queried root fields for mixed query types', () => {
+        const row = {
+            user: { id: 1, profile: { email: 'a@example.com' } },
+            orders: [
+                { total: 100, product: { name: 'Widget' } },
+                { total: 200, product: { name: 'Gizmo' } }
+            ]
+        };
+
+        const queries: FieldQuery[] = [
+            objectQuery('user', [
+                valueQuery('id') as any,
+                objectQuery('profile', [valueQuery('email') as any]) as any
+            ]) as any,
+            arrayQuery('orders', [
+                valueQuery('total') as any,
+                objectQuery('product', [valueQuery('name') as any]) as any
+            ]) as any
+        ];
+
+        const col: ColumnDefinition = { type: 'virtualColumn', data: queries };
+        const result = flattenColumnFields(row, col);
+        // Should not be the same reference (per-column shaping)
+        expect(result).not.toBe(row);
+        // Only user & orders root fields present
+        expect(Object.keys(result).sort()).toEqual(['orders', 'user']);
+        expect(result.user.id).toBe(1);
+        expect(result.user.profile.email).toBe('a@example.com');
+        expect(result.orders.map((o: any) => o.total)).toEqual([100, 200]);
+        expect(result.orders.map((o: any) => o.product.name)).toEqual(['Widget', 'Gizmo']);
+    });
+});

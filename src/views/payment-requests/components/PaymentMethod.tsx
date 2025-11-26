@@ -113,7 +113,7 @@ const cardImage = (scheme: string) => {
     }
 };
 
-export function PaymentMethod({ cardType, paymentMethod, darkmode }: Props) {
+export function PaymentMethod({ cardType = [], paymentMethod, darkmode }: Props) {
     switch (paymentMethod) {
         case "SWISH":
             return (

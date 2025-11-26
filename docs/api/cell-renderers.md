@@ -76,7 +76,10 @@ If your amount field already arrives as a major unit (e.g. 123.45 for USD) you c
 ## Referencing in JSON View
 ```jsonc
 {
-  "data": [ { "type": "field", "path": "currency" }, { "type": "field", "path": "amount" } ],
+  "data": [
+    { "type": "valueQuery", "field": "currency" },
+    { "type": "valueQuery", "field": "amount" }
+  ],
   "name": "Amount",
   "cellRenderer": { "section": "cellRenderers", "key": "amount" }
 }
@@ -107,8 +110,11 @@ initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexRow, Fle
 ```
 
 ## Data Shape Notes
-- Each `data` entry in the column definition becomes a property on the `data` object using its `path`.
-- For `queryConfigs`, nested results may be flattened (e.g. `attempts.cardType`). The exact flattening logic mirrors the GraphQL query builder.
+- Each `data` entry in the column definition becomes a property on the `data` object using its `field`.
+- For nested selections:
+  - `objectQuery` copies the root object (e.g. `{ type: 'objectQuery', field: 'customer', selectionSet: [...] }` makes `data.customer` available).
+  - `arrayQuery` copies the root array (e.g. `data.attempts`).
+- Aliases via `fieldAlias` are exposed by their alias key on `data`.
 
 ## Best Practices
 - Keep renderers pure (avoid side effects except in event handlers).

@@ -10,8 +10,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "merchantId"
+                    "type": "valueQuery",
+                    "field": "merchantId"
                 }
             ],
             "name": "Merchant",
@@ -24,8 +24,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "createdAt"
+                    "type": "valueQuery",
+                    "field": "createdAt"
                 }
             ],
             "name": "Date",
@@ -38,8 +38,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "idempotencyKey"
+                    "type": "valueQuery",
+                    "field": "idempotencyKey"
                 }
             ],
             "name": "Idempotency Key",
@@ -52,8 +52,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "namespace"
+                    "type": "valueQuery",
+                    "field": "namespace"
                 }
             ],
             "name": "Namespace",
@@ -66,8 +66,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "requestParams"
+                    "type": "valueQuery",
+                    "field": "requestParams"
                 }
             ],
             "name": "Request",
@@ -80,8 +80,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "responseBody"
+                    "type": "valueQuery",
+                    "field": "responseBody"
                 }
             ],
             "name": "Response",

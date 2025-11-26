@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { FieldQuery, QueryConfig, Field, QueryConfigs, FieldAlias, ColumnDefinition } from './column-definition';
+import type { FieldQuery, FieldAlias, ColumnDefinition } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
@@ -40,10 +40,6 @@ export function resolveRuntimeReference<T>(
     );
 }
 
-// JSON Schema types - these are just aliases since the original types are already JSON-friendly
-export type FieldJson = Field;
-export type QueryConfigJson = QueryConfig;
-export type QueryConfigsJson = QueryConfigs;
 export type FieldAliasJson = FieldAlias;
 export type FieldQueryJson = FieldQuery;
 
@@ -175,44 +171,68 @@ function parseOrderByConfig(obj: unknown): { key: string; direction: 'ASC' | 'DE
     };
 }
 
-function parseQueryConfigJson(obj: unknown): QueryConfigJson {
+// Helper to parse new Query types (valueQuery, objectQuery, arrayQuery)
+function parseQueryJson(obj: unknown): FieldQueryJson {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-        throw new Error('Invalid QueryConfig: Expected an object');
+        throw new Error('Invalid Query: Expected an object');
     }
-
-    const config = obj as Record<string, unknown>;
-
-    if (typeof config.field !== 'string') {
-        throw new Error('Invalid QueryConfig: "field" must be a string');
-    }
-
-    const result: QueryConfigJson = {
-        field: config.field
-    };
-
-    if (config.orderBy !== undefined && config.orderBy !== null) {
-        if (Array.isArray(config.orderBy)) {
-            result.orderBy = config.orderBy.map(parseOrderByConfig);
-        } else {
-            result.orderBy = parseOrderByConfig(config.orderBy);
+    const q = obj as Record<string, unknown>;
+    if (q.type === 'valueQuery') {
+        if (typeof q.field !== 'string') throw new Error('Invalid valueQuery: "field" must be a string');
+        const result: any = { type: 'valueQuery', field: q.field };
+        if (q.path !== undefined) {
+            if (typeof q.path !== 'string') throw new Error('Invalid valueQuery: "path" must be a string');
+            result.path = q.path;
         }
+        return result;
     }
-
-    if (config.limit !== undefined && config.limit !== null) {
-        if (typeof config.limit !== 'number' || config.limit < 0 || !Number.isInteger(config.limit)) {
-            throw new Error('Invalid QueryConfig: "limit" must be a non-negative integer');
+    if (q.type === 'objectQuery') {
+        if (typeof q.field !== 'string') throw new Error('Invalid objectQuery: "field" must be a string');
+        if (!Array.isArray(q.selectionSet)) throw new Error('Invalid objectQuery: "selectionSet" must be an array');
+        const result: any = { type: 'objectQuery', field: q.field };
+        if (q.path !== undefined) {
+            if (typeof q.path !== 'string') throw new Error('Invalid objectQuery: "path" must be a string');
+            result.path = q.path;
         }
-        result.limit = config.limit;
+        result.selectionSet = q.selectionSet.map(parseQueryJson);
+        return result;
     }
-
-    if (config.path !== undefined && config.path !== null) {
-        if (typeof config.path !== 'string') {
-            throw new Error('Invalid QueryConfig: "path" must be a string');
+    if (q.type === 'arrayQuery') {
+        if (typeof q.field !== 'string') throw new Error('Invalid arrayQuery: "field" must be a string');
+        if (!Array.isArray(q.selectionSet)) throw new Error('Invalid arrayQuery: "selectionSet" must be an array');
+        const result: any = { type: 'arrayQuery', field: q.field };
+        if (q.path !== undefined) {
+            if (typeof q.path !== 'string') throw new Error('Invalid arrayQuery: "path" must be a string');
+            result.path = q.path;
         }
-        result.path = config.path;
+        if (q.distinctOn !== undefined) {
+            if (!Array.isArray(q.distinctOn) || !q.distinctOn.every(v => typeof v === 'string')) {
+                throw new Error('Invalid arrayQuery: "distinctOn" must be an array of strings');
+            }
+            result.distinctOn = q.distinctOn;
+        }
+        if (q.limit !== undefined) {
+            if (typeof q.limit !== 'number' || q.limit < 0 || !Number.isInteger(q.limit)) throw new Error('Invalid arrayQuery: "limit" must be a non-negative integer');
+            result.limit = q.limit;
+        }
+        if (q.orderBy !== undefined && q.orderBy !== null) {
+            if (Array.isArray(q.orderBy)) {
+                result.orderBy = q.orderBy.map(parseOrderByConfig);
+            } else {
+                result.orderBy = parseOrderByConfig(q.orderBy);
+            }
+        }
+        if (q.where !== undefined) {
+            if (typeof q.where !== 'object' || q.where === null || Array.isArray(q.where)) {
+                throw new Error('Invalid arrayQuery: "where" must be a non-null object');
+            }
+            // Accept where as-is; deep validation happens at runtime/GraphQL
+            result.where = q.where;
+        }
+        result.selectionSet = q.selectionSet.map(parseQueryJson);
+        return result;
     }
-
-    return result;
+    throw new Error('Invalid Query: "type" must be "valueQuery", "objectQuery", or "arrayQuery"');
 }
 
 function parseFieldQueryJson(obj: unknown): FieldQueryJson {
@@ -222,23 +242,7 @@ function parseFieldQueryJson(obj: unknown): FieldQueryJson {
 
     const fieldQuery = obj as Record<string, unknown>;
 
-    if (fieldQuery.type === 'field') {
-        if (typeof fieldQuery.path !== 'string') {
-            throw new Error('Invalid Field: "path" must be a string');
-        }
-        return {
-            type: 'field',
-            path: fieldQuery.path
-        };
-    } else if (fieldQuery.type === 'queryConfigs') {
-        if (!Array.isArray(fieldQuery.configs)) {
-            throw new Error('Invalid QueryConfigs: "configs" must be an array');
-        }
-        return {
-            type: 'queryConfigs',
-            configs: fieldQuery.configs.map(parseQueryConfigJson)
-        };
-    } else if (fieldQuery.type === 'fieldAlias') {
+    if (fieldQuery.type === 'fieldAlias') {
         if (typeof fieldQuery.alias !== 'string') {
             throw new Error('Invalid FieldAlias: "alias" must be a string');
         }
@@ -250,8 +254,10 @@ function parseFieldQueryJson(obj: unknown): FieldQueryJson {
             alias: fieldQuery.alias,
             field: parseFieldQueryJson(fieldQuery.field)
         } as FieldQueryJson;
+    } else if (fieldQuery.type === 'valueQuery' || fieldQuery.type === 'objectQuery' || fieldQuery.type === 'arrayQuery') {
+        return parseQueryJson(fieldQuery);
     } else {
-        throw new Error('Invalid FieldQuery: "type" must be "field", "queryConfigs", or "fieldAlias"');
+        throw new Error('Invalid FieldQuery: "type" must be "fieldAlias", "valueQuery", "objectQuery", or "arrayQuery"');
     }
 }
 

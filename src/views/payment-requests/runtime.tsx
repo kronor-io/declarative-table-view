@@ -50,7 +50,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
 
         // Payment Provider cell renderer
         paymentProvider: ({ data }) =>
-            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data['attempts.cardType']} darkmode={false} />,
+            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data.attempts?.cardType} darkmode={false} />,
 
         // Initiated By cell renderer
         initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexColumn, FlexRow } }) => {
@@ -59,7 +59,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                 updateFilterById('customer-email', (currentFilter: any) => {
                     return {
                         ...currentFilter,
-                        value: { operator: '_eq', value: data['customer.email'] }
+                        value: { operator: '_eq', value: data.customer?.email }
                     };
                 });
                 applyFilters();
@@ -68,13 +68,13 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             return (
                 <FlexRow align="center" justify="start">
                     <FlexColumn align="start">
-                        <span className="tw:font-bold">{data['customer.name']}</span>
+                        <span className="tw:font-bold">{data.customer?.name}</span>
                         <button
                             className="tw:text-blue-500 tw:underline hover:tw:text-blue-700 tw:cursor-pointer tw:text-left"
                             onClick={handleEmailClick}
-                            title={`Filter by email: ${data['customer.email']}`}
+                            title={`Filter by email: ${data.customer?.email}`}
                         >
-                            {data['customer.email']}
+                            {data.customer?.email}
                         </button>
                     </FlexColumn>
                 </FlexRow>

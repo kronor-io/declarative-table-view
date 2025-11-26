@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { Tag } from 'primereact/tag';
-import { CellRenderer } from './column-definition';
+import { CellRenderer, TableColumnDefinition } from './column-definition';
 import { FlexRow, FlexColumn, DateTime } from './cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from './cell-renderer-components/CurrencyAmount';
 import { Mapping } from './cell-renderer-components/Mapping';
 import { Link } from './cell-renderer-components/Link';
 
 describe('Cell Renderer Components', () => {
+    const dummyColumn: TableColumnDefinition = { type: 'tableColumn', name: 'Test', data: [], cellRenderer: () => null };
     it('should provide Badge component to cell renderers', () => {
         // Create a test cell renderer that uses the Badge component
         const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
@@ -34,7 +35,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use the Badge component
@@ -67,7 +69,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         testCellRenderer(mockProps);
@@ -100,7 +103,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         expect(() => {
@@ -136,7 +140,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use FlexRow/FlexColumn components
@@ -171,7 +176,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that FlexRow can handle wrap property
@@ -208,7 +214,8 @@ describe('Cell Renderer Components', () => {
                     CurrencyAmount,
                     Link
                 },
-                currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+                currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+                columnDefinition: dummyColumn
             };
 
             expect(() => {
@@ -240,7 +247,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use the Mapping component
@@ -271,7 +279,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use the DateTime component
@@ -306,7 +315,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use the CurrencyAmount component
@@ -341,7 +351,8 @@ describe('Cell Renderer Components', () => {
                 CurrencyAmount,
                 Link
             },
-            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() }
+            currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            columnDefinition: dummyColumn
         };
 
         // Test that the cell renderer can access and use the Link component

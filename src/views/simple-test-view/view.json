@@ -10,8 +10,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "testField"
+                    "type": "valueQuery",
+                    "field": "testField"
                 }
             ],
             "name": "Test Column Header",
@@ -24,8 +24,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "amount"
+                    "type": "valueQuery",
+                    "field": "amount"
                 }
             ],
             "name": "Amount",
@@ -38,8 +38,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "email"
+                    "type": "valueQuery",
+                    "field": "email"
                 }
             ],
             "name": "Email",
@@ -52,8 +52,8 @@
             "type": "tableColumn",
             "data": [
                 {
-                    "type": "field",
-                    "path": "phone"
+                    "type": "valueQuery",
+                    "field": "phone"
                 }
             ],
             "name": "Phone",

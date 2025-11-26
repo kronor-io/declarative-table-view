@@ -42,7 +42,7 @@ describe('App action button disabled while running', () => {
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
                 columns: [
-                    { type: 'tableColumn', data: [{ type: 'field', path: 'id' }], name: 'ID', cellRenderer: { section: 'cellRenderers', key: 'text' } }
+                    { type: 'tableColumn', data: [{ type: 'valueQuery', field: 'id' }], name: 'ID', cellRenderer: { section: 'cellRenderers', key: 'text' } }
                 ],
                 filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
             }

@@ -151,7 +151,8 @@ function Table({
                                 CurrencyAmount,
                                 Link
                             },
-                            currency: { minorToMajor, majorToMinor }
+                            currency: { minorToMajor, majorToMinor },
+                            columnDefinition: column
                         })}
                     />
                 ))}

@@ -1,7 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 import { buildHasuraConditions } from '../framework/graphql';
 import { View } from '../framework/view';
-import { ColumnDefinition, FieldQuery, QueryConfig } from '../framework/column-definition';
+import { ColumnDefinition } from '../framework/column-definition';
 import { FilterState } from './state';
 
 export interface FetchDataResult {
@@ -111,62 +111,53 @@ export const flattenFields = (
 
 // Helper to extract field values for a column from a row
 export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefinition) => {
-    const values: Record<string, any> = {};
+    // Build a per-column cell data object that includes ONLY the fields requested
+    // by the column's FieldQuery definitions. We preserve nested object structure
+    // (customer.name -> { customer: { name } }) but do not create dot-key strings.
+    // For queries that target nested paths we currently copy the entire nested
+    // object at the root level (e.g. both customer.name and customer.email simply
+    // copy row.customer). This keeps renderers that expect combined nested data working.
+    // For alias fields we prefer the alias value already present in the row (as returned
+    // by GraphQL). If missing, we derive it from the underlying field query.
 
-    const extractField = (fieldQuery: FieldQuery) => {
-        if (fieldQuery.type === 'field') {
-            const path = fieldQuery.path.split('.');
-            let value: any = row;
-            for (const p of path) {
-                if (Array.isArray(value)) {
-                    // If value is an array, map extraction for each item
-                    value = value.map(item => {
-                        let v = item;
-                        for (let i = path.indexOf(p); i < path.length; i++) {
-                            v = v?.[path[i]];
-                        }
-                        return v;
-                    });
-                    break;
-                } else {
-                    value = value?.[p];
-                }
+    const cellData: Record<string, any> = {};
+
+    function getUnderlyingValue(fq: any): any {
+        if (!fq || typeof fq !== 'object') return undefined;
+        switch (fq.type) {
+            case 'fieldAlias': {
+                // Prefer alias value if already present
+                if (row[fq.alias] !== undefined) return row[fq.alias];
+                return getUnderlyingValue(fq.field);
             }
-            values[fieldQuery.path] = value;
-        } else if (fieldQuery.type === 'queryConfigs') {
-            const pathKey = fieldQuery.configs.map(c => c.field).join('.');
-
-            const extract = (currentValue: any, configs: QueryConfig[]): any => {
-                if (configs.length === 0) {
-                    return currentValue;
-                }
-
-                if (currentValue === undefined || currentValue === null) {
-                    return undefined;
-                }
-
-                const [currentConfig, ...remainingConfigs] = configs;
-
-                if (Array.isArray(currentValue)) {
-                    return currentValue.map(item => extract(item, configs));
-                }
-
-                if (typeof currentValue === 'object' && currentConfig.field in currentValue) {
-                    const nextValue = currentValue[currentConfig.field];
-                    return extract(nextValue, remainingConfigs);
-                }
-
+            case 'valueQuery':
+            case 'objectQuery':
+            case 'arrayQuery':
+                return row[fq.field];
+            default:
                 return undefined;
-            };
-
-            values[pathKey] = extract(row, fieldQuery.configs);
-        } else if (fieldQuery.type === 'fieldAlias') {
-            // For field aliases, we look up the value using the alias name instead of the original field path
-            // The GraphQL response should contain the aliased field name
-            values[fieldQuery.alias] = row[fieldQuery.alias];
         }
-    };
+    }
 
-    column.data.forEach(extractField);
-    return values;
+    function processFieldQuery(fq: any) {
+        if (!fq || typeof fq !== 'object') return;
+        if (fq.type === 'fieldAlias') {
+            const alias = fq.alias;
+            if (row[alias] !== undefined) {
+                cellData[alias] = row[alias];
+            } else {
+                const derived = getUnderlyingValue(fq.field);
+                if (derived !== undefined) cellData[alias] = derived;
+            }
+            return;
+        }
+        if (fq.type === 'valueQuery' || fq.type === 'objectQuery' || fq.type === 'arrayQuery') {
+            if (row[fq.field] !== undefined) {
+                cellData[fq.field] = row[fq.field];
+            }
+        }
+    }
+
+    column.data.forEach(processFieldQuery);
+    return cellData;
 };
