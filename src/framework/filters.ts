@@ -1,14 +1,18 @@
 import * as React from 'react';
 import { GraphQLClient } from 'graphql-request';
+import { HasuraCondition } from './hasura';
 
 // Multi-field specification
 export type FilterField =
     | string  // Single field: "name" or "user.email"
     | { and: string[] }  // AND multiple fields: { and: ["name", "title", "description"] }
-    | { or: string[] };  // OR multiple fields: { or: ["name", "title", "description"] }
+    | { or: string[] }  // OR multiple fields: { or: ["name", "title", "description"] }
+    ;
 
 // Transform result type - must return an object with optional field/value fields
-export type TransformResult = { field?: string; value?: unknown };
+export type TransformResult =
+    | { field?: FilterField; value?: unknown }
+    | { condition: HasuraCondition };
 
 // Transform functions for filter expressions
 export type FilterTransform = {

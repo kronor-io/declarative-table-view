@@ -278,6 +278,23 @@ describe('buildHasuraConditions', () => {
             user: { name: { _ilike: '%test%' } }
         });
     });
+
+    it('should accept a prebuilt HasuraCondition via transform.toQuery', () => {
+        const prebuilt = { user: { is_active: { _eq: true } } };
+        const filterSchema = createFilterSchema(
+            'prebuilt-condition',
+            filterExpr.equals('ignored', filterControl.text(), {
+                toQuery: () => ({ condition: prebuilt })
+            })
+        );
+
+        const formState: FilterState = new Map([
+            ['prebuilt-condition', { type: 'leaf', field: 'ignored', filterType: 'equals', value: 'ignored', control: { type: 'text' } }]
+        ]);
+
+        expect(buildHasuraConditions(formState, filterSchema)).toEqual(prebuilt);
+    });
+
 });
 
 describe("Multi-field Filter Support with buildHasuraConditions", () => {

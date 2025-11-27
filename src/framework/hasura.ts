@@ -27,7 +27,7 @@ export type HasuraCondition =
     | { _and: HasuraCondition[] }
     | { _or: HasuraCondition[] }
     | { _not: HasuraCondition }
-    | { [field: string]: HasuraOperator | HasuraOperator[] };
+    | { [field: string]: HasuraCondition | HasuraOperator | HasuraOperator[] };
 
 // Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
@@ -71,8 +71,15 @@ export function buildHasuraConditions(
 
                     if (schema.transform?.toQuery !== undefined) {
                         const transformResult = schema.transform.toQuery(state.value);
-                        if (transformResult.field !== undefined) transformedField = transformResult.field as FilterField;
-                        if (transformResult.value !== undefined) transformedValue = transformResult.value;
+                        if ('condition' in transformResult) {
+                            return transformResult.condition as HasuraCondition;
+                        }
+                        if ('field' in transformResult && transformResult.field !== undefined) {
+                            transformedField = transformResult.field;
+                        }
+                        if ('value' in transformResult && transformResult.value !== undefined) {
+                            transformedValue = transformResult.value;
+                        }
                     }
 
                     if (schema.value.type === 'customOperator') {
@@ -194,7 +201,6 @@ export function unorderedArrayEqual<T>(arrA: T[], arrB: T[], elemEqual: (x: T, y
 // Deep equality for HasuraCondition values (order-insensitive for logical arrays _and/_or and operator arrays)
 export function hasuraConditionsAreEqual(a: HasuraCondition, b: HasuraCondition): boolean {
     if (a === b) return true;
-    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
 
     const isAnd = (c: HasuraCondition): c is { _and: HasuraCondition[] } => '_and' in c && Array.isArray((c as any)._and);
     const isOr = (c: HasuraCondition): c is { _or: HasuraCondition[] } => '_or' in c && Array.isArray((c as any)._or);
@@ -224,7 +230,15 @@ export function hasuraConditionsAreEqual(a: HasuraCondition, b: HasuraCondition)
             if (!Array.isArray(av) || !Array.isArray(bv)) return false;
             if (!unorderedArrayEqual(av, bv, hasuraOperatorsAreEqual)) return false;
         } else {
-            if (!hasuraOperatorsAreEqual(av, bv)) return false;
+            const isOperatorObject = (val: any): boolean => {
+                return typeof val === 'object' && val !== null && Object.keys(val).every(k => k.startsWith('_'));
+            };
+            if (isOperatorObject(av) || isOperatorObject(bv)) {
+                if (!isOperatorObject(av) || !isOperatorObject(bv)) return false;
+                if (!hasuraOperatorsAreEqual(av as HasuraOperator, bv as HasuraOperator)) return false;
+            } else {
+                if (!hasuraConditionsAreEqual(av as HasuraCondition, bv as HasuraCondition)) return false;
+            }
         }
     }
     return true;
