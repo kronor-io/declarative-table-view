@@ -2,6 +2,7 @@ import { GraphQLClient } from "graphql-request";
 import { AutoComplete } from "primereact/autocomplete";
 import { useCallback, useState } from "react";
 import { SuggestionFetcher, SuggestionItem } from "../framework/filters";
+import './Autocomplete.css';
 
 type AutocompleteProps = {
     value: any;
@@ -36,7 +37,6 @@ export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, sugg
     return (
         <div className="tw:flex tw:flex-col tw:gap-1">
             <AutoComplete
-                className='max-w-max' // To make sure the absolutely positioned loading indicator is correctly aligned
                 value={value}
                 onChange={e => onChange(e.value)}
                 forceSelection={true}
