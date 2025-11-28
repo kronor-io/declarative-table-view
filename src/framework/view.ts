@@ -3,7 +3,7 @@ import { ColumnDefinition } from "./column-definition";
 import { FilterSchemasAndGroups } from "./filters";
 import { FilterState } from "./state";
 import { FilterFormState } from "./filter-form-state";
-import { HasuraCondition } from "./graphql";
+import { HasuraCondition, HasuraOrderBy } from "./graphql";
 
 export type NoRowsComponentProps = {
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
@@ -28,6 +28,10 @@ export type View = {
     noRowsComponent?: NoRowsComponent;
     // Optional static GraphQL conditions (Hasura boolean expressions) always applied in addition to user filters
     staticConditions?: HasuraCondition[];
+    // Optional static ordering entries always applied in addition to pagination ordering.
+    // Each entry is a HasuraOrderBy object e.g. { createdAt: 'DESC' }
+    // Pagination will still enforce a descending ordering on paginationKey if not provided here.
+    staticOrdering?: HasuraOrderBy[];
 };
 
 

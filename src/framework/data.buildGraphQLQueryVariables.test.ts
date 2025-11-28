@@ -30,6 +30,16 @@ describe('buildGraphQLQueryVariables', () => {
         expect(vars.orderBy).toEqual([{ id: 'DESC' }]);
     });
 
+    it('builds variables with staticOrdering (without pagination ordering included)', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, null);
+        expect(vars.orderBy).toEqual([{ id: 'DESC' }, { status: 'ASC' }]);
+    });
+
     it('builds variables with a user filter (no staticConditions, no cursor)', () => {
         const userFilter: FilterSchema = {
             id: 'f1',

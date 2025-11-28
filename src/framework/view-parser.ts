@@ -752,6 +752,19 @@ export function parseViewJson(
         staticConditions = view.staticConditions as any;
     }
 
+    // Optional staticOrdering: validate it's an array of objects (shallow validation like staticConditions)
+    let staticOrdering;
+    if (view.staticOrdering !== undefined) {
+        if (!Array.isArray(view.staticOrdering)) {
+            throw new Error('View "staticOrdering" must be an array when provided');
+        }
+        const invalidIndex = view.staticOrdering.findIndex(o => typeof o !== 'object' || o === null || Array.isArray(o));
+        if (invalidIndex !== -1) {
+            throw new Error(`View "staticOrdering" entry[${invalidIndex}] must be a non-null object`);
+        }
+        staticOrdering = view.staticOrdering as any;
+    }
+
     return {
         title: view.title,
         id: view.id,
@@ -762,6 +775,7 @@ export function parseViewJson(
         orderByType: view.orderByType as string,
         paginationKey: view.paginationKey,
         noRowsComponent,
-        staticConditions
+        staticConditions,
+        staticOrdering
     };
 }

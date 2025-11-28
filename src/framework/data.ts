@@ -1,5 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
-import { buildHasuraConditions } from '../framework/graphql';
+import { buildHasuraConditions, HasuraOrderBy } from '../framework/graphql';
 import { View } from '../framework/view';
 import { ColumnDefinition } from '../framework/column-definition';
 import { FilterState } from './state';
@@ -40,11 +40,16 @@ export const buildGraphQLQueryVariables = (
         ? { [view.paginationKey]: { _lt: cursor } }
         : {}; // Empty object becomes a no-op inside an _and
 
+    const paginationOrdering: HasuraOrderBy = { [view.paginationKey]: 'DESC' };
+    const orderBy: HasuraOrderBy[] = (view.staticOrdering && view.staticOrdering.length > 0)
+        ? [paginationOrdering, ...view.staticOrdering]
+        : [paginationOrdering];
+
     return {
         conditions,
         paginationCondition,
         rowLimit,
-        orderBy: [{ [view.paginationKey]: 'DESC' }]
+        orderBy
     };
 };
 

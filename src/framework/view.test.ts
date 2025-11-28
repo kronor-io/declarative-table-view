@@ -1387,6 +1387,9 @@ describe('parseViewJson', () => {
                 staticConditions: [
                     { status: { _eq: 'ACTIVE' } }
                 ],
+                staticOrdering: [
+                    { status: 'ASC' }
+                ],
                 columns: [
                     {
                         type: 'tableColumn',
@@ -1426,6 +1429,7 @@ describe('parseViewJson', () => {
             expect(result.filterSchema.filters).toHaveLength(1);
             expect(result.noRowsComponent).toBeUndefined();
             expect(result.staticConditions).toEqual([{ status: { _eq: 'ACTIVE' } }]);
+            expect(result.staticOrdering).toEqual([{ status: 'ASC' }]);
         });
 
         it('should parse ViewJson with noRowsComponent', () => {
@@ -1813,6 +1817,38 @@ describe('parseViewJson', () => {
             };
             expect(() => parseViewJson(invalidStaticEntry, viewTestRuntime))
                 .toThrow('View "staticConditions" entry[0] must be a non-null object');
+        });
+
+        it('should throw error for invalid staticOrdering (not array)', () => {
+            const invalidStaticOrdering = {
+                title: 'Test',
+                id: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                staticOrdering: 'not-an-array'
+            };
+            expect(() => parseViewJson(invalidStaticOrdering, viewTestRuntime))
+                .toThrow('View "staticOrdering" must be an array when provided');
+        });
+
+        it('should throw error for invalid staticOrdering entry', () => {
+            const invalidStaticOrderingEntry = {
+                title: 'Test',
+                id: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                staticOrdering: [null]
+            };
+            expect(() => parseViewJson(invalidStaticOrderingEntry, viewTestRuntime))
+                .toThrow('View "staticOrdering" entry[0] must be a non-null object');
         });
     });
 });
