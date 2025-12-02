@@ -4,7 +4,7 @@ This project is a React + TypeScript monorepo for building schema-driven, declar
 
 ## Library Consumption
 
-You can consume the `App` component as a library bundle with embedded styles (Tailwind + PrimeReact + PrimeIcons + PrimeFlex) without importing separate CSS files.
+You can consume the `App` component as a library bundle with embedded styles (Tailwind + PrimeReact + PrimeIcons) without importing separate CSS files.
 
 ### Build the library
 
