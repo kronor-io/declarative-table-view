@@ -397,6 +397,7 @@ function App({
         const newData = await fetchDataWrapper(null, value);
         setDataRows(newData, { page: 0, cursors: [], rowsPerPage: value });
     };
+    const progectName = 'finance';
 
     return (
         <div className='tw:p-2'>
@@ -552,46 +553,51 @@ function App({
                     />
                 )
             }
-            <MUIDataGrid
-                columns={selectedView.columnDefinitions}
-                data={state.data.flattenedRows}
-                rowsPerPageOptions={rowsPerPageOptions}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                onPageChange={handleNextPage}
-                onPrevPage={handlePrevPage}
-                hasNextPage={hasNextPage}
-                hasPrevPage={hasPrevPage}
-                currentPage={state.pagination.page}
-                rowsPerPage={rowsPerPage}
-                actualRows={state.data.rows.length}
-            />
-            <Table
-                viewId={selectedView.id}
-                ref={tableRef}
-                columns={selectedView.columnDefinitions}
-                data={state.data.flattenedRows}
-                noRowsComponent={selectedView.noRowsComponent}
-                setFilterState={setFilterState}
-                filterState={state.filterState}
-                triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
-                rowSelection={rowSelection}
-                rowClassFunction={rowClassFunction}
-            />
-            {
-                state.data.rows.length > 0 && (
-                    <TablePagination
-                        onPageChange={handleNextPage}
-                        onPrevPage={handlePrevPage}
-                        hasNextPage={hasNextPage}
-                        hasPrevPage={hasPrevPage}
-                        currentPage={state.pagination.page}
-                        rowsPerPage={rowsPerPage}
-                        actualRows={state.data.rows.length}
-                        onRowsPerPageChange={handleRowsPerPageChange}
-                        rowsPerPageOptions={rowsPerPageOptions}
+            {progectName === 'finance' ? (
+                <MUIDataGrid
+                    columns={selectedView.columnDefinitions}
+                    data={state.data.flattenedRows}
+                    rowsPerPageOptions={rowsPerPageOptions}
+                    onRowsPerPageChange={handleRowsPerPageChange}
+                    onPageChange={handleNextPage}
+                    onPrevPage={handlePrevPage}
+                    hasNextPage={hasNextPage}
+                    hasPrevPage={hasPrevPage}
+                    currentPage={state.pagination.page}
+                    rowsPerPage={rowsPerPage}
+                    actualRows={state.data.rows.length}
+                />
+            ) : (
+                <>
+                    <Table
+                        viewId={selectedView.id}
+                        ref={tableRef}
+                        columns={selectedView.columnDefinitions}
+                        data={state.data.flattenedRows}
+                        noRowsComponent={selectedView.noRowsComponent}
+                        setFilterState={setFilterState}
+                        filterState={state.filterState}
+                        triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                        rowSelection={rowSelection}
+                        rowClassFunction={rowClassFunction}
                     />
-                )
-            }
+                    {
+                        state.data.rows.length > 0 && (
+                            <TablePagination
+                                onPageChange={handleNextPage}
+                                onPrevPage={handlePrevPage}
+                                hasNextPage={hasNextPage}
+                                hasPrevPage={hasPrevPage}
+                                currentPage={state.pagination.page}
+                                rowsPerPage={rowsPerPage}
+                                actualRows={state.data.rows.length}
+                                onRowsPerPageChange={handleRowsPerPageChange}
+                                rowsPerPageOptions={rowsPerPageOptions}
+                            />
+                        )
+                    }
+                </>
+            )}
             {showPopout && !isOverlay && createPortal(
                 <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto">
                     <App
