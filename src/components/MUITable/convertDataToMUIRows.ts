@@ -8,13 +8,11 @@ export default function convertDataToMUIRows(data: Record<string, unknown>[][], 
     return data.map((rowArray, rowIndex) => {
         const rowObject: Record<string, unknown> = {
             id: rowIndex + 1,
+            originalData: rowArray
         };
 
         tableColumns.forEach((_, colIndex) => {
-            const cellData = rowArray[colIndex];
-            rowObject[`col_${colIndex}`] = cellData ?
-                (typeof cellData === 'object' ? JSON.stringify(cellData) : cellData) :
-                null;
+            rowObject[`col_${colIndex}`] = rowArray[colIndex] ?? null;
         });
 
         return rowObject;
