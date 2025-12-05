@@ -6,6 +6,7 @@ import FormControl from '@mui/material/FormControl';
 import Typography from '@mui/material/Typography';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import Grid from '@mui/material/Grid';
 
 interface CustomPaginationProps {
     currentPage: number;
@@ -47,65 +48,56 @@ export default function CustomPagination({
         transition: 'background-color 0.2s ease',
         '&.Mui-disabled': {
             backgroundColor: '#b3c8d4',
-
             color: 'white',
             opacity: 1
         }
     });
+    const boxSx = { display: 'flex', justifyContent: 'left', alignItems: 'center', gap: 1 };
 
     return (
-        <Box
-            sx={{
-                width: '100%',
-                height: '52px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-        >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                    Rows per page:
-                </Typography>
-                <FormControl size="small" variant="outlined">
-                    <Select
-                        value={rowsPerPage}
-                        onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+        <Grid container sx={{ m: 1 }}>
+            <Grid size={{ sm: 4 }}>
+                <Box sx={boxSx}>
+                    <Typography variant="body2" color="text.secondary">
+                        Rows per page:
+                    </Typography>
+                    <FormControl size="small" variant="outlined">
+                        <Select
+                            value={rowsPerPage}
+                            onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
+                        >
+                            {rowsPerPageOptions.map((option) => (
+                                <MenuItem key={option} value={option}>
+                                    {option}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+            </Grid>
+            <Grid size={{ sm: 4 }}>
+                <Box sx={{ ...boxSx, justifyContent: 'center' }}>
+                    <IconButton
+                        onClick={onPrevPage}
+                        disabled={!hasPrevPage}
+                        sx={iconButtonStyles(hasPrevPage)}
                     >
-                        {rowsPerPageOptions.map((option) => (
-                            <MenuItem key={option} value={option}>
-                                {option}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
+                        <KeyboardArrowLeftIcon />
+                    </IconButton>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 5 }}>
-                <IconButton
-                    onClick={onPrevPage}
-                    disabled={!hasPrevPage}
-                    sx={{
-                        ...iconButtonStyles(hasPrevPage),
-                        mr: 1
-                    }}
-                >
-                    <KeyboardArrowLeftIcon />
-                </IconButton>
+                    <Typography>{rowRange}</Typography>
 
-                <Typography>{rowRange}</Typography>
+                    <IconButton
+                        onClick={onPageChange}
+                        disabled={!hasNextPage}
+                        sx={iconButtonStyles(hasNextPage)}
+                    >
+                        <KeyboardArrowRightIcon />
+                    </IconButton>
+                </Box>
+            </Grid>
 
-                <IconButton
-                    onClick={onPageChange}
-                    disabled={!hasNextPage}
-                    sx={{
-                        ...iconButtonStyles(hasNextPage),
-                        ml: 1
-                    }}
-                >
-                    <KeyboardArrowRightIcon />
-                </IconButton>
-            </Box>
-        </Box>
+            <Grid size={{ sm: 4 }} />
+        </Grid>
     );
 }
