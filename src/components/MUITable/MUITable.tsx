@@ -42,7 +42,7 @@ export default function MUIDataGrid({
     };
 
     return (
-        <Box sx={{ height: 400, width: '100%' }} ref={ref}>
+        <Box sx={{ height: 600, width: '100%' }} ref={ref}>
             <DataGrid
                 rows={muiRows}
                 columns={muiColumns}
@@ -52,6 +52,12 @@ export default function MUIDataGrid({
                 disableColumnFilter
                 checkboxSelection
                 disableRowSelectionOnClick
+                sx={{
+                    '& .MuiTablePagination-root': {
+                        overflow: 'hidden',
+                        width: '100%',
+                    },
+                }}
             />
         </Box>
     );
