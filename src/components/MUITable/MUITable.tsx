@@ -3,12 +3,18 @@ import { DataGrid } from '@mui/x-data-grid';
 import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
 import CustomPagination from './CustomPagination.tsx';
+import {RowSelectionAPI} from "../Table.tsx";
 
 type TableProps = {
     columns: ColumnDefinition[];
     data: Record<string, unknown>[][];
     rowsPerPageOptions: number[];
     onRowsPerPageChange?: (value: number) => void;
+    rowSelection?: {
+        rowSelectionType: 'none' | 'multiple';
+        onRowSelectionChange?: (rows: any[]) => void;
+        apiRef?: React.RefObject<RowSelectionAPI | null>;
+    };
     onPageChange: () => void;
     onPrevPage: () => void;
     hasNextPage: boolean;
@@ -29,7 +35,8 @@ export default function MUIDataGrid({
     hasPrevPage,
     currentPage = 0,
     rowsPerPage: externalRowsPerPage,
-    actualRows: externalActualRows
+    actualRows: externalActualRows,
+    rowSelection
 }: TableProps) {
     const [pageSize, setPageSize] = React.useState(externalRowsPerPage || rowsPerPageOptions[0]);
 
@@ -60,7 +67,7 @@ export default function MUIDataGrid({
                 hideFooter
                 disableColumnFilter
                 disableColumnSorting
-                checkboxSelection
+                checkboxSelection={!!rowSelection}
                 disableRowSelectionOnClick
                 getRowClassName={(params) =>
                     params.indexRelativeToCurrentPage % 2 === 1 ? 'even-row' : ''
@@ -70,6 +77,9 @@ export default function MUIDataGrid({
                         backgroundColor: '#f5f5fa',
                     },
                     '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
+                        outline: 'none',
+                    },
+                    '& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within': {
                         outline: 'none',
                     },
                     '& .MuiDataGrid-row.Mui-selected': {

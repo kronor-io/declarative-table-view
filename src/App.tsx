@@ -559,6 +559,7 @@ function App({
                     data={state.data.flattenedRows}
                     rowsPerPageOptions={rowsPerPageOptions}
                     onRowsPerPageChange={handleRowsPerPageChange}
+                    rowSelection={rowSelection}
                     onPageChange={handleNextPage}
                     onPrevPage={handlePrevPage}
                     hasNextPage={hasNextPage}
