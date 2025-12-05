@@ -18,14 +18,12 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
         .map((column, index) => ({
             field: `${index}`,
             headerName: column.name,
-            width: 150,
+            width: column.width ?? 100,
             flex: 1,
 
             renderCell: (params) => {
                 const rowArray = params.row;
                 const cellValue = rowArray[index];
-
-                console.log(column, 'lolo');
 
                 if (typeof column.cellRenderer === 'function') {
                     const props = {

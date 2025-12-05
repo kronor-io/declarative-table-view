@@ -3,7 +3,7 @@ import { DataGrid } from '@mui/x-data-grid';
 import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
 import CustomPagination from './CustomPagination.tsx';
-import {RowSelectionAPI} from "../Table.tsx";
+import { RowSelectionAPI } from '../Table.tsx';
 
 type TableProps = {
     columns: ColumnDefinition[];
