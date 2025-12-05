@@ -74,6 +74,14 @@ export default function MUIDataGrid({
                 disableColumnFilter
                 checkboxSelection
                 disableRowSelectionOnClick
+                getRowClassName={(params) =>
+                    params.indexRelativeToCurrentPage % 2 === 1 ? 'even-row' : ''
+                }
+                sx={{
+                    '& .even-row': {
+                        backgroundColor: '#f5f5f5'
+                    }
+                }}
             />
 
             <CustomPagination
