@@ -28,6 +28,7 @@ import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboa
 import { DataTable } from 'primereact/datatable';
 import { ActionDefinition } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
+import DataGridDemo from './MUITable.tsx';
 
 export interface AppProps {
     graphqlHost: string;
@@ -551,6 +552,7 @@ function App({
                     />
                 )
             }
+            <DataGridDemo />
             <Table
                 viewId={selectedView.id}
                 ref={tableRef}
