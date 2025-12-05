@@ -10,7 +10,7 @@ import {
 import { Mapping } from '../../framework/cell-renderer-components/Mapping.tsx';
 import CurrencyAmount from '../../framework/cell-renderer-components/CurrencyAmount.tsx';
 import Link from '../../framework/cell-renderer-components/Link.tsx';
-import { Tag } from 'primereact/tag';
+import Chip from '@mui/material/Chip';
 
 export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridColDef[] {
     return columns
@@ -20,12 +20,12 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
             headerName: column.name,
             width: 150,
             flex: 1,
-            sortable: true,
-            filterable: false,
 
             renderCell: (params) => {
                 const rowArray = params.row;
                 const cellValue = rowArray[index];
+
+                console.log(column, 'lolo');
 
                 if (typeof column.cellRenderer === 'function') {
                     const props = {
@@ -35,7 +35,7 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
                         updateFilterById: () => {},
                         createElement,
                         components: {
-                            Badge: Tag,
+                            Badge: Chip as any,
                             FlexRow,
                             FlexColumn,
                             Mapping,

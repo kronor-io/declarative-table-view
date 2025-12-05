@@ -85,6 +85,14 @@ export default function MUIDataGrid({
                     '& .MuiDataGrid-row.Mui-selected': {
                         backgroundColor: '#ebebfa',
                     },
+                    '& .MuiDataGrid-cell': {
+                        display: 'flex',
+                        alignItems: 'center',
+                    },
+                    '& .MuiDataGrid-cell > div > div > button, & .MuiDataGrid-cell > div > div > span': {
+                        mt: -2.5,
+                        mb: -2.5,
+                    }
                 }}
             />
 
