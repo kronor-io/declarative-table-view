@@ -553,7 +553,6 @@ function App({
                 )
             }
             <MUIDataGrid
-                ref={tableRef}
                 columns={selectedView.columnDefinitions}
                 data={state.data.flattenedRows}
                 rowsPerPageOptions={rowsPerPageOptions}

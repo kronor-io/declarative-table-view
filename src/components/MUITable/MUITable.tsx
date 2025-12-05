@@ -1,15 +1,12 @@
 import React, { useMemo } from 'react';
-import Box from '@mui/material/Box';
 import { DataGrid } from '@mui/x-data-grid';
 import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
-import convertDataToMUIRows from './convertDataToMUIRows.ts';
 import CustomPagination from './CustomPagination.tsx';
 
 type TableProps = {
     columns: ColumnDefinition[];
     data: Record<string, unknown>[][];
-    ref?: React.Ref<any>;
     rowsPerPageOptions: number[];
     onRowsPerPageChange?: (value: number) => void;
     onPageChange: () => void;
@@ -24,7 +21,6 @@ type TableProps = {
 export default function MUIDataGrid({
     columns,
     data,
-    ref,
     rowsPerPageOptions,
     onRowsPerPageChange,
     onPageChange,
@@ -47,10 +43,6 @@ export default function MUIDataGrid({
         return convertColumnsToMUI(columns);
     }, [columns]);
 
-    const muiRows = useMemo(() => {
-        return convertDataToMUIRows(data, columns);
-    }, [data, columns]);
-
     const actualRows = externalActualRows || data.length;
     const handleRowsPerPageChange = (newSize: number) => {
         setPageSize(newSize);
@@ -60,18 +52,14 @@ export default function MUIDataGrid({
     };
 
     return (
-        <Box sx={{
-            height: 600,
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative'
-        }} ref={ref}>
+        <>
             <DataGrid
-                rows={muiRows}
+                rows={data}
                 columns={muiColumns}
+                getRowId={row => row.transactionId ?? Math.random().toString(36).slice(2, 9)}
                 hideFooter
                 disableColumnFilter
+                disableColumnSorting
                 checkboxSelection
                 disableRowSelectionOnClick
                 getRowClassName={(params) =>
@@ -79,7 +67,13 @@ export default function MUIDataGrid({
                 }
                 sx={{
                     '& .even-row': {
-                        backgroundColor: '#f5f5f5'
+                        backgroundColor: '#f5f5fa',
+                    },
+                    '& .MuiDataGrid-cell:focus': {
+                        outline: 'none',
+                    },
+                    '& .MuiDataGrid-cell:focus-within': {
+                        backgroundColor: 'inherit',
                     }
                 }}
             />
@@ -95,6 +89,6 @@ export default function MUIDataGrid({
                 onPrevPage={onPrevPage}
                 onRowsPerPageChange={handleRowsPerPageChange}
             />
-        </Box>
+        </>
     );
 }
