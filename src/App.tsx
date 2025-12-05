@@ -553,18 +553,18 @@ function App({
                 )
             }
             <MUIDataGrid
-                // viewId={selectedView.id}
                 ref={tableRef}
                 columns={selectedView.columnDefinitions}
                 data={state.data.flattenedRows}
-                // noRowsComponent={selectedView.noRowsComponent}
-                // setFilterState={setFilterState}
-                // filterState={state.filterState}
-                // triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
-                // rowSelection={rowSelection}
-                // rowClassFunction={rowClassFunction}
                 rowsPerPageOptions={rowsPerPageOptions}
                 onRowsPerPageChange={handleRowsPerPageChange}
+                onPageChange={handleNextPage}
+                onPrevPage={handlePrevPage}
+                hasNextPage={hasNextPage}
+                hasPrevPage={hasPrevPage}
+                currentPage={state.pagination.page}
+                rowsPerPage={rowsPerPage}
+                actualRows={state.data.rows.length}
             />
             <Table
                 viewId={selectedView.id}

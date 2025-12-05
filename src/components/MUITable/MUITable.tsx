@@ -1,9 +1,10 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
-import { DataGrid, GridPaginationModel } from '@mui/x-data-grid';
+import { DataGrid } from '@mui/x-data-grid';
 import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
 import convertDataToMUIRows from './convertDataToMUIRows.ts';
+import CustomPagination from './CustomPagination.tsx';
 
 type TableProps = {
     columns: ColumnDefinition[];
@@ -11,6 +12,13 @@ type TableProps = {
     ref?: React.Ref<any>;
     rowsPerPageOptions: number[];
     onRowsPerPageChange?: (value: number) => void;
+    onPageChange: () => void;
+    onPrevPage: () => void;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+    currentPage?: number;
+    rowsPerPage?: number;
+    actualRows?: number;
 };
 
 export default function MUIDataGrid({
@@ -18,10 +26,22 @@ export default function MUIDataGrid({
     data,
     ref,
     rowsPerPageOptions,
-    onRowsPerPageChange
+    onRowsPerPageChange,
+    onPageChange,
+    onPrevPage,
+    hasNextPage,
+    hasPrevPage,
+    currentPage = 0,
+    rowsPerPage: externalRowsPerPage,
+    actualRows: externalActualRows
 }: TableProps) {
-    const [pageSize, setPageSize] = useState(rowsPerPageOptions[0]);
-    const previousPageSize = useRef(pageSize);
+    const [pageSize, setPageSize] = React.useState(externalRowsPerPage || rowsPerPageOptions[0]);
+
+    React.useEffect(() => {
+        if (externalRowsPerPage && externalRowsPerPage !== pageSize) {
+            setPageSize(externalRowsPerPage);
+        }
+    }, [externalRowsPerPage]);
 
     const muiColumns = useMemo(() => {
         return convertColumnsToMUI(columns);
@@ -31,33 +51,41 @@ export default function MUIDataGrid({
         return convertDataToMUIRows(data, columns);
     }, [data, columns]);
 
-    const handlePaginationModelChange = (newModel: GridPaginationModel) => {
-        if (newModel.pageSize !== previousPageSize.current) {
-            previousPageSize.current = newModel.pageSize;
-            setPageSize(newModel.pageSize);
-            if (onRowsPerPageChange) {
-                onRowsPerPageChange(newModel.pageSize);
-            }
+    const actualRows = externalActualRows || data.length;
+    const handleRowsPerPageChange = (newSize: number) => {
+        setPageSize(newSize);
+        if (onRowsPerPageChange) {
+            onRowsPerPageChange(newSize);
         }
     };
 
     return (
-        <Box sx={{ height: 600, width: '100%' }} ref={ref}>
+        <Box sx={{
+            height: 600,
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+        }} ref={ref}>
             <DataGrid
                 rows={muiRows}
                 columns={muiColumns}
-                paginationModel={{ page: 0, pageSize }}
-                onPaginationModelChange={handlePaginationModelChange}
-                pageSizeOptions={rowsPerPageOptions}
+                hideFooter
                 disableColumnFilter
                 checkboxSelection
                 disableRowSelectionOnClick
-                sx={{
-                    '& .MuiTablePagination-root': {
-                        overflow: 'hidden',
-                        width: '100%',
-                    },
-                }}
+            />
+
+            <CustomPagination
+                currentPage={currentPage}
+                rowsPerPage={pageSize}
+                rowsPerPageOptions={rowsPerPageOptions}
+                hasNextPage={hasNextPage}
+                hasPrevPage={hasPrevPage}
+                actualRows={actualRows}
+                onPageChange={onPageChange}
+                onPrevPage={onPrevPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
             />
         </Box>
     );
