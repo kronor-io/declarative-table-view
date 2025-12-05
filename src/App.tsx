@@ -28,7 +28,7 @@ import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboa
 import { DataTable } from 'primereact/datatable';
 import { ActionDefinition } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
-import DataGridDemo from './MUITable.tsx';
+import MUIDataGrid from './components/MUITable/MUITable.tsx';
 
 export interface AppProps {
     graphqlHost: string;
@@ -75,7 +75,7 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [20, 50, 100, 200]
+    rowsPerPageOptions = [3, 5, 100, 200]
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -552,7 +552,19 @@ function App({
                     />
                 )
             }
-            <DataGridDemo />
+            <MUIDataGrid
+                // viewId={selectedView.id}
+                ref={tableRef}
+                columns={selectedView.columnDefinitions}
+                data={state.data.flattenedRows}
+                // noRowsComponent={selectedView.noRowsComponent}
+                // setFilterState={setFilterState}
+                // filterState={state.filterState}
+                // triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                // rowSelection={rowSelection}
+                // rowClassFunction={rowClassFunction}
+                rowsPerPageOptions={rowsPerPageOptions}
+            />
             <Table
                 viewId={selectedView.id}
                 ref={tableRef}
