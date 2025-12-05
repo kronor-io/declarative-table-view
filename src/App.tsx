@@ -75,7 +75,7 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [3, 5, 100, 200]
+    rowsPerPageOptions = [20, 50, 100, 200]
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -564,6 +564,7 @@ function App({
                 // rowSelection={rowSelection}
                 // rowClassFunction={rowClassFunction}
                 rowsPerPageOptions={rowsPerPageOptions}
+                onRowsPerPageChange={handleRowsPerPageChange}
             />
             <Table
                 viewId={selectedView.id}
