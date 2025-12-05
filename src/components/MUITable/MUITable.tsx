@@ -69,12 +69,12 @@ export default function MUIDataGrid({
                     '& .even-row': {
                         backgroundColor: '#f5f5fa',
                     },
-                    '& .MuiDataGrid-cell:focus': {
+                    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
                         outline: 'none',
                     },
-                    '& .MuiDataGrid-cell:focus-within': {
-                        backgroundColor: 'inherit',
-                    }
+                    '& .MuiDataGrid-row.Mui-selected': {
+                        backgroundColor: '#ebebfa',
+                    },
                 }}
             />
 
