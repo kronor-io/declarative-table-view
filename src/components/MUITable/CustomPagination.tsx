@@ -32,14 +32,26 @@ export default function CustomPagination({
 }: CustomPaginationProps) {
     const calculateRowRange = () => {
         if (actualRows === 0) return '0-0';
-
         const startRow = currentPage * rowsPerPage + 1;
         const endRow = startRow + actualRows - 1;
-
         return `${startRow}-${endRow}`;
     };
 
     const rowRange = calculateRowRange();
+    const iconButtonStyles = (enabled: boolean) => ({
+        backgroundColor: enabled ? '#6c9dcc' : '#b3c8d4',
+        color: 'white',
+        '&:hover': {
+            backgroundColor: enabled ? '#8bb6e2' : '#b3c8d4'
+        },
+        transition: 'background-color 0.2s ease',
+        '&.Mui-disabled': {
+            backgroundColor: '#b3c8d4',
+
+            color: 'white',
+            opacity: 1
+        }
+    });
 
     return (
         <Box
@@ -48,7 +60,7 @@ export default function CustomPagination({
                 height: '52px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
             }}
         >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -68,32 +80,28 @@ export default function CustomPagination({
                     </Select>
                 </FormControl>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', ml: 5 }}>
                 <IconButton
                     onClick={onPrevPage}
                     disabled={!hasPrevPage}
                     sx={{
-                        opacity: hasPrevPage ? 1 : 0.5,
-                        cursor: hasPrevPage ? 'pointer' : 'default'
+                        ...iconButtonStyles(hasPrevPage),
+                        mr: 1
                     }}
-                    aria-label="previous page"
                 >
                     <KeyboardArrowLeftIcon />
                 </IconButton>
 
-                <Typography variant="body2" color="text.secondary">
-                    {rowRange}
-                </Typography>
+                <Typography>{rowRange}</Typography>
 
                 <IconButton
                     onClick={onPageChange}
                     disabled={!hasNextPage}
-                    size="small"
                     sx={{
-                        opacity: hasNextPage ? 1 : 0.5,
-                        cursor: hasNextPage ? 'pointer' : 'default'
+                        ...iconButtonStyles(hasNextPage),
+                        ml: 1
                     }}
-                    aria-label="next page"
                 >
                     <KeyboardArrowRightIcon />
                 </IconButton>
