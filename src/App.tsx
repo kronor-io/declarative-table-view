@@ -55,6 +55,7 @@ export interface AppProps {
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
+    projectName?: string;
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -75,7 +76,8 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [20, 50, 100, 200]
+    rowsPerPageOptions = [20, 50, 100, 200],
+    projectName
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -397,7 +399,6 @@ function App({
         const newData = await fetchDataWrapper(null, value);
         setDataRows(newData, { page: 0, cursors: [], rowsPerPage: value });
     };
-    const progectName = 'finance';
 
     return (
         <div className='tw:p-2'>
@@ -553,7 +554,7 @@ function App({
                     />
                 )
             }
-            {progectName === 'finance' ? (
+            {projectName === 'finance' ? (
                 <MUIDataGrid
                     columns={selectedView.columnDefinitions}
                     data={state.data.flattenedRows}
