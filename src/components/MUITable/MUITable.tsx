@@ -4,6 +4,7 @@ import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
 import CustomPagination from './CustomPagination.tsx';
 import { RowSelectionAPI } from '../Table.tsx';
+import { simplifyRow } from '../../framework/rows.ts';
 
 type TableProps = {
     columns: ColumnDefinition[];
@@ -22,6 +23,7 @@ type TableProps = {
     currentPage?: number;
     rowsPerPage?: number;
     actualRows?: number;
+    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
 
 export default function MUIDataGrid({
@@ -36,7 +38,8 @@ export default function MUIDataGrid({
     currentPage = 0,
     rowsPerPage: externalRowsPerPage,
     actualRows: externalActualRows,
-    rowSelection
+    rowSelection,
+    rowClassFunction,
 }: TableProps) {
     const [pageSize, setPageSize] = React.useState(externalRowsPerPage || rowsPerPageOptions[0]);
 
@@ -69,9 +72,24 @@ export default function MUIDataGrid({
                 disableColumnSorting
                 checkboxSelection={!!rowSelection}
                 disableRowSelectionOnClick
-                getRowClassName={(params) =>
-                    params.indexRelativeToCurrentPage % 2 === 1 ? 'even-row' : ''
-                }
+                getRowClassName={(params) => {
+                    const classes: string[] = [];
+
+                    if (params.indexRelativeToCurrentPage % 2 === 1) {
+                        classes.push('even-row');
+                    }
+
+                    if (rowClassFunction) {
+                        const simpleRow = simplifyRow(params.row);
+                        const rowClasses = rowClassFunction(simpleRow);
+
+                        Object.entries(rowClasses).forEach(([key, value]) => {
+                            if (value) classes.push(key);
+                        });
+                    }
+
+                    return classes.join(' ');
+                }}
                 sx={{
                     '& .even-row': {
                         backgroundColor: '#f5f5fa',

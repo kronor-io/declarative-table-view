@@ -568,6 +568,7 @@ function App({
                     currentPage={state.pagination.page}
                     rowsPerPage={rowsPerPage}
                     actualRows={state.data.rows.length}
+                    rowClassFunction={rowClassFunction}
                 />
             ) : (
                 <>
