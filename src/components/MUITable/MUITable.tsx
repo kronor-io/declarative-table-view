@@ -1,10 +1,10 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { DataGrid, GridRowSelectionModel } from '@mui/x-data-grid';
-import { ColumnDefinition } from '../../framework/column-definition.tsx';
-import convertColumnsToMUI from './convertColumnsToMUI.ts';
-import CustomPagination from './CustomPagination.tsx';
-import { RowSelectionAPI } from '../Table.tsx';
-import { simplifyRow } from '../../framework/rows.ts';
+import { ColumnDefinition } from '../../framework/column-definition';
+import convertColumnsToMUI from './convertColumnsToMUI';
+import CustomPagination from './CustomPagination';
+import { RowSelectionAPI } from '../Table';
+import { simplifyRow } from '../../framework/rows';
 
 type TableProps = {
     columns: ColumnDefinition[];
