@@ -1,15 +1,15 @@
-import { ColumnDefinition } from '../../framework/column-definition.tsx';
-import { GridColDef } from '@mui/x-data-grid';
 import { createElement } from 'react';
-import { minorToMajor, majorToMinor } from '../../framework/currency.ts';
+import { GridColDef } from '@mui/x-data-grid';
+import { minorToMajor, majorToMinor } from '../../framework/currency';
+import { ColumnDefinition } from '../../framework/column-definition';
 import {
     FlexRow,
     FlexColumn,
     DateTime
-} from '../../framework/cell-renderer-components/LayoutHelpers.tsx';
-import { Mapping } from '../../framework/cell-renderer-components/Mapping.tsx';
-import CurrencyAmount from '../../framework/cell-renderer-components/CurrencyAmount.tsx';
-import Link from '../../framework/cell-renderer-components/Link.tsx';
+} from '../../framework/cell-renderer-components/LayoutHelpers';
+import { Mapping } from '../../framework/cell-renderer-components/Mapping';
+import CurrencyAmount from '../../framework/cell-renderer-components/CurrencyAmount';
+import Link from '../../framework/cell-renderer-components/Link';
 import Chip from '@mui/material/Chip';
 
 export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridColDef[] {
