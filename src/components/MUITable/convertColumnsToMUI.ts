@@ -27,6 +27,7 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
                 const cellValue = rowArray[index];
 
                 if (typeof column.cellRenderer === 'function') {
+                    // TODO refactor this after moving MUI table to finance project
                     const props = {
                         data: cellValue,
                         setFilterState: () => {},

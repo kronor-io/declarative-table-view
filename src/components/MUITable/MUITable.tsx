@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import React, { useMemo, useEffect, useState } from 'react';
+import { DataGrid, GridRowSelectionModel } from '@mui/x-data-grid';
 import { ColumnDefinition } from '../../framework/column-definition.tsx';
 import convertColumnsToMUI from './convertColumnsToMUI.ts';
 import CustomPagination from './CustomPagination.tsx';
@@ -41,13 +41,23 @@ export default function MUIDataGrid({
     rowSelection,
     rowClassFunction,
 }: TableProps) {
-    const [pageSize, setPageSize] = React.useState(externalRowsPerPage || rowsPerPageOptions[0]);
+    const [pageSize, setPageSize] = useState(externalRowsPerPage || rowsPerPageOptions[0]);
+    const [rowSelectionModel, setRowSelectionModel] =
+        useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (externalRowsPerPage && externalRowsPerPage !== pageSize) {
             setPageSize(externalRowsPerPage);
         }
     }, [externalRowsPerPage]);
+
+    useEffect(() => {
+        const selectedIdsArray = Array.from(rowSelectionModel.ids);
+        console.log(selectedIdsArray, rowSelection, 'MUIDataGrid lolo');
+        if (rowSelection?.onRowSelectionChange) {
+            rowSelection?.onRowSelectionChange(selectedIdsArray)
+        }
+    }, [rowSelectionModel]);
 
     const muiColumns = useMemo(() => {
         return convertColumnsToMUI(columns);
@@ -66,12 +76,14 @@ export default function MUIDataGrid({
             <DataGrid
                 rows={data}
                 columns={muiColumns}
-                getRowId={row => row.transactionId ?? Math.random().toString(36).slice(2, 9)}
+                getRowId={row => row[0]?.transactionId ?? row[0]?.id  ?? Math.random().toString(36).slice(2, 9)}
                 hideFooter
                 disableColumnFilter
                 disableColumnSorting
                 checkboxSelection={!!rowSelection}
                 disableRowSelectionOnClick
+                onRowSelectionModelChange={(newRowSelectionModel) => setRowSelectionModel(newRowSelectionModel)}
+                rowSelectionModel={rowSelectionModel}
                 getRowClassName={(params) => {
                     const classes: string[] = [];
 

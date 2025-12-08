@@ -27,7 +27,7 @@ export interface RenderTableViewOptions {
     actions?: ActionDefinition[]; // Optional custom action buttons
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // custom page size options for pagination dropdown
-    projectName?: string;
+    projectName?: string;  // TODO refactor this after moving MUI table to finance project
 }
 
 
@@ -53,7 +53,7 @@ function renderTableView(target: HTMLElement | string, options: RenderTableViewO
                     actions={options.actions}
                     rowClassFunction={options.rowClassFunction}
                     rowsPerPageOptions={options.rowsPerPageOptions}
-                    projectName={options.projectName}
+                    projectName={options.projectName}  // TODO refactor this after moving MUI table to finance project
                 />
             </PrimeReactProvider>
         </StrictMode>

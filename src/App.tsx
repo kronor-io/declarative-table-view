@@ -55,7 +55,7 @@ export interface AppProps {
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
-    projectName?: string;
+    projectName?: string;  // TODO refactor this after moving MUI table to finance project
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -77,7 +77,7 @@ function App({
     actions = [],
     rowClassFunction,
     rowsPerPageOptions = [20, 50, 100, 200],
-    projectName
+    projectName // TODO refactor this after moving MUI table to finance project
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
