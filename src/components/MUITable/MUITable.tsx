@@ -49,6 +49,7 @@ export default function MUIDataGrid({
         if (externalRowsPerPage && externalRowsPerPage !== pageSize) {
             setPageSize(externalRowsPerPage);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [externalRowsPerPage]);
 
     useEffect(() => {
@@ -57,6 +58,7 @@ export default function MUIDataGrid({
         if (rowSelection?.onRowSelectionChange) {
             rowSelection?.onRowSelectionChange(selectedIdsArray)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rowSelectionModel]);
 
     const muiColumns = useMemo(() => {

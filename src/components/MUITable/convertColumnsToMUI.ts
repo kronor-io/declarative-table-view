@@ -55,6 +55,5 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
 
                 return cellValue;
             }
-        })
-    );
+        }));
 }
