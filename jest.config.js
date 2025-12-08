@@ -8,6 +8,7 @@ export default {
     testEnvironment: 'jsdom',
     testMatch: ['**/*.test.ts', '**/*.test.tsx'],
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
+    setupFiles: ['./jest.setup.cjs'],
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: 'tsconfig.jest.json', useESM: true }]
     },

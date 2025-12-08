@@ -28,6 +28,7 @@ import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboa
 import { DataTable } from 'primereact/datatable';
 import { ActionDefinition } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
+import MUIDataGrid from './components/MUITable/MUITable';
 
 export interface AppProps {
     graphqlHost: string;
@@ -54,6 +55,7 @@ export interface AppProps {
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
+    projectName?: string;  // TODO refactor this after moving MUI table to finance project
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -74,7 +76,8 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [20, 50, 100, 200]
+    rowsPerPageOptions = [20, 50, 100, 200],
+    projectName // TODO refactor this after moving MUI table to finance project
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -551,33 +554,53 @@ function App({
                     />
                 )
             }
-            <Table
-                viewId={selectedView.id}
-                ref={tableRef}
-                columns={selectedView.columnDefinitions}
-                data={state.data.flattenedRows}
-                noRowsComponent={selectedView.noRowsComponent}
-                setFilterState={setFilterState}
-                filterState={state.filterState}
-                triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
-                rowSelection={rowSelection}
-                rowClassFunction={rowClassFunction}
-            />
-            {
-                state.data.rows.length > 0 && (
-                    <TablePagination
-                        onPageChange={handleNextPage}
-                        onPrevPage={handlePrevPage}
-                        hasNextPage={hasNextPage}
-                        hasPrevPage={hasPrevPage}
-                        currentPage={state.pagination.page}
-                        rowsPerPage={rowsPerPage}
-                        actualRows={state.data.rows.length}
-                        onRowsPerPageChange={handleRowsPerPageChange}
-                        rowsPerPageOptions={rowsPerPageOptions}
+            {projectName === 'finance' ? (
+                <MUIDataGrid
+                    columns={selectedView.columnDefinitions}
+                    data={state.data.flattenedRows}
+                    rowsPerPageOptions={rowsPerPageOptions}
+                    onRowsPerPageChange={handleRowsPerPageChange}
+                    rowSelection={rowSelection}
+                    onPageChange={handleNextPage}
+                    onPrevPage={handlePrevPage}
+                    hasNextPage={hasNextPage}
+                    hasPrevPage={hasPrevPage}
+                    currentPage={state.pagination.page}
+                    rowsPerPage={rowsPerPage}
+                    actualRows={state.data.rows.length}
+                    rowClassFunction={rowClassFunction}
+                />
+            ) : (
+                <>
+                    <Table
+                        viewId={selectedView.id}
+                        ref={tableRef}
+                        columns={selectedView.columnDefinitions}
+                        data={state.data.flattenedRows}
+                        noRowsComponent={selectedView.noRowsComponent}
+                        setFilterState={setFilterState}
+                        filterState={state.filterState}
+                        triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                        rowSelection={rowSelection}
+                        rowClassFunction={rowClassFunction}
                     />
-                )
-            }
+                    {
+                        state.data.rows.length > 0 && (
+                            <TablePagination
+                                onPageChange={handleNextPage}
+                                onPrevPage={handlePrevPage}
+                                hasNextPage={hasNextPage}
+                                hasPrevPage={hasPrevPage}
+                                currentPage={state.pagination.page}
+                                rowsPerPage={rowsPerPage}
+                                actualRows={state.data.rows.length}
+                                onRowsPerPageChange={handleRowsPerPageChange}
+                                rowsPerPageOptions={rowsPerPageOptions}
+                            />
+                        )
+                    }
+                </>
+            )}
             {showPopout && !isOverlay && createPortal(
                 <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto">
                     <App
