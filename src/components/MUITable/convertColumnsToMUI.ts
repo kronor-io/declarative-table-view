@@ -18,7 +18,7 @@ export default function convertColumnsToMUI(columns: ColumnDefinition[]): GridCo
         .map((column, index) => ({
             field: `${index}`,
             headerName: column.name,
-            width: column.width ?? 250,
+            width: column.width ?? 150,
             align: column.align ?? 'left',
             headerAlign: column.headerAlign ?? 'left',
 

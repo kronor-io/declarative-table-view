@@ -88,11 +88,20 @@ export default function MUIDataGrid({
                     '& .MuiDataGrid-cell': {
                         display: 'flex',
                         alignItems: 'center',
+                        fontSize: 13,
                     },
                     '& .MuiDataGrid-cell > div > div > button, & .MuiDataGrid-cell > div > div > span': {
-                        mt: -2.5,
-                        mb: -2.5,
-                    }
+                        mt: -2,
+                        mb: -2,
+                    },
+                    '& .MuiCheckbox-root svg': {
+                        width: 24,
+                        height: 24,
+                    },
+                    '& .MuiDataGrid-columnHeaderTitle': {
+                        fontSize: 14,
+                        fontWeight: 400,
+                    },
                 }}
             />
 
