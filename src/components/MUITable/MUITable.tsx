@@ -100,7 +100,7 @@ export default function MUIDataGrid({
                     },
                     '& .MuiDataGrid-columnHeaderTitle': {
                         fontSize: 14,
-                        fontWeight: 400,
+                        fontWeight: 500,
                     },
                 }}
             />

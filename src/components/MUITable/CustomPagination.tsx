@@ -58,7 +58,7 @@ export default function CustomPagination({
         <Grid container sx={{ m: 1 }}>
             <Grid size={{ sm: 4 }}>
                 <Box sx={boxSx}>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 14 }}>
                         Rows per page:
                     </Typography>
                     <FormControl size="small" variant="outlined">
@@ -67,7 +67,7 @@ export default function CustomPagination({
                             onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
                         >
                             {rowsPerPageOptions.map((option) => (
-                                <MenuItem key={option} value={option}>
+                                <MenuItem key={option} value={option} sx={{ fontSize: 14 }}>
                                     {option}
                                 </MenuItem>
                             ))}
@@ -85,7 +85,7 @@ export default function CustomPagination({
                         <KeyboardArrowLeftIcon />
                     </IconButton>
 
-                    <Typography>{rowRange}</Typography>
+                    <Typography sx={{ fontSize: 14 }}>{rowRange}</Typography>
 
                     <IconButton
                         onClick={onPageChange}
