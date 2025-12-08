@@ -53,7 +53,7 @@ export default function MUIDataGrid({
 
     useEffect(() => {
         const selectedIdsArray = Array.from(rowSelectionModel.ids);
-        console.log(selectedIdsArray, rowSelection, 'MUIDataGrid lolo');
+
         if (rowSelection?.onRowSelectionChange) {
             rowSelection?.onRowSelectionChange(selectedIdsArray)
         }
