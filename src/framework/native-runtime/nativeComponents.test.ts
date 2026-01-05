@@ -30,35 +30,35 @@ describe('NativeRuntime', () => {
         const textRenderer = nativeRuntime.cellRenderers.text;
 
         it('returns empty string when columnDefinition has zero or multiple queries', () => {
-            const emptyCol: TableColumnDefinition = { type: 'tableColumn', name: 'Empty', data: [], cellRenderer: () => null };
+            const emptyCol: TableColumnDefinition = { type: 'tableColumn', id: 'empty', name: 'Empty', data: [], cellRenderer: () => null };
             expect(textRenderer({ data: { any: 'value' }, columnDefinition: emptyCol })).toBe('');
-            const multiCol: TableColumnDefinition = { type: 'tableColumn', name: 'Multi', data: [{ type: 'valueQuery', field: 'a' }, { type: 'valueQuery', field: 'b' }] as any, cellRenderer: () => null };
+            const multiCol: TableColumnDefinition = { type: 'tableColumn', id: 'multi', name: 'Multi', data: [{ type: 'valueQuery', field: 'a' }, { type: 'valueQuery', field: 'b' }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { a: 1, b: 2 }, columnDefinition: multiCol })).toBe('');
         });
 
         it('renders valueQuery scalar', () => {
-            const col: TableColumnDefinition = { type: 'tableColumn', name: 'Name', data: [{ type: 'valueQuery', field: 'name' }] as any, cellRenderer: () => null };
+            const col: TableColumnDefinition = { type: 'tableColumn', id: 'name', name: 'Name', data: [{ type: 'valueQuery', field: 'name' }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { name: 'John', age: 30 }, columnDefinition: col })).toBe('John');
             expect(textRenderer({ data: { age: 30 }, columnDefinition: col })).toBe('');
         });
 
         it('renders objectQuery single leaf value', () => {
-            const col: TableColumnDefinition = { type: 'tableColumn', name: 'User', data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }] as any, cellRenderer: () => null };
+            const col: TableColumnDefinition = { type: 'tableColumn', id: 'user', name: 'User', data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { user: { name: 'Alice', age: 30 } }, columnDefinition: col })).toBe('Alice');
         });
 
         it('returns empty string for branching objectQuery selectionSet', () => {
-            const col: TableColumnDefinition = { type: 'tableColumn', name: 'User', data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }, { type: 'valueQuery', field: 'email' }] }] as any, cellRenderer: () => null };
+            const col: TableColumnDefinition = { type: 'tableColumn', id: 'user-branch', name: 'User', data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }, { type: 'valueQuery', field: 'email' }] }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { user: { name: 'Alice', email: 'a@example.com' } }, columnDefinition: col })).toBe('');
         });
 
         it('returns empty string for arrayQuery selectionSet', () => {
-            const col: TableColumnDefinition = { type: 'tableColumn', name: 'Items', data: [{ type: 'arrayQuery', field: 'items', selectionSet: [{ type: 'valueQuery', field: 'label' }, { type: 'valueQuery', field: 'id' }] }] as any, cellRenderer: () => null };
+            const col: TableColumnDefinition = { type: 'tableColumn', id: 'items', name: 'Items', data: [{ type: 'arrayQuery', field: 'items', selectionSet: [{ type: 'valueQuery', field: 'label' }, { type: 'valueQuery', field: 'id' }] }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { items: [{ label: 'first', id: 1 }] }, columnDefinition: col })).toBe('');
         });
 
         it('returns empty string for unsupported query types (e.g. invalid)', () => {
-            const col: TableColumnDefinition = { type: 'tableColumn', name: 'Legacy', data: [{ type: 'invalid', field: 'name' }] as any, cellRenderer: () => null };
+            const col: TableColumnDefinition = { type: 'tableColumn', id: 'legacy', name: 'Legacy', data: [{ type: 'invalid', field: 'name' }] as any, cellRenderer: () => null };
             expect(textRenderer({ data: { name: 'John' }, columnDefinition: col })).toBe('');
         });
     });

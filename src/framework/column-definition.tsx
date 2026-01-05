@@ -84,6 +84,7 @@ export function fieldAlias(alias: string, fieldQuery: FieldQuery): FieldQuery {
 
 export type TableColumnDefinition = {
     type: 'tableColumn';
+    id: string;
     data: FieldQuery[];
     name: string; // column display name
     cellRenderer: CellRenderer;
@@ -92,6 +93,7 @@ export type TableColumnDefinition = {
 // data-only column included in the GraphQL selection set but not rendered.
 export type VirtualColumnDefinition = {
     type: 'virtualColumn';
+    id: string;
     data: FieldQuery[];
 };
 

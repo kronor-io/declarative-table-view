@@ -22,9 +22,10 @@ import type { HasuraCondition } from '../framework/graphql';
  * Creates a renderable table column definition.
  * Convenience wrapper that accepts raw string paths or FieldQuery objects.
  */
-export function column(name: string, data: FieldQuery[], cellRenderer: CellRenderer): TableColumnDefinition {
+export function column(id: string, name: string, data: FieldQuery[], cellRenderer: CellRenderer): TableColumnDefinition {
     return {
         type: 'tableColumn',
+        id,
         name,
         data,
         cellRenderer,
@@ -35,9 +36,10 @@ export function column(name: string, data: FieldQuery[], cellRenderer: CellRende
  * Creates a data-only virtual column definition. Convenience wrapper that
  * accepts raw string paths or FieldQuery objects.
  */
-export function virtualColumn(data: FieldQuery[]): VirtualColumnDefinition {
+export function virtualColumn(id: string, data: FieldQuery[]): VirtualColumnDefinition {
     return {
         type: 'virtualColumn',
+        id,
         data,
     };
 }

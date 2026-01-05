@@ -45,6 +45,7 @@ describe('External Runtime Integration', () => {
             columns: [
                 {
                     type: 'tableColumn',
+                    id: 'id',
                     data: [{ type: 'valueQuery', field: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'customCellRenderer' },
@@ -93,6 +94,7 @@ describe('External Runtime Integration', () => {
             columns: [
                 {
                     type: 'tableColumn',
+                    id: 'id',
                     data: [{ type: 'valueQuery', field: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'text' },
@@ -128,7 +130,7 @@ describe('External Runtime Integration', () => {
                     Link
                 },
                 currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n },
-                columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', name: 'ID', data: [], cellRenderer: () => null } as any)
+                columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', id: 'id', name: 'ID', data: [], cellRenderer: () => null } as any)
             };
             expect(cellRenderer(mockProps)).toBe('Built-in Text Cell');
         }).not.toThrow();
@@ -166,6 +168,7 @@ describe('External Runtime Integration', () => {
             columns: [
                 {
                     type: 'tableColumn',
+                    id: 'id',
                     data: [{ type: 'valueQuery', field: 'id' }],
                     name: 'ID',
                     cellRenderer: { section: 'cellRenderers', key: 'text' },
@@ -200,7 +203,7 @@ describe('External Runtime Integration', () => {
                     Link
                 },
                 currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n },
-                columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', name: 'ID', data: [], cellRenderer: () => null } as any)
+                columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', id: 'id', name: 'ID', data: [], cellRenderer: () => null } as any)
             };
             expect(cellRenderer(mockProps)).toBe('External Override');
         }).not.toThrow();

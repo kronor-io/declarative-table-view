@@ -8,6 +8,7 @@
     "columns": [
         {
             "type": "tableColumn",
+            "id": "test-field",
             "data": [
                 {
                     "type": "valueQuery",
@@ -22,6 +23,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "amount",
             "data": [
                 {
                     "type": "valueQuery",
@@ -36,6 +38,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "email",
             "data": [
                 {
                     "type": "valueQuery",
@@ -50,6 +53,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "phone",
             "data": [
                 {
                     "type": "valueQuery",

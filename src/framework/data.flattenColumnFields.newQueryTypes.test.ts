@@ -14,16 +14,16 @@ describe('flattenColumnFields mixed query types', () => {
 
         const queries: FieldQuery[] = [
             objectQuery('user', [
-                valueQuery('id') as any,
-                objectQuery('profile', [valueQuery('email') as any]) as any
-            ]) as any,
+                valueQuery('id'),
+                objectQuery('profile', [valueQuery('email')])
+            ]),
             arrayQuery('orders', [
-                valueQuery('total') as any,
-                objectQuery('product', [valueQuery('name') as any]) as any
-            ]) as any
+                valueQuery('total'),
+                objectQuery('product', [valueQuery('name')])
+            ])
         ];
 
-        const col: ColumnDefinition = { type: 'virtualColumn', data: queries };
+        const col: ColumnDefinition = { type: 'virtualColumn', id: 'mixed-queries', data: queries };
         const result = flattenColumnFields(row, col);
         // Should not be the same reference (per-column shaping)
         expect(result).not.toBe(row);

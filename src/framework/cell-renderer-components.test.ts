@@ -7,7 +7,7 @@ import { Mapping } from './cell-renderer-components/Mapping';
 import { Link } from './cell-renderer-components/Link';
 
 describe('Cell Renderer Components', () => {
-    const dummyColumn: TableColumnDefinition = { type: 'tableColumn', name: 'Test', data: [], cellRenderer: () => null };
+    const dummyColumn: TableColumnDefinition = { type: 'tableColumn', id: 'test', name: 'Test', data: [], cellRenderer: () => null };
     it('should provide Badge component to cell renderers', () => {
         // Create a test cell renderer that uses the Badge component
         const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {

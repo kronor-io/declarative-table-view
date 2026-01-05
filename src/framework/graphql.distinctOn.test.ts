@@ -4,7 +4,7 @@ import { generateSelectionSetFromColumns, generateGraphQLQuery } from './graphql
 
 describe('GraphQL distinct_on support', () => {
     it('carries distinct_on in selection set for arrayQuery', () => {
-        const col = column('Items', [
+        const col = column('items-col', 'Items', [
             arrayQuery('items', [
                 { type: 'valueQuery', field: 'label' } as any
             ], { distinctOn: ['user_id', 'created_at'], limit: 10 })
@@ -17,7 +17,7 @@ describe('GraphQL distinct_on support', () => {
     });
 
     it('renders distinct_on in nested field args', () => {
-        const col = column('Items', [
+        const col = column('items-col', 'Items', [
             arrayQuery('items', [
                 { type: 'valueQuery', field: 'label' } as any
             ], { distinctOn: ['user_id', 'created_at'], limit: 5 })

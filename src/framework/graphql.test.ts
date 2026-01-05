@@ -79,18 +79,21 @@ describe("generateGraphQLQueryAST", () => {
         const columns: ColumnDefinition[] = [
             {
                 type: 'tableColumn',
+                id: 'id',
                 name: "ID",
                 data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
+                id: 'name',
                 name: "Name",
                 data: [valueQuery("name")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
+                id: 'posts',
                 name: "Posts",
                 data: [
                     arrayQuery("posts", [valueQuery("title")], undefined)
@@ -121,11 +124,11 @@ describe("generateGraphQLQueryAST", () => {
 
     it("should handle nested fields with separate selection entries (no merge)", () => {
         const columns: ColumnDefinition[] = [
-            { type: 'tableColumn', name: "ID", data: [valueQuery("id")], cellRenderer: () => null },
-            { type: 'tableColumn', name: "Author Name", data: [objectQuery("author", [valueQuery("name")])], cellRenderer: () => null },
-            { type: 'tableColumn', name: "Author ID", data: [objectQuery("author", [valueQuery("id")])], cellRenderer: () => null },
-            { type: 'tableColumn', name: "First Comment", data: [objectQuery("comments", [objectQuery("0", [valueQuery("text")])])], cellRenderer: () => null },
-            { type: 'tableColumn', name: "First Commenter", data: [objectQuery("comments", [objectQuery("0", [objectQuery("user", [valueQuery("name")])])])], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'id', name: "ID", data: [valueQuery("id")], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'authorName', name: "Author Name", data: [objectQuery("author", [valueQuery("name")])], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'authorId', name: "Author ID", data: [objectQuery("author", [valueQuery("id")])], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'firstComment', name: "First Comment", data: [objectQuery("comments", [objectQuery("0", [valueQuery("text")])])], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'firstCommenter', name: "First Commenter", data: [objectQuery("comments", [objectQuery("0", [objectQuery("user", [valueQuery("name")])])])], cellRenderer: () => null },
         ];
 
         const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
@@ -144,12 +147,14 @@ describe("generateGraphQLQueryAST", () => {
         const columns: ColumnDefinition[] = [
             {
                 type: 'tableColumn',
+                id: 'id',
                 name: "ID",
                 data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
+                id: 'recentPosts',
                 name: "Recent Posts",
                 data: [
                     fieldAlias(
@@ -161,6 +166,7 @@ describe("generateGraphQLQueryAST", () => {
             },
             {
                 type: 'tableColumn',
+                id: 'userName',
                 name: "User Name",
                 data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))],
                 cellRenderer: () => null,
@@ -196,12 +202,14 @@ describe("generateGraphQLQueryAST", () => {
         const columns: ColumnDefinition[] = [
             {
                 type: 'tableColumn',
+                id: 'id',
                 name: "ID",
                 data: [valueQuery("id")],
                 cellRenderer: () => null,
             },
             {
                 type: 'tableColumn',
+                id: 'jsonField',
                 name: "JSON Field Value",
                 data: [
                     valueQuery("metadata", { path: "$.user.preferences.theme" })
@@ -210,6 +218,7 @@ describe("generateGraphQLQueryAST", () => {
             },
             {
                 type: 'tableColumn',
+                id: 'jsonArray',
                 name: "JSON Array Element",
                 data: [
                     fieldAlias(

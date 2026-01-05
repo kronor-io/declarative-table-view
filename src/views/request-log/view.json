@@ -8,6 +8,7 @@
     "columns": [
         {
             "type": "tableColumn",
+            "id": "merchantId",
             "data": [
                 {
                     "type": "valueQuery",
@@ -22,6 +23,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "createdAt",
             "data": [
                 {
                     "type": "valueQuery",
@@ -36,6 +38,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "idempotencyKey",
             "data": [
                 {
                     "type": "valueQuery",
@@ -50,6 +53,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "namespace",
             "data": [
                 {
                     "type": "valueQuery",
@@ -64,6 +68,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "requestParams",
             "data": [
                 {
                     "type": "valueQuery",
@@ -78,6 +83,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "responseBody",
             "data": [
                 {
                     "type": "valueQuery",

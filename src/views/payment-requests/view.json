@@ -12,6 +12,7 @@
     "columns": [
         {
             "type": "tableColumn",
+            "id": "transaction",
             "data": [
                 {
                     "type": "valueQuery",
@@ -30,6 +31,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "merchant",
             "data": [
                 {
                     "type": "valueQuery",
@@ -44,6 +46,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "placedAt",
             "data": [
                 {
                     "type": "valueQuery",
@@ -58,6 +61,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "reference",
             "data": [
                 {
                     "type": "valueQuery",
@@ -72,6 +76,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "provider",
             "data": [
                 {
                     "type": "valueQuery",
@@ -101,6 +106,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "initiatedBy",
             "data": [
                 {
                     "type": "objectQuery",
@@ -125,6 +131,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "status",
             "data": [
                 {
                     "type": "valueQuery",
@@ -139,6 +146,7 @@
         },
         {
             "type": "tableColumn",
+            "id": "amount",
             "data": [
                 {
                     "type": "valueQuery",

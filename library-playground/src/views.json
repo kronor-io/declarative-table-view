@@ -9,6 +9,7 @@
         "columns": [
             {
                 "type": "tableColumn",
+                "id": "testField",
                 "data": [
                     {
                         "type": "field",
@@ -23,6 +24,7 @@
             },
             {
                 "type": "tableColumn",
+                "id": "amount",
                 "data": [
                     {
                         "type": "field",
@@ -37,6 +39,7 @@
             },
             {
                 "type": "tableColumn",
+                "id": "email",
                 "data": [
                     {
                         "type": "field",

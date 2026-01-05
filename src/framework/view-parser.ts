@@ -98,6 +98,7 @@ export type FilterFieldSchemaJson = {
 // tableColumn (rendered) and virtualColumn (data-only)
 export type TableColumnDefinitionJson = {
     type: 'tableColumn';
+    id: string;
     data: FieldQueryJson[];
     name: string;
     cellRenderer: RuntimeReference;
@@ -105,6 +106,7 @@ export type TableColumnDefinitionJson = {
 
 export type VirtualColumnDefinitionJson = {
     type: 'virtualColumn';
+    id: string;
     data: FieldQueryJson[];
 };
 
@@ -275,6 +277,10 @@ export function parseColumnDefinitionJson(
 
     switch (obj.type) {
         case 'tableColumn': {
+            // Validate id first (new required field)
+            if (typeof obj.id !== 'string') {
+                throw new Error('Invalid JSON: "id" field must be a string for tableColumn');
+            }
             // Validate name & cellRenderer first (test expectations rely on order)
             if (typeof obj.name !== 'string') {
                 throw new Error('Invalid JSON: "name" field must be a string for tableColumn');
@@ -304,12 +310,16 @@ export function parseColumnDefinitionJson(
             });
             return {
                 type: 'tableColumn',
+                id: obj.id,
                 data: parsedData,
                 name: obj.name,
                 cellRenderer
             };
         }
         case 'virtualColumn': {
+            if (typeof obj.id !== 'string') {
+                throw new Error('Invalid JSON: "id" field must be a string for virtualColumn');
+            }
             if (!Array.isArray(obj.data)) {
                 throw new Error('Invalid JSON: "data" field must be an array of FieldQuery objects');
             }
@@ -322,6 +332,7 @@ export function parseColumnDefinitionJson(
             });
             return {
                 type: 'virtualColumn',
+                id: obj.id,
                 data: parsedData
             };
         }

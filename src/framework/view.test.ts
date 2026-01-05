@@ -20,6 +20,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse valid JSON with single objectQuery for nested field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'col',
                 data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -29,6 +30,7 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(result).toEqual({
                 type: 'tableColumn',
+                id: 'col',
                 data: [{ type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -38,6 +40,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse valid JSON with multiple valueQueries', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'col',
                 data: [
                     { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'firstName' }] },
                     { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'lastName' }] }
@@ -50,6 +53,7 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(result).toEqual({
                 type: 'tableColumn',
+                id: 'col',
                 data: [
                     { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'firstName' }] },
                     { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'lastName' }] }
@@ -69,6 +73,7 @@ describe('parseColumnDefinitionJson', () => {
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
                     type: 'tableColumn',
+                    id: 'col',
                     data: [{ type: 'valueQuery', field: 'field' }],
                     name: 'Test',
                     cellRenderer
@@ -93,6 +98,7 @@ describe('parseColumnDefinitionJson', () => {
             testCases.forEach(({ cellRenderer, expected }) => {
                 const json = {
                     type: 'tableColumn',
+                    id: 'col',
                     data: [{ type: 'valueQuery', field: 'field' }],
                     name: 'Test',
                     cellRenderer
@@ -110,6 +116,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with empty data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'empty',
                 data: [],
                 name: 'Empty',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -127,6 +134,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with arrayQuery data', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'posts',
                 data: [{
                     type: 'arrayQuery',
                     field: 'posts',
@@ -153,6 +161,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with arrayQuery including orderBy', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'recent-posts',
                 data: [{
                     type: 'arrayQuery',
                     field: 'posts',
@@ -177,6 +186,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle arrayQuery without orderBy and limit', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'posts',
                 data: [{
                     type: 'arrayQuery',
                     field: 'posts',
@@ -197,6 +207,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle arrayQuery with limit only', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'posts',
                 data: [{
                     type: 'arrayQuery',
                     field: 'posts',
@@ -219,6 +230,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with valueQuery including path property', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'json-path',
                 data: [{
                     type: 'valueQuery',
                     field: 'metadata',
@@ -239,6 +251,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with arrayQuery including path, limit, and orderBy', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'complex-json',
                 data: [{
                     type: 'arrayQuery',
                     field: 'activities',
@@ -265,6 +278,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with fieldAlias data (nested via objectQuery)', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'alias-user-name',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
@@ -285,6 +299,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should parse JSON with nested fieldAlias data', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'alias-user-posts',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userPosts',
@@ -349,6 +364,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for missing data field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'missing-data',
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -361,6 +377,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null data field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'null-data',
                 data: null,
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -374,6 +391,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for string data field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'string-data',
                 data: 'not an array',
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -387,6 +405,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for object data field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'object-data',
                 data: { field: 'value' },
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -402,6 +421,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for missing name field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'missing-name',
                 data: ['field'],
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
             };
@@ -414,6 +434,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for number name field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'number-name',
                 data: ['field'],
                 name: 123,
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -427,6 +448,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null name field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'null-name',
                 data: ['field'],
                 name: null,
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -440,6 +462,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for object name field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'object-name',
                 data: ['field'],
                 name: { value: 'Name' },
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -453,6 +476,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for array name field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'array-name',
                 data: ['field'],
                 name: ['Name'],
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -468,6 +492,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for missing cellRenderer field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'missing-cellRenderer',
                 data: ['field'],
                 name: 'Name'
             };
@@ -480,6 +505,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for number cellRenderer field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'invalid-cr-key-number',
                 data: ['field'],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 123 }
@@ -493,6 +519,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null cellRenderer field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'invalid-cr-key-null',
                 data: ['field'],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: null }
@@ -508,6 +535,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for number in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'data-number',
                 data: [{ type: 'valueQuery', field: 'valid' }, 123, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -521,6 +549,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'data-null',
                 data: [{ type: 'valueQuery', field: 'valid' }, null, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -534,6 +563,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for object in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'data-object',
                 data: [{ type: 'valueQuery', field: 'valid' }, { field: 'value' }, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -547,6 +577,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for array in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'data-array',
                 data: [{ type: 'valueQuery', field: 'valid' }, ['nested'], { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -560,6 +591,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for undefined in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'data-undefined',
                 data: [{ type: 'valueQuery', field: 'valid' }, undefined, { type: 'valueQuery', field: 'valid2' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -573,6 +605,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for invalid path type in valueQuery', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'invalid-path',
                 data: [{
                     type: 'valueQuery',
                     field: 'metadata',
@@ -590,6 +623,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for null path in valueQuery when provided', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'null-path',
                 data: [{
                     type: 'valueQuery',
                     field: 'metadata',
@@ -607,6 +641,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for fieldAlias missing alias property', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'fa-missing-alias',
                 data: [{
                     type: 'fieldAlias',
                     field: { type: 'objectQuery', field: 'user', selectionSet: [{ type: 'valueQuery', field: 'name' }] }
@@ -624,6 +659,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for fieldAlias missing field property', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'fa-missing-field',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName'
@@ -641,6 +677,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for fieldAlias with invalid nested field', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'fa-invalid-nested',
                 data: [{
                     type: 'fieldAlias',
                     alias: 'userName',
@@ -660,6 +697,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for invalid cellRenderer reference', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'invalid-cr',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'invalidKey' }
@@ -673,6 +711,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for empty string cellRenderer reference', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'empty-key',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: '' }
@@ -686,6 +725,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should throw error for case-sensitive mismatch', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'case-mismatch',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'NAME' } // Wrong case
@@ -701,6 +741,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle empty string in data array', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'empty-field',
                 data: [{ type: 'valueQuery', field: '' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -713,6 +754,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle empty string as name', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'empty-name',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: '',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -728,6 +770,7 @@ describe('parseColumnDefinitionJson', () => {
         it('should handle extra properties in JSON', () => {
             const json = {
                 type: 'tableColumn',
+                id: 'extra',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' },
@@ -737,6 +780,7 @@ describe('parseColumnDefinitionJson', () => {
             const result = parseColumnDefinitionJson(json, testRuntime, undefined);
             expect(result).toEqual({
                 type: 'tableColumn',
+                id: 'extra',
                 data: [{ type: 'valueQuery', field: 'field' }],
                 name: 'Name',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
@@ -1393,6 +1437,7 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
+                        id: 'id',
                         data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
@@ -1444,6 +1489,7 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
+                        id: 'id',
                         data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
@@ -1471,12 +1517,14 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
+                        id: 'id',
                         data: [{ type: 'valueQuery', field: 'id' }],
                         name: 'ID',
                         cellRenderer: { section: 'cellRenderers', key: 'text' }
                     },
                     {
                         type: 'tableColumn',
+                        id: 'amount',
                         data: [
                             { type: 'valueQuery', field: 'amount' },
                             {
@@ -1716,6 +1764,7 @@ describe('parseViewJson', () => {
                 columns: [
                     {
                         type: 'tableColumn',
+                        id: 'test',
                         data: [],
                         name: 'Test',
                         cellRenderer: { section: 'cellRenderers', key: 'nonexistent' }

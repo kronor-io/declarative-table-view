@@ -9,8 +9,8 @@ const condB = { priority: { _gt: 5 } } as any;
 describe('mergeSelectionSets where dedupe behavior', () => {
     it('keeps distinct where clauses as separate entries', () => {
         const columns: ColumnDefinition[] = [
-            { type: 'virtualColumn', data: [arrayQuery('tasks', [], { where: condA })] },
-            { type: 'virtualColumn', data: [arrayQuery('tasks', [], { where: condB })] }
+            { type: 'virtualColumn', id: 'tasks-a', data: [arrayQuery('tasks', [], { where: condA })] },
+            { type: 'virtualColumn', id: 'tasks-b', data: [arrayQuery('tasks', [], { where: condB })] }
         ];
         const selection = generateSelectionSetFromColumns(columns);
         const tasks = selection.filter(s => s.field === 'tasks');
@@ -23,8 +23,8 @@ describe('mergeSelectionSets where dedupe behavior', () => {
 
     it('deduplicates identical where clauses', () => {
         const columns: ColumnDefinition[] = [
-            { type: 'virtualColumn', data: [arrayQuery('tasks', [], { where: condA })] },
-            { type: 'virtualColumn', data: [arrayQuery('tasks', [], { where: condA })] }
+            { type: 'virtualColumn', id: 'tasks-a', data: [arrayQuery('tasks', [], { where: condA })] },
+            { type: 'virtualColumn', id: 'tasks-a-dup', data: [arrayQuery('tasks', [], { where: condA })] }
         ];
         const selection = generateSelectionSetFromColumns(columns);
         const tasks = selection.filter(s => s.field === 'tasks');
