@@ -86,6 +86,9 @@ export type TableColumnDefinition = {
     type: 'tableColumn';
     id: string;
     data: FieldQuery[];
+    width?: number;
+    align?: 'left' | 'right' | 'center';
+    headerAlign?: 'left' | 'right' | 'center';
     name: string; // column display name
     cellRenderer: CellRenderer;
 };

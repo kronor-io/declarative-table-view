@@ -1,0 +1,153 @@
+import React, { useMemo, useEffect, useState } from 'react';
+import { DataGrid, GridRowSelectionModel } from '@mui/x-data-grid';
+import { ColumnDefinition } from '../../framework/column-definition';
+import convertColumnsToMUI from './convertColumnsToMUI';
+import CustomPagination from './CustomPagination';
+import { RowSelectionAPI } from '../Table';
+import { simplifyRow } from '../../framework/rows';
+
+type TableProps = {
+    columns: ColumnDefinition[];
+    data: Record<string, unknown>[][];
+    rowsPerPageOptions: number[];
+    onRowsPerPageChange?: (value: number) => void;
+    rowSelection?: {
+        rowSelectionType: 'none' | 'multiple';
+        onRowSelectionChange?: (rows: any[]) => void;
+        apiRef?: React.RefObject<RowSelectionAPI | null>;
+    };
+    onPageChange: () => void;
+    onPrevPage: () => void;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+    currentPage?: number;
+    rowsPerPage?: number;
+    actualRows?: number;
+    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+};
+
+export default function MUIDataGrid({
+    columns,
+    data,
+    rowsPerPageOptions,
+    onRowsPerPageChange,
+    onPageChange,
+    onPrevPage,
+    hasNextPage,
+    hasPrevPage,
+    currentPage = 0,
+    rowsPerPage: externalRowsPerPage,
+    actualRows: externalActualRows,
+    rowSelection,
+    rowClassFunction,
+}: TableProps) {
+    const [pageSize, setPageSize] = useState(externalRowsPerPage || rowsPerPageOptions[0]);
+    const [rowSelectionModel, setRowSelectionModel] =
+        useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
+
+    useEffect(() => {
+        if (externalRowsPerPage && externalRowsPerPage !== pageSize) {
+            setPageSize(externalRowsPerPage);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [externalRowsPerPage]);
+
+    useEffect(() => {
+        const selectedIdsArray = Array.from(rowSelectionModel.ids);
+
+        if (rowSelection?.onRowSelectionChange) {
+            rowSelection?.onRowSelectionChange(selectedIdsArray)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rowSelectionModel]);
+
+    const muiColumns = useMemo(() => {
+        return convertColumnsToMUI(columns);
+    }, [columns]);
+
+    const actualRows = externalActualRows || data.length;
+    const handleRowsPerPageChange = (newSize: number) => {
+        setPageSize(newSize);
+        if (onRowsPerPageChange) {
+            onRowsPerPageChange(newSize);
+        }
+    };
+
+    return (
+        <>
+            <DataGrid
+                rows={data}
+                columns={muiColumns}
+                getRowId={row => row[0]?.transactionId ?? row[0]?.id  ?? Math.random().toString(36).slice(2, 9)}
+                hideFooter
+                disableColumnFilter
+                disableColumnSorting
+                checkboxSelection={!!rowSelection}
+                disableRowSelectionOnClick
+                onRowSelectionModelChange={(newRowSelectionModel) => setRowSelectionModel(newRowSelectionModel)}
+                rowSelectionModel={rowSelectionModel}
+                getRowClassName={(params) => {
+                    const classes: string[] = [];
+
+                    if (params.indexRelativeToCurrentPage % 2 === 1) {
+                        classes.push('even-row');
+                    }
+
+                    if (rowClassFunction) {
+                        const simpleRow = simplifyRow(params.row);
+                        const rowClasses = rowClassFunction(simpleRow);
+
+                        Object.entries(rowClasses).forEach(([key, value]) => {
+                            if (value) classes.push(key);
+                        });
+                    }
+
+                    return classes.join(' ');
+                }}
+                sx={{
+                    '& .even-row': {
+                        backgroundColor: '#f5f5fa',
+                    },
+                    '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
+                        outline: 'none',
+                    },
+                    '& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within': {
+                        outline: 'none',
+                    },
+                    '& .MuiDataGrid-row.Mui-selected': {
+                        backgroundColor: '#ebebfa',
+                    },
+                    '& .MuiDataGrid-cell': {
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: 13,
+                    },
+                    '& .MuiDataGrid-cell > div > div > button, & .MuiDataGrid-cell > div > div > span': {
+                        mt: -2,
+                        mb: -2,
+                    },
+                    '& .MuiCheckbox-root svg': {
+                        width: 24,
+                        height: 24,
+                    },
+                    '& .MuiDataGrid-columnHeaderTitle': {
+                        fontSize: 14,
+                        fontWeight: 500,
+                    },
+                }}
+            />
+
+            <CustomPagination
+                currentPage={currentPage}
+                rowsPerPage={pageSize}
+                rowsPerPageOptions={rowsPerPageOptions}
+                hasNextPage={hasNextPage}
+                hasPrevPage={hasPrevPage}
+                actualRows={actualRows}
+                onPageChange={onPageChange}
+                onPrevPage={onPrevPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
+            />
+        </>
+    );
+}
