@@ -20,6 +20,8 @@ export interface RawSavedFilter {
     formatRevision?: string; // Optional for backwards compatibility
 }
 
+export type SavedFilterJson = RawSavedFilter;
+
 /**
  * Parsed saved filter with properly typed state
  */
@@ -32,6 +34,8 @@ export interface SavedFilter {
     formatRevision: string;
 }
 
+export type SavedFilterId = SavedFilter['id'];
+
 /**
  * Interface for the saved filter manager
  */
@@ -42,7 +46,7 @@ export interface SavedFilterManager {
     deleteFilter(id: string): boolean;
 }
 
-const SAVED_FILTERS_KEY = 'dtvSavedFilters';
+export const SAVED_FILTERS_KEY = 'dtvSavedFilters';
 const LEGACY_SAVED_FILTERS_KEY = 'savedFilters';
 
 /**
@@ -65,6 +69,36 @@ function convertArrayToObject(state: unknown, schema: FilterSchemasAndGroups): R
     });
 
     return objectState;
+}
+
+export function fromSavedFilterJson(rawFilter: SavedFilterJson, schema: FilterSchemasAndGroups): SavedFilter {
+    const stateForParsing: unknown = rawFilter.formatRevision === OLD_ARRAY_FORMAT_REVISION
+        ? convertArrayToObject(rawFilter.state, schema)
+        : rawFilter.state;
+
+    const parsedState = parseFilterFormState(stateForParsing as Record<string, unknown>, schema);
+
+    return {
+        id: rawFilter.id,
+        name: rawFilter.name,
+        view: rawFilter.view,
+        state: parsedState,
+        createdAt: typeof rawFilter.createdAt === 'string'
+            ? new Date(rawFilter.createdAt)
+            : rawFilter.createdAt,
+        formatRevision: CURRENT_FORMAT_REVISION
+    };
+}
+
+export function toSavedFilterJson(savedFilter: SavedFilter): SavedFilterJson {
+    return {
+        id: savedFilter.id,
+        name: savedFilter.name,
+        view: savedFilter.view,
+        state: serializeFilterFormStateMap(savedFilter.state),
+        createdAt: savedFilter.createdAt.toISOString(),
+        formatRevision: CURRENT_FORMAT_REVISION
+    };
 }
 
 /**
@@ -110,7 +144,7 @@ export function createSavedFilterManager(): SavedFilterManager {
     /**
      * Load raw saved filters from localStorage with proper type safety
      */
-    function loadRawSavedFilters(): RawSavedFilter[] {
+    function loadRawSavedFilters(): SavedFilterJson[] {
         try {
             // First, handle legacy key migration
             migrateLegacyStorageKey();
@@ -145,7 +179,7 @@ export function createSavedFilterManager(): SavedFilterManager {
                     formatRevision: typeof rawItem.formatRevision === 'string'
                         ? rawItem.formatRevision
                         : OLD_ARRAY_FORMAT_REVISION // Default to old format for items without revision
-                } satisfies RawSavedFilter;
+                } satisfies SavedFilterJson;
             });
         } catch (error) {
             console.error('Failed to load saved filters from localStorage:', error);
@@ -184,21 +218,7 @@ export function createSavedFilterManager(): SavedFilterManager {
         const viewRawFilters = updatedAllRawFilters.filter(filter => filter.view === viewName);
 
         // Parse the view-specific filters into SavedFilter format
-        const parsedFilters = viewRawFilters.map((rawFilter): SavedFilter => {
-            // Parse the object state into a Map
-            const parsedState = parseFilterFormState(rawFilter.state as Record<string, unknown>, schema);
-
-            return {
-                id: rawFilter.id,
-                name: rawFilter.name,
-                view: rawFilter.view,
-                state: parsedState,
-                createdAt: typeof rawFilter.createdAt === 'string'
-                    ? new Date(rawFilter.createdAt)
-                    : rawFilter.createdAt,
-                formatRevision: CURRENT_FORMAT_REVISION
-            };
-        });
+        const parsedFilters = viewRawFilters.map((rawFilter): SavedFilter => fromSavedFilterJson(rawFilter, schema));
 
         // If we migrated anything, save all updated filters
         if (hasMigrations) {
@@ -225,11 +245,7 @@ export function createSavedFilterManager(): SavedFilterManager {
         };
 
         const existingFilters = loadRawSavedFilters();
-        const newRawFilter: RawSavedFilter = {
-            ...savedFilter,
-            createdAt: savedFilter.createdAt.toISOString(),
-            state: serializeFilterFormStateMap(savedFilter.state)
-        };
+        const newRawFilter = toSavedFilterJson(savedFilter);
 
         existingFilters.push(newRawFilter);
         localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(existingFilters));
@@ -241,7 +257,7 @@ export function createSavedFilterManager(): SavedFilterManager {
      */
     function updateFilter(filter: SavedFilter, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): SavedFilter | null {
         const allFilters = loadRawSavedFilters();
-        const filterIndex = allFilters.findIndex((existingFilter: RawSavedFilter) => existingFilter.id === filter.id);
+        const filterIndex = allFilters.findIndex((existingFilter: SavedFilterJson) => existingFilter.id === filter.id);
 
         if (filterIndex === -1) {
             return null;
@@ -252,9 +268,9 @@ export function createSavedFilterManager(): SavedFilterManager {
             ...updates
         };
 
-        const updatedRawFilter: RawSavedFilter = {
+        const updatedRawFilter: SavedFilterJson = {
             ...allFilters[filterIndex],
-            name: updatedFilter.name,
+            ...toSavedFilterJson(updatedFilter),
             state: updates.state ? serializeFilterFormStateMap(updates.state) : allFilters[filterIndex].state
         };
 
@@ -269,7 +285,7 @@ export function createSavedFilterManager(): SavedFilterManager {
     function deleteFilter(id: string): boolean {
         const allFilters = loadRawSavedFilters();
         const originalLength = allFilters.length;
-        const filteredFilters = allFilters.filter((filter: RawSavedFilter) => filter.id !== id);
+        const filteredFilters = allFilters.filter((filter: SavedFilterJson) => filter.id !== id);
 
         if (filteredFilters.length === originalLength) {
             return false; // Filter not found

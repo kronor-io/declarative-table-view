@@ -16,11 +16,12 @@ import AIAssistantForm from './components/AIAssistantForm';
 import SavedFilterList from './components/SavedFilterList';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
-import { FilterSchema, getFieldNodes, FilterField, FilterId } from './framework/filters';
+import { FilterSchema, FilterSchemasAndGroups, getFieldNodes, FilterField, FilterId } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
-import { View } from './framework/view';
+import { View, ViewId } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
-import { savedFilterManager, SavedFilter } from './framework/saved-filters';
+import { SavedFilter } from './framework/saved-filters';
+import { useUserDataManager } from './framework/useUserDataManager';
 import { parseFilterFormState } from './framework/filter-form-state';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
@@ -81,12 +82,9 @@ function App({
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
     }, [viewsJson, externalRuntime]) as View[];
 
-    const client = useMemo(() => new GraphQLClient(graphqlHost, {
-        headers: {
-            contentType: 'application/json',
-            Authorization: `Bearer ${graphqlToken}`
-        },
-    }), [graphqlHost, graphqlToken]);
+    const filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups> = useMemo(() => {
+        return Object.fromEntries(views.map((view) => [view.id, view.filterSchema] as const));
+    }, [views]);
 
     // Determine initial filter state (shared param precedence) BEFORE initializing app state
     const initialFilterStateFromUrl = useMemo(() => {
@@ -105,6 +103,15 @@ function App({
 
     const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl as any);
 
+    const userData = useUserDataManager(filterSchemasByViewId, selectedView.id);
+
+    const client = useMemo(() => new GraphQLClient(graphqlHost, {
+        headers: {
+            contentType: 'application/json',
+            Authorization: `Bearer ${graphqlToken}`
+        },
+    }), [graphqlHost, graphqlToken]);
+
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
         return generateGraphQLQuery(
@@ -116,10 +123,9 @@ function App({
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
     const [search, setSearch] = useState('');
-    const toast = useRef<Toast>(null);
     const tableRef = useRef<DataTable<any>>(null);
+    const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
     const [showFilterForm, setShowFilterForm] = useState(false);
     const [showSavedFilterList, setShowSavedFilterList] = useState(false);
@@ -161,12 +167,6 @@ function App({
     const hasNextPage = state.data.rows.length === rowsPerPage;
     const hasPrevPage = state.pagination.page > 0;
 
-    // Load saved filters from localStorage on mount
-    useEffect(() => {
-        const filters = savedFilterManager.loadFilters(selectedView.id, selectedView.filterSchema);
-        setSavedFilters(filters);
-    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
     // After initial mount, if we consumed a URL param and persistence is off, clear it
     useEffect(() => {
         if (initialFilterStateFromUrl && !syncFilterStateToUrl) {
@@ -189,16 +189,12 @@ function App({
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
 
-        const savedFilter = savedFilterManager.saveFilter({
+        userData.createFilter({
             view: selectedView.id,
             name,
             state: state
         });
-
-        // Update local state
-        setSavedFilters(prev => [...prev, savedFilter]);
-
-        // Show success toast
+        
         toast.current?.show({
             severity: 'success',
             summary: 'Filter Saved',
@@ -216,16 +212,11 @@ function App({
             defaultFocus: 'reject',
             acceptClassName: 'p-button-danger',
             accept: () => {
-                const updatedFilter = savedFilterManager.updateFilter(filter, {
+                const updatedFilter = userData.updateFilter(selectedView.id, filter.id, {
                     state: state
                 });
 
                 if (updatedFilter) {
-                    // Update local state
-                    setSavedFilters(prev => prev.map(f =>
-                        f.id === filter.id ? updatedFilter : f
-                    ));
-
                     // Show success toast
                     toast.current?.show({
                         severity: 'success',
@@ -243,11 +234,8 @@ function App({
 
     // Delete a saved filter
     const handleDeleteFilter = (filterId: string) => {
-        const success = savedFilterManager.deleteFilter(filterId);
+        const success = userData.deleteFilter(selectedView.id, filterId);
         if (success) {
-            // Update local state
-            setSavedFilters(prev => prev.filter(f => f.id !== filterId));
-
             // Show success toast
             toast.current?.show({
                 severity: 'success',
@@ -524,7 +512,7 @@ function App({
             }
 
             <SavedFilterList
-                savedFilters={savedFilters}
+                savedFilters={userData.savedFilters}
                 onFilterDelete={handleDeleteFilter}
                 onFilterLoad={handleFilterLoad}
                 onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
@@ -542,7 +530,7 @@ function App({
                         onSaveFilter={handleSaveFilter}
                         onUpdateFilter={handleUpdateFilter}
                         onShareFilter={handleShareFilter}
-                        savedFilters={savedFilters}
+                        savedFilters={userData.savedFilters}
                         visibleFilterIds={visibleFilterIds}
                         onSubmit={() => {
                             setRefetchTrigger(prev => prev + 1);
