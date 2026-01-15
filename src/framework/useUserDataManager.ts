@@ -54,14 +54,14 @@ export function useUserDataManager(
     }, [currentViewId, manager])
 
     // Actions that update both state and manager
-    const updatePreferences = useCallback((update: Partial<UserPreferences> | ((prev: UserPreferences) => UserPreferences)) => {
-        const result = manager.updatePreferences(update as any);
+    const updatePreferences = useCallback((updateFunc: (prev: UserPreferences) => UserPreferences) => {
+        const result = manager.updatePreferences(updateFunc);
         setPreferences(result);
         return result;
     }, [manager]);
 
-    const updateViewData = useCallback((viewId: ViewId, update: Partial<ViewData> | ((prev: ViewData) => ViewData)) => {
-        const result = manager.updateViewData(viewId, update as any);
+    const updateViewData = useCallback((viewId: ViewId, updateFunc: (prev: ViewData) => ViewData) => {
+        const result = manager.updateViewData(viewId, updateFunc);
         if (viewId === currentViewId) {
             setViewData(result);
         }

@@ -409,7 +409,7 @@ function App({
     const handleRowsPerPageChange = (value: number) => {
         if (value === rowsPerPage) return;
         setRowsPerPage(value)
-        userDataManager.updateViewData(selectedView.id, { rowsPerPage: value })
+        userDataManager.updateViewData(selectedView.id, viewData => ({ ...viewData, rowsPerPage: value }))
     };
 
     return (

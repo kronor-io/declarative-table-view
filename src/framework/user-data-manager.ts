@@ -12,10 +12,10 @@ export interface UserDataManager {
     ready: Promise<void>
 
     getPreferences(): UserPreferences
-    updatePreferences(update: Partial<UserPreferences> | ((prev: UserPreferences) => UserPreferences)): UserPreferences
+    updatePreferences(updateFunc: (prev: UserPreferences) => UserPreferences): UserPreferences
 
     getViewData(viewId: ViewId): ViewData
-    updateViewData(viewId: ViewId, update: Partial<ViewData> | ((prev: ViewData) => ViewData)): ViewData
+    updateViewData(viewId: ViewId, updateFunc: (prev: ViewData) => ViewData): ViewData
     setColumnOrder(viewId: ViewId, order: string[] | null): ViewData
     setHiddenColumns(viewId: ViewId, hidden: string[] | null): ViewData
     getSavedFilters(viewId: ViewId): SavedFilter[]
