@@ -33,6 +33,7 @@ describe('user-data serialization', () => {
                 'view-a': {
                     columnOrder: ['c1'],
                     hiddenColumns: ['h1'],
+                    rowsPerPage: 50,
                     savedFilters: [
                         {
                             id: 'sf-1',
@@ -45,6 +46,7 @@ describe('user-data serialization', () => {
                     ]
                 }
             },
+            revision: 0,
             formatRevision: 'rev-user'
         };
 

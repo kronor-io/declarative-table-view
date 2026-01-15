@@ -11,12 +11,14 @@ export const REVISION_2026_01_05 = '2026-01-05T00:00:00.000Z'
 export interface ViewData {
     columnOrder: string[] | null;
     hiddenColumns: string[];
+    rowsPerPage: number | null;
     savedFilters: SavedFilter[];
 }
 
 export interface ViewDataJson {
     columnOrder: string[] | null;
     hiddenColumns: string[];
+    rowsPerPage: number | null;
     savedFilters: SavedFilterJson[];
 }
 
@@ -25,21 +27,26 @@ export type UserPreferences = Record<string, unknown>; // Placeholder for future
 export interface UserData {
     preferences: UserPreferences;
     views: Record<ViewId, ViewData>;
+    /**
+     * Monotonic per-writer revision number, incremented on each persisted change.
+     */
+    revision: number;
     formatRevision: string;
 }
 
 export interface UserDataJson {
     preferences: UserPreferences;
     views: Record<ViewId, ViewDataJson>;
+    revision: number;
     formatRevision: string;
 }
 
 export function defaultUserData(): UserData {
-    return { preferences: {}, views: {}, formatRevision: INITIAL_USERDATA_FORMAT_REVISION }
+    return { preferences: {}, views: {}, revision: 0, formatRevision: INITIAL_USERDATA_FORMAT_REVISION }
 }
 
 export function defaultViewData(): ViewData {
-    return { columnOrder: null, hiddenColumns: [], savedFilters: [] }
+    return { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
 }
 
 export function toUserDataJson(data: UserData): UserDataJson {
@@ -53,6 +60,7 @@ export function toUserDataJson(data: UserData): UserDataJson {
     return {
         preferences: data.preferences,
         views: viewsJson,
+        revision: data.revision,
         formatRevision: data.formatRevision
     }
 }
@@ -74,6 +82,7 @@ export function fromUserDataJson(json: UserDataJson, filterSchemasByViewId: Reco
     return {
         preferences: json.preferences,
         views,
+        revision: json.revision,
         formatRevision: json.formatRevision
     }
 }

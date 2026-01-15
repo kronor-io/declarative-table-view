@@ -47,6 +47,18 @@ function loadUserDataManager() {
     }));
 }
 
+function loadUserDataManagerWithOptions(options: import('./user-data-manager').UserDataManagerOptions) {
+    jest.resetModules();
+    return import('./user-data-manager').then(({ createUserDataManager }) => ({
+        userData: createUserDataManager({
+            'test-view': basicSchema,
+            'view-a': basicSchema,
+            'view-b': basicSchema,
+            'any': basicSchema
+        }, options)
+    }));
+}
+
 describe('user-data manager', () => {
     afterEach(() => {
         jest.clearAllMocks();
@@ -57,7 +69,7 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManager();
 
         expect(userData.getPreferences()).toEqual({});
-        expect(userData.getViewData('test-view')).toEqual({ columnOrder: null, hiddenColumns: [], savedFilters: [] });
+        expect(userData.getViewData('test-view')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
     });
 
     it('persists per-view updates (single call)', async () => {
@@ -75,7 +87,7 @@ describe('user-data manager', () => {
         ({ userData } = await loadUserDataManager());
 
         const data = userData.getViewData('view-a');
-        expect(data).toEqual({ columnOrder: ['col1', 'col2', 'col3'], hiddenColumns: ['col9'], savedFilters: [] });
+        expect(data).toEqual({ columnOrder: ['col1', 'col2', 'col3'], hiddenColumns: ['col9'], rowsPerPage: null, savedFilters: [] });
     });
 
     it('persists preferences updates', async () => {
@@ -98,7 +110,7 @@ describe('user-data manager', () => {
 
         const { userData } = await loadUserDataManager();
         expect(userData.getPreferences()).toEqual({});
-        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], savedFilters: [] });
+        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to parse user data JSON:', expect.any(Error));
         consoleSpy.mockRestore();
     });
@@ -117,7 +129,7 @@ describe('user-data manager', () => {
         });
 
         const { userData } = await loadUserDataManager();
-        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], savedFilters: [] });
+        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to read localStorage:', expect.any(Error));
         consoleSpy.mockRestore();
     });
@@ -179,5 +191,77 @@ describe('user-data manager', () => {
         };
 
         expect(userData.updateFilter('view-a', missing.id, { name: 'Nope' })).toBeNull();
+    });
+
+    it('invokes save callback on every save', async () => {
+        mockLocalStorageWithBackingStore({});
+
+        const saveSpy = jest.fn(async () => { });
+        const { userData } = await loadUserDataManagerWithOptions({ save: saveSpy });
+
+        userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }));
+        userData.updateViewData('view-a', (prev) => ({ ...prev, hiddenColumns: ['x'] }));
+
+        // The manager may persist a migrated/default payload on initialization,
+        // so we assert at least the two explicit updates.
+        expect(saveSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({
+            preferences: { theme: 'dark' }
+        }));
+    });
+
+    it('calls load callback on creation and persists loaded data to localStorage', async () => {
+        const store = mockLocalStorageWithBackingStore({});
+
+        const loadSpy = jest.fn(async () => ({
+            preferences: { theme: 'remote' },
+            views: {
+                'view-a': { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
+            },
+            revision: 0,
+            formatRevision: '1970-01-01T00:00:00.000Z'
+        }));
+        const saveSpy = jest.fn(async () => { });
+
+        const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
+        await userData.ready;
+
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+        expect(userData.getPreferences()).toEqual({ theme: 'remote' });
+
+        // Requirement: successful load is also saved to localStorage
+        expect(store.dtvUserData).toBeTruthy();
+        const parsed = JSON.parse(store.dtvUserData);
+        expect(parsed.preferences).toEqual({ theme: 'remote' });
+
+        // Loaded persistence counts as a save
+        expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({
+            preferences: { theme: 'remote' }
+        }));
+    });
+
+    it('keeps localStorage state when load callback fails', async () => {
+        const store = mockLocalStorageWithBackingStore({
+            dtvUserData: JSON.stringify({
+                preferences: { theme: 'local' },
+                views: {},
+                revision: 0,
+                formatRevision: '1970-01-01T00:00:00.000Z'
+            })
+        });
+
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+        const loadSpy = jest.fn(async () => {
+            throw new Error('nope');
+        });
+
+        const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy });
+        await userData.ready;
+
+        expect(userData.getPreferences()).toEqual({ theme: 'local' });
+        expect(store.dtvUserData).toBeTruthy();
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+        expect(consoleSpy).toHaveBeenCalledWith('User-data load callback failed:', expect.any(Error));
+        consoleSpy.mockRestore();
     });
 });

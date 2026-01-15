@@ -13,8 +13,8 @@ type PaymentMethodEnum =
     | string;
 
 
-interface Props {
-    cardType: string[]
+interface PaymentMethodProps {
+    cardType: string
     paymentMethod?: PaymentMethodEnum;
     darkmode: boolean;
 }
@@ -113,7 +113,7 @@ const cardImage = (scheme: string) => {
     }
 };
 
-export function PaymentMethod({ cardType = [], paymentMethod, darkmode }: Props) {
+export function PaymentMethod({ cardType, paymentMethod, darkmode }: PaymentMethodProps) {
     switch (paymentMethod) {
         case "SWISH":
             return (
@@ -144,10 +144,10 @@ export function PaymentMethod({ cardType = [], paymentMethod, darkmode }: Props)
                 </FlexRow>
             );
         case "CREDIT_CARD":
-            if (cardType.length === 0) {
+            if (!cardType) {
                 return <FlexRow align="center" justify="center" wrap='wrap'>CREDIT CARD</FlexRow>;
             }
-            return <FlexRow align="center" justify="center" wrap='wrap'>{cardImage(cardType[0])}</FlexRow>;
+            return <FlexRow align="center" justify="center" wrap='wrap'>{cardImage(cardType)}</FlexRow>;
 
         case "P24":
             return (

@@ -170,6 +170,7 @@ describe('user-data migrations', () => {
                 'view-a': {
                     columnOrder: null,
                     hiddenColumns: [],
+                    rowsPerPage: null,
                     savedFilters: [
                         {
                             id: 'dup',
@@ -182,6 +183,7 @@ describe('user-data migrations', () => {
                     ]
                 }
             },
+            revision: 0,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         };
 

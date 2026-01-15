@@ -50,7 +50,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
 
         // Payment Provider cell renderer
         paymentProvider: ({ data }) =>
-            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data.attempts?.cardType} darkmode={false} />,
+            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data.attempts?.[0]?.cardType} darkmode={false} />,
 
         // Initiated By cell renderer
         initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexColumn, FlexRow } }) => {

@@ -1,10 +1,16 @@
-import { FilterSchemasAndGroups } from "./filters";
-import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from "./saved-filters";
-import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from "./user-data";
-import { applyUserDataMigrations } from "./user-data.migrations";
-import { ViewId } from "./view";
+import { FilterSchemasAndGroups } from './filters';
+import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
+import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from './user-data';
+import { applyUserDataMigrations } from './user-data.migrations';
+import { ViewId } from './view';
 
 export interface UserDataManager {
+    /**
+     * Resolves once an optional async load callback has completed (success or failure).
+     * Useful for callers that need to await remote/user-provided hydration.
+     */
+    ready: Promise<void>
+
     getPreferences(): UserPreferences
     updatePreferences(update: Partial<UserPreferences> | ((prev: UserPreferences) => UserPreferences)): UserPreferences
 
@@ -22,9 +28,32 @@ export interface UserDataManager {
 
 export const USER_DATA_LOCALSTORAGE_KEY = 'dtvUserData'
 
-export function createUserDataManager(filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>): UserDataManager {
+export type UserDataLoadCallback = () => Promise<UserDataJson | null>
+export type UserDataSaveCallback = (data: UserDataJson) => Promise<void>
+
+export type UserDataManagerOptions = {
+    load?: UserDataLoadCallback
+    save?: UserDataSaveCallback
+}
+
+export function createUserDataManager(
+    filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
+    options: UserDataManagerOptions = {}
+): UserDataManager {
 
     let cachedUserData: UserData | null = null
+
+    function notifySaved(nextUserData: UserData): void {
+        if (!options.save) return
+        try {
+            const nextUserDataJson = toUserDataJson(nextUserData)
+            void options.save(nextUserDataJson).catch((err) => {
+                console.error('User-data save callback failed:', err)
+            })
+        } catch (err) {
+            console.error('User-data save callback threw:', err)
+        }
+    }
 
     function loadUserDataWithCache(): UserData {
 
@@ -60,7 +89,7 @@ export function createUserDataManager(filterSchemasByViewId: Record<ViewId, Filt
                 // If migrations changed content or revision, persist the result
                 const afterStr = JSON.stringify(userDataAfterMigration);
                 if (beforeStr !== afterStr) {
-                    saveUserData(userDataAfterMigration);
+                    saveUserData(userDataAfterMigration, { localStorageOnly: false, bumpRevision: true });
                 }
 
                 return userDataAfterMigration
@@ -79,12 +108,32 @@ export function createUserDataManager(filterSchemasByViewId: Record<ViewId, Filt
         return cachedUserData;
     }
 
-    function saveUserData(nextUserData: UserData): void {
+    function saveUserData(
+        nextUserData: UserData,
+        saveOptions: {
+            localStorageOnly: boolean
+            bumpRevision: boolean
+        }
+    ): void {
         try {
+            const bumpRevision = saveOptions.bumpRevision
+
+            const baseRevision = Math.max(cachedUserData?.revision ?? 0, nextUserData.revision)
+            const revision = bumpRevision
+                ? baseRevision + 1
+                : baseRevision
+
+            const persistedUserData: UserData = bumpRevision
+                ? { ...nextUserData, revision }
+                : nextUserData
+
             // Convert SavedFilter[] to RawSavedFilter[] before persisting
-            const userDataJson: UserDataJson = toUserDataJson(nextUserData);
+            const userDataJson: UserDataJson = toUserDataJson(persistedUserData);
             localStorage.setItem(USER_DATA_LOCALSTORAGE_KEY, JSON.stringify(userDataJson));
-            cachedUserData = nextUserData;
+            cachedUserData = persistedUserData;
+            if (!saveOptions.localStorageOnly) {
+                notifySaved(persistedUserData)
+            }
         } catch (err) {
             console.error('Failed saving user data:', err);
         }
@@ -101,7 +150,7 @@ export function createUserDataManager(filterSchemasByViewId: Record<ViewId, Filt
         const nextUserPrefs = updateFunc(prevUserData.preferences)
 
         const nextUserData: UserData = { ...prevUserData, preferences: nextUserPrefs }
-        saveUserData(nextUserData)
+        saveUserData(nextUserData, { localStorageOnly: false, bumpRevision: true });
         return nextUserPrefs
     }
 
@@ -121,7 +170,7 @@ export function createUserDataManager(filterSchemasByViewId: Record<ViewId, Filt
                 [viewId]: nextViewData
             }
         }
-        saveUserData(nextUserData)
+        saveUserData(nextUserData, { localStorageOnly: false, bumpRevision: true });
         return nextViewData
     }
 
@@ -195,9 +244,32 @@ export function createUserDataManager(filterSchemasByViewId: Record<ViewId, Filt
         return true
     }
 
+    // Prime from localStorage immediately for sync consumers
     loadUserDataWithCache()
 
+    const ready: Promise<void> = (async () => {
+        if (!options.load) return
+
+        try {
+            const loaded = await options.load()
+            if (!loaded) return
+
+            const asUserData: UserData = fromUserDataJson(loaded as UserDataJson, filterSchemasByViewId)
+            const migrated = applyUserDataMigrations(asUserData, { filterSchemasByViewId })
+
+            // Always persist loaded data to localStorage (requirement).
+            // Only notify the external save callback if migrations changed the loaded payload.
+            const loadedStr = JSON.stringify(loaded)
+            const migratedStr = JSON.stringify(toUserDataJson(migrated))
+            const didChange = loadedStr !== migratedStr
+            saveUserData(migrated, { localStorageOnly: !didChange, bumpRevision: didChange })
+        } catch (err) {
+            console.error('User-data load callback failed:', err)
+        }
+    })()
+
     return {
+        ready,
         getPreferences,
         updatePreferences,
         getViewData,

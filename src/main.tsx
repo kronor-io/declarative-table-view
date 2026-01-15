@@ -1,62 +1,11 @@
-import { StrictMode, createRef } from 'react'
+import { createRef } from 'react'
 import type { RowSelectionAPI } from './components/Table';
-import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
-import { PrimeReactProvider } from 'primereact/api';
 import { Runtime } from './framework/runtime';
-import { ActionDefinition } from './framework/actions.ts';
 import packageFile from '../package.json';
+import { renderTableView, type RenderTableViewOptions } from './lib/renderTableView.tsx';
 
-export interface RenderTableViewOptions {
-    graphqlHost: string;
-    graphqlToken: string;
-    geminiApiKey: string;
-    viewsJson: string; // JSON string containing array of view definitions
-    showViewsMenu?: boolean; // Controls whether the views menu is shown
-    showViewTitle?: boolean; // Option to show/hide view title
-    showCsvExportButton?: boolean; // Option to show/hide CSV export button
-    showPopoutButton?: boolean; // Option to show/hide Popout button (default true)
-    externalRuntime?: Runtime; // Optional external runtime that takes precedence over built-in runtimes
-    syncFilterStateToUrl?: boolean; // When true, keeps current filter state encoded in URL param `dtv-filter-state`
-    rowSelection?: {
-        rowSelectionType: 'none' | 'multiple';
-        onRowSelectionChange?: (rows: any[]) => void;
-        apiRef?: React.RefObject<RowSelectionAPI | null>;
-    };
-    actions?: ActionDefinition[]; // Optional custom action buttons
-    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
-    rowsPerPageOptions?: number[]; // custom page size options for pagination dropdown
-}
-
-
-function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
-    const reactContainer = typeof target === 'string' ? document.getElementById(target) : target;
-    if (!reactContainer) throw new Error('Target element not found');
-
-    createRoot(reactContainer).render(
-        <StrictMode>
-            <PrimeReactProvider value={{}}>
-                <App
-                    graphqlHost={options.graphqlHost}
-                    graphqlToken={options.graphqlToken}
-                    geminiApiKey={options.geminiApiKey}
-                    showViewsMenu={options.showViewsMenu ?? false}
-                    showViewTitle={options.showViewTitle ?? false}
-                    showCsvExportButton={options.showCsvExportButton ?? false}
-                    showPopoutButton={options.showPopoutButton ?? true}
-                    viewsJson={options.viewsJson}
-                    externalRuntime={options.externalRuntime}
-                    syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
-                    rowSelection={options.rowSelection}
-                    actions={options.actions}
-                    rowClassFunction={options.rowClassFunction}
-                    rowsPerPageOptions={options.rowsPerPageOptions}
-                />
-            </PrimeReactProvider>
-        </StrictMode>
-    );
-}
+export type { RenderTableViewOptions }
 
 // Public namespace object
 export const dtv = {

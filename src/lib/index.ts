@@ -11,6 +11,7 @@ export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
 export type { FilterSchema } from '../framework/filters';
+export type { UserDataJson } from '../framework/user-data';
 export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
 export { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';

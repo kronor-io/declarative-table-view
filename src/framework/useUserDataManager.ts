@@ -3,13 +3,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FilterSchemasAndGroups } from './filters';
 import type { SavedFilter, SavedFilterId } from './saved-filters';
 import type { UserPreferences, ViewData } from './user-data';
-import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY } from './user-data-manager';
+import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY, type UserDataManagerOptions } from './user-data-manager';
 import type { ViewId } from './view';
 
-export function useUserDataManager(filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>, currentViewId: ViewId) {
+export function useUserDataManager(
+    filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
+    currentViewId: ViewId,
+    options?: UserDataManagerOptions
+) {
     const manager = useMemo(() => {
-        return createUserDataManager(filterSchemasByViewId);
-    }, [filterSchemasByViewId]);
+        return createUserDataManager(filterSchemasByViewId, options);
+    }, [filterSchemasByViewId, options]);
 
     // React state for the reactive parts
     const [preferences, setPreferences] = useState<UserPreferences>(() => manager.getPreferences());
@@ -34,6 +38,20 @@ export function useUserDataManager(filterSchemasByViewId: Record<ViewId, FilterS
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
     }, [currentViewId, manager]);
+
+    // If the manager performs async loading, refresh once it completes.
+    useEffect(() => {
+        let cancelled = false
+        manager.ready.then(() => {
+            if (cancelled) return
+            setPreferences(manager.getPreferences())
+            setViewData(manager.getViewData(currentViewId))
+            setSavedFilters(manager.getSavedFilters(currentViewId))
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [currentViewId, manager])
 
     // Actions that update both state and manager
     const updatePreferences = useCallback((update: Partial<UserPreferences> | ((prev: UserPreferences) => UserPreferences)) => {

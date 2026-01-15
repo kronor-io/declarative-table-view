@@ -22,6 +22,7 @@ import { View, ViewId } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
+import type { UserDataJson } from './framework/user-data';
 import { parseFilterFormState } from './framework/filter-form-state';
 import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
@@ -55,6 +56,15 @@ export interface AppProps {
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
+
+    /** Optional user data integration hooks. */
+    userData?: {
+        /** Optional async loader invoked when the user-data manager is created. */
+        onLoad?: () => Promise<UserDataJson | null>;
+
+        /** Optional async saver invoked whenever user data is saved (non-localStorage-only saves). */
+        onSave?: (data: UserDataJson) => Promise<void>;
+    };
 }
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -75,7 +85,8 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [20, 50, 100, 200]
+    rowsPerPageOptions = [20, 50, 100, 200],
+    userData
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -103,7 +114,15 @@ function App({
 
     const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl as any);
 
-    const userData = useUserDataManager(filterSchemasByViewId, selectedView.id);
+    const userDataManagerOptions = useMemo(() => {
+        if (!userData?.onLoad && !userData?.onSave) return undefined
+        return {
+            load: userData.onLoad,
+            save: userData.onSave
+        }
+    }, [userData?.onLoad, userData?.onSave])
+
+    const userDataManager = useUserDataManager(filterSchemasByViewId, selectedView.id, userDataManagerOptions);
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {
@@ -189,12 +208,12 @@ function App({
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
 
-        userData.createFilter({
+        userDataManager.createFilter({
             view: selectedView.id,
             name,
             state: state
         });
-        
+
         toast.current?.show({
             severity: 'success',
             summary: 'Filter Saved',
@@ -212,7 +231,7 @@ function App({
             defaultFocus: 'reject',
             acceptClassName: 'p-button-danger',
             accept: () => {
-                const updatedFilter = userData.updateFilter(selectedView.id, filter.id, {
+                const updatedFilter = userDataManager.updateFilter(selectedView.id, filter.id, {
                     state: state
                 });
 
@@ -234,7 +253,7 @@ function App({
 
     // Delete a saved filter
     const handleDeleteFilter = (filterId: string) => {
-        const success = userData.deleteFilter(selectedView.id, filterId);
+        const success = userDataManager.deleteFilter(selectedView.id, filterId);
         if (success) {
             // Show success toast
             toast.current?.show({
@@ -310,7 +329,16 @@ function App({
         });
     }, [client, selectedView, memoizedQuery, state.filterState]);
 
-    // Fetch data when view changes or refetch is triggered
+    // Apply per-view rowsPerPage from user data (when present)
+    useEffect(() => {
+        const persisted = userDataManager.viewData.rowsPerPage
+        if (typeof persisted !== 'number') return
+        if (rowsPerPageOptions.length > 0 && !rowsPerPageOptions.includes(persisted)) return
+        if (persisted === rowsPerPage) return
+        setRowsPerPage(persisted)
+    }, [rowsPerPage, rowsPerPageOptions, setRowsPerPage, userDataManager.viewData.rowsPerPage])
+
+    // Fetch data when view changes, rowsPerPage changes, or refetch is triggered
     useEffect(() => {
         fetchDataWrapper(null, rowsPerPage)
             .then(dataRows => setDataRows(dataRows))
@@ -321,7 +349,7 @@ function App({
                 }
             });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedViewId, refetchTrigger]);
+    }, [state.selectedViewId, refetchTrigger, rowsPerPage]);
 
     // When filter is loaded, set filter state
     const handleFilterLoad = (filterState: FilterState) => {
@@ -377,12 +405,11 @@ function App({
         );
     };
 
-    // Rows-per-page change handler: reset pagination and refetch first page
-    const handleRowsPerPageChange = async (value: number) => {
+    // Rows-per-page change handler: reset pagination; fetch is handled by effect
+    const handleRowsPerPageChange = (value: number) => {
         if (value === rowsPerPage) return;
-        setRowsPerPage(value);
-        const newData = await fetchDataWrapper(null, value);
-        setDataRows(newData, { page: 0, cursors: [], rowsPerPage: value });
+        setRowsPerPage(value)
+        userDataManager.updateViewData(selectedView.id, { rowsPerPage: value })
     };
 
     return (
@@ -512,7 +539,7 @@ function App({
             }
 
             <SavedFilterList
-                savedFilters={userData.savedFilters}
+                savedFilters={userDataManager.savedFilters}
                 onFilterDelete={handleDeleteFilter}
                 onFilterLoad={handleFilterLoad}
                 onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
@@ -530,7 +557,7 @@ function App({
                         onSaveFilter={handleSaveFilter}
                         onUpdateFilter={handleUpdateFilter}
                         onShareFilter={handleShareFilter}
-                        savedFilters={userData.savedFilters}
+                        savedFilters={userDataManager.savedFilters}
                         visibleFilterIds={visibleFilterIds}
                         onSubmit={() => {
                             setRefetchTrigger(prev => prev + 1);
