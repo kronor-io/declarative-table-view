@@ -127,7 +127,6 @@ export function createUserDataManager(
                 ? { ...nextUserData, revision }
                 : nextUserData
 
-            // Convert SavedFilter[] to RawSavedFilter[] before persisting
             const userDataJson: UserDataJson = toUserDataJson(persistedUserData);
             localStorage.setItem(USER_DATA_LOCALSTORAGE_KEY, JSON.stringify(userDataJson));
             cachedUserData = persistedUserData;
