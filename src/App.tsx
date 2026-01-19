@@ -12,6 +12,7 @@ import { InputIcon } from 'primereact/inputicon';
 import { Toast } from 'primereact/toast';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
+import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
 import SavedFilterList from './components/SavedFilterList';
 import { fetchData, FetchDataResult } from './framework/data';
@@ -150,6 +151,7 @@ function App({
     const [showSavedFilterList, setShowSavedFilterList] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Auto-expand filter panel when user starts typing a search (help discover filters)
     useEffect(() => {
@@ -340,6 +342,7 @@ function App({
 
     // Fetch data when view changes, rowsPerPage changes, or refetch is triggered
     useEffect(() => {
+        setIsLoading(true);
         fetchDataWrapper(null, rowsPerPage)
             .then(dataRows => setDataRows(dataRows))
             .catch(error => {
@@ -347,7 +350,8 @@ function App({
                     // Request was aborted, no action needed
                     return;
                 }
-            });
+            })
+            .finally(() => setIsLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedViewId, refetchTrigger, rowsPerPage]);
 
@@ -386,11 +390,16 @@ function App({
             console.error('Invalid cursor type:', cursor);
             return;
         }
-        const newData = await fetchDataWrapper(cursor, rowsPerPage);
-        setDataRows(
-            newData,
-            { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor], rowsPerPage }
-        );
+        setIsLoading(true);
+        try {
+            const newData = await fetchDataWrapper(cursor, rowsPerPage);
+            setDataRows(
+                newData,
+                { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor], rowsPerPage }
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Previous page handler
@@ -398,11 +407,16 @@ function App({
         if (state.pagination.page === 0) return;
         const prevCursors = state.pagination.cursors.slice(0, -1)
         const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-        const newData = await fetchDataWrapper(prevCursor, rowsPerPage)
-        setDataRows(
-            newData,
-            { page: state.pagination.page - 1, cursors: prevCursors, rowsPerPage }
-        );
+        setIsLoading(true);
+        try {
+            const newData = await fetchDataWrapper(prevCursor, rowsPerPage)
+            setDataRows(
+                newData,
+                { page: state.pagination.page - 1, cursors: prevCursors, rowsPerPage }
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Rows-per-page change handler: reset pagination; fetch is handled by effect
@@ -413,188 +427,194 @@ function App({
     };
 
     return (
-        <div className='tw:p-2'>
+        <div className='tw:p-2 tw:relative' style={{ height: '100%' }}>  {/* tw:relative is for loading overlay */}
             <Toast ref={toast} />
             <ConfirmDialog />
-            <Menubar
-                model={[
-                    ...(showViewsMenu ? [{
-                        label: 'Views',
-                        icon: 'pi pi-eye',
-                        items: views.map((view: View) => ({
-                            label: view.title,
-                            icon: 'pi pi-table',
-                            command: () => setSelectedViewId(view.id)
-                        }))
-                    }] : [])
-                ]}
-                className="tw:mb-4 tw:border-b"
-                start={
-                    <div className="tw:flex tw:gap-2 tw:items-center">
-                        <Button
-                            type="button"
-                            icon={showFilterForm ? 'pi pi-filter-slash' : 'pi pi-filter'}
-                            outlined
-                            size='small'
-                            label={showFilterForm ? 'Hide Filters' : 'Filters'}
-                            onClick={() => {
-                                setShowFilterForm(prev => {
-                                    const next = !prev;
-                                    if (!next) {
-                                        // Clear search when hiding filters to avoid auto-expanding again
-                                        setSearch('');
-                                    }
-                                    return next;
-                                });
-                            }}
-                        />
-                        <Button
-                            type="button"
-                            icon='pi pi-bookmark'
-                            outlined
-                            size='small'
-                            label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
-                            onClick={() => setShowSavedFilterList(v => !v)}
-                        />
-                        {
-                            showCsvExportButton && (
-                                <Button
-                                    type="button"
-                                    icon='pi pi-table'
-                                    outlined
-                                    size='small'
-                                    label='Export page to CSV'
-                                    onClick={handleExportCSV}
-                                    data-testid="export-csv-button"
-                                />
-                            )
-                        }
-                        {
-                            showPopoutButton && (
-                                <Button
-                                    type="button"
-                                    icon={isOverlay ? 'pi pi-times' : 'pi pi-window-maximize'}
-                                    outlined
-                                    size='small'
-                                    label={isOverlay ? 'Close Popout' : 'Popout'}
-                                    onClick={() => {
-                                        if (isOverlay) {
-                                            onCloseOverlay?.();
-                                        } else {
-                                            setShowPopout(true);
+
+            <div className='tw:flex tw:flex-col' style={{ height: '100%' }}>
+                <Menubar
+                    model={[
+                        ...(showViewsMenu ? [{
+                            label: 'Views',
+                            icon: 'pi pi-eye',
+                            items: views.map((view: View) => ({
+                                label: view.title,
+                                icon: 'pi pi-table',
+                                command: () => setSelectedViewId(view.id)
+                            }))
+                        }] : [])
+                    ]}
+                    className="tw:mb-4 tw:border-b"
+                    start={
+                        <div className="tw:flex tw:gap-2 tw:items-center">
+                            <Button
+                                type="button"
+                                icon={showFilterForm ? 'pi pi-filter-slash' : 'pi pi-filter'}
+                                outlined
+                                size='small'
+                                label={showFilterForm ? 'Hide Filters' : 'Filters'}
+                                onClick={() => {
+                                    setShowFilterForm(prev => {
+                                        const next = !prev;
+                                        if (!next) {
+                                            // Clear search when hiding filters to avoid auto-expanding again
+                                            setSearch('');
                                         }
-                                    }}
-                                />
-                            )
-                        }
-                        <ActionButtons
-                            actions={actions}
-                            selectedView={selectedView}
+                                        return next;
+                                    });
+                                }}
+                            />
+                            <Button
+                                type="button"
+                                icon='pi pi-bookmark'
+                                outlined
+                                size='small'
+                                label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
+                                onClick={() => setShowSavedFilterList(v => !v)}
+                            />
+                            {
+                                showCsvExportButton && (
+                                    <Button
+                                        type="button"
+                                        icon='pi pi-table'
+                                        outlined
+                                        size='small'
+                                        label='Export page to CSV'
+                                        onClick={handleExportCSV}
+                                        data-testid="export-csv-button"
+                                    />
+                                )
+                            }
+                            {
+                                showPopoutButton && (
+                                    <Button
+                                        type="button"
+                                        icon={isOverlay ? 'pi pi-times' : 'pi pi-window-maximize'}
+                                        outlined
+                                        size='small'
+                                        label={isOverlay ? 'Close Popout' : 'Popout'}
+                                        onClick={() => {
+                                            if (isOverlay) {
+                                                onCloseOverlay?.();
+                                            } else {
+                                                setShowPopout(true);
+                                            }
+                                        }}
+                                    />
+                                )
+                            }
+                            <ActionButtons
+                                actions={actions}
+                                selectedView={selectedView}
+                                filterState={state.filterState}
+                                setFilterState={setFilterState}
+                                refetch={() => setRefetchTrigger(prev => prev + 1)}
+                                showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
+                                paginationState={state.pagination}
+                                rowsPerPage={rowsPerPage}
+                            />
+                        </div>
+                    }
+                    end={
+                        <div className="tw:flex tw:gap-2">
+                            <IconField iconPosition="left">
+                                <InputIcon className="pi pi-search" />
+                                <InputText value={search} onChange={e => setSearch(e.target.value)} placeholder="Search filters..." />
+                            </IconField>
+                            <Button
+                                type="button"
+                                size='small'
+                                icon='pi pi-sparkles'
+                                label='AI Filter Assistant'
+                                onClick={() => setShowAIAssistantForm(v => !v)}
+                            />
+                        </div>
+                    }
+                />
+                {
+                    (showViewTitle || isOverlay) && (
+                        <h1 className="tw:text-2xl tw:mb-4 tw:font-bold">{selectedView.title}</h1>
+                    )
+                }
+
+                {
+                    showAIAssistantForm && (
+                        <div className="tw:mb-6">
+                            <AIAssistantForm
+                                filterSchema={state.filterSchemasAndGroups}
+                                filterState={state.filterState}
+                                setFilterSchema={setFilterSchema}
+                                setFilterState={setFilterState}
+                                selectedView={selectedView}
+                                geminiApiKey={geminiApiKey}
+                                toast={toast}
+                                setShowFilterForm={setShowFilterForm}
+                            />
+                        </div>
+                    )
+                }
+
+                <SavedFilterList
+                    savedFilters={userDataManager.savedFilters}
+                    onFilterDelete={handleDeleteFilter}
+                    onFilterLoad={handleFilterLoad}
+                    onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
+                    onFilterShare={handleShareSavedFilter}
+                    visible={showSavedFilterList}
+                    filterSchema={state.filterSchemasAndGroups}
+                />
+
+                {
+                    showFilterForm && (
+                        <FilterForm
+                            filterSchemasAndGroups={state.filterSchemasAndGroups}
                             filterState={state.filterState}
                             setFilterState={setFilterState}
-                            refetch={() => setRefetchTrigger(prev => prev + 1)}
-                            showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
-                            paginationState={state.pagination}
-                            rowsPerPage={rowsPerPage}
+                            onSaveFilter={handleSaveFilter}
+                            onUpdateFilter={handleUpdateFilter}
+                            onShareFilter={handleShareFilter}
+                            savedFilters={userDataManager.savedFilters}
+                            visibleFilterIds={visibleFilterIds}
+                            onSubmit={() => {
+                                setRefetchTrigger(prev => prev + 1);
+                            }}
+                            graphqlClient={client}
                         />
-                    </div>
+                    )
                 }
-                end={
-                    <div className="tw:flex tw:gap-2">
-                        <IconField iconPosition="left">
-                            <InputIcon className="pi pi-search" />
-                            <InputText value={search} onChange={e => setSearch(e.target.value)} placeholder="Search filters..." />
-                        </IconField>
-                        <Button
-                            type="button"
-                            size='small'
-                            icon='pi pi-sparkles'
-                            label='AI Filter Assistant'
-                            onClick={() => setShowAIAssistantForm(v => !v)}
-                        />
-                    </div>
-                }
-            />
-            {
-                (showViewTitle || isOverlay) && (
-                    <h1 className="tw:text-2xl tw:mb-4 tw:font-bold">{selectedView.title}</h1>
-                )
-            }
-
-            {
-                showAIAssistantForm && (
-                    <div className="tw:mb-6">
-                        <AIAssistantForm
-                            filterSchema={state.filterSchemasAndGroups}
-                            filterState={state.filterState}
-                            setFilterSchema={setFilterSchema}
-                            setFilterState={setFilterState}
-                            selectedView={selectedView}
-                            geminiApiKey={geminiApiKey}
-                            toast={toast}
-                            setShowFilterForm={setShowFilterForm}
-                        />
-                    </div>
-                )
-            }
-
-            <SavedFilterList
-                savedFilters={userDataManager.savedFilters}
-                onFilterDelete={handleDeleteFilter}
-                onFilterLoad={handleFilterLoad}
-                onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
-                onFilterShare={handleShareSavedFilter}
-                visible={showSavedFilterList}
-                filterSchema={state.filterSchemasAndGroups}
-            />
-
-            {
-                showFilterForm && (
-                    <FilterForm
-                        filterSchemasAndGroups={state.filterSchemasAndGroups}
-                        filterState={state.filterState}
+                <div style={{ flexShrink: 1, minHeight: 0 }}>
+                    <Table
+                        viewId={selectedView.id}
+                        ref={tableRef}
+                        columns={selectedView.columnDefinitions}
+                        data={state.data.flattenedRows}
+                        noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
-                        onSaveFilter={handleSaveFilter}
-                        onUpdateFilter={handleUpdateFilter}
-                        onShareFilter={handleShareFilter}
-                        savedFilters={userDataManager.savedFilters}
-                        visibleFilterIds={visibleFilterIds}
-                        onSubmit={() => {
-                            setRefetchTrigger(prev => prev + 1);
-                        }}
-                        graphqlClient={client}
+                        filterState={state.filterState}
+                        triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                        rowSelection={rowSelection}
+                        rowClassFunction={rowClassFunction}
                     />
-                )
-            }
-            <Table
-                viewId={selectedView.id}
-                ref={tableRef}
-                columns={selectedView.columnDefinitions}
-                data={state.data.flattenedRows}
-                noRowsComponent={selectedView.noRowsComponent}
-                setFilterState={setFilterState}
-                filterState={state.filterState}
-                triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
-                rowSelection={rowSelection}
-                rowClassFunction={rowClassFunction}
-            />
-            {
-                state.data.rows.length > 0 && (
-                    <TablePagination
-                        onPageChange={handleNextPage}
-                        onPrevPage={handlePrevPage}
-                        hasNextPage={hasNextPage}
-                        hasPrevPage={hasPrevPage}
-                        currentPage={state.pagination.page}
-                        rowsPerPage={rowsPerPage}
-                        actualRows={state.data.rows.length}
-                        onRowsPerPageChange={handleRowsPerPageChange}
-                        rowsPerPageOptions={rowsPerPageOptions}
-                    />
-                )
-            }
+                </div>
+                {
+                    state.data.rows.length > 0 && (
+                        <TablePagination
+                            onPageChange={handleNextPage}
+                            onPrevPage={handlePrevPage}
+                            hasNextPage={hasNextPage}
+                            hasPrevPage={hasPrevPage}
+                            currentPage={state.pagination.page}
+                            rowsPerPage={rowsPerPage}
+                            actualRows={state.data.rows.length}
+                            onRowsPerPageChange={handleRowsPerPageChange}
+                            rowsPerPageOptions={rowsPerPageOptions}
+                        />
+                    )
+                }
+            </div>
+            {isLoading && <LoadingOverlay message="Loading data…" />}
             {showPopout && !isOverlay && createPortal(
-                <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto">
+                <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto tw:z-10">
                     <App
                         graphqlHost={graphqlHost}
                         graphqlToken={graphqlToken}

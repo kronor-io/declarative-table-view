@@ -116,6 +116,8 @@ function Table({
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
             rowClassName={rowClassFunction ? (row: any[]) => rowClassFunction(simplifyRow(row)) : undefined}
+            scrollable
+            scrollHeight='flex'
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple" />}
             {columns
