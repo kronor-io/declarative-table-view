@@ -82,17 +82,7 @@ export function createUserDataManager(
 
         function loadUserData(): UserData {
             try {
-                const userDataBeforeMigration = userDataFromStorageOrDefault();
-                const beforeStr = JSON.stringify(userDataBeforeMigration);
-                const userDataAfterMigration = applyUserDataMigrations(userDataBeforeMigration, { filterSchemasByViewId });
-
-                // If migrations changed content or revision, persist the result
-                const afterStr = JSON.stringify(userDataAfterMigration);
-                if (beforeStr !== afterStr) {
-                    saveUserData(userDataAfterMigration, { localStorageOnly: false, bumpRevision: true });
-                }
-
-                return userDataAfterMigration
+                return userDataFromStorageOrDefault();
             } catch (err) {
                 console.error('Failed to read user data:', err);
                 return defaultUserData();
@@ -194,7 +184,7 @@ export function createUserDataManager(
             formatRevision: CURRENT_FORMAT_REVISION
         }
 
-        const viewId = savedFilter.view as ViewId
+        const viewId = savedFilter.view
         updateViewData(viewId, (prevViewData) => ({
             ...prevViewData,
             savedFilters: [...prevViewData.savedFilters, savedFilter]
@@ -247,21 +237,53 @@ export function createUserDataManager(
     loadUserDataWithCache()
 
     const ready: Promise<void> = (async () => {
-        if (!options.load) return
-
         try {
-            const loaded = await options.load()
-            if (!loaded) return
+            const localUserData = loadUserDataWithCache()
 
-            const asUserData: UserData = fromUserDataJson(loaded as UserDataJson, filterSchemasByViewId)
-            const migrated = applyUserDataMigrations(asUserData, { filterSchemasByViewId })
+            let dataFromLoadCallback: UserDataJson | null = null
+            if (options.load) {
+                dataFromLoadCallback = await options.load()
+            }
 
-            // Always persist loaded data to localStorage (requirement).
-            // Only notify the external save callback if migrations changed the loaded payload.
-            const loadedStr = JSON.stringify(loaded)
-            const migratedStr = JSON.stringify(toUserDataJson(migrated))
-            const didChange = loadedStr !== migratedStr
-            saveUserData(migrated, { localStorageOnly: !didChange, bumpRevision: didChange })
+            // If no remote data provided (no loader or loader returned null),
+            // pick local then migrate and persist accordingly.
+            if (!dataFromLoadCallback) {
+                try {
+                    const migrated = applyUserDataMigrations(localUserData, { filterSchemasByViewId })
+                    saveUserData(migrated, { localStorageOnly: false, bumpRevision: false })
+                } catch (err) {
+                    console.error('Failed to read user data:', err)
+                    // Fall back to defaults in-memory without persisting.
+                    cachedUserData = defaultUserData()
+                }
+                return
+            }
+
+            try {
+                const remoteUserData: UserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterSchemasByViewId)
+
+                // Choose source with greater or equal revision (prefer remote on tie)
+                const remoteDataIsNewer = remoteUserData.revision >= localUserData.revision
+                const chosenUserDataBeforeMigration = remoteDataIsNewer ? remoteUserData : localUserData
+                const migratedUserData = applyUserDataMigrations(chosenUserDataBeforeMigration, { filterSchemasByViewId })
+                const wasChangedByMigration = migratedUserData.formatRevision !== chosenUserDataBeforeMigration.formatRevision
+
+                if (wasChangedByMigration) {
+                    saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: true })
+                } else {
+                    if (remoteDataIsNewer) {
+                        // Remote is authoritative and unchanged by migrations; persist locally only.
+                        saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: false })
+                    } else {
+                        // Local is newer; sync to remote as well.
+                        saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: false })
+                    }
+                }
+            } catch (err) {
+                // Covers migration or parsing failures
+                console.error('Failed to read user data:', err)
+                cachedUserData = defaultUserData()
+            }
         } catch (err) {
             console.error('User-data load callback failed:', err)
         }
