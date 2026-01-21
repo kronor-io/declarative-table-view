@@ -66,16 +66,15 @@ export function toUserDataJson(data: UserData): UserDataJson {
 }
 
 export function fromUserDataJson(json: UserDataJson, filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>): UserData {
+    // Only hydrate views for which we have filter schemas.
+    // Other views may exist in persisted JSON, but are ignored in-memory.
     const views: Record<ViewId, ViewData> = Object.fromEntries(
-        Object.entries(json.views).map(([viewId, viewJson]) => {
-            const schema = filterSchemasByViewId[viewId];
-            if (!schema) {
-                console.warn('Missing filter schema for view while hydrating user data:', viewId);
-                return [viewId, { ...viewJson, savedFilters: [] }];
-            }
+        Object.entries(json.views).flatMap(([viewId, viewJson]) => {
+            const schema = filterSchemasByViewId[viewId]
+            if (!schema) return []
 
-            const savedFilters = viewJson.savedFilters.map(savedFilterJson => fromSavedFilterJson(savedFilterJson, schema));
-            return [viewId, { ...viewJson, savedFilters }];
+            const savedFilters = viewJson.savedFilters.map((savedFilterJson) => fromSavedFilterJson(savedFilterJson, schema))
+            return [[viewId, { ...viewJson, savedFilters }]]
         })
     )
 

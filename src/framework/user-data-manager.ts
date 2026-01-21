@@ -43,11 +43,10 @@ export function createUserDataManager(
 
     let cachedUserData: UserData | null = null
 
-    function notifySaved(nextUserData: UserData): void {
+    function notifySavedJson(nextUserDataJson: UserDataJson): void {
         if (!options.save) return
         try {
-            const nextUserDataJson = toUserDataJson(nextUserData)
-            void options.save(nextUserDataJson).catch((err) => {
+            options.save(nextUserDataJson).catch((err) => {
                 console.error('User-data save callback failed:', err)
             })
         } catch (err) {
@@ -55,46 +54,46 @@ export function createUserDataManager(
         }
     }
 
+    function readUserDataJsonFromLocalStorage(): UserDataJson | null {
+        let userDataJsonString: string | null = null
+        try {
+            userDataJsonString = localStorage.getItem(USER_DATA_LOCALSTORAGE_KEY)
+        } catch (err) {
+            console.error('Failed to read localStorage:', err)
+            return null
+        }
+
+        if (userDataJsonString === null) return null
+
+        try {
+            const parsed = JSON.parse(userDataJsonString) as unknown
+            if (!parsed || typeof parsed !== 'object') return null
+            return parsed as UserDataJson
+        } catch (err) {
+            console.error('Failed to parse user data JSON:', err)
+            return null
+        }
+    }
+
     function loadUserDataWithCache(): UserData {
 
         function userDataFromStorageOrDefault(): UserData {
-            let userDataJsonString: string | null = null
-            try {
-                userDataJsonString = localStorage.getItem(USER_DATA_LOCALSTORAGE_KEY)
-            } catch (err) {
-                console.error('Failed to read localStorage:', err)
-                return defaultUserData()
-            }
-
-            if (userDataJsonString !== null) {
+            const existingJson = readUserDataJsonFromLocalStorage()
+            if (existingJson) {
                 try {
-                    const parsedUserDataJson = JSON.parse(userDataJsonString) as unknown
-                    if (!parsedUserDataJson || typeof parsedUserDataJson !== 'object') return defaultUserData()
-
-                    return fromUserDataJson(parsedUserDataJson as UserDataJson, filterSchemasByViewId)
+                    return fromUserDataJson(existingJson, filterSchemasByViewId)
                 } catch (err) {
-                    console.error('Failed to parse user data JSON:', err)
-                    return defaultUserData()
+                    console.error('Failed to read user data:', err)
                 }
             }
             return defaultUserData()
         }
 
-        function loadUserData(): UserData {
-            try {
-                return userDataFromStorageOrDefault();
-            } catch (err) {
-                console.error('Failed to read user data:', err);
-                return defaultUserData();
-            }
-        }
-
-
         if (cachedUserData) {
             return cachedUserData
         }
 
-        cachedUserData = loadUserData()
+        cachedUserData = userDataFromStorageOrDefault()
         return cachedUserData;
     }
 
@@ -117,14 +116,28 @@ export function createUserDataManager(
                 ? { ...nextUserData, revision }
                 : nextUserData
 
-            const userDataJson: UserDataJson = toUserDataJson(persistedUserData);
-            localStorage.setItem(USER_DATA_LOCALSTORAGE_KEY, JSON.stringify(userDataJson));
-            cachedUserData = persistedUserData;
+            // Convert the subset of views (with known schemas) to JSON
+            const nextUserDataJson: UserDataJson = toUserDataJson(persistedUserData)
+
+            // Merge existing per-view data from local storage to avoid data loss for unknown views
+            const existingUserDataJson = readUserDataJsonFromLocalStorage()
+            const mergedUserDataJson: UserDataJson = {
+                ...nextUserDataJson,
+                views: {
+                    ...(existingUserDataJson?.views ?? {}),
+                    ...(nextUserDataJson.views ?? {})
+                }
+            }
+
+            localStorage.setItem(USER_DATA_LOCALSTORAGE_KEY, JSON.stringify(mergedUserDataJson))
+            cachedUserData = persistedUserData
+
             if (!saveOptions.localStorageOnly) {
-                notifySaved(persistedUserData)
+                // Pass the full merged user data JSON to the save callback
+                notifySavedJson(mergedUserDataJson)
             }
         } catch (err) {
-            console.error('Failed saving user data:', err);
+            console.error('Failed saving user data:', err)
         }
     }
 
