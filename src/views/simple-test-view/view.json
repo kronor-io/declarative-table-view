@@ -7,6 +7,16 @@
     "orderByType": "[SimpleTestOrderBy!]",
     "columns": [
         {
+            "type": "virtualColumn",
+            "id": "virtual-email",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "email"
+                }
+            ]
+        },
+        {
             "type": "tableColumn",
             "id": "test-field",
             "data": [

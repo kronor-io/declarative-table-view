@@ -16,7 +16,7 @@ jest.mock('graphql-request', () => {
 
 jest.mock('../framework/data', () => {
     return {
-        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as Record<string, unknown>[][] })),
+        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
         buildGraphQLQueryVariables: jest.fn((view: any, _filterState: any, rowLimit: number, cursor: any) => ({
             conditions: {},
             paginationCondition: cursor !== null ? { [view.paginationKey]: { _lt: cursor } } : {},

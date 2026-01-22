@@ -58,7 +58,7 @@ describe('AppState', () => {
 
     it('setDataRows updates data and pagination', () => {
         let state = createDefaultAppState(mockViews, []);
-        const data = { rows: [{ id: 1 }, { id: 2 }], flattenedRows: [[{ id: 1 }], [{ id: 2 }]] };
+        const data = { rows: [{ id: 1 }, { id: 2 }], flattenedRows: [{ id: { id: 1 } }, { id: { id: 2 } }] };
         const pagination = { page: 2, cursors: ['a', 'b'], rowsPerPage: 20 };
         state = setDataRows(state, data, pagination);
         expect(state.data).toBe(data);

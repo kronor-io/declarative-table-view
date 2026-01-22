@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { FieldQuery, FieldAlias, ColumnDefinition } from './column-definition';
+import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
@@ -708,20 +708,22 @@ export function parseViewJson(
             case 'virtualColumn':
                 return {
                     type: 'virtualColumn',
+                    id: columnJson.id,
                     data: columnJson.data
-                } as ColumnDefinition;
+                };
             case 'tableColumn': {
-                const cellRenderer = resolveRuntimeReference<any>(
+                const cellRenderer = resolveRuntimeReference<CellRenderer>(
                     columnJson.cellRenderer,
                     externalRuntime,
                     builtInRuntime
                 );
                 return {
                     type: 'tableColumn',
+                    id: columnJson.id,
                     data: columnJson.data,
                     name: columnJson.name,
                     cellRenderer
-                } as ColumnDefinition;
+                };
             }
         }
     });

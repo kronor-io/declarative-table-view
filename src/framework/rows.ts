@@ -1,10 +1,10 @@
 // Utilities for simplifying/flattening table rows
-// A "row" from the <Table /> component is an array of cell objects.
-// Each cell object can have multiple key/value pairs. We flatten a row
-// by merging all cell objects left-to-right into a single plain object.
+// A "row" from the <Table /> component is an object keyed by column id.
+// Each value is a cell object (which can have multiple key/value pairs).
+// We flatten a row by merging all cell objects into a single plain object.
 // Later keys overwrite earlier ones when duplicates occur.
 
-export type RawRow = any[]; // Array of cell data objects
+export type RawRow = Record<string, any>; // ColumnId -> cell data object
 export type SimplifiedRow = Record<string, any>;
 
 /**
@@ -12,7 +12,7 @@ export type SimplifiedRow = Record<string, any>;
  * Duplicate keys are overwritten by the last occurrence (right-most cell wins).
  */
 export function simplifyRow(row: RawRow): SimplifiedRow {
-    return row.reduce((acc: SimplifiedRow, cell: any) => {
+    return Object.values(row).reduce((acc: SimplifiedRow, cell: any) => {
         if (cell && typeof cell === 'object') {
             for (const [k, v] of Object.entries(cell)) {
                 acc[k] = v;

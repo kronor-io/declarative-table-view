@@ -1,12 +1,14 @@
 import { GraphQLClient } from 'graphql-request';
 import { buildHasuraConditions, HasuraOrderBy } from '../framework/graphql';
 import { View } from '../framework/view';
-import { ColumnDefinition } from '../framework/column-definition';
+import type { ColumnDefinition, ColumnId } from '../framework/column-definition';
 import { FilterState } from './state';
+
+export type FlattenedDataRow = Record<ColumnId, Record<string, any>>;
 
 export interface FetchDataResult {
     rows: Record<string, unknown>[]; // Fetched rows from the query
-    flattenedRows: Record<string, unknown>[][]; // Rows flattened according to column definitions
+    flattenedRows: FlattenedDataRow[]; // Rows flattened according to column definitions
 }
 
 function hasKey<K extends string | number | symbol, T extends { [key in K]: unknown[] }>(obj: unknown, key: K): obj is T {
@@ -108,10 +110,12 @@ export const fetchData = async ({
 export const flattenFields = (
     rows: Record<string, any>[],
     columns: ColumnDefinition[]
-): Record<string, any>[][] => {
-    return rows.map(row =>
-        columns.map(column => flattenColumnFields(row, column))
-    );
+): FlattenedDataRow[] => {
+    return rows.map(row => {
+        return Object.fromEntries(
+            columns.map(column => [column.id, flattenColumnFields(row, column)])
+        ) as FlattenedDataRow;
+    });
 };
 
 // Helper to extract field values for a column from a row

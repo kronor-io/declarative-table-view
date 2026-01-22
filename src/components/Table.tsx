@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
-import { ColumnDefinition } from '../framework/column-definition';
+import type { ColumnDefinition, TableColumnDefinition } from '../framework/column-definition';
 import { NoRowsComponent } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
@@ -13,6 +13,7 @@ import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
+import type { FlattenedDataRow } from '../framework/data';
 
 export interface RowSelectionAPI {
     resetRowSelection(): void;
@@ -21,7 +22,7 @@ export interface RowSelectionAPI {
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
-    data: Record<string, unknown>[][]; // Array of rows, each row is an array of values for the columns
+    data: FlattenedDataRow[]; // Array of rows, each row keyed by column id
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
     filterState: FilterState; // Current filter state
@@ -49,6 +50,8 @@ function Table({
     rowSelection,
     rowClassFunction
 }: TableProps) {
+    const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => column.type === 'tableColumn');
+
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
         const newState = updater(filterState);
@@ -77,8 +80,11 @@ function Table({
         : null;
 
     const exportFunction = (event: DataTableExportFunctionEvent<any>) => {
-        const data = (event.rowData as [])[Number(event.field)]
-        return data[Object.keys(data)[0]]
+        const row = event.rowData as FlattenedDataRow;
+        const cell = row[event.field as any];
+        if (!cell || typeof cell !== 'object') return '';
+        const firstKey = Object.keys(cell)[0];
+        return firstKey ? cell[firstKey] : '';
     }
 
     // Internal selection state only relevant if enabled
@@ -115,20 +121,19 @@ function Table({
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
-            rowClassName={rowClassFunction ? (row: any[]) => rowClassFunction(simplifyRow(row)) : undefined}
+            rowClassName={rowClassFunction ? (row: any) => rowClassFunction(simplifyRow(row)) : undefined}
             scrollable
             scrollHeight='flex'
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple" />}
-            {columns
-                .filter(column => column.type === 'tableColumn')
-                .map((column, columnIndex) => (
+            {renderableColumns
+                .map(column => (
                     <Column
-                        key={columnIndex}
-                        field={columnIndex.toString()}
+                        key={column.id}
+                        field={column.id}
                         header={column.name}
-                        body={rowData => column.cellRenderer({
-                            data: rowData[columnIndex],
+                        body={(rowData: FlattenedDataRow) => column.cellRenderer({
+                            data: rowData[column.id],
                             setFilterState: wrappedSetFilterState,
                             applyFilters: triggerRefetch,
                             updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {

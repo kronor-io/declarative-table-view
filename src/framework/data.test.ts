@@ -9,16 +9,15 @@ describe('flattenFields', () => {
             { id: 2, name: 'Bob', age: 25 }
         ];
         const columns: ColumnDefinition[] = [
-            { data: [valueQuery('id')] } as ColumnDefinition,
-            { data: [valueQuery('name')] } as ColumnDefinition
+            { type: 'tableColumn', id: 'id', name: 'id', data: [valueQuery('id')], cellRenderer: (() => null) as any } as ColumnDefinition,
+            { type: 'tableColumn', id: 'name', name: 'name', data: [valueQuery('name')], cellRenderer: (() => null) as any } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
         expect(result.length).toBe(2);
-        expect(result[0].length).toBe(2);
-        expect(result[0][0]).toEqual({ id: 1 });
-        expect(result[0][1]).toEqual({ name: 'Alice' });
-        expect(result[1][0]).toEqual({ id: 2 });
-        expect(result[1][1]).toEqual({ name: 'Bob' });
+        expect(result[0].id).toEqual({ id: 1 });
+        expect(result[0].name).toEqual({ name: 'Alice' });
+        expect(result[1].id).toEqual({ id: 2 });
+        expect(result[1].name).toEqual({ name: 'Bob' });
     });
 
     it('includes nested root object for nested field paths', () => {
@@ -27,14 +26,14 @@ describe('flattenFields', () => {
             { id: 2, user: { profile: { email: 'bob@example.com' } } }
         ];
         const columns: ColumnDefinition[] = [
-            { data: [objectQuery('user', [objectQuery('profile', [valueQuery('email')])])] } as ColumnDefinition
+            { type: 'tableColumn', id: 'user', name: 'user', data: [objectQuery('user', [objectQuery('profile', [valueQuery('email')])])], cellRenderer: (() => null) as any } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
         expect(result.length).toBe(2);
-        expect(result[0][0]).toEqual({ user: rows[0].user });
-        expect(result[1][0]).toEqual({ user: rows[1].user });
-        expect((result[0][0] as any).user.profile.email).toBe('alice@example.com');
-        expect((result[1][0] as any).user.profile.email).toBe('bob@example.com');
+        expect(result[0].user).toEqual({ user: rows[0].user });
+        expect(result[1].user).toEqual({ user: rows[1].user });
+        expect((result[0].user as any).user.profile.email).toBe('alice@example.com');
+        expect((result[1].user as any).user.profile.email).toBe('bob@example.com');
     });
 
     it('copies root array for multiple nested field paths with array parent', () => {
@@ -55,18 +54,22 @@ describe('flattenFields', () => {
         ];
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
+                id: 'users',
+                name: 'users',
                 data: [
                     arrayQuery('users', [objectQuery('profile', [valueQuery('email')])]),
                     arrayQuery('users', [objectQuery('profile', [valueQuery('age')])])
-                ]
+                ],
+                cellRenderer: (() => null) as any
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
         expect(result.length).toBe(2);
-        expect(result[0][0]).toEqual({ users: rows[0].users });
-        expect(result[1][0]).toEqual({ users: rows[1].users });
-        expect((result[0][0] as any).users.length).toBe(2);
-        expect((result[1][0] as any).users.length).toBe(1);
+        expect(result[0].users).toEqual({ users: rows[0].users });
+        expect(result[1].users).toEqual({ users: rows[1].users });
+        expect((result[0].users as any).users.length).toBe(2);
+        expect((result[1].users as any).users.length).toBe(1);
     });
 
     it('includes alias field only for simple alias', () => {
@@ -85,12 +88,16 @@ describe('flattenFields', () => {
         ];
         const columns: ColumnDefinition[] = [
             {
-                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))]
+                type: 'tableColumn',
+                id: 'userName',
+                name: 'userName',
+                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))],
+                cellRenderer: (() => null) as any
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result[0][0]).toEqual({ userName: 'Alice' });
-        expect(result[1][0]).toEqual({ userName: 'Bob' });
+        expect(result[0].userName).toEqual({ userName: 'Alice' });
+        expect(result[1].userName).toEqual({ userName: 'Bob' });
     });
 
     it('includes alias field for arrayQuery alias', () => {
@@ -110,13 +117,17 @@ describe('flattenFields', () => {
         ];
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
+                id: 'recentPostTitles',
+                name: 'recentPostTitles',
                 data: [
                     fieldAlias("recentPostTitles", arrayQuery("posts", [valueQuery("title")]))
-                ]
+                ],
+                cellRenderer: (() => null) as any
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result[0][0]).toEqual({ recentPostTitles: ['Post 2', 'Post 1'] });
+        expect(result[0].recentPostTitles).toEqual({ recentPostTitles: ['Post 2', 'Post 1'] });
     });
 
     it('includes only outermost alias for nested alias hierarchy', () => {
@@ -131,13 +142,17 @@ describe('flattenFields', () => {
         ];
         const columns: ColumnDefinition[] = [
             {
+                type: 'tableColumn',
+                id: 'displayName',
+                name: 'displayName',
                 data: [
                     fieldAlias("displayName", fieldAlias("userName", objectQuery("user", [valueQuery("name")])))
-                ]
+                ],
+                cellRenderer: (() => null) as any
             } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
-        expect(result[0][0]).toEqual({ displayName: 'Alice' });
-        expect((result[0][0] as any).userName).toBeUndefined();
+        expect(result[0].displayName).toEqual({ displayName: 'Alice' });
+        expect((result[0].displayName as any).userName).toBeUndefined();
     });
 });

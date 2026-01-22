@@ -19,7 +19,7 @@ import App from './App';
 
 jest.mock('./framework/data', () => {
     return {
-        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as Record<string, unknown>[][] }))
+        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] }))
     };
 });
 
