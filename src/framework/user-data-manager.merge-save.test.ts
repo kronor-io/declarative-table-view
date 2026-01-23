@@ -46,7 +46,8 @@ describe('user-data save merges existing views from localStorage', () => {
         // Spy save callback to capture payload
         const saveCallbackPayloads: UserDataJson[] = [];
         const manager = createUserDataManager({ [viewA]: schemaA }, {
-            save: async (data: UserDataJson) => {
+            showToast: () => {},
+            save: async ({ data }) => {
                 saveCallbackPayloads.push(data);
             }
         });

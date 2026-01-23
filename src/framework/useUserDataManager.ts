@@ -9,7 +9,7 @@ import type { ViewId } from './view';
 export function useUserDataManager(
     filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
     currentViewId: ViewId,
-    options?: UserDataManagerOptions
+    options: UserDataManagerOptions
 ) {
     const manager = useMemo(() => {
         return createUserDataManager(filterSchemasByViewId, options);

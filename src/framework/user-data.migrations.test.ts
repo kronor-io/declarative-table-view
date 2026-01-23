@@ -35,7 +35,7 @@ describe('user-data migrations', () => {
                 'view-a': basicSchema,
                 'view-b': basicSchema,
                 'test-view': basicSchema
-            })
+            }, { showToast: () => { } })
         }));
     }
 

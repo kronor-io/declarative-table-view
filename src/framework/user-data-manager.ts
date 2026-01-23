@@ -3,6 +3,7 @@ import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-fil
 import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from './user-data';
 import { applyUserDataMigrations } from './user-data.migrations';
 import { ViewId } from './view';
+import type { ShowToastFn } from './toast'
 
 export interface UserDataManager {
     /**
@@ -28,17 +29,29 @@ export interface UserDataManager {
 
 export const USER_DATA_LOCALSTORAGE_KEY = 'dtvUserData'
 
-export type UserDataLoadCallback = () => Promise<UserDataJson | null>
-export type UserDataSaveCallback = (data: UserDataJson) => Promise<void>
+// Callbacks can optionally receive a toast API to surface feedback
+export interface UserDataLoadAPI {
+    showToast?: ShowToastFn
+}
+
+export interface UserDataSaveAPI {
+    data: UserDataJson
+    showToast?: ShowToastFn
+}
+
+export type UserDataLoadCallback = (api: UserDataLoadAPI) => Promise<UserDataJson | null>
+export type UserDataSaveCallback = (api: UserDataSaveAPI) => Promise<void>
 
 export type UserDataManagerOptions = {
     load?: UserDataLoadCallback
     save?: UserDataSaveCallback
+    /** Toast function forwarded to load/save callbacks */
+    showToast: ShowToastFn
 }
 
 export function createUserDataManager(
     filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
-    options: UserDataManagerOptions = {}
+    options: UserDataManagerOptions
 ): UserDataManager {
 
     let cachedUserData: UserData | null = null
@@ -46,7 +59,7 @@ export function createUserDataManager(
     function notifySavedJson(nextUserDataJson: UserDataJson): void {
         if (!options.save) return
         try {
-            options.save(nextUserDataJson).catch((err) => {
+            options.save({ data: nextUserDataJson, showToast: options.showToast }).catch((err) => {
                 console.error('User-data save callback failed:', err)
             })
         } catch (err) {
@@ -255,7 +268,7 @@ export function createUserDataManager(
 
             let dataFromLoadCallback: UserDataJson | null = null
             if (options.load) {
-                dataFromLoadCallback = await options.load()
+                dataFromLoadCallback = await options.load({ showToast: options.showToast })
             }
 
             // If no remote data provided (no loader or loader returned null),

@@ -6,6 +6,7 @@ import type { FilterState } from './state';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
 import { buildGraphQLQueryVariables } from './data';
 import type { PaginationState } from './state';
+import type { ShowToastFn } from './toast';
 
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
@@ -13,7 +14,7 @@ export interface ActionAPI {
     filterState: FilterState; // Current filter state map
     setFilterState: (next: FilterState) => void; // Replace filter state (resets pagination)
     refetch: () => void; // Trigger a data refetch for current view & filters
-    showToast: (opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => void; // Convenience toast helper
+    showToast: ShowToastFn; // Convenience toast helper
     /** Current rows-per-page setting for pagination. */
     rowsPerPage: number;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually view.collectionName). */

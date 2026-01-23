@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { PrimeReactProvider } from 'primereact/api'
 
 import App from '../App'
+import type { UserDataLoadAPI, UserDataSaveAPI } from '../framework/user-data-manager'
 import type { RowSelectionAPI } from '../components/Table'
 import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
@@ -10,10 +11,10 @@ import type { UserDataJson } from '../framework/user-data'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
-    onLoad?: () => Promise<UserDataJson | null>
+    onLoad?: (api: UserDataLoadAPI) => Promise<UserDataJson | null>
 
     /** Optional async saver invoked whenever user data is saved (non-localStorage-only saves). */
-    onSave?: (data: UserDataJson) => Promise<void>
+    onSave?: (api: UserDataSaveAPI) => Promise<void>
 }
 
 export interface RenderTableViewOptions {

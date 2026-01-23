@@ -45,11 +45,11 @@ function loadUserDataManager() {
             'view-a': basicSchema,
             'view-b': basicSchema,
             'any': basicSchema
-        })
+        }, { showToast: () => { } })
     }));
 }
 
-function loadUserDataManagerWithOptions(options: import('./user-data-manager').UserDataManagerOptions) {
+function loadUserDataManagerWithOptions(options: Partial<import('./user-data-manager').UserDataManagerOptions>) {
     jest.resetModules();
     return import('./user-data-manager').then(({ createUserDataManager }) => ({
         userData: createUserDataManager({
@@ -57,7 +57,7 @@ function loadUserDataManagerWithOptions(options: import('./user-data-manager').U
             'view-a': basicSchema,
             'view-b': basicSchema,
             'any': basicSchema
-        }, options)
+        }, { showToast: () => { }, ...options })
     }));
 }
 
@@ -207,8 +207,11 @@ describe('user-data manager', () => {
         // The manager may persist a migrated/default payload on initialization,
         // so we assert at least the two explicit updates.
         expect(saveSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+        // Save callback now receives an API object: { data, showToast }
         expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({
-            preferences: { theme: 'dark' }
+            data: expect.objectContaining({
+                preferences: { theme: 'dark' }
+            })
         }));
     });
 

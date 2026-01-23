@@ -31,6 +31,8 @@ import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboa
 import { DataTable } from 'primereact/datatable';
 import { ActionDefinition } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
+import type { ShowToastFn } from './framework/toast'
+import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
 
 export interface AppProps {
     graphqlHost: string;
@@ -61,10 +63,10 @@ export interface AppProps {
     /** Optional user data integration hooks. */
     userData?: {
         /** Optional async loader invoked when the user-data manager is created. */
-        onLoad?: () => Promise<UserDataJson | null>;
+        onLoad?: (api: UserDataLoadAPI) => Promise<UserDataJson | null>;
 
         /** Optional async saver invoked whenever user data is saved (non-localStorage-only saves). */
-        onSave?: (data: UserDataJson) => Promise<void>;
+        onSave?: (api: UserDataSaveAPI) => Promise<void>;
     };
 }
 
@@ -116,10 +118,10 @@ function App({
     const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl as any);
 
     const userDataManagerOptions = useMemo(() => {
-        if (!userData?.onLoad && !userData?.onSave) return undefined
         return {
-            load: userData.onLoad,
-            save: userData.onSave
+            load: userData?.onLoad,
+            save: userData?.onSave,
+            showToast: (opts => toast.current?.show({ ...opts })) as ShowToastFn
         }
     }, [userData?.onLoad, userData?.onSave])
 
@@ -214,13 +216,6 @@ function App({
             view: selectedView.id,
             name,
             state: state
-        });
-
-        toast.current?.show({
-            severity: 'success',
-            summary: 'Filter Saved',
-            detail: `Filter "${name}" has been saved successfully`,
-            life: 3000
         });
     };
 

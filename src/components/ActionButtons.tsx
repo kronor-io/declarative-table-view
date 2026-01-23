@@ -4,6 +4,7 @@ import { ActionDefinition, ActionAPI } from '../framework/actions';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 import { buildGraphQLQueryVariables } from '../framework/data';
 import { View } from '../framework/view';
+import type { ShowToastFn } from '../framework/toast'
 import { FilterState, PaginationState } from '../framework/state';
 
 export interface ActionButtonsProps {
@@ -12,7 +13,7 @@ export interface ActionButtonsProps {
     filterState: FilterState;
     setFilterState: (next: FilterState) => void;
     refetch: () => void;
-    showToast: (opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => void;
+    showToast: ShowToastFn;
     paginationState: PaginationState;
     rowsPerPage: number;
 }
