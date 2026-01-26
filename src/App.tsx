@@ -33,6 +33,7 @@ import { ActionDefinition } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
 import type { ShowToastFn } from './framework/toast'
 import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
+import type { Result } from './framework/result'
 
 export interface AppProps {
     graphqlHost: string;
@@ -63,10 +64,10 @@ export interface AppProps {
     /** Optional user data integration hooks. */
     userData?: {
         /** Optional async loader invoked when the user-data manager is created. */
-        onLoad?: (api: UserDataLoadAPI) => Promise<UserDataJson | null>;
+        onLoad?: (api: UserDataLoadAPI) => Promise<Result<string, UserDataJson | null>>;
 
         /** Optional async saver invoked whenever user data is saved (non-localStorage-only saves). */
-        onSave?: (api: UserDataSaveAPI) => Promise<void>;
+        onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>;
     };
 }
 
@@ -208,15 +209,14 @@ function App({
     }, [syncFilterStateToUrl, refetchTrigger]);
 
     // Save a new filter
-    const handleSaveFilter = (state: FilterState) => {
+    const handleSaveFilter = async (state: FilterState) => {
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
-
-        userDataManager.createFilter({
+        await userDataManager.createFilter({
             view: selectedView.id,
             name,
             state: state
-        });
+        })
     };
 
     // Update an existing filter
@@ -227,20 +227,8 @@ function App({
             icon: 'pi pi-exclamation-triangle',
             defaultFocus: 'reject',
             acceptClassName: 'p-button-danger',
-            accept: () => {
-                const updatedFilter = userDataManager.updateFilter(selectedView.id, filter.id, {
-                    state: state
-                });
-
-                if (updatedFilter) {
-                    // Show success toast
-                    toast.current?.show({
-                        severity: 'success',
-                        summary: 'Filter Updated',
-                        detail: `Filter "${filter.name}" has been updated successfully`,
-                        life: 3000
-                    });
-                }
+            accept: async () => {
+                await userDataManager.updateFilter(selectedView.id, filter.id, { state })
             },
             reject: () => {
                 // User cancelled - no action needed
@@ -249,17 +237,8 @@ function App({
     };
 
     // Delete a saved filter
-    const handleDeleteFilter = (filterId: string) => {
-        const success = userDataManager.deleteFilter(selectedView.id, filterId);
-        if (success) {
-            // Show success toast
-            toast.current?.show({
-                severity: 'success',
-                summary: 'Filter Deleted',
-                detail: 'Filter has been deleted successfully',
-                life: 3000
-            });
-        }
+    const handleDeleteFilter = async (filterId: string) => {
+        await userDataManager.deleteFilter(selectedView.id, filterId)
     };
 
     // Share current filter state
@@ -415,10 +394,10 @@ function App({
     };
 
     // Rows-per-page change handler: reset pagination; fetch is handled by effect
-    const handleRowsPerPageChange = (value: number) => {
+    const handleRowsPerPageChange = async (value: number) => {
         if (value === rowsPerPage) return;
         setRowsPerPage(value)
-        userDataManager.updateViewData(selectedView.id, viewData => ({ ...viewData, rowsPerPage: value }))
+        await userDataManager.setRowsPerPage(selectedView.id, value)
     };
 
     return (

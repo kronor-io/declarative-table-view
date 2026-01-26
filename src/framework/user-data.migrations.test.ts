@@ -6,6 +6,7 @@ import { defaultUserData, INITIAL_USERDATA_FORMAT_REVISION, toUserDataJson, type
 import type { FilterSchemasAndGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { SAVED_FILTERS_KEY } from './saved-filters';
+import { isFailure, isSuccess } from './result';
 
 const basicSchema: FilterSchemasAndGroups = {
     groups: [{ name: 'default', label: null }],
@@ -69,7 +70,8 @@ describe('user-data migrations', () => {
                 'test-view': basicSchema
             }
         });
-        expect(migrated).toBe(data);
+        expect(isSuccess(migrated)).toBe(true);
+        expect(migrated).toEqual({ tag: 'success', value: data });
         expect(consoleSpy).not.toHaveBeenCalled();
     });
 
@@ -211,22 +213,25 @@ describe('user-data migrations', () => {
         randomUuidSpy.mockRestore();
     });
 
-    it('applyUserDataMigrations throws when starting revision is not the expected fromRevision', () => {
+    it('applyUserDataMigrations returns failure when starting revision is not the expected fromRevision', () => {
         const data = defaultUserData();
         data.formatRevision = '2025-01-01T00:00:00.000Z';
 
-        expect(() =>
-            applyUserDataMigrations(data, {
-                filterSchemasByViewId: {
-                    'view-a': basicSchema,
-                    'view-b': basicSchema,
-                    'test-view': basicSchema
-                }
-            })
-        ).toThrow(/User-data migration out of order/);
+        const result = applyUserDataMigrations(data, {
+            filterSchemasByViewId: {
+                'view-a': basicSchema,
+                'view-b': basicSchema,
+                'test-view': basicSchema
+            }
+        })
+
+        expect(isFailure(result)).toBe(true)
+        if (isFailure(result)) {
+            expect(result.error.kind).toBe('outOfOrder')
+        }
     });
 
-    it('user-data-manager falls back to defaults when migration throws (unknown revision)', async () => {
+    it('user-data-manager falls back to defaults when migration fails (unknown revision)', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
             preferences: {},
             views: {},
@@ -246,6 +251,11 @@ describe('user-data migrations', () => {
 
         const { userData } = await loadUserDataManager();
         expect(userData.getViewData('view-a').savedFilters).toEqual([]);
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to read user data:', expect.any(Error));
+        // user-data-manager reports migration failures via console.error
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Failed to read user data:',
+            expect.stringContaining('User-data migration out of order'),
+            expect.anything()
+        );
     });
 });

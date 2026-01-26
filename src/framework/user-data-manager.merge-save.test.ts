@@ -2,13 +2,14 @@ import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY } from './user-data-m
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
 import { INITIAL_USERDATA_FORMAT_REVISION, type UserDataJson } from './user-data';
 import { filterControl, filterExpr, type FilterSchemasAndGroups } from './filters';
+import { success } from './result';
 
 describe('user-data save merges existing views from localStorage', () => {
     beforeEach(() => {
         localStorage.clear();
     });
 
-    it('preserves unknown views from localStorage and passes merged JSON to save callback', () => {
+    it('preserves unknown views from localStorage and passes merged JSON to save callback', async () => {
         const viewA: string = 'view-a';
         const unknownView: string = 'unknown-view';
 
@@ -46,15 +47,16 @@ describe('user-data save merges existing views from localStorage', () => {
         // Spy save callback to capture payload
         const saveCallbackPayloads: UserDataJson[] = [];
         const manager = createUserDataManager({ [viewA]: schemaA }, {
-            showToast: () => {},
+            showToast: () => { },
             save: async ({ data }) => {
                 saveCallbackPayloads.push(data);
+                return success(undefined);
             }
         });
 
         // Trigger a save by updating managed view-a
         const updatedHidden = ['col-1'];
-        manager.updateViewData(viewA as any, (prev) => ({ ...prev, hiddenColumns: updatedHidden }));
+        await manager.setHiddenColumns(viewA, updatedHidden);
 
         // Verify localStorage holds merged JSON
         const mergedJsonRaw = localStorage.getItem(USER_DATA_LOCALSTORAGE_KEY);

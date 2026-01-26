@@ -16,3 +16,6 @@ export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
 export { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 export { buildGraphQLQueryVariables } from '../framework/data';
+
+export type { Result, Failure, Success } from '../framework/result';
+export { isFailure, isSuccess, failure, success } from '../framework/result';

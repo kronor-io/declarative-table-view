@@ -8,13 +8,14 @@ import type { RowSelectionAPI } from '../components/Table'
 import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
+import type { Result } from '../framework/result'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
-    onLoad?: (api: UserDataLoadAPI) => Promise<UserDataJson | null>
+    onLoad?: (api: UserDataLoadAPI) => Promise<Result<string, UserDataJson | null>>
 
     /** Optional async saver invoked whenever user data is saved (non-localStorage-only saves). */
-    onSave?: (api: UserDataSaveAPI) => Promise<void>
+    onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>
 }
 
 export interface RenderTableViewOptions {

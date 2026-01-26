@@ -7,6 +7,7 @@ import { parseFilterFormState } from './filter-form-state';
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
 import { CURRENT_USERDATA_FORMAT_REVISION } from './user-data.migrations';
 import { INITIAL_USERDATA_FORMAT_REVISION } from './user-data';
+import { failure, success } from './result';
 
 const basicSchema: FilterSchemasAndGroups = {
     groups: [{ name: 'default', label: null }],
@@ -78,11 +79,8 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({});
         let { userData } = await loadUserDataManager();
 
-        userData.updateViewData('view-a', (prev) => ({
-            ...prev,
-            columnOrder: ['col1', 'col2', 'col3'],
-            hiddenColumns: ['col9']
-        }));
+        await userData.setColumnOrder('view-a', ['col1', 'col2', 'col3'])
+        await userData.setHiddenColumns('view-a', ['col9'])
 
         // Reload module to simulate new session (manager memoizes in module scope)
         mockLocalStorageWithBackingStore(store);
@@ -96,7 +94,7 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({});
         let { userData } = await loadUserDataManager();
 
-        userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }));
+        await userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }));
 
         mockLocalStorageWithBackingStore(store);
         ({ userData } = await loadUserDataManager());
@@ -144,15 +142,17 @@ describe('user-data manager', () => {
         let { userData } = await loadUserDataManager();
 
         const state = parseFilterFormState({}, basicSchema);
-        const saved = userData.createFilter({
+        await userData.createFilter({
             name: 'My Filter',
             view: 'view-a',
             state
         });
 
-        expect(saved.id).toBe(deterministicUuid);
-        expect(saved.createdAt instanceof Date).toBe(true);
-        expect(saved.formatRevision).toBe(CURRENT_FORMAT_REVISION);
+        const createdList = userData.getSavedFilters('view-a');
+        expect(createdList).toHaveLength(1);
+        expect(createdList[0].id).toBe(deterministicUuid);
+        expect(createdList[0].createdAt instanceof Date).toBe(true);
+        expect(createdList[0].formatRevision).toBe(CURRENT_FORMAT_REVISION);
 
         // Reload module to simulate new session
         mockLocalStorageWithBackingStore(store);
@@ -163,22 +163,21 @@ describe('user-data manager', () => {
         expect(loaded[0].id).toBe(deterministicUuid);
         expect(loaded[0].createdAt instanceof Date).toBe(true);
 
-        const updated = userData.updateFilter('view-a', loaded[0].id, { name: 'Renamed' });
-        expect(updated?.name).toBe('Renamed');
+        await userData.updateFilter('view-a', loaded[0].id, { name: 'Renamed' })
 
         // Verify persisted update
         mockLocalStorageWithBackingStore(store);
         ({ userData } = await loadUserDataManager());
         expect(userData.getSavedFilters('view-a')[0].name).toBe('Renamed');
 
-        expect(userData.deleteFilter('view-a', deterministicUuid)).toBe(true);
-        expect(userData.getSavedFilters('view-a')).toEqual([]);
-        expect(userData.deleteFilter('view-a', 'does-not-exist')).toBe(false);
+        await userData.deleteFilter('view-a', deterministicUuid)
+        expect(userData.getSavedFilters('view-a')).toEqual([])
+        await userData.deleteFilter('view-a', 'does-not-exist')
 
         randomUuidSpy.mockRestore();
     });
 
-    it('updateFilter returns null when missing', async () => {
+    it('updateFilter is a no-op when missing', async () => {
         mockLocalStorageWithBackingStore({});
         const { userData } = await loadUserDataManager();
 
@@ -192,17 +191,18 @@ describe('user-data manager', () => {
             formatRevision: CURRENT_FORMAT_REVISION
         };
 
-        expect(userData.updateFilter('view-a', missing.id, { name: 'Nope' })).toBeNull();
+        await userData.updateFilter('view-a', missing.id, { name: 'Nope' })
+        expect(userData.getSavedFilters('view-a')).toEqual([])
     });
 
     it('invokes save callback on every save', async () => {
         mockLocalStorageWithBackingStore({});
 
-        const saveSpy = jest.fn(async () => { });
+        const saveSpy = jest.fn(async () => success(undefined));
         const { userData } = await loadUserDataManagerWithOptions({ save: saveSpy });
 
-        userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }));
-        userData.updateViewData('view-a', (prev) => ({ ...prev, hiddenColumns: ['x'] }));
+        await userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }))
+        await userData.setHiddenColumns('view-a', ['x'])
 
         // The manager may persist a migrated/default payload on initialization,
         // so we assert at least the two explicit updates.
@@ -218,7 +218,7 @@ describe('user-data manager', () => {
     it('calls load callback on creation and persists loaded data to localStorage', async () => {
         const store = mockLocalStorageWithBackingStore({});
 
-        const loadSpy = jest.fn(async () => ({
+        const loadSpy = jest.fn(async () => success({
             preferences: { theme: 'remote' },
             views: {
                 'view-a': { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
@@ -226,7 +226,7 @@ describe('user-data manager', () => {
             revision: 0,
             formatRevision: '1970-01-01T00:00:00.000Z'
         }));
-        const saveSpy = jest.fn(async () => { });
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
@@ -254,19 +254,21 @@ describe('user-data manager', () => {
             })
         });
 
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-        const loadSpy = jest.fn(async () => {
-            throw new Error('nope');
-        });
+        const showToastSpy = jest.fn();
+        const loadSpy = jest.fn(async () => failure('nope'));
 
-        const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy });
+        const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, showToast: showToastSpy });
         await userData.ready;
 
         expect(userData.getPreferences()).toEqual({ theme: 'local' });
         expect(store.dtvUserData).toBeTruthy();
         expect(loadSpy).toHaveBeenCalledTimes(1);
-        expect(consoleSpy).toHaveBeenCalledWith('User-data load callback failed:', expect.any(Error));
-        consoleSpy.mockRestore();
+        // Manager reports load failures via toast
+        const toastArgs = showToastSpy.mock.calls.map(args => args[0]);
+        const toastCall = toastArgs.find((c: any) => c?.severity === 'error' && c?.summary === 'Loading user data failed');
+        expect(toastCall).toBeDefined();
+        const toast = toastCall as any;
+        expect(toast.detail).toContain('nope');
     });
 
     it('initializes defaults when both localStorage and load callback provide no data', async () => {
@@ -292,8 +294,8 @@ describe('user-data manager', () => {
             revision: 3,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         };
-        const loadSpy = jest.fn(async () => remoteJson);
-        const saveSpy = jest.fn(async () => { });
+        const loadSpy = jest.fn(async () => success(remoteJson));
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
@@ -314,7 +316,7 @@ describe('user-data manager', () => {
         };
         const store = mockLocalStorageWithBackingStore({ dtvUserData: JSON.stringify(localJson) });
 
-        const loadSpy = jest.fn(async () => null);
+        const loadSpy = jest.fn(async () => success(null));
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy });
         await userData.ready;
 
@@ -339,8 +341,8 @@ describe('user-data manager', () => {
             revision: 2,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         };
-        const loadSpy = jest.fn(async () => remoteJson);
-        const saveSpy = jest.fn(async () => { });
+        const loadSpy = jest.fn(async () => success(remoteJson));
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
@@ -366,8 +368,8 @@ describe('user-data manager', () => {
             revision: 2,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         };
-        const loadSpy = jest.fn(async () => remoteJson);
-        const saveSpy = jest.fn(async () => { });
+        const loadSpy = jest.fn(async () => success(remoteJson));
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
@@ -395,8 +397,8 @@ describe('user-data manager', () => {
             revision: 5,
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
         };
-        const loadSpy = jest.fn(async () => remoteJson);
-        const saveSpy = jest.fn(async () => { });
+        const loadSpy = jest.fn(async () => success(remoteJson));
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
@@ -426,8 +428,8 @@ describe('user-data manager', () => {
             revision: 4,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         };
-        const loadSpy = jest.fn(async () => remoteJson);
-        const saveSpy = jest.fn(async () => { });
+        const loadSpy = jest.fn(async () => success(remoteJson));
+        const saveSpy = jest.fn(async () => success(undefined));
 
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;

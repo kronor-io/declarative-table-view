@@ -2,6 +2,7 @@ import { FilterSchemasAndGroups } from './filters';
 import { fromSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
 import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, ViewData, type UserData } from './user-data';
 import { ViewId } from './view';
+import { failure, success, type Result } from './result'
 
 export const SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY = 'dtvSavedFiltersMigratedToUserData';
 
@@ -113,9 +114,37 @@ const MIGRATIONS: MigrationStep[] = [step_migrateSavedFilters];
 
 export const CURRENT_USERDATA_FORMAT_REVISION = MIGRATIONS[MIGRATIONS.length - 1].toRevision;
 
-export function applyUserDataMigrations(userData: UserData, context: MigrationContext): UserData {
+export type UserDataMigrationError =
+    | {
+        kind: 'outOfOrder'
+        currentRevision: string
+        expectedRevision: string
+    }
+    | {
+        kind: 'stepFailed'
+        toRevision: string
+        cause: unknown
+    }
+    | {
+        kind: 'didNotReachLatest'
+        currentRevision: string
+        expectedRevision: string
+    }
+
+export function userDataMigrationErrorToMessage(err: UserDataMigrationError): string {
+    switch (err.kind) {
+        case 'outOfOrder':
+            return `User-data migration out of order. Current revision: ${err.currentRevision}, expected: ${err.expectedRevision}`
+        case 'stepFailed':
+            return `User-data migration to revision ${err.toRevision} failed: ${err.cause instanceof Error ? err.cause.message : String(err.cause)}`
+        case 'didNotReachLatest':
+            return `User-data migration did not reach latest revision. Current: ${err.currentRevision} Expected: ${err.expectedRevision}`
+    }
+}
+
+export function applyUserDataMigrations(userData: UserData, context: MigrationContext): Result<UserDataMigrationError, UserData> {
     if (userData.formatRevision === CURRENT_USERDATA_FORMAT_REVISION) {
-        return userData
+        return success(userData)
     }
 
     let nextUserData = userData
@@ -124,25 +153,32 @@ export function applyUserDataMigrations(userData: UserData, context: MigrationCo
         const currentRevision = nextUserData.formatRevision
 
         if (step.fromRevision !== currentRevision) {
-            throw new Error(`User-data migration out of order. Current revision: ${currentRevision}, expected: ${step.fromRevision}`)
+            return failure({
+                kind: 'outOfOrder',
+                currentRevision,
+                expectedRevision: step.fromRevision
+            })
         }
 
         try {
             nextUserData = step.migrate(nextUserData, context)
             nextUserData.formatRevision = step.toRevision
         } catch (err) {
-            throw new Error(`User-data migration to revision ${step.toRevision} failed: ${err}`)
+            return failure({
+                kind: 'stepFailed',
+                toRevision: step.toRevision,
+                cause: err
+            })
         }
     }
 
     if (nextUserData.formatRevision !== CURRENT_USERDATA_FORMAT_REVISION) {
-        throw new Error(
-            'User-data migration did not reach latest revision. Current: ' +
-            nextUserData.formatRevision +
-            ' Expected: ' +
-            CURRENT_USERDATA_FORMAT_REVISION
-        )
+        return failure({
+            kind: 'didNotReachLatest',
+            currentRevision: nextUserData.formatRevision,
+            expectedRevision: CURRENT_USERDATA_FORMAT_REVISION
+        })
     }
 
-    return nextUserData
+    return success(nextUserData)
 }

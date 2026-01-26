@@ -54,56 +54,53 @@ export function useUserDataManager(
     }, [currentViewId, manager])
 
     // Actions that update both state and manager
-    const updatePreferences = useCallback((updateFunc: (prev: UserPreferences) => UserPreferences) => {
-        const result = manager.updatePreferences(updateFunc);
-        setPreferences(result);
-        return result;
+    const updatePreferences = useCallback(async (updateFunc: (prev: UserPreferences) => UserPreferences) => {
+        const prefs = await manager.updatePreferences(updateFunc);
+        setPreferences(prefs);
+        return prefs;
     }, [manager]);
 
-    const updateViewData = useCallback((viewId: ViewId, updateFunc: (prev: ViewData) => ViewData) => {
-        const result = manager.updateViewData(viewId, updateFunc);
+    const setColumnOrder = useCallback(async (viewId: ViewId, order: string[] | null) => {
+        const result = await manager.setColumnOrder(viewId, order);
         if (viewId === currentViewId) {
             setViewData(result);
         }
         return result;
     }, [currentViewId, manager]);
 
-    const setColumnOrder = useCallback((viewId: ViewId, order: string[] | null) => {
-        const result = manager.setColumnOrder(viewId, order);
+    const setHiddenColumns = useCallback(async (viewId: ViewId, hidden: string[]) => {
+        const result = await manager.setHiddenColumns(viewId, hidden);
         if (viewId === currentViewId) {
-            setViewData(result);
+            setViewData(result)
         }
         return result;
     }, [currentViewId, manager]);
 
-    const setHiddenColumns = useCallback((viewId: ViewId, hidden: string[]) => {
-        const result = manager.setHiddenColumns(viewId, hidden);
+    const setRowsPerPage = useCallback(async (viewId: ViewId, rowsPerPage: number) => {
+        const result = await manager.setRowsPerPage(viewId, rowsPerPage);
         if (viewId === currentViewId) {
-            setViewData(result);
+            setViewData(result)
         }
         return result;
     }, [currentViewId, manager]);
 
-    const createFilter = useCallback((filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => {
-        const result = manager.createFilter(filter);
-        setSavedFilters(prev => [...prev, result]);
-        return result;
-    }, [manager]);
-
-    const updateFilter = useCallback((viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) => {
-        const result = manager.updateFilter(viewId, savedFilterId, updates);
-        if (result && viewId === currentViewId) {
-            setSavedFilters(prev => prev.map(f => f.id === savedFilterId ? result : f));
-        }
-        return result;
+    const createFilter = useCallback(async (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => {
+        await manager.createFilter(filter);
+        setSavedFilters(manager.getSavedFilters(currentViewId))
     }, [currentViewId, manager]);
 
-    const deleteFilter = useCallback((viewId: ViewId, savedFilterId: SavedFilterId) => {
-        const result = manager.deleteFilter(viewId, savedFilterId);
-        if (result && viewId === currentViewId) {
-            setSavedFilters(prev => prev.filter(f => f.id !== savedFilterId));
+    const updateFilter = useCallback(async (viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) => {
+        await manager.updateFilter(viewId, savedFilterId, updates);
+        if (viewId === currentViewId) {
+            setSavedFilters(manager.getSavedFilters(currentViewId))
         }
-        return result;
+    }, [currentViewId, manager]);
+
+    const deleteFilter = useCallback(async (viewId: ViewId, savedFilterId: SavedFilterId) => {
+        await manager.deleteFilter(viewId, savedFilterId)
+        if (viewId === currentViewId) {
+            setSavedFilters(manager.getSavedFilters(currentViewId))
+        }
     }, [currentViewId, manager]);
 
     return {
@@ -111,7 +108,7 @@ export function useUserDataManager(
         viewData,
         savedFilters,
         updatePreferences,
-        updateViewData,
+        setRowsPerPage,
         setColumnOrder,
         setHiddenColumns,
         createFilter,
