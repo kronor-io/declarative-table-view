@@ -176,6 +176,11 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             }
         }
 
+        // Patch autocomplete values to empty strings to prevent breaking the control
+        if (control.type === 'autocomplete') {
+            value = '';
+        }
+
         return {
             ...currentState,
             value: value
