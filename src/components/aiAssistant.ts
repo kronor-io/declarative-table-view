@@ -67,14 +67,16 @@ function buildAiPrompt(filterSchema: FilterSchemasAndGroups, userPrompt: string)
         `And the following type definition for FilterFormState:`,
         filterFormStateType,
         '',
-        `The current date is: ${currentDate}`,
+        `The current date is: ${currentDate}, weeks start on Monday, user timezone is Europe/Copenhagen.`,
         '',
         `Generate a valid JSON object with filter IDs as keys and values containing filter state according to the filter expression in the schema, that matches a user request.`,
         `For filter trees, preserve the structure of and/or/not according to the schema and the FilterFormState type.`,
         `User request: ${userPrompt}`,
         '',
         `For date filters, always send the value as a plain string in standard date-time string format. Skip filters that are not relevant to the user request.`,
-        `Output only the object mapping filter IDs to FilterFormState, like: {"filter-id": {...filterFormState...}}`
+        `Output only the object mapping filter IDs to FilterFormState, like: {"filter-id": {...filterFormState...}}`,
+        '',
+        'Always include the date filters in the result, you can default to the current month unless otherwise specified.'
     ].join('\n');
 }
 
