@@ -8,7 +8,7 @@ This folder contains detailed API documentation for the runtime extension points
 - Custom Filter Components (`customFilterComponents`)
 - Query Transforms (`queryTransforms`)
 - Initial Values (`initialValues`)
- - Static Conditions (`staticConditions` on a View)
+- Static Conditions (`staticConditions` on a View)
 
 Each extension point is referenced from JSON view definitions using a Runtime Reference object:
 
@@ -22,11 +22,21 @@ Each extension point is referenced from JSON view definitions using a Runtime Re
 Resolution precedence: External (per-app) runtime overrides Built-in runtime. If the key is missing in both, an error is thrown listing available keys.
 
 ---
+## AI Assistant Prompt
+- Views can optionally provide `defaultAIFilterPrompt` to seed the AI assistant's input. When present, `AIAssistantForm` initializes its prompt from the selected view and updates when the view changes.
+- JSON example:
+    ```jsonc
+    {
+        "title": "Payment Requests",
+        "id": "payment-requests",
+        // ...
+        "defaultAIFilterPrompt": "authorized payments in euro or danish krona in the first week of april 2025"
+    }
+    ```
 
 ## Files
 - `cell-renderers.md` — How to write cell renderer functions and available helper components.
 - `runtime.md` — Structure of the `Runtime` object and how runtime references are resolved.
 - `no-rows-component.md` — Authoring components shown when a view returns zero rows.
- - `static-conditions.md` — Defining always-on GraphQL boolean expressions via `staticConditions`.
 
 Add additional docs here for transforms, custom filters, etc. as needed.

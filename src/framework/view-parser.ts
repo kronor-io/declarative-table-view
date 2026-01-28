@@ -119,6 +119,8 @@ export type ViewJson = {
     paginationKey: string;
     columns: ColumnDefinitionJson[];
     filterSchema: FilterFieldSchemaJson;
+    /** Optional default prompt shown in the AI Filter Assistant for this view. */
+    defaultAIFilterPrompt?: string;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
@@ -685,6 +687,14 @@ export function parseViewJson(
         throw new Error('View "orderByType" must be a string');
     }
 
+    // Optional defaultAIFilterPrompt
+
+    const defaultAIFilterPrompt: unknown = view.defaultAIFilterPrompt;
+
+    if (typeof defaultAIFilterPrompt !== 'undefined' && typeof defaultAIFilterPrompt !== 'string') {
+        throw new Error('View "defaultAIFilterPrompt" must be a string when provided');
+    }
+
     // Validate columns array
     if (!Array.isArray(view.columns)) {
         throw new Error('View "columns" must be an array');
@@ -784,8 +794,9 @@ export function parseViewJson(
         collectionName: view.collectionName,
         columnDefinitions,
         filterSchema,
-        boolExpType: view.boolExpType as string,
-        orderByType: view.orderByType as string,
+        defaultAIFilterPrompt,
+        boolExpType: view.boolExpType,
+        orderByType: view.orderByType,
         paginationKey: view.paginationKey,
         noRowsComponent,
         staticConditions,

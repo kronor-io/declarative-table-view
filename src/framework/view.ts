@@ -22,6 +22,8 @@ export type View = {
     collectionName: string;
     columnDefinitions: ColumnDefinition[];
     filterSchema: FilterSchemasAndGroups;
+    /** Optional default prompt shown in the AI Filter Assistant for this view. */
+    defaultAIFilterPrompt?: string;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination

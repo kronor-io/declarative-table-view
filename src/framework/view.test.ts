@@ -1477,6 +1477,26 @@ describe('parseViewJson', () => {
             expect(result.staticOrdering).toEqual([{ status: 'ASC' }]);
         });
 
+        it('should parse optional defaultAIFilterPrompt', () => {
+            const validJson = {
+                title: 'Test View',
+                id: 'test-view',
+                collectionName: 'testCollection',
+                paginationKey: 'createdAt',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                defaultAIFilterPrompt: 'authorized payments in EUR',
+                columns: [],
+                filterSchema: {
+                    groups: [{ name: 'default', label: null }],
+                    filters: []
+                }
+            };
+
+            const result = parseViewJson(validJson, viewTestRuntime);
+            expect(result.defaultAIFilterPrompt).toBe('authorized payments in EUR');
+        });
+
         it('should parse ViewJson with noRowsComponent', () => {
             const validJson = {
                 title: 'Test View',
@@ -1613,6 +1633,23 @@ describe('parseViewJson', () => {
 
             expect(() => parseViewJson(123, viewTestRuntime))
                 .toThrow('View JSON must be a non-null object');
+        });
+
+        it('should throw error for invalid defaultAIFilterPrompt', () => {
+            const invalidDefaultPrompt = {
+                title: 'Test',
+                id: 'test',
+                collectionName: 'test',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] },
+                defaultAIFilterPrompt: 123
+            };
+
+            expect(() => parseViewJson(invalidDefaultPrompt, viewTestRuntime))
+                .toThrow('View "defaultAIFilterPrompt" must be a string when provided');
         });
 
         it('should throw error for missing or invalid title', () => {

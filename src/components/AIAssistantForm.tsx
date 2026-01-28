@@ -1,7 +1,7 @@
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
-import { useState, RefObject } from 'react';
+import { useEffect, useState, RefObject } from 'react';
 import { FilterSchemasAndGroups } from '../framework/filters';
 import { View } from '../framework/view';
 import { generateFilterWithAI, GeminiApi } from './aiAssistant';
@@ -26,9 +26,14 @@ export default function AIAssistantForm({
     toast,
     setShowFilterForm
 }: AIAssistantFormProps) {
-    const [aiPrompt, setAiPrompt] = useState('authorized payments in euro or danish krona in the first week of april 2025');
+    const [aiPrompt, setAiPrompt] = useState(selectedView.defaultAIFilterPrompt ?? '');
     // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
     const [aiLoading, setAiLoading] = useState(false);
+
+    useEffect(() => {
+        setAiPrompt(selectedView.defaultAIFilterPrompt ?? '');
+    }, [selectedView.id, selectedView.defaultAIFilterPrompt]);
+
     return (
         <div className="tw:flex tw:flex-col tw:gap-2 tw:mb-3">
             <label className="tw:text-sm tw:font-semibold tw:mb-1" htmlFor="ai-prompt">AI Prompt</label>

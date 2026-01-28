@@ -5,6 +5,7 @@
     "paginationKey": "createdAt",
     "boolExpType": "PaymentRequestBoolExp",
     "orderByType": "[PaymentRequestOrderBy!]",
+    "defaultAIFilterPrompt": "authorized payments in euro or danish krona in the first week of april 2025",
     "noRowsComponent": {
         "section": "noRowsComponents",
         "key": "noRowsExtendDateRange"
