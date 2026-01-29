@@ -15,6 +15,7 @@ import TablePagination from './components/TablePagination';
 import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
 import SavedFilterList from './components/SavedFilterList';
+import UserPreferencesPanel from './components/UserPreferencesPanel';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
 import { FilterSchema, FilterSchemasAndGroups, getFieldNodes, FilterField, FilterId } from './framework/filters';
@@ -154,6 +155,7 @@ function App({
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
     const [showFilterForm, setShowFilterForm] = useState(false);
     const [showSavedFilterList, setShowSavedFilterList] = useState(false);
+    const [showPreferencesPanel, setShowPreferencesPanel] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -213,6 +215,12 @@ function App({
         setFilterInUrl(state.filterState);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [syncFilterStateToUrlWithOverride, refetchTrigger]);
+
+    // If URL syncing is disabled via preferences ("No"), immediately clear any existing URL state.
+    useEffect(() => {
+        if (syncFilterStateToUrlWithOverride) return;
+        clearFilterFromUrl();
+    }, [syncFilterStateToUrlWithOverride]);
 
     // Save a new filter
     const handleSaveFilter = async (state: FilterState) => {
@@ -452,6 +460,14 @@ function App({
                                 label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
                                 onClick={() => setShowSavedFilterList(v => !v)}
                             />
+                            <Button
+                                type="button"
+                                icon='pi pi-cog'
+                                outlined
+                                size='small'
+                                label={showPreferencesPanel ? 'Hide Preferences' : 'Preferences'}
+                                onClick={() => setShowPreferencesPanel(v => !v)}
+                            />
                             {
                                 showCsvExportButton && (
                                     <Button
@@ -542,6 +558,12 @@ function App({
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
                     filterSchema={state.filterSchemasAndGroups}
+                />
+
+                <UserPreferencesPanel
+                    visible={showPreferencesPanel}
+                    preferences={userDataManager.preferences}
+                    onChangePreferences={userDataManager.updatePreferences}
                 />
 
                 {
