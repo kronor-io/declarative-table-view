@@ -1,6 +1,6 @@
 import { FilterSchemasAndGroups } from './filters';
 import { fromSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
-import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, ViewData, type UserData } from './user-data';
+import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, ViewData, type UserData } from './user-data';
 import { ViewId } from './view';
 import { failure, success, type Result } from './result'
 
@@ -110,7 +110,24 @@ const step_migrateSavedFilters: MigrationStep = {
     }
 }
 
-const MIGRATIONS: MigrationStep[] = [step_migrateSavedFilters];
+const step_addPreference_syncFilterStateToUrlOverride: MigrationStep = {
+    fromRevision: REVISION_2026_01_05,
+    toRevision: REVISION_2026_01_29,
+    migrate: (userData: UserData): UserData => {
+        return {
+            ...userData,
+            preferences: {
+                ...userData.preferences,
+                syncFilterStateToUrlOverride: null
+            }
+        }
+    }
+}
+
+const MIGRATIONS: MigrationStep[] = [
+    step_migrateSavedFilters,
+    step_addPreference_syncFilterStateToUrlOverride
+];
 
 export const CURRENT_USERDATA_FORMAT_REVISION = MIGRATIONS[MIGRATIONS.length - 1].toRevision;
 

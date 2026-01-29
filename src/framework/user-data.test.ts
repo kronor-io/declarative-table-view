@@ -6,7 +6,7 @@ import type { FilterSchemasAndGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
 import { CURRENT_USERDATA_FORMAT_REVISION } from './user-data.migrations';
-import { INITIAL_USERDATA_FORMAT_REVISION } from './user-data';
+import { defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION } from './user-data';
 import { failure, success } from './result';
 
 const basicSchema: FilterSchemasAndGroups = {
@@ -71,7 +71,7 @@ describe('user-data manager', () => {
         mockLocalStorageWithBackingStore({});
         const { userData } = await loadUserDataManager();
 
-        expect(userData.getPreferences()).toEqual({});
+        expect(userData.getPreferences()).toEqual(defaultUserPreferences);
         expect(userData.getViewData('test-view')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
     });
 
@@ -94,12 +94,12 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({});
         let { userData } = await loadUserDataManager();
 
-        await userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }));
+        await userData.updatePreferences((prev) => ({ ...prev, syncFilterStateToUrlOverride: true }));
 
         mockLocalStorageWithBackingStore(store);
         ({ userData } = await loadUserDataManager());
 
-        expect(userData.getPreferences()).toEqual({ theme: 'dark' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: true });
     });
 
     it('handles malformed dtvUserData JSON gracefully', async () => {
@@ -109,7 +109,7 @@ describe('user-data manager', () => {
         });
 
         const { userData } = await loadUserDataManager();
-        expect(userData.getPreferences()).toEqual({});
+        expect(userData.getPreferences()).toEqual(defaultUserPreferences);
         expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to parse user data JSON:', expect.any(Error));
         consoleSpy.mockRestore();
@@ -201,7 +201,7 @@ describe('user-data manager', () => {
         const saveSpy = jest.fn(async () => success(undefined));
         const { userData } = await loadUserDataManagerWithOptions({ save: saveSpy });
 
-        await userData.updatePreferences((prev) => ({ ...prev, theme: 'dark' }))
+        await userData.updatePreferences((prev) => ({ ...prev, syncFilterStateToUrlOverride: true }))
         await userData.setHiddenColumns('view-a', ['x'])
 
         // The manager may persist a migrated/default payload on initialization,
@@ -210,7 +210,7 @@ describe('user-data manager', () => {
         // Save callback now receives an API object: { data, showToast }
         expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
-                preferences: { theme: 'dark' }
+                preferences: { syncFilterStateToUrlOverride: true }
             })
         }));
     });
@@ -219,12 +219,12 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({});
 
         const loadSpy = jest.fn(async () => success({
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {
                 'view-a': { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
             },
             revision: 0,
-            formatRevision: '1970-01-01T00:00:00.000Z'
+            formatRevision: CURRENT_USERDATA_FORMAT_REVISION
         }));
         const saveSpy = jest.fn(async () => success(undefined));
 
@@ -232,12 +232,12 @@ describe('user-data manager', () => {
         await userData.ready;
 
         expect(loadSpy).toHaveBeenCalledTimes(1);
-        expect(userData.getPreferences()).toEqual({ theme: 'remote' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: true });
 
         // Requirement: successful load is also saved to localStorage
         expect(store.dtvUserData).toBeTruthy();
         const parsed = JSON.parse(store.dtvUserData);
-        expect(parsed.preferences).toEqual({ theme: 'remote' });
+        expect(parsed.preferences).toEqual({ syncFilterStateToUrlOverride: true });
 
         // Loaded persistence may trigger a save depending on migrations.
         // Save callback may be skipped when remote is newer and unchanged by migrations.
@@ -247,10 +247,10 @@ describe('user-data manager', () => {
     it('keeps localStorage state when load callback fails', async () => {
         const store = mockLocalStorageWithBackingStore({
             dtvUserData: JSON.stringify({
-                preferences: { theme: 'local' },
+                preferences: { syncFilterStateToUrlOverride: false },
                 views: {},
                 revision: 0,
-                formatRevision: '1970-01-01T00:00:00.000Z'
+                formatRevision: CURRENT_USERDATA_FORMAT_REVISION
             })
         });
 
@@ -260,7 +260,7 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, showToast: showToastSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'local' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: false });
         expect(store.dtvUserData).toBeTruthy();
         expect(loadSpy).toHaveBeenCalledTimes(1);
         // Manager reports load failures via toast
@@ -276,10 +276,10 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManager();
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({});
+        expect(userData.getPreferences()).toEqual(defaultUserPreferences);
         expect(store.dtvUserData).toBeTruthy();
         const parsed = JSON.parse(store.dtvUserData);
-        expect(parsed.preferences).toEqual({});
+        expect(parsed.preferences).toEqual(defaultUserPreferences);
         expect(parsed.formatRevision).toBeDefined();
     });
 
@@ -287,7 +287,7 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({});
 
         const remoteJson = {
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {
                 'view-a': { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
             },
@@ -300,16 +300,16 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'remote' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: true });
         expect(store.dtvUserData).toBeTruthy();
-        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ theme: 'remote' });
+        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ syncFilterStateToUrlOverride: true });
         // Remote newer and unchanged by migrations → no save callback needed
         expect(saveSpy).not.toHaveBeenCalled();
     });
 
     it('uses localStorage user data when load callback returns null (no migrations)', async () => {
         const localJson = {
-            preferences: { theme: 'local' },
+            preferences: { syncFilterStateToUrlOverride: false },
             views: {},
             revision: 2,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -320,15 +320,15 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'local' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: false });
         expect(store.dtvUserData).toBeTruthy();
-        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ theme: 'local' });
+        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ syncFilterStateToUrlOverride: false });
         expect(loadSpy).toHaveBeenCalledTimes(1);
     });
 
     it('prefers remote over local when remote revision is higher (no migrations)', async () => {
         const localJson = {
-            preferences: { theme: 'local' },
+            preferences: { syncFilterStateToUrlOverride: false },
             views: {},
             revision: 1,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -336,7 +336,7 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({ dtvUserData: JSON.stringify(localJson) });
 
         const remoteJson = {
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {},
             revision: 2,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -347,15 +347,15 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'remote' });
-        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ theme: 'remote' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: true });
+        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ syncFilterStateToUrlOverride: true });
         // No migrations, remote newer → no save callback
         expect(saveSpy).not.toHaveBeenCalled();
     });
 
     it('prefers local over remote when local revision is higher (no migrations)', async () => {
         const localJson = {
-            preferences: { theme: 'local' },
+            preferences: { syncFilterStateToUrlOverride: false },
             views: {},
             revision: 3,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -363,7 +363,7 @@ describe('user-data manager', () => {
         const store = mockLocalStorageWithBackingStore({ dtvUserData: JSON.stringify(localJson) });
 
         const remoteJson = {
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {},
             revision: 2,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -374,8 +374,8 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'local' });
-        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ theme: 'local' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: false });
+        expect(JSON.parse(store.dtvUserData).preferences).toEqual({ syncFilterStateToUrlOverride: false });
         // Local newer → push to save callback to sync remote
         expect(saveSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
@@ -383,7 +383,7 @@ describe('user-data manager', () => {
     it('migrates remote-chosen data and saves (formatRevision changes, bumps revision)', async () => {
         // Local is older and already at current format
         const localJson = {
-            preferences: { theme: 'local' },
+            preferences: { syncFilterStateToUrlOverride: false },
             views: {},
             revision: 1,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -392,7 +392,7 @@ describe('user-data manager', () => {
 
         // Remote is newer but at initial format -> will be migrated
         const remoteJson = {
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {},
             revision: 5,
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
@@ -403,7 +403,7 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'remote' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: null });
         const persisted = JSON.parse(store.dtvUserData);
         expect(persisted.formatRevision).toEqual(CURRENT_USERDATA_FORMAT_REVISION);
 
@@ -414,7 +414,7 @@ describe('user-data manager', () => {
     it('migrates local-chosen data and saves (formatRevision changes, bumps revision)', async () => {
         // Local is newer but at initial format -> will be migrated
         const localJson = {
-            preferences: { theme: 'local' },
+            preferences: { syncFilterStateToUrlOverride: false },
             views: {},
             revision: 6,
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
@@ -423,7 +423,7 @@ describe('user-data manager', () => {
 
         // Remote is older and already current
         const remoteJson = {
-            preferences: { theme: 'remote' },
+            preferences: { syncFilterStateToUrlOverride: true },
             views: {},
             revision: 4,
             formatRevision: CURRENT_USERDATA_FORMAT_REVISION
@@ -434,7 +434,7 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManagerWithOptions({ load: loadSpy, save: saveSpy });
         await userData.ready;
 
-        expect(userData.getPreferences()).toEqual({ theme: 'local' });
+        expect(userData.getPreferences()).toEqual({ syncFilterStateToUrlOverride: null });
         const persisted = JSON.parse(store.dtvUserData);
         expect(persisted.formatRevision).toEqual(CURRENT_USERDATA_FORMAT_REVISION);
 

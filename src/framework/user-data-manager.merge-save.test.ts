@@ -1,6 +1,6 @@
 import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY } from './user-data-manager';
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
-import { INITIAL_USERDATA_FORMAT_REVISION, type UserDataJson } from './user-data';
+import { defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, type UserDataJson } from './user-data';
 import { filterControl, filterExpr, type FilterSchemasAndGroups } from './filters';
 import { success } from './result';
 
@@ -21,7 +21,7 @@ describe('user-data save merges existing views from localStorage', () => {
 
         // Seed localStorage with user-data JSON that includes an unknown view
         const existingJson: UserDataJson = {
-            preferences: { theme: 'dark' },
+            preferences: defaultUserPreferences,
             views: {
                 [unknownView]: {
                     columnOrder: null,

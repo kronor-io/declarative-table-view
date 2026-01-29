@@ -128,6 +128,8 @@ function App({
 
     const userDataManager = useUserDataManager(filterSchemasByViewId, selectedView.id, userDataManagerOptions);
 
+    const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
+
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {
             contentType: 'application/json',
@@ -191,22 +193,26 @@ function App({
     const hasNextPage = state.data.rows.length === rowsPerPage;
     const hasPrevPage = state.pagination.page > 0;
 
-    // After initial mount, if we consumed a URL param and persistence is off, clear it
+    // If we consumed a URL param and state syncing is off, clear it (once)
+    const didHandleInitialUrlParam = useRef(false)
     useEffect(() => {
-        if (initialFilterStateFromUrl && !syncFilterStateToUrl) {
+        if (didHandleInitialUrlParam.current) return
+        if (!initialFilterStateFromUrl) return
+        if (!syncFilterStateToUrlWithOverride) {
             clearFilterFromUrl();
             toast.current?.show({ severity: 'info', summary: 'Filter Loaded', detail: 'Loaded from URL', life: 3000 });
+            didHandleInitialUrlParam.current = true
+            return
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [syncFilterStateToUrlWithOverride, initialFilterStateFromUrl]);
 
     // Persist current filter state only when filters are applied (refetchTrigger increments)
     useEffect(() => {
-        if (!syncFilterStateToUrl) return;
+        if (!syncFilterStateToUrlWithOverride) return;
         // Only write after an application event (refetchTrigger change), not on every keystroke
         setFilterInUrl(state.filterState);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [syncFilterStateToUrl, refetchTrigger]);
+    }, [syncFilterStateToUrlWithOverride, refetchTrigger]);
 
     // Save a new filter
     const handleSaveFilter = async (state: FilterState) => {

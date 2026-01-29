@@ -3,7 +3,7 @@
  */
 import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
 import { __applyUserDataMigrationsWithStepsForTest } from './user-data.migrations';
-import { defaultUserData, INITIAL_USERDATA_FORMAT_REVISION, toUserDataJson, type UserData } from './user-data';
+import { defaultUserData, defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, toUserDataJson, type UserData } from './user-data';
 import type { FilterSchemasAndGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { SAVED_FILTERS_KEY } from './saved-filters';
@@ -78,7 +78,7 @@ describe('user-data migrations', () => {
 
     it('imports legacy savedFilters into user-data on load', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
-            preferences: {},
+            preferences: defaultUserPreferences,
             views: {},
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
         });
@@ -123,7 +123,7 @@ describe('user-data migrations', () => {
 
     it('skips invalid legacy saved filter entries', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
-            preferences: {},
+            preferences: defaultUserPreferences,
             views: {},
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
         });
@@ -144,7 +144,7 @@ describe('user-data migrations', () => {
 
     it('handles legacy savedFilters JSON parse errors', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
-            preferences: {},
+            preferences: defaultUserPreferences,
             views: {},
             formatRevision: INITIAL_USERDATA_FORMAT_REVISION
         });
@@ -168,7 +168,7 @@ describe('user-data migrations', () => {
         const existingFilterState = parseFilterFormState({}, basicSchema);
 
         const existing: UserData = {
-            preferences: {},
+            preferences: defaultUserPreferences,
             views: {
                 'view-a': {
                     columnOrder: null,
@@ -270,9 +270,29 @@ describe('user-data migrations', () => {
         }
     })
 
+    it('sets syncFilterStateToUrlOverride to null when migrating', () => {
+        const data = defaultUserData();
+        data.formatRevision = REVISION_2026_01_05;
+        data.preferences = { syncFilterStateToUrlOverride: true };
+
+        const result = applyUserDataMigrations(data, {
+            filterSchemasByViewId: {
+                'view-a': basicSchema,
+                'view-b': basicSchema,
+                'test-view': basicSchema
+            }
+        })
+
+        expect(isSuccess(result)).toBe(true)
+        if (isSuccess(result)) {
+            // Migration step sets the field to null (use App option) regardless of prior value.
+            expect(result.value.preferences.syncFilterStateToUrlOverride).toBe(null)
+        }
+    })
+
     it('user-data-manager falls back to defaults when migration fails (unknown revision)', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
-            preferences: {},
+            preferences: defaultUserPreferences,
             views: {},
             formatRevision: '2025-01-01T00:00:00.000Z'
         });

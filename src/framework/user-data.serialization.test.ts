@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { fromUserDataJson, toUserDataJson, type UserData } from './user-data';
+import { defaultUserPreferences, fromUserDataJson, toUserDataJson, type UserData } from './user-data';
 import { parseFilterFormState } from './filter-form-state';
 import type { FilterSchemasAndGroups } from './filters';
 
@@ -28,7 +28,7 @@ describe('user-data serialization', () => {
         const filterState = parseFilterFormState({}, basicSchema);
 
         const data: UserData = {
-            preferences: { a: 1 },
+            preferences: defaultUserPreferences,
             views: {
                 'view-a': {
                     columnOrder: ['c1'],

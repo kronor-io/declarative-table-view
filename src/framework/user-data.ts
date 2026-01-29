@@ -7,6 +7,8 @@ export const INITIAL_USERDATA_FORMAT_REVISION = '1970-01-01T00:00:00.000Z'
 
 export const REVISION_2026_01_05 = '2026-01-05T00:00:00.000Z'
 
+export const REVISION_2026_01_29 = '2026-01-29T00:00:00.000Z'
+
 
 export interface ViewData {
     columnOrder: string[] | null;
@@ -22,7 +24,32 @@ export interface ViewDataJson {
     savedFilters: SavedFilterJson[];
 }
 
-export type UserPreferences = Record<string, unknown>; // Placeholder for future fields
+export type UserPreferences = {
+    /**
+     * When set, overrides the App option `syncFilterStateToUrl`.
+     * - `true`: always sync filter state to URL
+     * - `false`: never sync filter state to URL
+     * - `null`: use the App option
+     */
+    syncFilterStateToUrlOverride: boolean | null;
+}
+
+function parseUserPreferences(userPreferencesJson: unknown): UserPreferences {
+    const userPreferencesRecord: Record<string, unknown> =
+        userPreferencesJson && typeof userPreferencesJson === 'object'
+            ? (userPreferencesJson as Record<string, unknown>)
+            : defaultUserPreferences
+
+    const syncFilterStateToUrlOverrideRaw: unknown = userPreferencesRecord.syncFilterStateToUrlOverride;
+    const syncFilterStateToUrlOverride: boolean | null =
+        typeof syncFilterStateToUrlOverrideRaw !== 'boolean'
+            ? null
+            : syncFilterStateToUrlOverrideRaw;
+
+    return {
+        syncFilterStateToUrlOverride
+    }
+}
 
 export interface UserData {
     preferences: UserPreferences;
@@ -41,8 +68,17 @@ export interface UserDataJson {
     formatRevision: string;
 }
 
+export const defaultUserPreferences: UserPreferences = {
+    syncFilterStateToUrlOverride: null
+}
+
 export function defaultUserData(): UserData {
-    return { preferences: {}, views: {}, revision: 0, formatRevision: INITIAL_USERDATA_FORMAT_REVISION }
+    return {
+        preferences: defaultUserPreferences,
+        views: {},
+        revision: 0,
+        formatRevision: INITIAL_USERDATA_FORMAT_REVISION
+    }
 }
 
 export function defaultViewData(): ViewData {
@@ -79,7 +115,7 @@ export function fromUserDataJson(json: UserDataJson, filterSchemasByViewId: Reco
     )
 
     return {
-        preferences: json.preferences,
+        preferences: parseUserPreferences(json.preferences),
         views,
         revision: json.revision,
         formatRevision: json.formatRevision
