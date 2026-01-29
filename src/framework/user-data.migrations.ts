@@ -121,6 +121,12 @@ export type UserDataMigrationError =
         expectedRevision: string
     }
     | {
+        kind: 'unknownRevision'
+        currentRevision: string
+        latestRevision: string
+        knownFromRevisions: string[]
+    }
+    | {
         kind: 'stepFailed'
         toRevision: string
         cause: unknown
@@ -135,6 +141,13 @@ export function userDataMigrationErrorToMessage(err: UserDataMigrationError): st
     switch (err.kind) {
         case 'outOfOrder':
             return `User-data migration out of order. Current revision: ${err.currentRevision}, expected: ${err.expectedRevision}`
+        case 'unknownRevision':
+            return [
+                'User-data migration cannot proceed from an unknown revision.',
+                `Current revision: ${err.currentRevision}`,
+                `Latest revision: ${err.latestRevision}`,
+                `Known starting revisions: ${err.knownFromRevisions.join(', ')}`
+            ].join(' ')
         case 'stepFailed':
             return `User-data migration to revision ${err.toRevision} failed: ${err.cause instanceof Error ? err.cause.message : String(err.cause)}`
         case 'didNotReachLatest':
@@ -142,14 +155,35 @@ export function userDataMigrationErrorToMessage(err: UserDataMigrationError): st
     }
 }
 
-export function applyUserDataMigrations(userData: UserData, context: MigrationContext): Result<UserDataMigrationError, UserData> {
+function applyUserDataMigrationsWithSteps(
+    userData: UserData,
+    context: MigrationContext,
+    migrations: MigrationStep[]
+): Result<UserDataMigrationError, UserData> {
+    // Latest revision is a single invariant constant.
+    // Even in tests, custom step lists should end at CURRENT_USERDATA_FORMAT_REVISION.
     if (userData.formatRevision === CURRENT_USERDATA_FORMAT_REVISION) {
         return success(userData)
     }
 
     let nextUserData = userData
 
-    for (const step of MIGRATIONS) {
+    // We may start from an already-migrated payload.
+    // When new steps are appended, stored user-data can have a formatRevision matching
+    // the toRevision of a prior step; we must start from the first step whose fromRevision
+    // matches the current revision.
+    const startIndex = migrations.findIndex(step => step.fromRevision === nextUserData.formatRevision)
+    if (startIndex === -1) {
+        return failure({
+            kind: 'unknownRevision',
+            currentRevision: nextUserData.formatRevision,
+            latestRevision: CURRENT_USERDATA_FORMAT_REVISION,
+            knownFromRevisions: migrations.map(s => s.fromRevision)
+        })
+    }
+
+    for (let i = startIndex; i < migrations.length; i++) {
+        const step = migrations[i]
         const currentRevision = nextUserData.formatRevision
 
         if (step.fromRevision !== currentRevision) {
@@ -181,4 +215,20 @@ export function applyUserDataMigrations(userData: UserData, context: MigrationCo
     }
 
     return success(nextUserData)
+}
+
+/** @internal Exported for unit testing the migration engine with custom step lists. */
+export function __applyUserDataMigrationsWithStepsForTest(
+    userData: UserData,
+    context: MigrationContext,
+    migrations: MigrationStep[]
+): Result<UserDataMigrationError, UserData> {
+    return applyUserDataMigrationsWithSteps(userData, context, migrations)
+}
+
+export function applyUserDataMigrations(
+    userData: UserData,
+    context: MigrationContext
+): Result<UserDataMigrationError, UserData> {
+    return applyUserDataMigrationsWithSteps(userData, context, MIGRATIONS)
 }

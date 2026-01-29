@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
+import { __applyUserDataMigrationsWithStepsForTest } from './user-data.migrations';
 import { defaultUserData, INITIAL_USERDATA_FORMAT_REVISION, toUserDataJson, type UserData } from './user-data';
 import type { FilterSchemasAndGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
@@ -227,9 +228,47 @@ describe('user-data migrations', () => {
 
         expect(isFailure(result)).toBe(true)
         if (isFailure(result)) {
-            expect(result.error.kind).toBe('outOfOrder')
+            expect(result.error.kind).toBe('unknownRevision')
         }
     });
+
+    it('applyUserDataMigrations can start from an intermediate revision when new steps are appended', () => {
+        const REV_A = '2026-01-01T00:00:00.000Z'
+        const REV_B = CURRENT_USERDATA_FORMAT_REVISION
+
+        const data = defaultUserData();
+        // Simulate persisted user-data that was already migrated to REV_A in a prior release.
+        // A later release appends stepAtoB and should migrate starting from REV_A.
+        data.formatRevision = REV_A;
+
+        const result = __applyUserDataMigrationsWithStepsForTest(
+            data,
+            {
+                filterSchemasByViewId: {
+                    'view-a': basicSchema,
+                    'view-b': basicSchema,
+                    'test-view': basicSchema
+                }
+            },
+            [
+                {
+                    fromRevision: INITIAL_USERDATA_FORMAT_REVISION,
+                    toRevision: REV_A,
+                    migrate: (u: UserData) => ({ ...u })
+                },
+                {
+                    fromRevision: REV_A,
+                    toRevision: REV_B,
+                    migrate: (u: UserData) => ({ ...u })
+                }
+            ]
+        )
+
+        expect(isSuccess(result)).toBe(true)
+        if (isSuccess(result)) {
+            expect(result.value.formatRevision).toBe(REV_B)
+        }
+    })
 
     it('user-data-manager falls back to defaults when migration fails (unknown revision)', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
@@ -254,7 +293,7 @@ describe('user-data migrations', () => {
         // user-data-manager reports migration failures via console.error
         expect(consoleSpy).toHaveBeenCalledWith(
             'Failed to read user data:',
-            expect.stringContaining('User-data migration out of order'),
+            expect.stringContaining('unknown revision'),
             expect.anything()
         );
     });
