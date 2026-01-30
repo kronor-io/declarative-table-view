@@ -61,9 +61,9 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
 
     const schemaById = new Map(filterSchema.filters.map(f => [f.id, f]));
 
-    function getFieldDisplay(filterId: string): string {
+    function getFieldDisplay(filterId: string): string | null {
         const schemaEntry = schemaById.get(filterId);
-        if (!schemaEntry) return '';
+        if (!schemaEntry) return null;
         const expr: any = schemaEntry.expression;
         if (expr && 'field' in expr) {
             const fieldVal = expr.field;
@@ -73,7 +73,23 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                 if ('or' in fieldVal && Array.isArray(fieldVal.or)) return fieldVal.or.join(' | ');
             }
         }
-        return '';
+        return null;
+    }
+
+    function getFieldValueDisplay(value: any): string {
+        if (typeof value === 'string') {
+            return value.length > 128 ? `${value.substring(0, 128)}...` : value;
+        }
+        if (Array.isArray(value)) {
+            return value.map(v => getFieldValueDisplay(v)).join(', ');
+        }
+        if (typeof value === 'object' && value !== null) {
+            if ('value' in value) {
+                return getFieldValueDisplay(value.value);
+            }
+            return JSON.stringify(value);
+        }
+        return String(value);
     }
 
     const renderFilterState = (state: FilterState) => {
@@ -94,11 +110,9 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                         // Handle different types of FilterFormState
                         let displayText = '';
                         if (filter.type === 'leaf') {
-                            const valueStr = typeof filter.value === 'string' && filter.value.length > 128
-                                ? `${filter.value.substring(0, 128)}...`
-                                : String(filter.value);
+                            const valueStr = getFieldValueDisplay(filter.value);
                             const fieldName = getFieldDisplay(filterId);
-                            displayText = fieldName ? `${fieldName}: ${valueStr}` : valueStr;
+                            displayText = fieldName !== null ? `${fieldName}: ${valueStr}` : valueStr;
                         } else if (filter.type === 'and' || filter.type === 'or') {
                             displayText = `${filter.type.toUpperCase()} (${filter.children.length} filters)`;
                         } else if (filter.type === 'not') {
