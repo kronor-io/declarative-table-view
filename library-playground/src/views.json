@@ -12,8 +12,8 @@
                 "id": "testField",
                 "data": [
                     {
-                        "type": "field",
-                        "path": "testField"
+                        "type": "valueQuery",
+                        "field": "testField"
                     }
                 ],
                 "name": "Test Field",
@@ -27,8 +27,8 @@
                 "id": "amount",
                 "data": [
                     {
-                        "type": "field",
-                        "path": "amount"
+                        "type": "valueQuery",
+                        "field": "amount"
                     }
                 ],
                 "name": "Amount",
@@ -42,8 +42,8 @@
                 "id": "email",
                 "data": [
                     {
-                        "type": "field",
-                        "path": "email"
+                        "type": "valueQuery",
+                        "field": "email"
                     }
                 ],
                 "name": "Email",
