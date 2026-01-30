@@ -38,8 +38,8 @@ export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode 
                 ? ''
                 : (('initialValue' in expr.value && expr.value.initialValue !== undefined)
                     ? expr.value.initialValue
-                    : (('initialValue' in expr.value.valueControl && (expr.value.valueControl as any).initialValue !== undefined)
-                        ? (expr.value.valueControl as any).initialValue
+                    : (('initialValue' in expr.value.valueControl && expr.value.valueControl.initialValue !== undefined)
+                        ? expr.value.valueControl.initialValue
                         : ''));
             return {
                 type: 'leaf',

@@ -552,7 +552,7 @@ export function parseFilterExprJson(
             builtInRuntime
         );
 
-        (result as any).transform = transform;
+        result.transform = transform;
     }
 
     return result;
@@ -772,7 +772,7 @@ export function parseViewJson(
         if (invalidIndex !== -1) {
             throw new Error(`View "staticConditions" entry[${invalidIndex}] must be a non-null object`);
         }
-        staticConditions = view.staticConditions as any;
+        staticConditions = view.staticConditions;
     }
 
     // Optional staticOrdering: validate it's an array of objects (shallow validation like staticConditions)
@@ -785,7 +785,7 @@ export function parseViewJson(
         if (invalidIndex !== -1) {
             throw new Error(`View "staticOrdering" entry[${invalidIndex}] must be a non-null object`);
         }
-        staticOrdering = view.staticOrdering as any;
+        staticOrdering = view.staticOrdering;
     }
 
     return {

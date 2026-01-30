@@ -81,7 +81,7 @@ function Table({
 
     const exportFunction = (event: DataTableExportFunctionEvent<any>) => {
         const row = event.rowData as FlattenedDataRow;
-        const cell = row[event.field as any];
+        const cell = row[event.field];
         if (!cell || typeof cell !== 'object') return '';
         const firstKey = Object.keys(cell)[0];
         return firstKey ? cell[firstKey] : '';

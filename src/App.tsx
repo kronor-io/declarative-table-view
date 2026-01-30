@@ -125,7 +125,7 @@ function App({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewsJson]);
 
-    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl as any);
+    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
 
     const userDataManagerOptions = useMemo(() => {
         return {
