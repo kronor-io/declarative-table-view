@@ -4,7 +4,7 @@ import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
 import { FilterSchemasAndGroups } from '../framework/filters';
 import { View } from '../framework/view';
-import { generateFilterWithAI, GeminiApi } from './aiAssistant';
+import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
@@ -17,6 +17,9 @@ interface AIAssistantFormProps {
     toast: RefObject<Toast | null>;
     // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
     setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
+
+    /** Optional hook to modify the AI prompt template before it is sent to the AI provider. */
+    modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
 }
 
 export default function AIAssistantForm({
@@ -24,7 +27,8 @@ export default function AIAssistantForm({
     selectedView,
     geminiApiKey,
     toast,
-    setShowFilterForm
+    setShowFilterForm,
+    modifyAiFilterPrompt
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState(selectedView.defaultAIFilterPrompt ?? '');
     // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
@@ -48,7 +52,15 @@ export default function AIAssistantForm({
                     onClick={async () => {
                         setAiLoading(true);
                         try {
-                            await generateFilterWithAI(selectedView.filterSchema, aiPrompt, setFilterState, GeminiApi, geminiApiKey, toast);
+                            await generateFilterWithAI(
+                                selectedView.filterSchema,
+                                aiPrompt,
+                                setFilterState,
+                                GeminiApi,
+                                geminiApiKey,
+                                toast,
+                                { modifyAiFilterPrompt }
+                            );
                             // Reveal filter form so user sees applied changes
                             setShowFilterForm(true);
 

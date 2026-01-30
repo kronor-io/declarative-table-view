@@ -14,6 +14,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
+import type { ModifyAiFilterPromptFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import { fetchData, FetchDataResult } from './framework/data';
@@ -62,6 +63,12 @@ export interface AppProps {
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
 
+    /**
+        * Optional hook to modify the AI prompt template (built from schema + user prompt)
+        * before it is sent to the AI provider.
+     */
+    modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
+
     /** Optional user data integration hooks. */
     userData?: {
         /** Optional async loader invoked when the user-data manager is created. */
@@ -91,7 +98,8 @@ function App({
     actions = [],
     rowClassFunction,
     rowsPerPageOptions = [20, 50, 100, 200],
-    userData
+    userData,
+    modifyAiFilterPrompt
 }: AppProps) {
     const views = useMemo(() => {
         const viewDefinitions = JSON.parse(viewsJson);
@@ -545,6 +553,7 @@ function App({
                                 geminiApiKey={geminiApiKey}
                                 toast={toast}
                                 setShowFilterForm={setShowFilterForm}
+                                modifyAiFilterPrompt={modifyAiFilterPrompt}
                             />
                         </div>
                     )
@@ -633,6 +642,7 @@ function App({
                         rowSelection={rowSelection}
                         rowClassFunction={rowClassFunction}
                         rowsPerPageOptions={rowsPerPageOptions}
+                        modifyAiFilterPrompt={modifyAiFilterPrompt}
                     />
                 </div>,
                 document.body

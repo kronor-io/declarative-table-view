@@ -13,9 +13,17 @@ export interface AIApi {
         userPrompt: string,
         setFormState: (state: FilterState) => void,
         apiKey: string,
-        toast?: RefObject<Toast | null>
+        toast?: RefObject<Toast | null>,
+        options?: {
+            modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+        }
     ): Promise<void>;
 }
+
+export type ModifyAiFilterPromptFn = (
+    promptTemplate: string,
+    args: { filterSchema: FilterSchemasAndGroups; userPrompt: string }
+) => string;
 
 function sanitizeFilterExpr(expr: FilterExpr): object {
     if (expr.type === 'and' || expr.type === 'or') {
@@ -52,7 +60,11 @@ function sanitizeFilterSchemaForAI(filterSchema: FilterSchemasAndGroups): object
     }));
 }
 
-function buildAiPrompt(filterSchema: FilterSchemasAndGroups, userPrompt: string): string {
+function buildAiPrompt(
+    filterSchema: FilterSchemasAndGroups,
+    userPrompt: string,
+    modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+): string {
     const filterFormStateType = `type FilterFormState =
   | { type: 'leaf'; value: any; }
   | { type: 'and' | 'or'; children: FilterFormState[]; }
@@ -60,7 +72,7 @@ function buildAiPrompt(filterSchema: FilterSchemasAndGroups, userPrompt: string)
     const sanitizedSchema = sanitizeFilterSchemaForAI(filterSchema);
     const schemaStr = JSON.stringify(sanitizedSchema, null, 2);
     const currentDate = new Date().toString();
-    return [
+    const promptTemplate = [
         `Given the following filter schema (in JSON):`,
         schemaStr,
         '',
@@ -76,6 +88,10 @@ function buildAiPrompt(filterSchema: FilterSchemasAndGroups, userPrompt: string)
         `For date filters, always send the value as a plain string in standard date-time string format. Skip filters that are not relevant to the user request.`,
         `Output only the object mapping filter IDs to FilterFormState, like: {"filter-id": {...filterFormState...}}`
     ].join('\n');
+
+    return modifyAiFilterPrompt
+        ? modifyAiFilterPrompt(promptTemplate, { filterSchema, userPrompt })
+        : promptTemplate;
 }
 
 // Helper to merge AI-generated filter object with current state
@@ -227,8 +243,8 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
 
 // --- Gemini Flash-Lite implementation ---
 export const GeminiApi: AIApi = {
-    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast) {
-        const prompt = buildAiPrompt(filterSchema, userPrompt);
+    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast, options) {
+        const prompt = buildAiPrompt(filterSchema, userPrompt, options?.modifyAiFilterPrompt);
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
                 {
@@ -290,7 +306,10 @@ export function generateFilterWithAI(
     setFormState: (state: FilterState) => void,
     apiImpl: AIApi,
     geminiApiKey: string,
-    toast?: RefObject<Toast | null>
+    toast?: RefObject<Toast | null>,
+    options?: {
+        modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+    }
 ): Promise<void> {
-    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast);
+    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast, options);
 }

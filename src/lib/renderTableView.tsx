@@ -9,6 +9,7 @@ import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
+import { ModifyAiFilterPromptFn } from '../components/aiAssistant'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
@@ -38,6 +39,8 @@ export interface RenderTableViewOptions {
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>
     rowsPerPageOptions?: number[]
 
+    modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+
     /** Optional user data integration hooks. */
     userData?: RenderTableViewUserDataOptions
 }
@@ -65,6 +68,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                     rowClassFunction={options.rowClassFunction}
                     rowsPerPageOptions={options.rowsPerPageOptions}
                     userData={options.userData}
+                    modifyAiFilterPrompt={options.modifyAiFilterPrompt}
                 />
             </PrimeReactProvider>
         </StrictMode>
