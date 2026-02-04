@@ -1,7 +1,9 @@
 // Legacy filename retained; tests updated to new helper name.
 import { buildGraphQLQueryVariables } from './data';
 import { View } from './view';
-import { FilterSchemasAndGroups, FilterSchema, filterExpr, filterControl } from './filters';
+import { FilterSchemasAndGroups, FilterSchema } from './filters';
+import { FilterControl } from '../dsl/filterControl';
+import { FilterExpr } from '../dsl/filterExpr';
 import { ColumnDefinition } from './column-definition';
 import { FilterState, buildInitialFormState } from './state';
 
@@ -35,7 +37,7 @@ describe('buildGraphQLQueryVariables (legacy file name)', () => {
         const userFilter: FilterSchema = {
             id: 'f1',
             label: 'ID',
-            expression: filterExpr.equals('id', filterControl.text()),
+            expression: FilterExpr.equals({ field: 'id', control: FilterControl.text() }),
             group: 'default',
             aiGenerated: false
         };

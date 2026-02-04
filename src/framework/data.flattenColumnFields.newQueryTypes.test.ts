@@ -13,14 +13,20 @@ describe('flattenColumnFields mixed query types', () => {
         };
 
         const queries: FieldQuery[] = [
-            objectQuery('user', [
-                valueQuery('id'),
-                objectQuery('profile', [valueQuery('email')])
-            ]),
-            arrayQuery('orders', [
-                valueQuery('total'),
-                objectQuery('product', [valueQuery('name')])
-            ])
+            objectQuery({
+                field: 'user',
+                selectionSet: [
+                    valueQuery({ field: 'id' }),
+                    objectQuery({ field: 'profile', selectionSet: [valueQuery({ field: 'email' })] })
+                ]
+            }),
+            arrayQuery({
+                field: 'orders',
+                selectionSet: [
+                    valueQuery({ field: 'total' }),
+                    objectQuery({ field: 'product', selectionSet: [valueQuery({ field: 'name' })] })
+                ]
+            })
         ];
 
         const col: ColumnDefinition = { type: 'virtualColumn', id: 'mixed-queries', data: queries };

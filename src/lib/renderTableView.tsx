@@ -10,6 +10,7 @@ import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
 import { ModifyAiFilterPromptFn } from '../components/aiAssistant'
+import type { View } from '../framework/view'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
@@ -19,11 +20,10 @@ export type RenderTableViewUserDataOptions = {
     onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>
 }
 
-export interface RenderTableViewOptions {
+export type RenderTableViewOptions = {
     graphqlHost: string
     graphqlToken: string
     geminiApiKey: string
-    viewsJson: string
     showViewsMenu?: boolean
     showViewTitle?: boolean
     showCsvExportButton?: boolean
@@ -43,11 +43,26 @@ export interface RenderTableViewOptions {
 
     /** Optional user data integration hooks. */
     userData?: RenderTableViewUserDataOptions
-}
+} & (
+    | {
+        /** JSON string containing an array of view definitions (ViewJson). */
+        viewsJson: string
+        views?: never
+    }
+    | {
+        /** Already-parsed views (bypasses JSON parsing). */
+        views: View[]
+        viewsJson?: never
+    }
+)
 
 export function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
     const reactContainer = typeof target === 'string' ? document.getElementById(target) : target
     if (!reactContainer) throw new Error('Target element not found')
+
+    const viewProps = 'views' in options
+        ? { views: options.views }
+        : { viewsJson: options.viewsJson }
 
     createRoot(reactContainer).render(
         <StrictMode>
@@ -60,7 +75,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                     showViewTitle={options.showViewTitle ?? false}
                     showCsvExportButton={options.showCsvExportButton ?? false}
                     showPopoutButton={options.showPopoutButton ?? true}
-                    viewsJson={options.viewsJson}
+                    {...viewProps}
                     externalRuntime={options.externalRuntime}
                     syncFilterStateToUrl={options.syncFilterStateToUrl ?? false}
                     rowSelection={options.rowSelection}

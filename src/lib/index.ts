@@ -10,7 +10,10 @@ export type { View } from '../framework/view';
 export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
-export type { FilterSchema } from '../framework/filters';
+export type { FilterSchema, FilterField, FilterTransform } from '../framework/filters';
+export { FilterExpr } from '../dsl/filterExpr';
+export { FilterControl } from '../dsl/filterControl';
+export { CellRenderer } from '../dsl/cellRenderer';
 export type { UserDataJson } from '../framework/user-data';
 export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
@@ -19,3 +22,5 @@ export { buildGraphQLQueryVariables } from '../framework/data';
 
 export type { Result, Failure, Success } from '../framework/result';
 export { isFailure, isSuccess, failure, success } from '../framework/result';
+
+export * as DSL from '../dsl';

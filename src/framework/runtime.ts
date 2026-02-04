@@ -7,11 +7,11 @@ import { TransformResult, SuggestionFetcher } from "./filters";
 
 // Runtime type definition for individual view runtimes
 export type Runtime = {
-    cellRenderers: Record<string, CellRenderer | React.ComponentType<any>>;
+    cellRenderers: Record<string, CellRenderer>;
     queryTransforms: Record<string, {
         toQuery: (input: any) => TransformResult;
     }>;
-    noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;
+    noRowsComponents: Record<string, NoRowsComponent>;
     customFilterComponents: Record<string, React.ComponentType<any>>;
     initialValues: Record<string, any>;
     // New runtime section for dynamic suggestion fetchers used by autocomplete filter controls

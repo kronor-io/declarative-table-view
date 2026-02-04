@@ -1,6 +1,8 @@
 import { FilterState } from './state';
 import { buildHasuraConditions } from './graphql';
-import { FilterSchemasAndGroups, filterExpr, filterControl } from './filters';
+import { FilterSchemasAndGroups } from './filters';
+import { FilterControl } from '../dsl/filterControl';
+import { FilterExpr } from '../dsl/filterExpr';
 
 describe('buildHasuraConditions', () => {
     // Helper function to create a simple filter schema for testing
@@ -28,7 +30,7 @@ describe('buildHasuraConditions', () => {
     it('should handle a single condition', () => {
         const filterSchema = createFilterSchema(
             'name-filter',
-            filterExpr.equals('name', filterControl.text())
+            FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         );
 
         const formState: FilterState = new Map([
@@ -44,14 +46,14 @@ describe('buildHasuraConditions', () => {
                 {
                     id: 'name-filter',
                     label: 'Name Filter',
-                    expression: filterExpr.equals('name', filterControl.text()),
+                    expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 },
                 {
                     id: 'age-filter',
                     label: 'Age Filter',
-                    expression: filterExpr.greaterThan('age', filterControl.number()),
+                    expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -73,7 +75,7 @@ describe('buildHasuraConditions', () => {
     it('should handle nested fields', () => {
         const filterSchema = createFilterSchema(
             'user-name-filter',
-            filterExpr.equals('user.name', filterControl.text())
+            FilterExpr.equals({ field: 'user.name', control: FilterControl.text() })
         );
 
         const formState: FilterState = new Map([
@@ -87,7 +89,7 @@ describe('buildHasuraConditions', () => {
     it('should handle deeply nested fields', () => {
         const filterSchema = createFilterSchema(
             'deep-filter',
-            filterExpr.equals('a.b.c.d', filterControl.text())
+            FilterExpr.equals({ field: 'a.b.c.d', control: FilterControl.text() })
         );
 
         const formState: FilterState = new Map([
@@ -101,10 +103,12 @@ describe('buildHasuraConditions', () => {
     it('should handle explicit AND/OR conditions', () => {
         const filterSchema = createFilterSchema(
             'or-filter',
-            filterExpr.or([
-                filterExpr.equals('name', filterControl.text()),
-                filterExpr.equals('name', filterControl.text())
-            ])
+            FilterExpr.or({
+                filters: [
+                    FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
+                    FilterExpr.equals({ field: 'name', control: FilterControl.text() })
+                ]
+            })
         );
 
         const formState: FilterState = new Map([
@@ -128,7 +132,9 @@ describe('buildHasuraConditions', () => {
     it('should handle NOT conditions', () => {
         const filterSchema = createFilterSchema(
             'not-filter',
-            filterExpr.not(filterExpr.equals('name', filterControl.text()))
+            FilterExpr.not({
+                filter: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
+            })
         );
 
         const formState: FilterState = new Map([
@@ -146,13 +152,19 @@ describe('buildHasuraConditions', () => {
     it('should handle complex nested structures', () => {
         const filterSchema = createFilterSchema(
             'complex-filter',
-            filterExpr.and([
-                filterExpr.greaterThan('age', filterControl.number()),
-                filterExpr.or([
-                    filterExpr.iLike('user.name', filterControl.text()),
-                    filterExpr.not(filterExpr.equals('user.role', filterControl.text()))
-                ])
-            ])
+            FilterExpr.and({
+                filters: [
+                    FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
+                    FilterExpr.or({
+                        filters: [
+                            FilterExpr.iLike({ field: 'user.name', control: FilterControl.text() }),
+                            FilterExpr.not({
+                                filter: FilterExpr.equals({ field: 'user.role', control: FilterControl.text() })
+                            })
+                        ]
+                    })
+                ]
+            })
         );
 
         const formState: FilterState = new Map([
@@ -196,28 +208,28 @@ describe('buildHasuraConditions', () => {
                 {
                     id: 'name-filter',
                     label: 'Name Filter',
-                    expression: filterExpr.equals('name', filterControl.text()),
+                    expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 },
                 {
                     id: 'age-filter',
                     label: 'Age Filter',
-                    expression: filterExpr.greaterThan('age', filterControl.number()),
+                    expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
                     group: 'basic',
                     aiGenerated: false
                 },
                 {
                     id: 'tags-filter',
                     label: 'Tags Filter',
-                    expression: filterExpr.in('tags', filterControl.multiselect({ items: [] })),
+                    expression: FilterExpr.in({ field: 'tags', control: FilterControl.multiselect({ items: [] }) }),
                     group: 'basic',
                     aiGenerated: false
                 },
                 {
                     id: 'valid-filter',
                     label: 'Valid Filter',
-                    expression: filterExpr.equals('valid', filterControl.text()),
+                    expression: FilterExpr.equals({ field: 'valid', control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -236,10 +248,13 @@ describe('buildHasuraConditions', () => {
     it('should handle custom operators', () => {
         const filterSchema = createFilterSchema(
             'custom-filter',
-            filterExpr.equals('custom_field', filterControl.customOperator({
-                operators: [{ label: 'Custom Op', value: '_custom_op' }],
-                valueControl: filterControl.text()
-            }))
+            FilterExpr.equals({
+                field: 'custom_field',
+                control: FilterControl.customOperator({
+                    operators: [{ label: 'Custom Op', value: '_custom_op' }],
+                    valueControl: FilterControl.text()
+                })
+            })
         );
 
         const formState: FilterState = new Map([
@@ -259,10 +274,13 @@ describe('buildHasuraConditions', () => {
     it('should handle custom operators with nested fields', () => {
         const filterSchema = createFilterSchema(
             'user-name-custom-filter',
-            filterExpr.equals('user.name', filterControl.customOperator({
-                operators: [{ label: 'iLike', value: '_ilike' }],
-                valueControl: filterControl.text()
-            }))
+            FilterExpr.equals({
+                field: 'user.name',
+                control: FilterControl.customOperator({
+                    operators: [{ label: 'iLike', value: '_ilike' }],
+                    valueControl: FilterControl.text()
+                })
+            })
         );
 
         const formState: FilterState = new Map([
@@ -283,8 +301,12 @@ describe('buildHasuraConditions', () => {
         const prebuilt = { user: { is_active: { _eq: true } } };
         const filterSchema = createFilterSchema(
             'prebuilt-condition',
-            filterExpr.equals('ignored', filterControl.text(), {
-                toQuery: () => ({ condition: prebuilt })
+            FilterExpr.equals({
+                field: 'ignored',
+                control: FilterControl.text(),
+                transform: {
+                    toQuery: () => ({ condition: prebuilt })
+                }
             })
         );
 
@@ -305,7 +327,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
                 {
                     id: 'multi-and-filter',
                     label: 'Multi AND Filter',
-                    expression: filterExpr.equals({ and: ['name', 'title'] }, filterControl.text()),
+                    expression: FilterExpr.equals({ field: { and: ['name', 'title'] }, control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -339,7 +361,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
                 {
                     id: 'multi-or-filter',
                     label: 'Multi OR Filter',
-                    expression: filterExpr.equals({ or: ['name', 'title'] }, filterControl.text()),
+                    expression: FilterExpr.equals({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -373,7 +395,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
                 {
                     id: 'nested-multi-filter',
                     label: 'Nested Multi Filter',
-                    expression: filterExpr.iLike({ or: ['user.email', 'user.username'] }, filterControl.text()),
+                    expression: FilterExpr.iLike({ field: { or: ['user.email', 'user.username'] }, control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -407,14 +429,14 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
                 {
                     id: 'search-filter',
                     label: 'Search Filter',
-                    expression: filterExpr.iLike({ or: ['name', 'title'] }, filterControl.text()),
+                    expression: FilterExpr.iLike({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 },
                 {
                     id: 'category-filter',
                     label: 'Category Filter',
-                    expression: filterExpr.equals('category', filterControl.text()),
+                    expression: FilterExpr.equals({ field: 'category', control: FilterControl.text() }),
                     group: 'basic',
                     aiGenerated: false
                 }
@@ -461,11 +483,15 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
                 {
                     id: 'email-filter',
                     label: 'Email Filter',
-                    expression: filterExpr.equals('user.email', filterControl.text(), {
-                        toQuery: (input: unknown) => ({
-                            field: 'user.email_address', // transform field name
-                            value: String(input).toLowerCase() // transform value
-                        })
+                    expression: FilterExpr.equals({
+                        field: 'user.email',
+                        control: FilterControl.text(),
+                        transform: {
+                            toQuery: (input: unknown) => ({
+                                field: 'user.email_address', // transform field name
+                                value: String(input).toLowerCase() // transform value
+                            })
+                        }
                     }),
                     group: 'basic',
                     aiGenerated: false

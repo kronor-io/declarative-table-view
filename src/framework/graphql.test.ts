@@ -77,29 +77,9 @@ describe("renderGraphQLQuery", () => {
 describe("generateGraphQLQueryAST", () => {
     it("should convert column definitions to a GraphQLQueryAST", () => {
         const columns: ColumnDefinition[] = [
-            {
-                type: 'tableColumn',
-                id: 'id',
-                name: "ID",
-                data: [valueQuery("id")],
-                cellRenderer: () => null,
-            },
-            {
-                type: 'tableColumn',
-                id: 'name',
-                name: "Name",
-                data: [valueQuery("name")],
-                cellRenderer: () => null,
-            },
-            {
-                type: 'tableColumn',
-                id: 'posts',
-                name: "Posts",
-                data: [
-                    arrayQuery("posts", [valueQuery("title")], undefined)
-                ],
-                cellRenderer: () => null,
-            },
+            { type: 'tableColumn', id: 'id', name: "ID", data: [valueQuery({ field: 'id' })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'name', name: "Name", data: [valueQuery({ field: 'name' })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'posts', name: "Posts", data: [arrayQuery({ field: 'posts', selectionSet: [valueQuery({ field: 'title' })] })], cellRenderer: () => null },
         ];
 
         const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
@@ -124,11 +104,11 @@ describe("generateGraphQLQueryAST", () => {
 
     it("should handle nested fields with separate selection entries (no merge)", () => {
         const columns: ColumnDefinition[] = [
-            { type: 'tableColumn', id: 'id', name: "ID", data: [valueQuery("id")], cellRenderer: () => null },
-            { type: 'tableColumn', id: 'authorName', name: "Author Name", data: [objectQuery("author", [valueQuery("name")])], cellRenderer: () => null },
-            { type: 'tableColumn', id: 'authorId', name: "Author ID", data: [objectQuery("author", [valueQuery("id")])], cellRenderer: () => null },
-            { type: 'tableColumn', id: 'firstComment', name: "First Comment", data: [objectQuery("comments", [objectQuery("0", [valueQuery("text")])])], cellRenderer: () => null },
-            { type: 'tableColumn', id: 'firstCommenter', name: "First Commenter", data: [objectQuery("comments", [objectQuery("0", [objectQuery("user", [valueQuery("name")])])])], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'id', name: "ID", data: [valueQuery({ field: 'id' })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'authorName', name: "Author Name", data: [objectQuery({ field: 'author', selectionSet: [valueQuery({ field: 'name' })] })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'authorId', name: "Author ID", data: [objectQuery({ field: 'author', selectionSet: [valueQuery({ field: 'id' })] })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'firstComment', name: "First Comment", data: [objectQuery({ field: 'comments', selectionSet: [objectQuery({ field: '0', selectionSet: [valueQuery({ field: 'text' })] })] })], cellRenderer: () => null },
+            { type: 'tableColumn', id: 'firstCommenter', name: "First Commenter", data: [objectQuery({ field: 'comments', selectionSet: [objectQuery({ field: '0', selectionSet: [objectQuery({ field: 'user', selectionSet: [valueQuery({ field: 'name' })] })] })] })], cellRenderer: () => null },
         ];
 
         const ast = generateGraphQLQueryAST("testRoot", columns, "TestBoolExp", "TestOrderBy", "id");
@@ -149,7 +129,7 @@ describe("generateGraphQLQueryAST", () => {
                 type: 'tableColumn',
                 id: 'id',
                 name: "ID",
-                data: [valueQuery("id")],
+                data: [valueQuery({ field: 'id' })],
                 cellRenderer: () => null,
             },
             {
@@ -157,10 +137,7 @@ describe("generateGraphQLQueryAST", () => {
                 id: 'recentPosts',
                 name: "Recent Posts",
                 data: [
-                    fieldAlias(
-                        "recentPosts",
-                        arrayQuery("posts", [valueQuery("title")], undefined)
-                    ),
+                    fieldAlias("recentPosts", arrayQuery({ field: 'posts', selectionSet: [valueQuery({ field: 'title' })] }))
                 ],
                 cellRenderer: () => null,
             },
@@ -168,7 +145,12 @@ describe("generateGraphQLQueryAST", () => {
                 type: 'tableColumn',
                 id: 'userName',
                 name: "User Name",
-                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))],
+                data: [
+                    fieldAlias(
+                        "userName",
+                        objectQuery({ field: "user", selectionSet: [valueQuery({ field: "name" })] })
+                    )
+                ],
                 cellRenderer: () => null,
             },
         ];
@@ -204,7 +186,7 @@ describe("generateGraphQLQueryAST", () => {
                 type: 'tableColumn',
                 id: 'id',
                 name: "ID",
-                data: [valueQuery("id")],
+                data: [valueQuery({ field: "id" })],
                 cellRenderer: () => null,
             },
             {
@@ -212,7 +194,7 @@ describe("generateGraphQLQueryAST", () => {
                 id: 'jsonField',
                 name: "JSON Field Value",
                 data: [
-                    valueQuery("metadata", { path: "$.user.preferences.theme" })
+                    valueQuery({ field: 'metadata', path: "$.user.preferences.theme" })
                 ],
                 cellRenderer: () => null,
             },
@@ -223,7 +205,7 @@ describe("generateGraphQLQueryAST", () => {
                 data: [
                     fieldAlias(
                         "firstTag",
-                        valueQuery("tags", { path: "$[0]" })
+                        valueQuery({ field: 'tags', path: "$[0]" })
                     )
                 ],
                 cellRenderer: () => null,

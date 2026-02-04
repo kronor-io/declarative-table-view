@@ -73,42 +73,6 @@ export const SUPPORTED_OPERATORS = [
 export type SuggestionItem = { label: string };
 export type SuggestionFetcher = (query: string, client: GraphQLClient) => Promise<SuggestionItem[]>
 
-// Helper functions for building FilterControl values
-export const filterControl = {
-    text: (options?: { label?: string; placeholder?: string }): FilterControl => ({ type: 'text', ...options }),
-    number: (options?: { label?: string; placeholder?: string; initialValue?: any }): FilterControl => ({ type: 'number', ...options }),
-    date: (options?: { label?: string; placeholder?: string; initialValue?: any }): FilterControl => ({ type: 'date', ...options }),
-    dropdown: (options: { label?: string; items: { label: string; value: any }[] }): FilterControl => ({ type: 'dropdown', ...options }),
-    multiselect: (options: { label?: string; items: { label: string; value: any }[], filterable?: boolean }): FilterControl => ({ type: 'multiselect', ...options }),
-    customOperator: (options: { label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }): FilterControl => ({ type: 'customOperator', ...options }),
-    autocomplete: (options: { label?: string; placeholder?: string; suggestionFetcher: SuggestionFetcher; queryMinLength?: number; suggestionLabelField?: string; multiple?: boolean; selectionLimit?: number }): FilterControl => ({ type: 'autocomplete', ...options }),
-    custom: (component: React.ComponentType<any>, options?: { label?: string; props?: Record<string, any> }): FilterControl => ({ type: 'custom', component, ...options }),
-};
-
-// Helper functions for building FilterExpr values
-export const filterExpr = {
-    equals: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'equals', field, value, ...(transform && { transform }) }),
-    notEquals: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notEquals', field, value, ...(transform && { transform }) }),
-    greaterThan: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThan', field, value, ...(transform && { transform }) }),
-    lessThan: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThan', field, value, ...(transform && { transform }) }),
-    greaterThanOrEqual: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'greaterThanOrEqual', field, value, ...(transform && { transform }) }),
-    lessThanOrEqual: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'lessThanOrEqual', field, value, ...(transform && { transform }) }),
-    in: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'in', field, value, ...(transform && { transform }) }),
-    notIn: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'notIn', field, value, ...(transform && { transform }) }),
-    like: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'like', field, value, ...(transform && { transform }) }),
-    iLike: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'iLike', field, value, ...(transform && { transform }) }),
-    isNull: (field: FilterField, value: FilterControl, transform?: FilterTransform): FilterExpr => ({ type: 'isNull', field, value, ...(transform && { transform }) }),
-    and: (filters: FilterExpr[]): FilterExpr => ({ type: 'and', filters }),
-    or: (filters: FilterExpr[]): FilterExpr => ({ type: 'or', filters }),
-    not: (filter: FilterExpr): FilterExpr => ({ type: 'not', filter }),
-    range: (field: FilterField, control: (options: any) => FilterControl, transform?: FilterTransform): FilterExpr =>
-        filterExpr.and([
-            filterExpr.greaterThanOrEqual(field, control({ placeholder: 'from' }), transform),
-            filterExpr.lessThanOrEqual(field, control({ placeholder: 'to' }), transform)
-        ]),
-    allOperators: SUPPORTED_OPERATORS,
-};
-
 // Helper to check if a FilterExpr is a leaf node
 export function isLeaf(expr: FilterExpr): expr is Extract<FilterExpr, { field: FilterField; value: FilterControl }> {
     return 'field' in expr && 'value' in expr;

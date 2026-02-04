@@ -1,7 +1,7 @@
 import { PhoneNumberFilter } from '../../components/PhoneNumberFilter';
 import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRowsExtendDateRange';
 import { Runtime } from '../runtime';
-import { FieldQuery, TableColumnDefinition } from '../column-definition';
+import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
 
 export type NativeRuntime = Runtime & {
     cellRenderers: {
@@ -28,19 +28,21 @@ function traverseFieldQuery(queryNode: FieldQuery, dataNode: any): string {
     }
 };
 
-export const nativeRuntime: NativeRuntime = {
-    cellRenderers: {
-        text: ({ data, columnDefinition }) => {
-            const dataQuery: FieldQuery = columnDefinition.data[0];
+export const cellRenderers: Record<string, CellRenderer> = {
+    text: ({ data, columnDefinition }) => {
+        const dataQuery: FieldQuery = columnDefinition.data[0];
 
-            if (dataQuery == null || columnDefinition.data.length !== 1) return '';
+        if (dataQuery == null || columnDefinition.data.length !== 1) return '';
 
-            if (typeof data !== 'object' || data === null) return '';
-            return traverseFieldQuery(dataQuery, data);
-        },
-
-        json: ({ data }) => JSON.stringify(data),
+        if (typeof data !== 'object' || data === null) return '';
+        return traverseFieldQuery(dataQuery, data);
     },
+
+    json: ({ data }) => JSON.stringify(data),
+}
+
+export const nativeRuntime: NativeRuntime = {
+    cellRenderers: cellRenderers as any,
     queryTransforms: {
         autocomplete: {
             toQuery: (input: any) => {

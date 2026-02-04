@@ -41,7 +41,14 @@ export interface AppProps {
     graphqlHost: string;
     graphqlToken: string;
     geminiApiKey: string;
-    viewsJson: string; // JSON string containing array of view definitions
+    /**
+     * Optional already-parsed views.
+     * When provided, `viewsJson` is ignored and no JSON parsing occurs.
+     */
+    views?: View[];
+
+    /** JSON string containing array of view definitions (required if `views` is not provided). */
+    viewsJson?: string;
     showViewsMenu: boolean;
     showViewTitle: boolean; // Option to show/hide view title
     showCsvExportButton?: boolean; // Controls visibility of the CSV export button (default false)
@@ -89,6 +96,7 @@ function App({
     showViewTitle,
     showCsvExportButton = false,
     showPopoutButton = true,
+    views: viewsFromProps,
     viewsJson,
     externalRuntime,
     isOverlay = false,
@@ -102,9 +110,15 @@ function App({
     modifyAiFilterPrompt
 }: AppProps) {
     const views = useMemo(() => {
+        if (viewsFromProps) {
+            return viewsFromProps;
+        }
+        if (!viewsJson) {
+            throw new Error('App requires either "views" or "viewsJson"');
+        }
         const viewDefinitions = JSON.parse(viewsJson);
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
-    }, [viewsJson, externalRuntime]) as View[];
+    }, [viewsFromProps, viewsJson, externalRuntime]) as View[];
 
     const filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups> = useMemo(() => {
         return Object.fromEntries(views.map((view) => [view.id, view.filterSchema] as const));
@@ -122,8 +136,7 @@ function App({
             console.warn('Invalid initial filter state from URL, falling back to defaults', e);
             return undefined;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewsJson]);
+    }, [views]);
 
     const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
 
@@ -634,6 +647,7 @@ function App({
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
                         showPopoutButton={showPopoutButton}
+                        views={viewsFromProps}
                         viewsJson={viewsJson}
                         externalRuntime={externalRuntime}
                         isOverlay={true}

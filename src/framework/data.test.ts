@@ -9,8 +9,8 @@ describe('flattenFields', () => {
             { id: 2, name: 'Bob', age: 25 }
         ];
         const columns: ColumnDefinition[] = [
-            { type: 'tableColumn', id: 'id', name: 'id', data: [valueQuery('id')], cellRenderer: (() => null) as any } as ColumnDefinition,
-            { type: 'tableColumn', id: 'name', name: 'name', data: [valueQuery('name')], cellRenderer: (() => null) as any } as ColumnDefinition
+            { type: 'tableColumn', id: 'id', name: 'id', data: [valueQuery({ field: 'id' })], cellRenderer: (() => null) as any } as ColumnDefinition,
+            { type: 'tableColumn', id: 'name', name: 'name', data: [valueQuery({ field: 'name' })], cellRenderer: (() => null) as any } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
         expect(result.length).toBe(2);
@@ -26,7 +26,23 @@ describe('flattenFields', () => {
             { id: 2, user: { profile: { email: 'bob@example.com' } } }
         ];
         const columns: ColumnDefinition[] = [
-            { type: 'tableColumn', id: 'user', name: 'user', data: [objectQuery('user', [objectQuery('profile', [valueQuery('email')])])], cellRenderer: (() => null) as any } as ColumnDefinition
+            {
+                type: 'tableColumn',
+                id: 'user',
+                name: 'user',
+                data: [
+                    objectQuery({
+                        field: 'user',
+                        selectionSet: [
+                            objectQuery({
+                                field: 'profile',
+                                selectionSet: [valueQuery({ field: 'email' })]
+                            })
+                        ]
+                    })
+                ],
+                cellRenderer: (() => null) as any
+            } as ColumnDefinition
         ];
         const result = flattenFields(rows, columns);
         expect(result.length).toBe(2);
@@ -58,8 +74,24 @@ describe('flattenFields', () => {
                 id: 'users',
                 name: 'users',
                 data: [
-                    arrayQuery('users', [objectQuery('profile', [valueQuery('email')])]),
-                    arrayQuery('users', [objectQuery('profile', [valueQuery('age')])])
+                    arrayQuery({
+                        field: 'users',
+                        selectionSet: [
+                            objectQuery({
+                                field: 'profile',
+                                selectionSet: [valueQuery({ field: 'email' })]
+                            })
+                        ]
+                    }),
+                    arrayQuery({
+                        field: 'users',
+                        selectionSet: [
+                            objectQuery({
+                                field: 'profile',
+                                selectionSet: [valueQuery({ field: 'age' })]
+                            })
+                        ]
+                    })
                 ],
                 cellRenderer: (() => null) as any
             } as ColumnDefinition
@@ -91,7 +123,7 @@ describe('flattenFields', () => {
                 type: 'tableColumn',
                 id: 'userName',
                 name: 'userName',
-                data: [fieldAlias("userName", objectQuery("user", [valueQuery("name")]))],
+                data: [fieldAlias("userName", objectQuery({ field: 'user', selectionSet: [valueQuery({ field: 'name' })] }))],
                 cellRenderer: (() => null) as any
             } as ColumnDefinition
         ];
@@ -121,7 +153,10 @@ describe('flattenFields', () => {
                 id: 'recentPostTitles',
                 name: 'recentPostTitles',
                 data: [
-                    fieldAlias("recentPostTitles", arrayQuery("posts", [valueQuery("title")]))
+                    fieldAlias(
+                        "recentPostTitles",
+                        arrayQuery({ field: "posts", selectionSet: [valueQuery({ field: "title" })] })
+                    )
                 ],
                 cellRenderer: (() => null) as any
             } as ColumnDefinition
@@ -146,7 +181,13 @@ describe('flattenFields', () => {
                 id: 'displayName',
                 name: 'displayName',
                 data: [
-                    fieldAlias("displayName", fieldAlias("userName", objectQuery("user", [valueQuery("name")])))
+                    fieldAlias(
+                        "displayName",
+                        fieldAlias(
+                            "userName",
+                            objectQuery({ field: "user", selectionSet: [valueQuery({ field: "name" })] })
+                        )
+                    )
                 ],
                 cellRenderer: (() => null) as any
             } as ColumnDefinition

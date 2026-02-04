@@ -1,7 +1,9 @@
 import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY } from './user-data-manager';
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
 import { defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, type UserDataJson } from './user-data';
-import { filterControl, filterExpr, type FilterSchemasAndGroups } from './filters';
+import { type FilterSchemasAndGroups } from './filters';
+import { FilterControl } from '../dsl/filterControl';
+import { FilterExpr } from '../dsl/filterExpr';
 import { success } from './result';
 
 describe('user-data save merges existing views from localStorage', () => {
@@ -16,7 +18,7 @@ describe('user-data save merges existing views from localStorage', () => {
         // Minimal filter schema for view-a only
         const schemaA: FilterSchemasAndGroups = {
             groups: [{ name: 'default', label: null }],
-            filters: [{ id: 'f1', label: 'F1', group: 'default', aiGenerated: false, expression: filterExpr.equals('field', filterControl.text()) }]
+            filters: [{ id: 'f1', label: 'F1', group: 'default', aiGenerated: false, expression: FilterExpr.equals({ field: 'field', control: FilterControl.text() }) }]
         };
 
         // Seed localStorage with user-data JSON that includes an unknown view
