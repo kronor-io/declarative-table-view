@@ -15,9 +15,6 @@ import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { Autocomplete } from './Autocomplete';
 
-// Re-export FilterFormState from the dedicated module
-export type { FilterFormState } from '../framework/filter-form-state';
-
 interface FilterFormProps {
     filterSchemasAndGroups: FilterSchemasAndGroups;
     filterState: FilterState

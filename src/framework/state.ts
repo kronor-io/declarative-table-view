@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FilterFormState } from "../components/FilterForm";
+import { FilterFormState } from "./filter-form-state";
 import { FilterSchemasAndGroups, FilterId, FilterExpr } from "./filters";
 import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";

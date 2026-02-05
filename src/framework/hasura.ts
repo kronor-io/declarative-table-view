@@ -1,6 +1,5 @@
-import { FilterFormState } from '../components/FilterForm';
 import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
-import { traverseFilterSchemaAndState } from './filter-form-state';
+import { FilterFormState, traverseFilterSchemaAndState } from './filter-form-state';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
