@@ -2,6 +2,7 @@ import { PhoneNumberFilter } from '../../components/PhoneNumberFilter';
 import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRowsExtendDateRange';
 import { Runtime } from '../runtime';
 import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
+import { FilterTransform } from '../filters';
 
 export type NativeRuntime = Runtime & {
     cellRenderers: {
@@ -28,7 +29,7 @@ function traverseFieldQuery(queryNode: FieldQuery, dataNode: any): string {
     }
 };
 
-export const cellRenderers: Record<string, CellRenderer> = {
+export const cellRenderers = {
     text: ({ data, columnDefinition }) => {
         const dataQuery: FieldQuery = columnDefinition.data[0];
 
@@ -38,30 +39,32 @@ export const cellRenderers: Record<string, CellRenderer> = {
         return traverseFieldQuery(dataQuery, data);
     },
 
-    json: ({ data }) => JSON.stringify(data),
-}
+    json: ({ data }) => JSON.stringify(data)
+} satisfies Record<string, CellRenderer>
+
+export const filterTransforms = {
+    autocomplete: {
+        toQuery: (input: any) => {
+            if (input) {
+                return { value: input.value };
+            }
+            return { value: input };
+        }
+    },
+
+    autocompleteMultiple: {
+        toQuery: (input: any) => {
+            if (input) {
+                return { value: input.map((item: any) => item.value) };
+            }
+            return { value: input };
+        }
+    }
+} satisfies Record<string, FilterTransform>
 
 export const nativeRuntime: NativeRuntime = {
     cellRenderers: cellRenderers as any,
-    queryTransforms: {
-        autocomplete: {
-            toQuery: (input: any) => {
-                if (input) {
-                    return { value: input.value };
-                }
-                return { value: input };
-            }
-        },
-
-        autocompleteMultiple: {
-            toQuery: (input: any) => {
-                if (input) {
-                    return { value: input.map((item: any) => item.value) };
-                }
-                return { value: input };
-            }
-        }
-    },
+    queryTransforms: filterTransforms as any,
     noRowsComponents: {
         noRowsExtendDateRange: NoRowsExtendDateRange
     },
