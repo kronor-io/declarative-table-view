@@ -16,6 +16,12 @@ export { FilterControl } from '../dsl/filterControl';
 export { CellRenderer } from '../dsl/cellRenderer';
 export { FilterTransform } from '../dsl/filterTransform';
 export type { UserDataJson } from '../framework/user-data';
+export type {
+    UserDataLoadAPI,
+    UserDataSaveAPI,
+    UserDataLoadCallback,
+    UserDataSaveCallback
+} from '../framework/user-data-manager';
 export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
 export { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
