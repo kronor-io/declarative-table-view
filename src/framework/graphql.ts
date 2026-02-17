@@ -202,45 +202,84 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             + ')';
     }
 
+    const renderGraphQLLiteral = (value: unknown): string => {
+        if (value === null) return 'null';
+        if (value === undefined) return 'null';
+        if (typeof value === 'string') return JSON.stringify(value);
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (Array.isArray(value)) {
+            return `[${value.map(renderGraphQLLiteral).join(', ')}]`;
+        }
+        if (typeof value === 'object') {
+            return `{${
+                Object.entries(value as Record<string, unknown>)
+                    .map(([k, v]) => `${k}: ${renderGraphQLLiteral(v)}`)
+                    .join(', ')
+            }}`;
+        }
+        return JSON.stringify(value);
+    };
+
+    const renderHasuraOperator = (op: HasuraOperator): string => {
+        return `{${
+            Object.entries(op)
+                .map(([k, v]) => `${k}: ${renderGraphQLLiteral(v)}`)
+                .join(', ')
+        }}`;
+    };
+
+    const renderHasuraOperators = (ops: HasuraOperator[]): string => {
+        return `[${ops.map(renderHasuraOperator).join(', ')}]`;
+    };
+
+    const isAnd = (cond: HasuraCondition): cond is { _and: HasuraCondition[] } => {
+        return typeof cond === 'object' && cond !== null && '_and' in cond && Array.isArray((cond as any)._and);
+    };
+    const isOr = (cond: HasuraCondition): cond is { _or: HasuraCondition[] } => {
+        return typeof cond === 'object' && cond !== null && '_or' in cond && Array.isArray((cond as any)._or);
+    };
+    const isNot = (cond: HasuraCondition): cond is { _not: HasuraCondition } => {
+        return typeof cond === 'object' && cond !== null && '_not' in cond;
+    };
+
+    const renderHasuraCondition = (cond: HasuraCondition): string => {
+        if (isAnd(cond)) {
+            return `{_and: [${cond._and.map(renderHasuraCondition).join(', ')}]}`;
+        }
+        if (isOr(cond)) {
+            return `{_or: [${cond._or.map(renderHasuraCondition).join(', ')}]}`;
+        }
+        if (isNot(cond)) {
+            return `{_not: ${renderHasuraCondition(cond._not)}}`;
+        }
+
+        const entries = Object.entries(cond);
+        return `{${
+            entries
+                .map(([field, value]) => {
+                    if (Array.isArray(value)) {
+                        // Array of HasuraOperator
+                        return `${field}: ${renderHasuraOperators(value as HasuraOperator[])}`;
+                    }
+                    if (typeof value === 'object' && value !== null) {
+                        // Heuristic: if the value contains any known operator keys, treat it as HasuraOperator; otherwise treat as nested HasuraCondition.
+                        const obj = value as Record<string, unknown>;
+                        const keys = Object.keys(obj);
+                        const looksLikeOperator = keys.some(k => k.startsWith('_'));
+                        return looksLikeOperator
+                            ? `${field}: ${renderHasuraOperator(value as HasuraOperator)}`
+                            : `${field}: ${renderHasuraCondition(value as HasuraCondition)}`;
+                    }
+                    return `${field}: ${renderGraphQLLiteral(value)}`;
+                })
+                .join(', ')
+        }}`;
+    };
+
     function renderArgs(item: GraphQLSelectionSetItem): string {
         const args: string[] = [];
         if (item.where) {
-            // Recursively render HasuraCondition as GraphQL, not JSON
-            const renderWhere = (cond: HasuraCondition | HasuraOperator | HasuraOperator[]): string => {
-                if (Array.isArray(cond)) {
-                    // Array of HasuraCondition or HasuraOperator
-                    return `[${cond.map(renderWhere).join(", ")}]`;
-                } else if (typeof cond === 'object' && cond !== null) {
-                    if ('_and' in cond && Array.isArray(cond._and)) {
-                        return `_and: [${cond._and.map(renderWhere).join(", ")}]`;
-                    }
-                    if ('_or' in cond && Array.isArray(cond._or)) {
-                        return `_or: [${cond._or.map(renderWhere).join(", ")}]`;
-                    }
-                    if ('_not' in cond) {
-                        return `_not: {${renderWhere(cond._not)}}`;
-                    }
-                    // Field operators (HasuraOperator or HasuraOperator[])
-                    return Object.entries(cond)
-                        .map(([field, op]) => {
-                            if (Array.isArray(op)) {
-                                // Array of HasuraOperator
-                                return `${field}: [${op.map(renderWhere).join(", ")}]`;
-                            } else if (typeof op === 'object' && op !== null) {
-                                // Single HasuraOperator
-                                return `${field}: {${Object.entries(op)
-                                    .map(([k, v]) => `${k}: ${typeof v === 'string' ? `"${v}"` : JSON.stringify(v)}`)
-                                    .join(", ")}}`;
-                            } else {
-                                // Primitive value (should not happen for HasuraOperator, but fallback)
-                                return `${field}: ${typeof op === 'string' ? `"${op}"` : JSON.stringify(op)}`;
-                            }
-                        })
-                        .join(", ");
-                }
-                return JSON.stringify(cond);
-            };
-            args.push(`where: {${renderWhere(item.where)}}`);
+            args.push(`where: ${renderHasuraCondition(item.where)}`);
         }
         if (item.limit !== undefined)
             args.push(`limit: ${item.limit}`);

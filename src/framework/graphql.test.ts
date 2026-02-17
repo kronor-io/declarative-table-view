@@ -68,7 +68,7 @@ describe("renderGraphQLQuery", () => {
         expect(result).toContain("users {");
         expect(result).toContain("id");
         expect(result).toContain("name");
-        expect(result).toContain("posts(where: {_and: [title: {_ilike: \"%graphql%\"}, published: {_eq: true}, author_id: {_in: [1,2,3]}]}, limit: 10, orderBy: [{createdAt: DESC}])");
+        expect(result).toContain("posts(where: {_and: [{title: {_ilike: \"%graphql%\"}}, {published: {_eq: true}}, {author_id: {_in: [1, 2, 3]}}]}, limit: 10, orderBy: [{createdAt: DESC}])");
         expect(result).toContain("title");
         expect(result).toContain("content");
     });
