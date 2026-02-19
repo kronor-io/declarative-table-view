@@ -1,0 +1,483 @@
+{
+    "timestamp": "2026-02-19T16:16:48.926Z",
+    "dtvVersion": "3.6.4",
+    "modelId": "gemini-2.5-flash-lite-preview-09-2025",
+    "averageResponseTimeMs": 732.8586665093899,
+    "results": [
+        {
+            "userPrompt": "authorized payments in euro or danish krona this week",
+            "durationMs": 794.5786669850349,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"AUTHORIZED\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\",\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2388,
+                    "candidatesTokenCount": 196,
+                    "totalTokenCount": 2584,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2388
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "azeXafHuLp3gvdIPkYvR6Qw"
+            },
+            "aiText": "```json\n{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"AUTHORIZED\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\",\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-status": {
+                    "type": "leaf",
+                    "value": [
+                        "AUTHORIZED"
+                    ]
+                },
+                "currency": {
+                    "type": "leaf",
+                    "value": [
+                        "EUR",
+                        "DKK"
+                    ]
+                },
+                "date-range": {
+                    "type": "and",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-12T00:00:00.000Z"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-19T23:59:59.999Z"
+                        }
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"AUTHORIZED\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\",\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}"
+        },
+        {
+            "userPrompt": "failed payments from yesterday",
+            "durationMs": 724.5208330154419,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-status\": {\n    \"type\": \"or\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"ERROR\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"DECLINED\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"CAPTURE_DECLINED\"\n      }\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2381,
+                    "candidatesTokenCount": 224,
+                    "totalTokenCount": 2605,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2381
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "bDeXaZf2HMWW28oPro3E4As"
+            },
+            "aiText": "```json\n{\n  \"payment-status\": {\n    \"type\": \"or\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"ERROR\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"DECLINED\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"CAPTURE_DECLINED\"\n      }\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-status": {
+                    "type": "or",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "ERROR"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "DECLINED"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "CAPTURE_DECLINED"
+                        }
+                    ]
+                },
+                "date-range": {
+                    "type": "and",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-18T00:00:00.000Z"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-18T23:59:59.999Z"
+                        }
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-status\": {\n    \"type\": \"or\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"ERROR\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"DECLINED\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"CAPTURE_DECLINED\"\n      }\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-18T23:59:59.999Z\"\n      }\n    ]\n  }\n}"
+        },
+        {
+            "userPrompt": "credit card payments above 1000 DKK in the last 30 days",
+            "durationMs": 724.4577080011368,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"CREDIT_CARD\"\n    ]\n  },\n  \"amount-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": 1000\n    }\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": \"2026-01-20T00:00:00.000Z\",\n      \"lessThanOrEqual\": \"2026-02-19T23:59:59.999Z\"\n    }\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2395,
+                    "candidatesTokenCount": 213,
+                    "totalTokenCount": 2608,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2395
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "bTeXaenID-OkvdIPytrJiQc"
+            },
+            "aiText": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"CREDIT_CARD\"\n    ]\n  },\n  \"amount-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": 1000\n    }\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": \"2026-01-20T00:00:00.000Z\",\n      \"lessThanOrEqual\": \"2026-02-19T23:59:59.999Z\"\n    }\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-provider": {
+                    "type": "leaf",
+                    "value": [
+                        "CREDIT_CARD"
+                    ]
+                },
+                "amount-range": {
+                    "type": "leaf",
+                    "value": {
+                        "greaterThanOrEqual": 1000
+                    }
+                },
+                "currency": {
+                    "type": "leaf",
+                    "value": [
+                        "DKK"
+                    ]
+                },
+                "date-range": {
+                    "type": "leaf",
+                    "value": {
+                        "greaterThanOrEqual": "2026-01-20T00:00:00.000Z",
+                        "lessThanOrEqual": "2026-02-19T23:59:59.999Z"
+                    }
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"CREDIT_CARD\"\n    ]\n  },\n  \"amount-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": 1000\n    }\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"DKK\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"leaf\",\n    \"value\": {\n      \"greaterThanOrEqual\": \"2026-01-20T00:00:00.000Z\",\n      \"lessThanOrEqual\": \"2026-02-19T23:59:59.999Z\"\n    }\n  }\n}"
+        },
+        {
+            "userPrompt": "mobilepay payments from the last 7 days",
+            "durationMs": 518.4720830321312,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"MOBILEPAY\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T17:16:45.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T17:16:45.000Z\"\n      }\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2386,
+                    "candidatesTokenCount": 160,
+                    "totalTokenCount": 2546,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2386
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "bTeXabypMMbB28oP8oWa2Qw"
+            },
+            "aiText": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"MOBILEPAY\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T17:16:45.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T17:16:45.000Z\"\n      }\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-provider": {
+                    "type": "leaf",
+                    "value": [
+                        "MOBILEPAY"
+                    ]
+                },
+                "date-range": {
+                    "type": "and",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-12T17:16:45.000Z"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-19T17:16:45.000Z"
+                        }
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"MOBILEPAY\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-12T17:16:45.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T17:16:45.000Z\"\n      }\n    ]\n  }\n}"
+        },
+        {
+            "userPrompt": "requests initiated by customer email containing \"@boozt.com\"",
+            "durationMs": 373.5584160089493,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"customer-email\": {\n    \"type\": \"leaf\",\n    \"value\": \"@boozt.com\"\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2389,
+                    "candidatesTokenCount": 38,
+                    "totalTokenCount": 2427,
+                    "cachedContentTokenCount": 2041,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2389
+                        }
+                    ],
+                    "cacheTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2041
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "bjeXabD8B86uvdIPw6jmiAE"
+            },
+            "aiText": "```json\n{\n  \"customer-email\": {\n    \"type\": \"leaf\",\n    \"value\": \"@boozt.com\"\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "customer-email": {
+                    "type": "leaf",
+                    "value": "@boozt.com"
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"customer-email\": {\n    \"type\": \"leaf\",\n    \"value\": \"@boozt.com\"\n  }\n}"
+        },
+        {
+            "userPrompt": "payment requests for merchant Boozt Dev",
+            "durationMs": 468.8875000476837,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"merchant\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      2\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2384,
+                    "candidatesTokenCount": 37,
+                    "totalTokenCount": 2421,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2384
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "bjeXaZfWJOCc28oPve63yQw"
+            },
+            "aiText": "```json\n{\n  \"merchant\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      2\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "merchant": {
+                    "type": "leaf",
+                    "value": [
+                        2
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"merchant\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      2\n    ]\n  }\n}"
+        },
+        {
+            "userPrompt": "pending payments placed today",
+            "durationMs": 1643.6981249451637,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PRE_FLIGHT_CHECK\",\n      \"INITIALIZING\",\n      \"WAITING_FOR_PAYMENT\",\n      \"WAITING_FOR_PROMOTION\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2381,
+                    "candidatesTokenCount": 192,
+                    "totalTokenCount": 2573,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2381
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "cDeXabOkDqKkvdIPiLmqmA4"
+            },
+            "aiText": "```json\n{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PRE_FLIGHT_CHECK\",\n      \"INITIALIZING\",\n      \"WAITING_FOR_PAYMENT\",\n      \"WAITING_FOR_PROMOTION\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-status": {
+                    "type": "leaf",
+                    "value": [
+                        "PRE_FLIGHT_CHECK",
+                        "INITIALIZING",
+                        "WAITING_FOR_PAYMENT",
+                        "WAITING_FOR_PROMOTION"
+                    ]
+                },
+                "date-range": {
+                    "type": "and",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-19T00:00:00.000Z"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "2026-02-19T23:59:59.999Z"
+                        }
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-status\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PRE_FLIGHT_CHECK\",\n      \"INITIALIZING\",\n      \"WAITING_FOR_PAYMENT\",\n      \"WAITING_FOR_PROMOTION\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-02-19T23:59:59.999Z\"\n      }\n    ]\n  }\n}"
+        },
+        {
+            "userPrompt": "paypal payments in EUR during January 2026",
+            "durationMs": 614.6960000395775,
+            "ok": true,
+            "responseJson": {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PAYPAL\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-01T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-31T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```"
+                                }
+                            ],
+                            "role": "model"
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2388,
+                    "candidatesTokenCount": 191,
+                    "totalTokenCount": 2579,
+                    "cachedContentTokenCount": 2041,
+                    "promptTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2388
+                        }
+                    ],
+                    "cacheTokensDetails": [
+                        {
+                            "modality": "TEXT",
+                            "tokenCount": 2041
+                        }
+                    ]
+                },
+                "modelVersion": "gemini-2.5-flash-lite-preview-09-2025",
+                "responseId": "cDeXace_M8-Cxs0P8ePxuQo"
+            },
+            "aiText": "```json\n{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PAYPAL\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-01T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-31T23:59:59.999Z\"\n      }\n    ]\n  }\n}\n```",
+            "parsedFilterFormStateById": {
+                "payment-provider": {
+                    "type": "leaf",
+                    "value": [
+                        "PAYPAL"
+                    ]
+                },
+                "currency": {
+                    "type": "leaf",
+                    "value": [
+                        "EUR"
+                    ]
+                },
+                "date-range": {
+                    "type": "and",
+                    "children": [
+                        {
+                            "type": "leaf",
+                            "value": "2026-01-01T00:00:00.000Z"
+                        },
+                        {
+                            "type": "leaf",
+                            "value": "2026-01-31T23:59:59.999Z"
+                        }
+                    ]
+                }
+            },
+            "parsedFilterFormStateJsonText": "{\n  \"payment-provider\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"PAYPAL\"\n    ]\n  },\n  \"currency\": {\n    \"type\": \"leaf\",\n    \"value\": [\n      \"EUR\"\n    ]\n  },\n  \"date-range\": {\n    \"type\": \"and\",\n    \"children\": [\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-01T00:00:00.000Z\"\n      },\n      {\n        \"type\": \"leaf\",\n        \"value\": \"2026-01-31T23:59:59.999Z\"\n      }\n    ]\n  }\n}"
+        }
+    ]
+}

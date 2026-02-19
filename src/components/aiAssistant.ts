@@ -1,10 +1,9 @@
 // src/components/aiAssistant.ts
-import { FilterExpr, FilterSchemasAndGroups, FilterExprFieldNode } from '../framework/filters';
-import { FilterFormState } from '../framework/filter-form-state';
-import { buildInitialFormState, createDefaultFilterState, FormStateInitMode } from '../framework/state';
-import { RefObject } from 'react';
-import { Toast } from 'primereact/toast';
-import { FilterState } from '../framework/state';
+import type { FilterExpr, FilterExprFieldNode, FilterSchemasAndGroups } from '../framework/filters';
+import type { FilterFormState } from '../framework/filter-form-state';
+import { buildInitialFormState, createDefaultFilterState, FormStateInitMode, FilterState } from '../framework/state';
+import type { RefObject } from 'react';
+import type { Toast } from 'primereact/toast';
 
 // --- Shared prompt and serialization helpers ---
 export interface AIApi {
@@ -24,6 +23,9 @@ export type ModifyAiFilterPromptFn = (
     promptTemplate: string,
     args: { filterSchema: FilterSchemasAndGroups; userPrompt: string }
 ) => string;
+
+// export const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash-lite';
+export const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash-lite-preview-09-2025';
 
 function sanitizeFilterExpr(expr: FilterExpr): object {
     if (expr.type === 'and' || expr.type === 'or') {
@@ -92,6 +94,59 @@ function buildAiPrompt(
     return modifyAiFilterPrompt
         ? modifyAiFilterPrompt(promptTemplate, { filterSchema, userPrompt })
         : promptTemplate;
+}
+
+export async function requestGeminiGenerateContent(args: {
+    filterSchema: FilterSchemasAndGroups;
+    userPrompt: string;
+    geminiApiKey: string;
+    modelId?: string;
+    modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
+    httpReferer?: string;
+    origin?: string;
+}): Promise<{
+    modelId: string;
+    prompt: string;
+    responseJson: unknown;
+    aiText: string;
+}> {
+    const modelId = args.modelId ?? DEFAULT_GEMINI_MODEL_ID;
+    const prompt = buildAiPrompt(args.filterSchema, args.userPrompt, args.modifyAiFilterPrompt);
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (args.httpReferer) {
+        headers['Referer'] = args.httpReferer;
+    }
+    if (args.origin) {
+        headers['Origin'] = args.origin;
+    }
+
+    const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${args.geminiApiKey}`,
+        {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            })
+        }
+    );
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Gemini API error (${response.status}): ${text}`);
+    }
+
+    const responseJson: any = await response.json();
+    const aiText = responseJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    return {
+        modelId,
+        prompt,
+        responseJson,
+        aiText,
+    };
 }
 
 // Helper to merge AI-generated filter object with current state
@@ -244,22 +299,15 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
 // --- Gemini Flash-Lite implementation ---
 export const GeminiApi: AIApi = {
     async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast, options) {
-        const prompt = buildAiPrompt(filterSchema, userPrompt, options?.modifyAiFilterPrompt);
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-                    })
-                }
-            );
-            if (!response.ok) throw new Error('Gemini API error');
-            const data = await response.json();
-            const aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const { aiText } = await requestGeminiGenerateContent({
+                filterSchema,
+                userPrompt,
+                geminiApiKey,
+                modifyAiFilterPrompt: options?.modifyAiFilterPrompt,
+            });
+
+            const aiContent = aiText;
             // Use [\s\S] instead of dot-all flag for compatibility
             const match = aiContent.match(/\{[\s\S]*\}/);
             if (match) {
@@ -280,7 +328,7 @@ export const GeminiApi: AIApi = {
                         life: 3000
                     });
                 } else {
-                    alert(errorMessage);
+                    console.warn(errorMessage);
                 }
             }
         } catch (err) {
@@ -294,7 +342,7 @@ export const GeminiApi: AIApi = {
                     life: 3000
                 });
             } else {
-                alert(errorMessage);
+                console.warn(errorMessage);
             }
         }
     }
