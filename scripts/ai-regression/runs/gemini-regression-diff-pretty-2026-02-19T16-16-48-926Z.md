@@ -1,4 +1,4 @@
-# Gemini regression diff (terminal style)
+# Gemini regression diff
 
 - Previous: /Users/daquirm/projects/boozt/dtv/scripts/ai-regression/runs/gemini-regression-2026-02-19T16-15-08-376Z.json
 - Current: /Users/daquirm/projects/boozt/dtv/scripts/ai-regression/runs/gemini-regression-2026-02-19T16-16-48-926Z.json
@@ -276,4 +276,3 @@ Unchanged: 1, Changed: 1
     ],
   }
 ```
-

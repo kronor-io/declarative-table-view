@@ -430,7 +430,7 @@ function stripAnsi(text: string): string {
     return text.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
-function buildTerminalStyleDiffMarkdown(args: {
+function buildDiffMarkdown(args: {
     previousRunPath: string;
     currentRunPath: string;
     previousRun: RegressionRun;
@@ -441,7 +441,7 @@ function buildTerminalStyleDiffMarkdown(args: {
     const allPrompts = Array.from(new Set([...prevByPrompt.keys(), ...currByPrompt.keys()])).sort();
 
     const lines: string[] = [];
-    lines.push(`# Gemini regression diff (terminal style)`);
+    lines.push(`# Gemini regression diff`);
     lines.push('');
     lines.push(`- Previous: ${args.previousRunPath}`);
     lines.push(`- Current: ${args.currentRunPath}`);
@@ -514,7 +514,7 @@ async function buildAndWriteRunDiff(args: {
     await writeFile(markdownPath, markdown, 'utf-8');
 
     const prettyMarkdownPath = path.join(args.runsDir, `gemini-regression-diff-pretty-${fileSafeTimestamp}.md`);
-    const prettyMarkdown = buildTerminalStyleDiffMarkdown({
+    const prettyMarkdown = buildDiffMarkdown({
         previousRunPath: args.previousRunPath,
         currentRunPath: args.currentRunPath,
         previousRun: args.previousRun,
