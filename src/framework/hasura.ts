@@ -1,5 +1,6 @@
 import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
 import { FilterFormState, traverseFilterSchemaAndState } from './filter-form-state';
+import { FilterState } from './state';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
@@ -30,7 +31,7 @@ export type HasuraCondition =
 
 // Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
-    filterState: Map<string, FilterFormState>,
+    filterState: FilterState,
     filterSchema: FilterSchemasAndGroups
 ): HasuraCondition {
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
