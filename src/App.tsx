@@ -27,7 +27,6 @@ import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
 import { parseFilterFormState } from './framework/filter-form-state';
-import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
@@ -163,7 +162,7 @@ function App({
     const memoizedQuery = useMemo(() => {
         return generateGraphQLQuery(
             selectedView.collectionName,
-            selectedView.columnDefinitions as ColumnDefinition[],
+            selectedView.columnDefinitions,
             selectedView.boolExpType,
             selectedView.orderByType,
             selectedView.paginationKey
@@ -586,6 +585,10 @@ function App({
                     visible={showPreferencesPanel}
                     preferences={userDataManager.preferences}
                     onChangePreferences={userDataManager.updatePreferences}
+                    currentView={{ id: selectedView.id, title: selectedView.title }}
+                    viewData={userDataManager.viewData}
+                    columnDefinitions={selectedView.columnDefinitions}
+                    onSetHiddenColumns={userDataManager.setHiddenColumns}
                 />
 
                 {
@@ -611,6 +614,7 @@ function App({
                         viewId={selectedView.id}
                         ref={tableRef}
                         columns={selectedView.columnDefinitions}
+                        hiddenColumnIds={userDataManager.viewData.hiddenColumns}
                         data={state.data.flattenedRows}
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}

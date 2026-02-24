@@ -22,6 +22,7 @@ export interface RowSelectionAPI {
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
+    hiddenColumnIds: string[];
     data: FlattenedDataRow[]; // Array of rows, each row keyed by column id
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
@@ -41,6 +42,7 @@ type TableProps = {
 function Table({
     viewId,
     columns,
+    hiddenColumnIds,
     data,
     noRowsComponent,
     setFilterState,
@@ -50,7 +52,11 @@ function Table({
     rowSelection,
     rowClassFunction
 }: TableProps) {
-    const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => column.type === 'tableColumn');
+    const hiddenSet = new Set(hiddenColumnIds);
+    const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
+        if (column.type !== 'tableColumn') return false;
+        return !hiddenSet.has(column.id);
+    });
 
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
