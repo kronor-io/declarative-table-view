@@ -3,7 +3,8 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Tag } from 'primereact/tag';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterState } from '../framework/state';
-import { FilterSchemasAndGroups } from '../framework/filters';
+import { FilterControl, FilterExpr, FilterField, FilterSchemasAndGroups } from '../framework/filters';
+import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
@@ -61,22 +62,52 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
 
     const schemaById = new Map(filterSchema.filters.map(f => [f.id, f]));
 
-    function getFieldDisplay(filterId: string): string | null {
-        const schemaEntry = schemaById.get(filterId);
-        if (!schemaEntry) return null;
-        const expr: any = schemaEntry.expression;
-        if (expr && 'field' in expr) {
-            const fieldVal = expr.field;
-            if (typeof fieldVal === 'string') return fieldVal;
-            if (fieldVal && typeof fieldVal === 'object') {
-                if ('and' in fieldVal && Array.isArray(fieldVal.and)) return fieldVal.and.join(' & ');
-                if ('or' in fieldVal && Array.isArray(fieldVal.or)) return fieldVal.or.join(' | ');
-            }
+    function getFilterFieldDisplay(field: FilterField): string {
+        if (typeof field === 'string') return field;
+        if (field && typeof field === 'object') {
+            if ('and' in field && Array.isArray(field.and)) return field.and.join(' & ');
+            if ('or' in field && Array.isArray(field.or)) return field.or.join(' | ');
         }
-        return null;
+        return String(field);
+    }
+
+    function getOperatorDisplay(exprType: FilterExpr['type']): string {
+        switch (exprType) {
+            case 'equals':
+                return '=';
+            case 'notEquals':
+                return '!=';
+            case 'greaterThan':
+                return '>';
+            case 'lessThan':
+                return '<';
+            case 'greaterThanOrEqual':
+                return '>=';
+            case 'lessThanOrEqual':
+                return '<=';
+            case 'in':
+                return 'in';
+            case 'notIn':
+                return 'not in';
+            case 'like':
+                return 'like';
+            case 'iLike':
+                return 'ilike';
+            case 'isNull':
+                return 'is null';
+            default:
+                return exprType;
+        }
     }
 
     function getFieldValueDisplay(value: any): string {
+        if (value instanceof Date) {
+            return new Intl.DateTimeFormat('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }).format(value);
+        }
         if (typeof value === 'string') {
             return value.length > 128 ? `${value.substring(0, 128)}...` : value;
         }
@@ -84,6 +115,9 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
             return value.map(v => getFieldValueDisplay(v)).join(', ');
         }
         if (typeof value === 'object' && value !== null) {
+            if ('label' in value && typeof value.label === 'string') {
+                return value.label;
+            }
             if ('value' in value) {
                 return getFieldValueDisplay(value.value);
             }
@@ -92,13 +126,98 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return String(value);
     }
 
+    function getControlValueDisplay(control: FilterControl, controlValue: any): string {
+        // If the stored value already carries a label, prefer it.
+        if (controlValue && typeof controlValue === 'object' && 'label' in controlValue && typeof controlValue.label === 'string') {
+            return String(controlValue.label);
+        }
+
+        if (control.type === 'dropdown') {
+            const item = control.items.find(item => item.value === controlValue);
+            return item ? item.label : getFieldValueDisplay(controlValue);
+        }
+
+        if (control.type === 'multiselect') {
+            if (!Array.isArray(controlValue)) {
+                return getFieldValueDisplay(controlValue);
+            }
+            return controlValue
+                .map(value => {
+                    const item = control.items.find(item => item.value === value);
+                    return item ? item.label : getFieldValueDisplay(value);
+                })
+                .join(', ');
+        }
+
+        return getFieldValueDisplay(controlValue);
+    }
+
+    function isLeafValueEmpty(schemaLeaf: Extract<FilterExpr, { field: FilterField; value: any }>, stateLeaf: FilterFormState & { type: 'leaf' }): boolean {
+        const value = stateLeaf.value;
+        if (schemaLeaf.value.type === 'customOperator') {
+            const inner = value?.value;
+            return inner === '' || inner === null || (Array.isArray(inner) && inner.length === 0);
+        }
+        return value === '' || value === null || (Array.isArray(value) && value.length === 0);
+    }
+
+    function formatLeaf(schemaLeaf: Extract<FilterExpr, { field: FilterField; value: any }>, stateLeaf: FilterFormState & { type: 'leaf' }): string {
+        if (isLeafValueEmpty(schemaLeaf, stateLeaf)) {
+            return '';
+        }
+
+        const field = `${getFilterFieldDisplay(schemaLeaf.field)} `
+
+        if (schemaLeaf.value.type === 'customOperator') {
+            const operatorValue = stateLeaf.value?.operator;
+            const operatorLabel = schemaLeaf.value.operators.find(o => o.value === operatorValue)?.label ?? String(operatorValue ?? '');
+            const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, stateLeaf.value?.value);
+            return `${field}${operatorLabel} ${valueStr}`.trim();
+        }
+
+        const operator = getOperatorDisplay(schemaLeaf.type);
+        const valueStr = getControlValueDisplay(schemaLeaf.value, stateLeaf.value);
+        return `${field}${operator} ${valueStr}`.trim();
+    }
+
+    function renderExpressionWithState(expr: FilterExpr, node: FilterFormState): string {
+        return traverseFilterSchemaAndState<string>(expr, node, {
+            leaf: (schemaLeaf, stateLeaf) => {
+                return formatLeaf(schemaLeaf, stateLeaf);
+            },
+            and: (_schemaAnd, _stateAnd, childResults) => {
+                const parts = childResults.filter(Boolean);
+                if (parts.length === 0) return '';
+                return `AND(${parts.join(', ')})`;
+            },
+            or: (_schemaOr, _stateOr, childResults) => {
+                const parts = childResults.filter(Boolean);
+                if (parts.length === 0) return '';
+                return `OR(${parts.join(', ')})`;
+            },
+            not: (_schemaNot, _stateNot, childResult) => {
+                if (!childResult) return '';
+                return `NOT(${childResult})`;
+            }
+        });
+    }
+
     const renderFilterState = (state: FilterState) => {
         if (!state || state.size === 0) {
             return null;
         }
 
-        const activeFilters = Array.from(state.entries())
-            .filter(([, filter]) => isActiveFilter(filter));
+        const activeFilters = Array.from(state.entries()).filter(([filterId, filter]) => {
+            const schemaEntry = schemaById.get(filterId);
+            if (!schemaEntry) {
+                return isActiveFilter(filter);
+            }
+            try {
+                return !isFilterEmpty(filter, schemaEntry.expression);
+            } catch {
+                return isActiveFilter(filter);
+            }
+        });
         if (activeFilters.length === 0) {
             return null;
         }
@@ -106,22 +225,16 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return (
             <div className="tw:mt-2 tw:flex tw:flex-wrap tw:gap-1">
                 {
-                    activeFilters.map(([filterId, filter], index) => {
-                        // Handle different types of FilterFormState
-                        let displayText = '';
-                        if (filter.type === 'leaf') {
-                            const valueStr = getFieldValueDisplay(filter.value);
-                            const fieldName = getFieldDisplay(filterId);
-                            displayText = fieldName !== null ? `${fieldName}: ${valueStr}` : valueStr;
-                        } else if (filter.type === 'and' || filter.type === 'or') {
-                            displayText = `${filter.type.toUpperCase()} (${filter.children.length} filters)`;
-                        } else if (filter.type === 'not') {
-                            displayText = `NOT (1 filter)`;
-                        }
+                    activeFilters.map(([filterId, filter]) => {
+                        const schemaEntry = schemaById.get(filterId);
+                        const displayText =
+                            schemaEntry
+                                ? renderExpressionWithState(schemaEntry.expression, filter)
+                                : `${filterId}: MISSING SCHEMA`;
 
                         return (
                             <Tag
-                                key={index}
+                                key={filterId}
                                 value={displayText}
                                 className="tw:text-xs"
                                 style={{

@@ -1,4 +1,4 @@
-import { FilterSchemasAndGroups, FilterField, FilterControl, FilterExpr, FilterTransform } from './filters';
+import { FilterSchemasAndGroups, FilterField, FilterControl, FilterExpr } from './filters';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 
 // Tree-like state for FilterForm
@@ -36,7 +36,7 @@ export function mapFilterFormState<T>(
 }
 
 // Type aliases for narrowed FilterExpr types
-type LeafFilterExpr = FilterExpr & { field: FilterField; value: FilterControl; transform?: FilterTransform };
+type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
 type AndFilterExpr = FilterExpr & { type: 'and' };
 type OrFilterExpr = FilterExpr & { type: 'or' };
 type NotFilterExpr = FilterExpr & { type: 'not' };
