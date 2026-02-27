@@ -76,15 +76,15 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
             case 'equals':
                 return '=';
             case 'notEquals':
-                return '!=';
+                return '≠';
             case 'greaterThan':
                 return '>';
             case 'lessThan':
                 return '<';
             case 'greaterThanOrEqual':
-                return '>=';
+                return '≥';
             case 'lessThanOrEqual':
-                return '<=';
+                return '≤';
             case 'in':
                 return 'in';
             case 'notIn':
