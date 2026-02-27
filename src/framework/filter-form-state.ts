@@ -69,7 +69,7 @@ export function traverseFilterSchemaAndState<T>(
 ): T {
     switch (stateNode.type) {
         case 'leaf':
-            return handlers.leaf(schemaNode as LeafFilterExpr, stateNode as FilterFormState & { type: 'leaf' });
+            return handlers.leaf(schemaNode as LeafFilterExpr, stateNode);
 
         case 'and': {
             const state = stateNode as FilterFormState & { type: 'and' };
@@ -197,10 +197,10 @@ export function parseFilterFormState(serializedState: any, schema: FilterSchemas
         schema.filters.map(filter => {
             const raw = serializedState ? serializedState[filter.id] : undefined;
             if (raw && typeof raw === 'object' && 'type' in raw) {
-                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)] as [string, FilterFormState];
+                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];
             }
             // If invalid/missing, fall back to an empty initialized state derived from schema
-            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)] as [string, FilterFormState];
+            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)];
         })
     );
 }

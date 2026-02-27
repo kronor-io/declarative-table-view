@@ -502,7 +502,7 @@ export function parseFilterExprJson(
             throw new Error(`Invalid ${expr.type} FilterExpr: "filters" must be an array`);
         }
         return {
-            type: expr.type as 'and' | 'or',
+            type: expr.type,
             filters: expr.filters.map(filter => parseFilterExprJson(filter, builtInRuntime, externalRuntime))
         };
     }

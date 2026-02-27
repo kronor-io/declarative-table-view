@@ -71,7 +71,7 @@ export function buildHasuraConditions(
                     if (schema.transform?.toQuery !== undefined) {
                         const transformResult = schema.transform.toQuery(state.value);
                         if ('condition' in transformResult) {
-                            return transformResult.condition as HasuraCondition;
+                            return transformResult.condition;
                         }
                         if ('field' in transformResult && transformResult.field !== undefined) {
                             transformedField = transformResult.field;

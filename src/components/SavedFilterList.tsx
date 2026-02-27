@@ -65,8 +65,8 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
     function getFilterFieldDisplay(field: FilterField): string {
         if (typeof field === 'string') return field;
         if (field && typeof field === 'object') {
-            if ('and' in field && Array.isArray(field.and)) return field.and.join(' & ');
-            if ('or' in field && Array.isArray(field.or)) return field.or.join(' | ');
+            if ('and' in field) return field.and.join(' & ');
+            if ('or' in field) return field.or.join(' | ');
         }
         return String(field);
     }
