@@ -62,6 +62,8 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
 
     const schemaById = new Map(filterSchema.filters.map(f => [f.id, f]));
 
+    type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
+
     function getFilterFieldDisplay(field: FilterField): string {
         if (typeof field === 'string') return field;
         if (field && typeof field === 'object') {
@@ -100,7 +102,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         }
     }
 
-    function getFieldValueDisplay(value: any): string {
+    function getFieldValueDisplay(value: unknown): string {
         if (value instanceof Date) {
             return new Intl.DateTimeFormat('en-US', {
                 year: 'numeric',
@@ -115,21 +117,25 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
             return value.map(v => getFieldValueDisplay(v)).join(', ');
         }
         if (typeof value === 'object' && value !== null) {
-            if ('label' in value && typeof value.label === 'string') {
-                return value.label;
+            const obj = value as Record<string, unknown>;
+            if (typeof obj.label === 'string') {
+                return obj.label;
             }
-            if ('value' in value) {
-                return getFieldValueDisplay(value.value);
+            if ('value' in obj) {
+                return getFieldValueDisplay(obj.value);
             }
             return JSON.stringify(value);
         }
         return String(value);
     }
 
-    function getControlValueDisplay(control: FilterControl, controlValue: any): string {
+    function getControlValueDisplay(control: FilterControl, controlValue: unknown): string {
         // If the stored value already carries a label, prefer it.
-        if (controlValue && typeof controlValue === 'object' && 'label' in controlValue && typeof controlValue.label === 'string') {
-            return String(controlValue.label);
+        if (controlValue && typeof controlValue === 'object') {
+            const obj = controlValue as Record<string, unknown>;
+            if (typeof obj.label === 'string') {
+                return obj.label;
+            }
         }
 
         if (control.type === 'dropdown') {
@@ -152,7 +158,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return getFieldValueDisplay(controlValue);
     }
 
-    function isLeafValueEmpty(schemaLeaf: Extract<FilterExpr, { field: FilterField; value: any }>, stateLeaf: FilterFormState & { type: 'leaf' }): boolean {
+    function isLeafValueEmpty(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): boolean {
         const value = stateLeaf.value;
         if (schemaLeaf.value.type === 'customOperator') {
             const inner = value?.value;
@@ -161,7 +167,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return value === '' || value === null || (Array.isArray(value) && value.length === 0);
     }
 
-    function formatLeaf(schemaLeaf: Extract<FilterExpr, { field: FilterField; value: any }>, stateLeaf: FilterFormState & { type: 'leaf' }): string {
+    function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): string {
         if (isLeafValueEmpty(schemaLeaf, stateLeaf)) {
             return '';
         }

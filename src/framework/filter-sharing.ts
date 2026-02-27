@@ -22,7 +22,7 @@ export function encodeFilterState(filterState: FilterState): string {
 /**
  * Decode filter state from a base64 URL-safe string
  */
-export function decodeFilterState(encodedState: string): any[] {
+export function decodeFilterState(encodedState: string): unknown {
     try {
         // Restore base64 padding and convert back from URL-safe
         const base64 = encodedState
@@ -83,7 +83,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 /**
  * Get filter state from URL parameters
  */
-export function getFilterFromUrl(): any[] | null {
+export function getFilterFromUrl(): unknown | null {
     try {
         const params = new URLSearchParams(window.location.search);
         const encodedFilter = params.get(FILTER_PARAM);

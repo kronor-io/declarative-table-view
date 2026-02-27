@@ -107,7 +107,9 @@ export default function UserPreferencesPanel({
                                 optionLabel="label"
                                 optionValue="value"
                                 onChange={(e) => {
-                                    const nextVisible: string[] = Array.isArray(e.value) ? (e.value as string[]) : [];
+                                    const nextVisible: string[] = Array.isArray(e.value)
+                                        ? e.value.filter((v): v is string => typeof v === 'string')
+                                        : [];
                                     const nextHidden = allTableColumnIds.filter(id => !nextVisible.includes(id));
                                     void onSetHiddenColumns(currentView.id, nextHidden);
                                 }}
