@@ -45,7 +45,7 @@
         pkgs = import nixpkgs {
           inherit system;
         };
-        dtvDepHash = "sha256-WKVHBTaClfR1L2yETRJRyurSi6Fdl4Rbmw2XdGlWlaw=";
+        dtvDepHash = "sha256-FxHhFh+yrA7qkbVYB1XhNYSrij65LKCVqk8vhhmd0ZU=";
         dtv =
           (pkgs.buildNpmPackage {
             name = "declarative-table-views";
