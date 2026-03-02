@@ -638,6 +638,7 @@ function App({
                             onShareFilter={handleShareFilter}
                             savedFilters={userDataManager.savedFilters}
                             visibleFilterIds={visibleFilterIds}
+                            filterSearch={search}
                             onSubmit={() => {
                                 triggerRefetch();
                             }}

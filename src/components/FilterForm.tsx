@@ -9,7 +9,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { GraphQLClient } from 'graphql-request';
 import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
@@ -24,6 +24,7 @@ interface FilterFormProps {
     onShareFilter: () => void;
     savedFilters: SavedFilter[];
     visibleFilterIds: FilterId[]; // indices of filters to display
+    filterSearch?: string;
     onSubmit: () => void;
     graphqlClient: GraphQLClient;
 }
@@ -238,9 +239,18 @@ function FilterForm({
     onShareFilter,
     savedFilters,
     visibleFilterIds,
+    filterSearch = '',
     onSubmit,
     graphqlClient
 }: FilterFormProps) {
+
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() =>
+        new Set(
+            filterSchemasAndGroups.groups
+                .filter(g => g.name !== 'default')
+                .map(g => g.name)
+        )
+    );
 
     const filterSchemaById: Map<FilterId, FilterSchema> = useMemo(() => new Map(
         filterSchemasAndGroups.filters.map(filter => [filter.id, filter])
@@ -275,6 +285,14 @@ function FilterForm({
                 filters: filterSchemasAndGroups.filters.filter(filter => filter.group === group.name && visibleSet.has(filter.id))
             }))
             .filter(grouping => grouping.filters.length > 0);
+
+    function isGroupCollapsed(groupName: string, groupFilters: FilterSchema[]): boolean {
+        if (filterSearch && groupFilters.length > 0) {
+            return false;
+        }
+        return collapsedGroups.has(groupName);
+    }
+
     return (
         <form className="tw:mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
             {/* Render default group filters above the dividers */}
@@ -315,7 +333,22 @@ function FilterForm({
             {/* Render other groups with Panel and captions */}
             {
                 filtersByGroup.map(({ group, filters }) => (
-                    <Panel key={group.name} header={group.label} className="tw:w-full tw:mb-4">
+                    <Panel
+                        key={group.name}
+                        header={group.label}
+                        className="tw:w-full tw:mb-4"
+                        toggleable
+                        collapsed={isGroupCollapsed(group.name, filters)}
+                        onToggle={(e) => {
+                            const newCollapsed = new Set(collapsedGroups);
+                            if (e.value) {
+                                newCollapsed.add(group.name);
+                            } else {
+                                newCollapsed.delete(group.name);
+                            }
+                            setCollapsedGroups(newCollapsed);
+                        }}
+                    >
                         <div className="tw:flex tw:flex-wrap tw:gap-4 tw:items-start">
                             {
                                 filters.map((filterSchema) => (
