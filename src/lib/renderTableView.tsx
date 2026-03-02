@@ -4,13 +4,13 @@ import { PrimeReactProvider } from 'primereact/api'
 
 import App from '../App'
 import type { UserDataLoadAPI, UserDataSaveAPI } from '../framework/user-data-manager'
-import type { RowSelectionAPI } from '../components/Table'
 import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
 import { ModifyAiFilterPromptFn } from '../components/aiAssistant'
 import type { View } from '../framework/view'
+import type { DTVAPI } from '../App'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
@@ -33,28 +33,30 @@ export type RenderTableViewOptions = {
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple'
         onRowSelectionChange?: (rows: any[]) => void
-        apiRef?: React.RefObject<RowSelectionAPI | null>
     }
     actions?: ActionDefinition[]
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>
     rowsPerPageOptions?: number[]
+
+    /** Optional imperative API ref to control the App instance (e.g. fetchData). */
+    apiRef?: React.RefObject<DTVAPI | null>
 
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn
 
     /** Optional user data integration hooks. */
     userData?: RenderTableViewUserDataOptions
 } & (
-    | {
-        /** JSON string containing an array of view definitions (ViewJson). */
-        viewsJson: string
-        views?: never
-    }
-    | {
-        /** Already-parsed views (bypasses JSON parsing). */
-        views: View[]
-        viewsJson?: never
-    }
-)
+        | {
+            /** JSON string containing an array of view definitions (ViewJson). */
+            viewsJson: string
+            views?: never
+        }
+        | {
+            /** Already-parsed views (bypasses JSON parsing). */
+            views: View[]
+            viewsJson?: never
+        }
+    )
 
 export function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
     const reactContainer = typeof target === 'string' ? document.getElementById(target) : target
@@ -84,6 +86,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                     rowsPerPageOptions={options.rowsPerPageOptions}
                     userData={options.userData}
                     modifyAiFilterPrompt={options.modifyAiFilterPrompt}
+                    apiRef={options.apiRef}
                 />
             </PrimeReactProvider>
         </StrictMode>

@@ -1,4 +1,4 @@
-import { App, RowSelectionAPI } from '@kronor/dtv';
+import { App, type DTVAPI } from '@kronor/dtv';
 import { installFetchMock } from './mockFetch';
 import views from './views.json';
 import { useRef } from 'react';
@@ -19,7 +19,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function PlaygroundApp() {
-    const rowSelectionApiRef = useRef<RowSelectionAPI | null>(null);
+    const apiRef = useRef<DTVAPI | null>(null);
 
     return (
         <>
@@ -32,11 +32,11 @@ export function PlaygroundApp() {
                 viewsJson={JSON.stringify(views)}
                 syncFilterStateToUrl={false}
                 externalRuntime={runtime}
+                apiRef={apiRef}
                 rowSelection={
                     {
                         rowSelectionType: 'multiple',
-                        onRowSelectionChange: (rows: any[]) => { console.log(rows) },
-                        apiRef: rowSelectionApiRef
+                        onRowSelectionChange: (rows: any[]) => { console.log(rows) }
                     }
                 }
                 rowClassFunction={(row: Record<string, any>) => {
@@ -46,7 +46,7 @@ export function PlaygroundApp() {
                 }}
                 rowsPerPageOptions={[10, 20, 50]}
             />
-            <Button onClick={() => { rowSelectionApiRef.current?.resetRowSelection(); }}>Reset Row Selection</Button>
+            <Button onClick={() => { apiRef.current?.rowSelection.reset(); }}>Reset Row Selection</Button>
         </>
     );
 }

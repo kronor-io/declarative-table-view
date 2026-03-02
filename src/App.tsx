@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
-import Table, { RowSelectionAPI } from './components/Table';
+import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
 import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
@@ -61,13 +61,14 @@ export interface AppProps {
         rowSelectionType: 'none' | 'multiple';
         /** Callback invoked whenever the row selection changes */
         onRowSelectionChange?: (selectedRows: any[]) => void;
-        /** React ref that will be populated with RowSelectionAPI (e.g. resetRowSelection) */
-        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
+
+    /** Optional imperative API for controlling the App instance. */
+    apiRef?: React.RefObject<DTVAPI | null>;
 
     /**
         * Optional hook to modify the AI prompt template (built from schema + user prompt)
@@ -84,6 +85,16 @@ export interface AppProps {
         onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>;
     };
 }
+
+export type DTVAPI = {
+    /** Forces the table to fetch data for the current view + filters. */
+    fetchData: () => void;
+
+    rowSelection: {
+        /** Resets any current row selection (no-op if row selection is disabled). */
+        reset: () => void;
+    };
+};
 
 const builtInRuntime: Runtime = nativeRuntime
 
@@ -106,7 +117,8 @@ function App({
     rowClassFunction,
     rowsPerPageOptions = [20, 50, 100, 200],
     userData,
-    modifyAiFilterPrompt
+    modifyAiFilterPrompt,
+    apiRef
 }: AppProps) {
     const views = useMemo(() => {
         if (viewsFromProps) {
@@ -179,6 +191,30 @@ function App({
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+
+    const triggerRefetch = useCallback(() => {
+        setRefetchTrigger(prev => prev + 1);
+    }, []);
+
+    const dtvApi = useRef<DTVAPI>({
+        fetchData: triggerRefetch,
+        rowSelection: {
+            reset: () => undefined
+        }
+    });
+
+    const handleRowSelectionResetChange = useCallback((resetFn: (() => void) | null) => {
+        dtvApi.current.rowSelection.reset = resetFn ?? (() => undefined);
+    }, []);
+
+    // Expose imperative API to consumers.
+    useEffect(() => {
+        if (!apiRef) return;
+        apiRef.current = dtvApi.current;
+        return () => {
+            apiRef.current = null;
+        };
+    }, [apiRef]);
 
     // Auto-expand filter panel when user starts typing a search (help discover filters)
     useEffect(() => {
@@ -524,7 +560,7 @@ function App({
                                 selectedView={selectedView}
                                 filterState={state.filterState}
                                 setFilterState={setFilterState}
-                                refetch={() => setRefetchTrigger(prev => prev + 1)}
+                                refetch={triggerRefetch}
                                 showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
@@ -603,7 +639,7 @@ function App({
                             savedFilters={userDataManager.savedFilters}
                             visibleFilterIds={visibleFilterIds}
                             onSubmit={() => {
-                                setRefetchTrigger(prev => prev + 1);
+                                triggerRefetch();
                             }}
                             graphqlClient={client}
                         />
@@ -619,9 +655,10 @@ function App({
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
                         filterState={state.filterState}
-                        triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
+                        triggerRefetch={triggerRefetch}
                         rowSelection={rowSelection}
                         rowClassFunction={rowClassFunction}
+                        onRowSelectionResetChange={handleRowSelectionResetChange}
                     />
                 </div>
                 {

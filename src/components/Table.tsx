@@ -15,9 +15,7 @@ import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
 import type { FlattenedDataRow } from '../framework/data';
 
-export interface RowSelectionAPI {
-    resetRowSelection(): void;
-}
+export type RowSelectionResetFn = () => void;
 
 type TableProps = {
     viewId: string;
@@ -32,9 +30,10 @@ type TableProps = {
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
         onRowSelectionChange?: (rows: any[]) => void;
-        /** Ref object populated by Table with RowSelectionAPI */
-        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+
+    /** Optional callback invoked when row selection reset becomes available/unavailable. */
+    onRowSelectionResetChange?: (resetFn: RowSelectionResetFn | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
@@ -50,7 +49,8 @@ function Table({
     triggerRefetch,
     ref,
     rowSelection,
-    rowClassFunction
+    rowClassFunction,
+    onRowSelectionResetChange
 }: TableProps) {
     const hiddenSet = new Set(hiddenColumnIds);
     const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
@@ -97,14 +97,20 @@ function Table({
     const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
     const selectionType = rowSelection?.rowSelectionType ?? 'none';
 
-    // Populate imperative API ref if provided
+    // Expose row selection reset function (only when enabled)
     useEffect(() => {
-        if (rowSelection?.apiRef) {
-            rowSelection.apiRef.current = {
-                resetRowSelection: () => setSelectedRows([])
-            };
+        if (selectionType !== 'multiple') {
+            onRowSelectionResetChange?.(null);
+            return;
         }
-    }, [rowSelection]);
+
+        const resetFn: RowSelectionResetFn = () => setSelectedRows([]);
+        onRowSelectionResetChange?.(resetFn);
+
+        return () => {
+            onRowSelectionResetChange?.(null);
+        };
+    }, [selectionType, onRowSelectionResetChange]);
 
     const handleSelectionChange = (rows: any[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
