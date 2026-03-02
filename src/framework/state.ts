@@ -3,6 +3,7 @@ import { FilterFormState } from "./filter-form-state";
 import { FilterSchemasAndGroups, FilterId, FilterExpr } from "./filters";
 import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
+import { createFilterDisplayState, FilterDisplayState } from "./filter-display-state";
 
 export type FilterState = Map<FilterId, FilterFormState>;
 
@@ -77,6 +78,8 @@ export interface AppState {
     selectedViewId: ViewId
     views: View[]
     filterSchemasAndGroups: FilterSchemasAndGroups
+    searchQuery: string
+    filterDisplayState: FilterDisplayState
     data: FetchDataResult
     filterState: FilterState
     pagination: PaginationState
@@ -110,10 +113,13 @@ export function createDefaultAppState(views: View[], rowsPerPageOptions: number[
     const initialRowsPerPage = rowsPerPageOptions.length > 0
         ? rowsPerPageOptions[0]
         : DEFAULT_ROWS_PER_PAGE;
+    const defaultSearchQuery = '';
     return {
         views,
         selectedViewId,
         filterSchemasAndGroups: filterSchema,
+        searchQuery: defaultSearchQuery,
+        filterDisplayState: createFilterDisplayState(filterSchema, defaultSearchQuery),
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
         pagination: createPaginationState(initialRowsPerPage)
@@ -123,10 +129,12 @@ export function createDefaultAppState(views: View[], rowsPerPageOptions: number[
 function setSelectedViewId(state: AppState, newId: ViewId): AppState {
     const view = state.views.find(v => v.id === newId);
     const filterSchema = view?.filterSchema || { groups: [], filters: [] };
+    const filterDisplayState = createFilterDisplayState(filterSchema, state.searchQuery);
     return {
         ...state,
         selectedViewId: newId,
         filterSchemasAndGroups: filterSchema,
+        filterDisplayState,
         filterState: createDefaultFilterState(filterSchema),
         // Retain current rowsPerPage while resetting page & cursors
         pagination: createPaginationState(state.pagination.rowsPerPage)
@@ -158,9 +166,44 @@ function setDataRows(state: AppState, newRows: FetchDataResult, pagination?: Pag
 }
 
 function setFilterSchema(state: AppState, newSchema: FilterSchemasAndGroups): AppState {
+    const filterDisplayState = createFilterDisplayState(newSchema, state.searchQuery);
     return {
         ...state,
-        filterSchemasAndGroups: newSchema
+        filterSchemasAndGroups: newSchema,
+        filterDisplayState
+    };
+}
+
+function setSearchQuery(state: AppState, searchQuery: string): AppState {
+    const filterDisplayState = createFilterDisplayState(state.filterSchemasAndGroups, searchQuery);
+    return {
+        ...state,
+        searchQuery,
+        filterDisplayState
+    };
+}
+
+function setFilterGroupExpanded(state: AppState, groupName: string, expanded: boolean): AppState {
+    const next = new Set(state.filterDisplayState.expandedGroups);
+    if (expanded) {
+        next.add(groupName);
+    } else {
+        next.delete(groupName);
+    }
+
+    const expandedGroups = Array.from(next);
+    return {
+        ...state,
+        filterDisplayState: state.filterDisplayState.type === 'searchResults'
+            ? {
+                type: 'searchResults',
+                schemasAndGroups: state.filterDisplayState.schemasAndGroups,
+                expandedGroups
+            }
+            : {
+                type: 'all',
+                expandedGroups
+            }
     };
 }
 
@@ -196,8 +239,10 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
         setFilterSchema: (schema: FilterSchemasAndGroups) => setAppState(prev => setFilterSchema(prev, schema)),
         setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState)),
+        setSearchQuery: (searchQuery: string) => setAppState(prev => setSearchQuery(prev, searchQuery)),
+        setFilterGroupExpanded: (groupName: string, expanded: boolean) => setAppState(prev => setFilterGroupExpanded(prev, groupName, expanded)),
         setRowsPerPage: (value: number) => setAppState(prev => setRowsPerPage(prev, value))
     };
 }
 
-export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState, setRowsPerPage };
+export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage };

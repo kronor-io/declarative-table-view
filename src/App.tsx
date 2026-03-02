@@ -19,7 +19,7 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
-import { FilterSchema, FilterSchemasAndGroups, getFieldNodes, FilterField, FilterId } from './framework/filters';
+import { FilterSchemasAndGroups } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
 import { View, ViewId } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
@@ -149,7 +149,17 @@ function App({
         }
     }, [views]);
 
-    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
+    const {
+        state,
+        selectedView,
+        setSelectedViewId,
+        setFilterSchema,
+        setFilterState,
+        setSearchQuery,
+        setFilterGroupExpanded,
+        setDataRows,
+        setRowsPerPage
+    } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
 
     const userDataManagerOptions = useMemo(() => {
         return {
@@ -181,7 +191,6 @@ function App({
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const [search, setSearch] = useState('');
     const tableRef = useRef<DataTable<any>>(null);
     const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
@@ -218,10 +227,10 @@ function App({
 
     // Auto-expand filter panel when user starts typing a search (help discover filters)
     useEffect(() => {
-        if (search && !showFilterForm) {
+        if (state.searchQuery && !showFilterForm) {
             setShowFilterForm(true);
         }
-    }, [search, showFilterForm]);
+    }, [state.searchQuery, showFilterForm]);
 
     // Lock body scroll when popout is open (only in root instance)
     useEffect(() => {
@@ -404,28 +413,7 @@ function App({
         setFilterState(filterState);
     };
 
-    // Filter filterSchema by search, get filter IDs
-    const visibleFilterIds: FilterId[] = state.filterSchemasAndGroups.filters
-        .flatMap((filter: FilterSchema) => {
-            function stringMatchesSearchQuery(string: string) {
-                return string.toLowerCase().includes(search.toLowerCase());
-            }
-
-            function fieldMatchesSearchQuery(field: FilterField): boolean {
-                if (typeof field === 'string') {
-                    return stringMatchesSearchQuery(field);
-                } else if ('and' in field) {
-                    return field.and.some((f: string) => stringMatchesSearchQuery(f));
-                } else if ('or' in field) {
-                    return field.or.some((f: string) => stringMatchesSearchQuery(f));
-                }
-                return false;
-            }
-
-            if (stringMatchesSearchQuery(filter.label)) return [filter.id];
-            const fieldFilterExprs = getFieldNodes(filter.expression);
-            return fieldFilterExprs.some(expr => fieldMatchesSearchQuery(expr.field)) ? [filter.id] : []
-        });
+    const filterDisplayState = state.filterDisplayState;
 
     // Next page handler
     const handleNextPage = async () => {
@@ -502,7 +490,7 @@ function App({
                                         const next = !prev;
                                         if (!next) {
                                             // Clear search when hiding filters to avoid auto-expanding again
-                                            setSearch('');
+                                            setSearchQuery('');
                                         }
                                         return next;
                                     });
@@ -571,7 +559,7 @@ function App({
                         <div className="tw:flex tw:gap-2">
                             <IconField iconPosition="left">
                                 <InputIcon className="pi pi-search" />
-                                <InputText value={search} onChange={e => setSearch(e.target.value)} placeholder="Search filters..." />
+                                <InputText value={state.searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search filters..." />
                             </IconField>
                             <Button
                                 type="button"
@@ -637,7 +625,10 @@ function App({
                             onUpdateFilter={handleUpdateFilter}
                             onShareFilter={handleShareFilter}
                             savedFilters={userDataManager.savedFilters}
-                            visibleFilterIds={visibleFilterIds}
+                            displayState={filterDisplayState}
+                            onFilterGroupExpandedChange={(groupName, expanded) => {
+                                setFilterGroupExpanded(groupName, expanded);
+                            }}
                             onSubmit={() => {
                                 triggerRefetch();
                             }}

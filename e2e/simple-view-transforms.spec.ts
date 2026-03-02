@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockPaginationGraphQL } from './graphqlMock';
+import { ensurePanelExpanded } from './ui';
 
 test.describe('Simple View Transform Functionality', () => {
 
@@ -126,14 +127,8 @@ test.describe('Simple View Transform Functionality', () => {
         // Show filters first
         await page.getByText('Filters', { exact: true }).click();
 
-        // Find the extra filters panel
-        const extraFiltersPanel = page.locator('.p-panel-header', { hasText: 'Extra Filters' });
-        await expect(extraFiltersPanel).toBeVisible();
-
-        // Expand the extra filters panel if needed
-        if (await extraFiltersPanel.getAttribute('aria-expanded') !== 'true') {
-            await extraFiltersPanel.click();
-        }
+        // This filter lives under a non-default group (collapsed by default)
+        await ensurePanelExpanded(page, 'Extra Filters');
 
         // Find the key-value transform filter input
         const keyValueLabel = page.getByText('Test Field (Key-Value Transform)', { exact: true });

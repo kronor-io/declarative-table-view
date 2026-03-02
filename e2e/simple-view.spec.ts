@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockPaginationGraphQL } from './graphqlMock';
+import { ensurePanelExpanded } from './ui';
 
 test.describe('Simple View Rendering', () => {
 
@@ -16,6 +17,9 @@ test.describe('Simple View Rendering', () => {
 
         // Show filters first
         await page.getByText('Filters', { exact: true }).click();
+
+        // Phone filter is in a non-default group (collapsed by default)
+        await ensurePanelExpanded(page, 'Extra Filters');
 
         // Find the phone filter input (by placeholder or input type)
         const phoneInput = page.locator('input[placeholder="Phone number"]');
@@ -98,7 +102,8 @@ test.describe('Simple View Rendering', () => {
         const extraFiltersPanel = page.locator('.p-panel-header', { hasText: 'Extra Filters' });
         await expect(extraFiltersPanel).toBeVisible();
 
-        // Check that the filter label is present under the new group
+        // Expand and verify that a filter under the group is visible
+        await ensurePanelExpanded(page, 'Extra Filters');
         await expect(page.getByText('Test Field', { exact: true })).toBeVisible();
     });
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mockPaginationGraphQL } from './graphqlMock';
+import { ensurePanelExpanded } from './ui';
 
 test.describe('Multi-field Filter Support', () => {
     test('should handle OR multi-field filters correctly', async ({ page }) => {
@@ -47,6 +48,9 @@ test.describe('Multi-field Filter Support', () => {
 
         // Show filters
         await page.getByText('Filters', { exact: true }).click();
+
+        // AND multi-field filter is inside a non-default group (collapsed by default)
+        await ensurePanelExpanded(page, 'Extra Filters');
 
         // Find the "Match Multiple Fields (AND)" filter
         const andFieldLabel = page.getByText('Match Multiple Fields (AND)', { exact: true });

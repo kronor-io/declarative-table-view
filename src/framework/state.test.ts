@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterSchema, setFilterState, FilterState } from './state';
+import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterSchema, setFilterState, setSearchQuery, setFilterGroupExpanded, FilterState } from './state';
 import { buildInitialFormState } from './state';
 import { View } from './view';
 
@@ -82,5 +82,54 @@ describe('AppState', () => {
         const newFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
         state = setFilterState(state, newFilterState);
         expect(state.filterState).toBe(newFilterState);
+    });
+
+    it('setSearchQuery computes searchResults display state and expands matching groups', () => {
+        let state = createDefaultAppState(mockViews, []);
+
+        const schemaWithExtraGroup = {
+            groups: [
+                { name: 'default', label: 'Default' },
+                { name: 'extra', label: 'Extra Filters' }
+            ],
+            filters: [
+                { id: 'filter-email', label: 'Email', expression: { type: 'isNull', key: 'email', value: {} }, group: 'default' },
+                { id: 'filter-phone', label: 'Phone Number', expression: { type: 'isNull', key: 'phone', value: {} }, group: 'extra' }
+            ]
+        };
+
+        state = setFilterSchema(state, schemaWithExtraGroup as any);
+        state = setSearchQuery(state, 'Phone');
+
+        expect(state.searchQuery).toBe('Phone');
+        expect(state.filterDisplayState.type).toBe('searchResults');
+        if (state.filterDisplayState.type !== 'searchResults') {
+            throw new Error('Expected searchResults display state');
+        }
+        expect(state.filterDisplayState.schemasAndGroups.filters.map(f => f.id)).toEqual(['filter-phone']);
+        expect(state.filterDisplayState.expandedGroups).toEqual(['extra']);
+    });
+
+    it('clearing searchQuery resets expanded groups to default collapsed state', () => {
+        let state = createDefaultAppState(mockViews, []);
+        const schemaWithExtraGroup = {
+            groups: [
+                { name: 'default', label: 'Default' },
+                { name: 'extra', label: 'Extra Filters' }
+            ],
+            filters: [
+                { id: 'filter-email', label: 'Email', expression: { type: 'isNull', key: 'email', value: {} }, group: 'default' },
+                { id: 'filter-phone', label: 'Phone Number', expression: { type: 'isNull', key: 'phone', value: {} }, group: 'extra' }
+            ]
+        };
+
+        state = setFilterSchema(state, schemaWithExtraGroup as any);
+        state = setFilterGroupExpanded(state, 'extra', true);
+        expect(state.filterDisplayState.expandedGroups).toEqual(['extra']);
+
+        state = setSearchQuery(state, '');
+        expect(state.searchQuery).toBe('');
+        expect(state.filterDisplayState.type).toBe('all');
+        expect(state.filterDisplayState.expandedGroups).toEqual([]);
     });
 });
