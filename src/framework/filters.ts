@@ -14,6 +14,14 @@ export type TransformResult =
     | { field?: FilterField; value?: unknown }
     | { condition: HasuraCondition };
 
+// Alias for the TransformResult variant that yields a full Hasura condition.
+// Useful for helpers that *require* a condition-producing transform.
+export type TransformConditionResult = Extract<TransformResult, { condition: HasuraCondition }>;
+
+export type ConditionOnlyTransform = {
+    toQuery: (input: unknown) => TransformConditionResult;
+};
+
 // Transform functions for filter expressions
 export type FilterTransform = {
     toQuery?: (input: unknown) => TransformResult;
