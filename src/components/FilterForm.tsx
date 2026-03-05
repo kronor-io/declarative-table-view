@@ -325,6 +325,26 @@ function FilterForm({
                     <Panel
                         key={group.name}
                         header={group.label ?? group.name}
+                        headerTemplate={(options) => {
+                            return (
+                                <div
+                                    className={`${options.className} tw:cursor-pointer`}
+                                    onClick={(event) => {
+                                        const target = event.target as HTMLElement | null;
+
+                                        // Avoid double-toggling when clicking the built-in toggler button/icon.
+                                        if (target?.closest('.p-panel-header-icon')) {
+                                            return;
+                                        }
+
+                                        options.onTogglerClick(event);
+                                    }}
+                                >
+                                    {options.titleElement}
+                                    {options.iconsElement}
+                                </div>
+                            );
+                        }}
                         className="tw:w-full tw:mb-4"
                         toggleable
                         collapsed={!expandedGroupsSet.has(group.name)}
