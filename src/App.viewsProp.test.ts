@@ -56,10 +56,7 @@ describe('App views prop', () => {
                         cellRenderer: () => 'cell'
                     }
                 ],
-                filterSchema: {
-                    groups: [{ name: 'default', label: null }],
-                    filters: []
-                }
+                filterGroups: [{ name: 'default', label: null, filters: [] }]
             }
         ];
 

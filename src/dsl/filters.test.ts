@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { filter, filterField, filterSchema, group } from './filters';
+import { filter, filterField, filterGroups, group } from './filters';
 import { FilterControl } from './filterControl';
 import { FilterExpr } from './filterExpr';
 
@@ -13,24 +13,20 @@ describe('dsl/filters', () => {
         const f = filter({
             id: 'id',
             label: 'Label',
-            expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
-            group: 'default'
+            expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         });
         expect(f.aiGenerated).toBe(false);
     });
 
-    it('builds schema with groups and filters', () => {
-        const g = group('default', null);
+    it('builds filterGroups with nested filters', () => {
         const f = filter({
             id: 'id',
             label: 'Label',
-            expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
-            group: 'default'
+            expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         });
-        const s = filterSchema([g], [f]);
-        expect(s.groups).toHaveLength(1);
-        expect(s.filters).toHaveLength(1);
-        expect(s.groups[0]).toEqual({ name: 'default', label: null });
-        expect(s.filters[0].id).toBe('id');
+        const g = group('default', null, [f]);
+        const s = filterGroups(g);
+        expect(s).toHaveLength(1);
+        expect(s[0]).toEqual({ name: 'default', label: null, filters: [f] });
     });
 });

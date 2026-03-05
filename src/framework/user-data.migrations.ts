@@ -1,4 +1,4 @@
-import { FilterSchemasAndGroups } from './filters';
+import { FilterGroups } from './filters';
 import { fromSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
 import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, ViewData, type UserData } from './user-data';
 import { ViewId } from './view';
@@ -15,7 +15,7 @@ type MigrationStep = {
 };
 
 type MigrationContext = {
-    filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>;
+    filterGroupsByViewId: Record<ViewId, FilterGroups>;
 };
 
 const step_migrateSavedFilters: MigrationStep = {
@@ -69,8 +69,8 @@ const step_migrateSavedFilters: MigrationStep = {
                 const formatRevision = rawSavedFilterJson.formatRevision
                 if (!formatRevision || typeof formatRevision !== 'string') continue;
 
-                const schema = context.filterSchemasByViewId[viewId]
-                if (!schema) {
+                const filterGroups = context.filterGroupsByViewId[viewId]
+                if (!filterGroups) {
                     console.warn('Missing filter schema for view while migrating saved filters:', viewId);
                     continue;
                 }
@@ -84,7 +84,7 @@ const step_migrateSavedFilters: MigrationStep = {
                     formatRevision
                 }
 
-                const savedFilter = fromSavedFilterJson(savedFilterJson, schema)
+                const savedFilter = fromSavedFilterJson(savedFilterJson, filterGroups)
                 existingFilterIds.add(savedFilter.id)
 
                 const prevViewSavedFilters = migratedSavedFiltersByView[viewId] ?? []

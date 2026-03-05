@@ -1,5 +1,5 @@
-import type { FilterExpr, FilterFieldGroup, FilterSchema, FilterId } from '../framework/filters';
-import { FilterControl, FilterSchemasAndGroups } from '../framework/filters';
+import type { FilterExpr, FilterSchema, FilterId, FilterGroups, FilterGroup } from '../framework/filters';
+import { FilterControl } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterFormState, isFilterEmpty } from '../framework/filter-form-state';
 import { InputText } from 'primereact/inputtext';
@@ -15,9 +15,10 @@ import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { Autocomplete } from './Autocomplete';
 import { FilterDisplayState } from '../framework/filter-display-state';
+import { getAllFilters } from '../framework/view';
 
 interface FilterFormProps {
-    filterSchemasAndGroups: FilterSchemasAndGroups;
+    filterGroups: FilterGroups;
     filterState: FilterState
     setFilterState: (state: FilterState) => void;
     onSaveFilter: (state: FilterState) => void;
@@ -232,7 +233,7 @@ function renderFilterFormState(
 
 
 function FilterForm({
-    filterSchemasAndGroups,
+    filterGroups,
     filterState,
     setFilterState,
     onSaveFilter,
@@ -246,8 +247,8 @@ function FilterForm({
 }: FilterFormProps) {
 
     const filterSchemaById: Map<FilterId, FilterSchema> = useMemo(() => new Map(
-        filterSchemasAndGroups.filters.map(filter => [filter.id, filter])
-    ), [filterSchemasAndGroups]);
+        getAllFilters(filterGroups).map(filter => [filter.id, filter])
+    ), [filterGroups]);
 
     // Helper to reset a filter by its ID
     function resetFilter(filterId: FilterId) {
@@ -260,27 +261,24 @@ function FilterForm({
     // Helper to reset all filters
     function resetAllFilters() {
         setFilterState(
-            createDefaultFilterState(filterSchemasAndGroups, FormStateInitMode.Empty)
+            createDefaultFilterState(filterGroups, FormStateInitMode.Empty)
         );
         onSubmit();
     }
 
-    // Group filters by group name
-    const displayedSchema: FilterSchemasAndGroups = displayState.type === 'all'
-        ? filterSchemasAndGroups
-        : displayState.schemasAndGroups;
+    const displayedGroups: FilterGroups = displayState.type === 'all'
+        ? filterGroups
+        : displayState.filterGroups;
 
-    const defaultGroup: FilterFieldGroup | undefined = displayedSchema.groups.find(group => group.name === 'default');
-    const defaultFilters: FilterSchema[] = displayedSchema.filters.filter(filter => filter.group === 'default');
-    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: FilterSchema[] }> = useMemo(() => {
-        return displayedSchema.groups
+    const defaultGroup: FilterGroup | undefined = displayedGroups.find(group => group.name === 'default');
+    const defaultFilters: FilterSchema[] = defaultGroup?.filters ?? [];
+
+    const filtersByGroup: Array<{ group: FilterGroup; filters: FilterSchema[] }> = useMemo(() => {
+        return displayedGroups
             .filter(group => group.name !== 'default')
-            .map(group => ({
-                group,
-                filters: displayedSchema.filters.filter(filter => filter.group === group.name)
-            }))
+            .map(group => ({ group, filters: group.filters }))
             .filter(grouping => grouping.filters.length > 0);
-    }, [displayedSchema.filters, displayedSchema.groups]);
+    }, [displayedGroups]);
 
     const expandedGroupsSet = useMemo(() => new Set(displayState.expandedGroups), [displayState.expandedGroups]);
 

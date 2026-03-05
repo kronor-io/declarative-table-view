@@ -1,38 +1,26 @@
 // src/components/aiAssistant.test.ts
-import { FilterSchemasAndGroups } from '../framework/filters';
+import type { FilterExpr } from '../framework/filters';
 import { buildInitialFormState } from '../framework/state';
 import { mergeFilterFormState } from './aiAssistant';
 
 
 describe('aiAssistant customOperator patching', () => {
     it('should patch customOperator values when AI returns a plain string', () => {
-        // Create a filter schema with a customOperator
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'test-filter-1',
-                    label: 'Test Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'equals',
-                        field: 'test',
-                        value: {
-                            type: 'customOperator',
-                            operators: [
-                                { label: 'Equals', value: '_eq' },
-                                { label: 'Not Equals', value: '_neq' }
-                            ],
-                            valueControl: { type: 'text' }
-                        }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'equals',
+            field: 'test',
+            value: {
+                type: 'customOperator',
+                operators: [
+                    { label: 'Equals', value: '_eq' },
+                    { label: 'Not Equals', value: '_neq' }
+                ],
+                valueControl: { type: 'text' }
+            }
+        } satisfies FilterExpr;
 
         // Build empty state
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
 
         // AI returns a plain string instead of an object
         const aiState = {
@@ -42,7 +30,7 @@ describe('aiAssistant customOperator patching', () => {
         };
 
         // Apply our merge function
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
 
         // The result should have the string wrapped in an object with the default operator
         expect(result.type).toBe('leaf');
@@ -55,33 +43,21 @@ describe('aiAssistant customOperator patching', () => {
     });
 
     it('should not modify values when AI returns proper objects', () => {
-        // Create a filter schema with a text field
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'test-filter-2',
-                    label: 'Test Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'equals',
-                        field: 'test_field',
-                        value: {
-                            type: 'customOperator',
-                            operators: [
-                                { label: 'equals', value: '_eq' },
-                                { label: 'not equals', value: '_neq' }
-                            ],
-                            valueControl: { type: 'text' }
-                        }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'equals',
+            field: 'test_field',
+            value: {
+                type: 'customOperator',
+                operators: [
+                    { label: 'equals', value: '_eq' },
+                    { label: 'not equals', value: '_neq' }
+                ],
+                valueControl: { type: 'text' }
+            }
+        } satisfies FilterExpr;
 
         // Build initial empty state
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
 
         // Simulate AI returning a proper object
         const aiState = {
@@ -94,7 +70,7 @@ describe('aiAssistant customOperator patching', () => {
         };
 
         // Apply our merge function
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
 
         // The result should preserve the original object
         expect(result.type).toBe('leaf');
@@ -107,28 +83,14 @@ describe('aiAssistant customOperator patching', () => {
     });
 
     it('should not modify non-customOperator values', () => {
-        // Create a filter schema with a regular text filter
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'test-filter-3',
-                    label: 'Test Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'equals',
-                        field: 'test_field',
-                        value: {
-                            type: 'text'
-                        }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'equals',
+            field: 'test_field',
+            value: { type: 'text' }
+        } satisfies FilterExpr;
 
         // Build initial empty state
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
 
         // Simulate AI returning a string value for a text filter
         const aiState = {
@@ -138,7 +100,7 @@ describe('aiAssistant customOperator patching', () => {
         };
 
         // Apply our merge function
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
 
         // The result should preserve the original string value
         expect(result.type).toBe('leaf');
@@ -148,33 +110,21 @@ describe('aiAssistant customOperator patching', () => {
     });
 
     it('should map NOT wrapped customOperator to not-equals operator', () => {
-        // Create a filter schema with a customOperator that has not-equals
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'test-filter-not',
-                    label: 'Test Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'equals',
-                        field: 'test',
-                        value: {
-                            type: 'customOperator',
-                            operators: [
-                                { label: 'Equals', value: '_eq' },
-                                { label: 'Not Equals', value: '_neq' }
-                            ],
-                            valueControl: { type: 'text' }
-                        }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'equals',
+            field: 'test',
+            value: {
+                type: 'customOperator',
+                operators: [
+                    { label: 'Equals', value: '_eq' },
+                    { label: 'Not Equals', value: '_neq' }
+                ],
+                valueControl: { type: 'text' }
+            }
+        } satisfies FilterExpr;
 
         // Build empty state
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
 
         // AI returns a NOT wrapped around a leaf with string value
         const aiState = {
@@ -187,7 +137,7 @@ describe('aiAssistant customOperator patching', () => {
         };
 
         // Apply our merge function
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
 
         // The result should map to not-equals operator
         expect(result.type).toBe('leaf');
@@ -200,24 +150,13 @@ describe('aiAssistant customOperator patching', () => {
     });
 
     it('should collapse OR children into array for in filter', () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'in-filter',
-                    label: 'In Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'in',
-                        field: 'category',
-                        value: { type: 'text' }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'in',
+            field: 'category',
+            value: { type: 'text' }
+        } satisfies FilterExpr;
 
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
         const aiState = {
             type: 'or',
             children: [
@@ -227,7 +166,7 @@ describe('aiAssistant customOperator patching', () => {
             ]
         };
 
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
             expect(result.value).toEqual(['A', 'B']);
@@ -235,24 +174,13 @@ describe('aiAssistant customOperator patching', () => {
     });
 
     it('should collapse OR children into array for notIn filter', () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'test', label: 'Test Group' }],
-            filters: [
-                {
-                    id: 'nin-filter',
-                    label: 'Not In Filter',
-                    group: 'test',
-                    expression: {
-                        type: 'notIn',
-                        field: 'status',
-                        value: { type: 'text' }
-                    },
-                    aiGenerated: false
-                }
-            ]
-        };
+        const expression = {
+            type: 'notIn',
+            field: 'status',
+            value: { type: 'text' }
+        } satisfies FilterExpr;
 
-        const emptyState = buildInitialFormState(filterSchema.filters[0].expression);
+        const emptyState = buildInitialFormState(expression);
         const aiState = {
             type: 'or',
             children: [
@@ -261,7 +189,7 @@ describe('aiAssistant customOperator patching', () => {
             ]
         };
 
-        const result = mergeFilterFormState(filterSchema.filters[0].expression, emptyState, aiState);
+        const result = mergeFilterFormState(expression, emptyState, aiState);
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
             expect(result.value).toEqual(['NEW', 'ARCHIVED']);

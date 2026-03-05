@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { FilterFormState } from "./filter-form-state";
-import { FilterSchemasAndGroups, FilterId, FilterExpr } from "./filters";
+import { FilterGroups, FilterId, FilterExpr } from "./filters";
 import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
 import { createFilterDisplayState, FilterDisplayState } from "./filter-display-state";
+import { getAllFilters } from "./view";
 
 export type FilterState = Map<FilterId, FilterFormState>;
 
@@ -77,7 +78,7 @@ export function setFilterStateById(state: FilterState, id: FilterId, newFilterSt
 export interface AppState {
     selectedViewId: ViewId
     views: View[]
-    filterSchemasAndGroups: FilterSchemasAndGroups
+    filterGroups: FilterGroups
     searchQuery: string
     filterDisplayState: FilterDisplayState
     data: FetchDataResult
@@ -99,8 +100,8 @@ function createPaginationState(rowsPerPage: number): PaginationState {
     };
 }
 
-export function createDefaultFilterState(filterSchema: FilterSchemasAndGroups, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
-    return new Map(filterSchema.filters.map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
+export function createDefaultFilterState(filterGroups: FilterGroups, mode: FormStateInitMode = FormStateInitMode.WithInitialValues): FilterState {
+    return new Map(getAllFilters(filterGroups).map(filter => [filter.id, buildInitialFormState(filter.expression, mode)]));
 }
 
 const DEFAULT_ROWS_PER_PAGE = 20
@@ -108,8 +109,8 @@ const DEFAULT_ROWS_PER_PAGE = 20
 export function createDefaultAppState(views: View[], rowsPerPageOptions: number[]): AppState {
     const selectedViewId = views[0]?.id;
     const view = views.find(v => v.id === selectedViewId) as View;
-    const filterSchema: FilterSchemasAndGroups = view.filterSchema;
-    const initialFilterState = createDefaultFilterState(filterSchema);
+    const filterGroups: FilterGroups = view.filterGroups;
+    const initialFilterState = createDefaultFilterState(filterGroups);
     const initialRowsPerPage = rowsPerPageOptions.length > 0
         ? rowsPerPageOptions[0]
         : DEFAULT_ROWS_PER_PAGE;
@@ -117,9 +118,9 @@ export function createDefaultAppState(views: View[], rowsPerPageOptions: number[
     return {
         views,
         selectedViewId,
-        filterSchemasAndGroups: filterSchema,
+        filterGroups,
         searchQuery: defaultSearchQuery,
-        filterDisplayState: createFilterDisplayState(filterSchema, defaultSearchQuery),
+        filterDisplayState: createFilterDisplayState(filterGroups, defaultSearchQuery),
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
         pagination: createPaginationState(initialRowsPerPage)
@@ -128,14 +129,14 @@ export function createDefaultAppState(views: View[], rowsPerPageOptions: number[
 
 function setSelectedViewId(state: AppState, newId: ViewId): AppState {
     const view = state.views.find(v => v.id === newId);
-    const filterSchema = view?.filterSchema || { groups: [], filters: [] };
-    const filterDisplayState = createFilterDisplayState(filterSchema, state.searchQuery);
+    const filterGroups = view?.filterGroups || [];
+    const filterDisplayState = createFilterDisplayState(filterGroups, state.searchQuery);
     return {
         ...state,
         selectedViewId: newId,
-        filterSchemasAndGroups: filterSchema,
+        filterGroups,
         filterDisplayState,
-        filterState: createDefaultFilterState(filterSchema),
+        filterState: createDefaultFilterState(filterGroups),
         // Retain current rowsPerPage while resetting page & cursors
         pagination: createPaginationState(state.pagination.rowsPerPage)
     };
@@ -165,17 +166,17 @@ function setDataRows(state: AppState, newRows: FetchDataResult, pagination?: Pag
     };
 }
 
-function setFilterSchema(state: AppState, newSchema: FilterSchemasAndGroups): AppState {
-    const filterDisplayState = createFilterDisplayState(newSchema, state.searchQuery);
+function setFilterGroups(state: AppState, newFilterGroups: FilterGroups): AppState {
+    const filterDisplayState = createFilterDisplayState(newFilterGroups, state.searchQuery);
     return {
         ...state,
-        filterSchemasAndGroups: newSchema,
+        filterGroups: newFilterGroups,
         filterDisplayState
     };
 }
 
 function setSearchQuery(state: AppState, searchQuery: string): AppState {
-    const filterDisplayState = createFilterDisplayState(state.filterSchemasAndGroups, searchQuery);
+    const filterDisplayState = createFilterDisplayState(state.filterGroups, searchQuery);
     return {
         ...state,
         searchQuery,
@@ -197,7 +198,7 @@ function setFilterGroupExpanded(state: AppState, groupName: string, expanded: bo
         filterDisplayState: state.filterDisplayState.type === 'searchResults'
             ? {
                 type: 'searchResults',
-                schemasAndGroups: state.filterDisplayState.schemasAndGroups,
+                filterGroups: state.filterDisplayState.filterGroups,
                 expandedGroups
             }
             : {
@@ -237,7 +238,7 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         selectedView: getSelectedView(appState),
         setSelectedViewId: (id: ViewId) => setAppState(prev => setSelectedViewId(prev, id)),
         setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
-        setFilterSchema: (schema: FilterSchemasAndGroups) => setAppState(prev => setFilterSchema(prev, schema)),
+        setFilterGroups: (groups: FilterGroups) => setAppState(prev => setFilterGroups(prev, groups)),
         setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState)),
         setSearchQuery: (searchQuery: string) => setAppState(prev => setSearchQuery(prev, searchQuery)),
         setFilterGroupExpanded: (groupName: string, expanded: boolean) => setAppState(prev => setFilterGroupExpanded(prev, groupName, expanded)),
@@ -245,4 +246,4 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
     };
 }
 
-export { setSelectedViewId, setDataRows, setFilterSchema, setFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage };
+export { setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage };

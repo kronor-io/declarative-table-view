@@ -1,4 +1,5 @@
-import { FilterSchemasAndGroups, FilterField, FilterControl, FilterExpr } from './filters';
+import { FilterField, FilterControl, FilterExpr, FilterGroups } from './filters';
+import { getAllFilters } from './view';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 
 // Tree-like state for FilterForm
@@ -192,9 +193,10 @@ function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFor
  * Parse serialized filter state (object keyed by filter id) back into a FilterState Map,
  * converting date string values to Date objects by consulting the filter schema.
  */
-export function parseFilterFormState(serializedState: any, schema: FilterSchemasAndGroups): FilterState {
+export function parseFilterFormState(serializedState: any, filterGroups: FilterGroups): FilterState {
+    const filters = getAllFilters(filterGroups);
     return new Map(
-        schema.filters.map(filter => {
+        filters.map(filter => {
             const raw = serializedState ? serializedState[filter.id] : undefined;
             if (raw && typeof raw === 'object' && 'type' in raw) {
                 return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];

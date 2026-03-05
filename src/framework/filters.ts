@@ -126,16 +126,16 @@ export type FilterSchema = {
     id: string; // unique identifier for the filter
     label: string;
     expression: FilterExpr;
-    group: string; // group name
     aiGenerated: boolean;
 };
 
 export type FilterId = FilterSchema['id'];
 
-export type FilterSchemasAndGroups = {
-    groups: FilterFieldGroup[];
+export type FilterGroup = FilterFieldGroup & {
     filters: FilterSchema[];
 };
+
+export type FilterGroups = FilterGroup[];
 
 /**
  * Attempts to deserialize a plain JSON object into a FilterExpr.

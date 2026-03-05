@@ -31,7 +31,7 @@ export const buildGraphQLQueryVariables = (
     rowLimit: number,
     cursor: string | number | null
 ) => {
-    let conditions = buildHasuraConditions(filterState, view.filterSchema);
+    let conditions = buildHasuraConditions(filterState, view.filterGroups);
 
     if (view.staticConditions && view.staticConditions.length > 0) {
         // Wrap even when user conditions object is empty for consistent shape

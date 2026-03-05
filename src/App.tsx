@@ -19,9 +19,8 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
-import { FilterSchemasAndGroups } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
-import { View, ViewId } from './framework/view';
+import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -131,8 +130,8 @@ function App({
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
     }, [viewsFromProps, viewsJson, externalRuntime]) as View[];
 
-    const filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups> = useMemo(() => {
-        return Object.fromEntries(views.map((view) => [view.id, view.filterSchema] as const));
+    const filterGroupsByViewId = useMemo(() => {
+        return Object.fromEntries(views.map((view) => [view.id, view.filterGroups] as const));
     }, [views]);
 
     // Determine initial filter state (shared param precedence) BEFORE initializing app state
@@ -142,7 +141,7 @@ function App({
         try {
             const firstView = views[0];
             if (!firstView) return undefined;
-            return parseFilterFormState(raw, firstView.filterSchema);
+            return parseFilterFormState(raw, firstView.filterGroups);
         } catch (e) {
             console.warn('Invalid initial filter state from URL, falling back to defaults', e);
             return undefined;
@@ -153,7 +152,6 @@ function App({
         state,
         selectedView,
         setSelectedViewId,
-        setFilterSchema,
         setFilterState,
         setSearchQuery,
         setFilterGroupExpanded,
@@ -169,7 +167,7 @@ function App({
         }
     }, [userData?.onLoad, userData?.onSave])
 
-    const userDataManager = useUserDataManager(filterSchemasByViewId, selectedView.id, userDataManagerOptions);
+    const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
 
@@ -581,9 +579,7 @@ function App({
                     showAIAssistantForm && (
                         <div className="tw:mb-6">
                             <AIAssistantForm
-                                filterSchema={state.filterSchemasAndGroups}
                                 filterState={state.filterState}
-                                setFilterSchema={setFilterSchema}
                                 setFilterState={setFilterState}
                                 selectedView={selectedView}
                                 geminiApiKey={geminiApiKey}
@@ -602,7 +598,7 @@ function App({
                     onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
-                    filterSchema={state.filterSchemasAndGroups}
+                    filterGroups={state.filterGroups}
                 />
 
                 <UserPreferencesPanel
@@ -618,7 +614,7 @@ function App({
                 {
                     showFilterForm && (
                         <FilterForm
-                            filterSchemasAndGroups={state.filterSchemasAndGroups}
+                            filterGroups={state.filterGroups}
                             filterState={state.filterState}
                             setFilterState={setFilterState}
                             onSaveFilter={handleSaveFilter}

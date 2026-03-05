@@ -1,4 +1,5 @@
-import { FilterField, FilterSchema, FilterSchemasAndGroups, getFieldNodes } from "./filters";
+import { FilterField, FilterSchema, FilterGroups, getFieldNodes } from "./filters";
+import { getAllFilters } from "./view";
 
 export type FilterDisplayState =
     | {
@@ -7,23 +8,25 @@ export type FilterDisplayState =
     }
     | {
         type: 'searchResults';
-        schemasAndGroups: FilterSchemasAndGroups;
+        filterGroups: FilterGroups;
         expandedGroups: string[];
     };
 
-export function buildFilteredSchemaInGroupOrder(
-    filterSchemasAndGroups: FilterSchemasAndGroups,
+export function buildFilteredGroupsInGroupOrder(
+    filterGroups: FilterGroups,
     filters: FilterSchema[]
-): FilterSchemasAndGroups {
-    const groupNamesWithFilters = new Set(filters.map(f => f.group));
-    return {
-        groups: filterSchemasAndGroups.groups.filter(g => groupNamesWithFilters.has(g.name)),
-        filters
-    };
+): FilterGroups {
+    const filterIdSet = new Set(filters.map(filter => filter.id));
+    return filterGroups
+        .map(group => ({
+            ...group,
+            filters: group.filters.filter(filter => filterIdSet.has(filter.id))
+        }))
+        .filter(group => group.filters.length > 0);
 }
 
 export function createFilterDisplayState(
-    filterSchemasAndGroups: FilterSchemasAndGroups,
+    filterGroups: FilterGroups,
     rawQuery: string
 ): FilterDisplayState {
     const query = rawQuery.trim();
@@ -35,13 +38,13 @@ export function createFilterDisplayState(
     }
 
     const matches = buildSearchPredicate(query);
-    const matchingFilters = filterSchemasAndGroups.filters.filter(matches);
-    const schemasAndGroups = buildFilteredSchemaInGroupOrder(filterSchemasAndGroups, matchingFilters);
+    const matchingFilters = getAllFilters(filterGroups).filter(matches);
+    const filteredGroups = buildFilteredGroupsInGroupOrder(filterGroups, matchingFilters);
 
     return {
         type: 'searchResults',
-        schemasAndGroups,
-        expandedGroups: schemasAndGroups.groups
+        filterGroups: filteredGroups,
+        expandedGroups: filteredGroups
             .map(group => group.name)
             .filter(name => name !== 'default')
     };

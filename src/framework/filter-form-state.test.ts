@@ -2,39 +2,38 @@ import {
     serializeFilterFormStateMap,
     parseFilterFormState
 } from './filter-form-state';
-import { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 import { FilterState } from './state';
 
 describe('filter-form-state', () => {
-    const mockFilterSchema: FilterSchemasAndGroups = {
-        groups: [
-            { name: 'Basic', label: 'Basic' }
-        ],
-        filters: [
-            {
-                id: 'email-filter',
-                label: 'Email',
-                expression: {
-                    type: 'equals',
-                    field: 'email',
-                    value: { type: 'text', label: 'Email' }
+    const mockFilterSchema: FilterGroups = [
+        {
+            name: 'Basic',
+            label: 'Basic',
+            filters: [
+                {
+                    id: 'email-filter',
+                    label: 'Email',
+                    expression: {
+                        type: 'equals',
+                        field: 'email',
+                        value: { type: 'text', label: 'Email' }
+                    },
+                    aiGenerated: false
                 },
-                group: 'Basic',
-                aiGenerated: false
-            },
-            {
-                id: 'date-filter',
-                label: 'Date',
-                expression: {
-                    type: 'equals',
-                    field: 'created_at',
-                    value: { type: 'date', label: 'Created Date' }
-                },
-                group: 'Basic',
-                aiGenerated: false
-            }
-        ]
-    };
+                {
+                    id: 'date-filter',
+                    label: 'Date',
+                    expression: {
+                        type: 'equals',
+                        field: 'created_at',
+                        value: { type: 'date', label: 'Created Date' }
+                    },
+                    aiGenerated: false
+                }
+            ]
+        }
+    ];
 
     const mockFilterState: FilterState = new Map([
         ['email-filter', {

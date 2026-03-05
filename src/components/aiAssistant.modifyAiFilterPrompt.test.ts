@@ -19,13 +19,13 @@ describe('aiAssistant modifyAiFilterPrompt', () => {
         });
         (globalThis as any).fetch = fetchMock;
 
-        const filterSchema = { groups: [{ name: 'default', label: null }], filters: [] };
+        const filterGroups = [{ name: 'default', label: null, filters: [] }];
         const setFormState = jest.fn();
 
         await GeminiApi.sendPrompt(
-            filterSchema as any,
+            filterGroups,
             'Find orders from yesterday',
-            setFormState as any,
+            setFormState,
             'TEST_KEY',
             undefined,
             { modifyAiFilterPrompt }

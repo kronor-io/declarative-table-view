@@ -1,4 +1,4 @@
-import { FilterSchemasAndGroups } from './filters';
+import { FilterGroups } from './filters';
 import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
 import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from './user-data';
 import { applyUserDataMigrations, userDataMigrationErrorToMessage } from './user-data.migrations';
@@ -61,7 +61,7 @@ export type UserDataManagerOptions = {
 }
 
 export function createUserDataManager(
-    filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
+    filterGroupsByViewId: Record<ViewId, FilterGroups>,
     options: UserDataManagerOptions
 ): UserDataManager {
 
@@ -103,7 +103,7 @@ export function createUserDataManager(
             const existingJson = readUserDataJsonFromLocalStorage()
             if (existingJson) {
                 try {
-                    return fromUserDataJson(existingJson, filterSchemasByViewId)
+                    return fromUserDataJson(existingJson, filterGroupsByViewId)
                 } catch (err) {
                     console.error('Failed to read user data:', err)
                 }
@@ -380,7 +380,7 @@ export function createUserDataManager(
         // If no remote data provided (no loader or loader returned null),
         // pick local then migrate and persist accordingly.
         if (!dataFromLoadCallback) {
-            const migratedResult = applyUserDataMigrations(localUserData, { filterSchemasByViewId })
+            const migratedResult = applyUserDataMigrations(localUserData, { filterGroupsByViewId })
             if (Result.isFailure(migratedResult)) {
                 console.error('Failed to read user data:', userDataMigrationErrorToMessage(migratedResult.error), migratedResult.error)
                 options.showToast({
@@ -401,12 +401,12 @@ export function createUserDataManager(
             return
         }
 
-        const remoteUserData: UserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterSchemasByViewId)
+        const remoteUserData: UserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterGroupsByViewId)
 
         // Choose source with greater or equal revision (prefer remote on tie)
         const remoteDataIsNewer = remoteUserData.revision >= localUserData.revision
         const chosenUserDataBeforeMigration = remoteDataIsNewer ? remoteUserData : localUserData
-        const migratedUserDataResult = applyUserDataMigrations(chosenUserDataBeforeMigration, { filterSchemasByViewId })
+        const migratedUserDataResult = applyUserDataMigrations(chosenUserDataBeforeMigration, { filterGroupsByViewId })
         if (Result.isFailure(migratedUserDataResult)) {
             console.error('Failed to read user data:', userDataMigrationErrorToMessage(migratedUserDataResult.error), migratedUserDataResult.error)
             options.showToast({

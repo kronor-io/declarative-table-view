@@ -3,8 +3,9 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { Tag } from 'primereact/tag';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterState } from '../framework/state';
-import { FilterControl, FilterExpr, FilterField, FilterSchemasAndGroups } from '../framework/filters';
+import { FilterControl, FilterExpr, FilterField, FilterGroups } from '../framework/filters';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
+import { getAllFilters } from '../framework/view';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
@@ -13,10 +14,10 @@ interface SavedFilterListProps {
     onFilterApply: () => void;
     onFilterShare: (filterState: FilterState) => void;
     visible: boolean;
-    filterSchema: FilterSchemasAndGroups;
+    filterGroups: FilterGroups;
 }
 
-export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, onFilterShare, visible, filterSchema }: SavedFilterListProps) {
+export default function SavedFilterList({ savedFilters, onFilterDelete, onFilterLoad, onFilterApply, onFilterShare, visible, filterGroups }: SavedFilterListProps) {
     if (!visible) {
         return null;
     }
@@ -60,7 +61,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return filter.value !== ''
     }
 
-    const schemaById = new Map(filterSchema.filters.map(f => [f.id, f]));
+    const schemaById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
 
     type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
 

@@ -1,4 +1,5 @@
-import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
+import { FilterField, FilterGroups, FilterExpr } from './filters';
+import { getAllFilters } from './view';
 import { FilterFormState, traverseFilterSchemaAndState } from './filter-form-state';
 
 // All supported Hasura operators for a field
@@ -31,8 +32,9 @@ export type HasuraCondition =
 // Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
     filterState: Map<string, FilterFormState>,
-    filterSchema: FilterSchemasAndGroups
+    filterGroups: FilterGroups
 ): HasuraCondition {
+    const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
         if (typeof field === 'object') {
             if ('and' in field) {
@@ -126,7 +128,7 @@ export function buildHasuraConditions(
 
     const conditions: HasuraCondition[] = [];
     for (const [filterId, formState] of filterState.entries()) {
-        const filterDef = filterSchema.filters.find(f => f.id === filterId);
+        const filterDef = filtersById.get(filterId);
         if (!filterDef) continue;
         const condition = buildConditionsRecursive(filterDef.expression, formState);
         if (condition) {

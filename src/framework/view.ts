@@ -1,6 +1,6 @@
-import React from "react";
+import type { ReactNode } from 'react';
 import { ColumnDefinition } from "./column-definition";
-import { FilterSchemasAndGroups } from "./filters";
+import { FilterGroups, FilterSchema } from "./filters";
 import { FilterState } from "./state";
 import { FilterFormState } from "./filter-form-state";
 import { HasuraCondition, HasuraOrderBy } from "./graphql";
@@ -12,7 +12,8 @@ export type NoRowsComponentProps = {
     updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => void;
 };
 
-export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
+export type NoRowsComponent = (props: NoRowsComponentProps) => ReactNode;
+
 
 export type ViewId = string;
 
@@ -21,7 +22,7 @@ export type View = {
     id: ViewId;
     collectionName: string;
     columnDefinitions: ColumnDefinition[];
-    filterSchema: FilterSchemasAndGroups;
+    filterGroups: FilterGroups;
     /** Optional default prompt shown in the AI Filter Assistant for this view. */
     defaultAIFilterPrompt?: string;
     boolExpType: string; // GraphQL boolean expression type for this view
@@ -35,6 +36,10 @@ export type View = {
     // Pagination will still enforce a descending ordering on paginationKey if not provided here.
     staticOrdering?: HasuraOrderBy[];
 };
+
+export function getAllFilters(filterGroups: FilterGroups): FilterSchema[] {
+    return filterGroups.flatMap(group => group.filters);
+}
 
 
 // JSON Schema types for view definitions

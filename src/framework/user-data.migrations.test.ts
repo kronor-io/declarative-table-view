@@ -4,27 +4,29 @@
 import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
 import { __applyUserDataMigrationsWithStepsForTest } from './user-data.migrations';
 import { defaultUserData, defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, toUserDataJson, type UserData } from './user-data';
-import type { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { SAVED_FILTERS_KEY } from './saved-filters';
 import { isFailure, isSuccess } from './result';
 
-const basicSchema: FilterSchemasAndGroups = {
-    groups: [{ name: 'default', label: null }],
-    filters: [
-        {
-            id: 'email-filter',
-            label: 'Email Filter',
-            expression: {
-                type: 'equals',
-                field: 'email',
-                value: { type: 'text' }
-            },
-            group: 'default',
-            aiGenerated: false
-        }
-    ]
-};
+const basicSchema: FilterGroups = [
+    {
+        name: 'default',
+        label: null,
+        filters: [
+            {
+                id: 'email-filter',
+                label: 'Email Filter',
+                expression: {
+                    type: 'equals',
+                    field: 'email',
+                    value: { type: 'text' }
+                },
+                aiGenerated: false
+            }
+        ]
+    }
+];
 
 describe('user-data migrations', () => {
     let mockLocalStorage: { [key: string]: string };
@@ -65,7 +67,7 @@ describe('user-data migrations', () => {
         const data = defaultUserData();
         data.formatRevision = CURRENT_USERDATA_FORMAT_REVISION;
         const migrated = applyUserDataMigrations(data, {
-            filterSchemasByViewId: {
+            filterGroupsByViewId: {
                 'view-a': basicSchema,
                 'view-b': basicSchema,
                 'test-view': basicSchema
@@ -219,7 +221,7 @@ describe('user-data migrations', () => {
         data.formatRevision = '2025-01-01T00:00:00.000Z';
 
         const result = applyUserDataMigrations(data, {
-            filterSchemasByViewId: {
+            filterGroupsByViewId: {
                 'view-a': basicSchema,
                 'view-b': basicSchema,
                 'test-view': basicSchema
@@ -244,7 +246,7 @@ describe('user-data migrations', () => {
         const result = __applyUserDataMigrationsWithStepsForTest(
             data,
             {
-                filterSchemasByViewId: {
+                filterGroupsByViewId: {
                     'view-a': basicSchema,
                     'view-b': basicSchema,
                     'test-view': basicSchema
@@ -276,7 +278,7 @@ describe('user-data migrations', () => {
         data.preferences = { syncFilterStateToUrlOverride: true };
 
         const result = applyUserDataMigrations(data, {
-            filterSchemasByViewId: {
+            filterGroupsByViewId: {
                 'view-a': basicSchema,
                 'view-b': basicSchema,
                 'test-view': basicSchema
