@@ -14,11 +14,15 @@ export const filterField = {
     or: (...fields: string[]): FilterField => ({ or: fields }),
 };
 
-export function group(name: string, label: string | null = null, filters: FilterSchema[] = []): FilterGroup {
+export function filterGroup(args: {
+    name: string;
+    label: string | null;
+    filters: FilterSchema[];
+}): FilterGroup {
     return {
-        name,
-        label,
-        filters,
+        name: args.name,
+        label: args.label,
+        filters: args.filters,
     };
 }
 
@@ -34,8 +38,4 @@ export function filter(args: {
         expression: args.expression,
         aiGenerated: args.aiGenerated ?? false,
     };
-}
-
-export function filterGroups(...groups: FilterGroup[]): FilterGroups {
-    return groups;
 }

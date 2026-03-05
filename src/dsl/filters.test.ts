@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { filter, filterField, filterGroups, group } from './filters';
+import { filter, filterField, filterGroup } from './filters';
 import { FilterControl } from './filterControl';
 import { FilterExpr } from './filterExpr';
 
@@ -18,14 +18,14 @@ describe('dsl/filters', () => {
         expect(f.aiGenerated).toBe(false);
     });
 
-    it('builds filterGroups with nested filters', () => {
+    it('builds filter group arrays with nested filters', () => {
         const f = filter({
             id: 'id',
             label: 'Label',
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         });
-        const g = group('default', null, [f]);
-        const s = filterGroups(g);
+        const g = filterGroup({ name: 'default', label: null, filters: [f] });
+        const s = [g];
         expect(s).toHaveLength(1);
         expect(s[0]).toEqual({ name: 'default', label: null, filters: [f] });
     });
