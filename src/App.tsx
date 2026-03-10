@@ -7,6 +7,7 @@ import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
+import { Divider } from 'primereact/divider';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { Toast } from 'primereact/toast';
@@ -198,6 +199,7 @@ function App({
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedRows, setSelectedRows] = useState<unknown[]>([]);
 
     const triggerRefetch = useCallback(() => {
         setRefetchTrigger(prev => prev + 1);
@@ -211,8 +213,33 @@ function App({
     });
 
     const handleRowSelectionResetChange = useCallback((resetFn: (() => void) | null) => {
-        dtvApi.current.rowSelection.reset = resetFn ?? (() => undefined);
+        dtvApi.current.rowSelection.reset = () => {
+            setSelectedRows([]);
+            resetFn?.();
+        };
     }, []);
+
+    const rowSelectionWithInternalHandler = useMemo(() => {
+        if (!rowSelection) return undefined;
+        return {
+            ...rowSelection,
+            onRowSelectionChange: (rows: any[]) => {
+                setSelectedRows(rows);
+                rowSelection.onRowSelectionChange?.(rows);
+            }
+        };
+    }, [rowSelection]);
+
+    // Clear selection when switching views, or if row selection gets disabled.
+    useEffect(() => {
+        setSelectedRows([]);
+    }, [selectedView.id]);
+
+    useEffect(() => {
+        if ((rowSelection?.rowSelectionType ?? 'none') !== 'multiple') {
+            setSelectedRows([]);
+        }
+    }, [rowSelection?.rowSelectionType]);
 
     // Expose imperative API to consumers.
     useEffect(() => {
@@ -541,10 +568,16 @@ function App({
                                     />
                                 )
                             }
+                            {
+                                actions.length > 0 && (
+                                    <Divider layout="vertical" />
+                                )
+                            }
                             <ActionButtons
                                 actions={actions}
                                 selectedView={selectedView}
                                 filterState={state.filterState}
+                                selectedRows={selectedRows}
                                 setFilterState={setFilterState}
                                 refetch={triggerRefetch}
                                 showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
@@ -643,7 +676,7 @@ function App({
                         setFilterState={setFilterState}
                         filterState={state.filterState}
                         triggerRefetch={triggerRefetch}
-                        rowSelection={rowSelection}
+                        rowSelection={rowSelectionWithInternalHandler}
                         rowClassFunction={rowClassFunction}
                         onRowSelectionResetChange={handleRowSelectionResetChange}
                     />

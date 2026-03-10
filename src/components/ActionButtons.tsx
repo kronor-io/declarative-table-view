@@ -11,6 +11,7 @@ export interface ActionButtonsProps {
     actions: ActionDefinition[];
     selectedView: View;
     filterState: FilterState;
+    selectedRows: unknown[];
     setFilterState: (next: FilterState) => void;
     refetch: () => void;
     showToast: ShowToastFn;
@@ -18,7 +19,7 @@ export interface ActionButtonsProps {
     rowsPerPage: number;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, setFilterState, refetch, showToast, paginationState, rowsPerPage }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, showToast, paginationState, rowsPerPage }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     return (
         <>
@@ -30,6 +31,7 @@ export function ActionButtons({ actions, selectedView, filterState, setFilterSta
                     const api: ActionAPI = {
                         view: selectedView,
                         filterState,
+                        selectedRows,
                         setFilterState,
                         refetch,
                         showToast,
@@ -57,6 +59,11 @@ export function ActionButtons({ actions, selectedView, filterState, setFilterSta
                         key={`custom-action-${idx}`}
                         type="button"
                         icon={action.icon}
+                        badge={action.badge}
+                        badgeClassName={action.badgeClassName}
+                        severity={action.severity}
+                        className={action.className}
+                        style={action.style}
                         outlined={action.outlined !== false}
                         size={action.size === 'normal' ? undefined : 'small'}
                         disabled={action.disabled || isRunning}
