@@ -21,7 +21,7 @@ import type { HasuraCondition } from '../framework/graphql';
 
 /**
  * Creates a renderable table column definition.
- * Convenience wrapper that accepts raw string paths or FieldQuery objects.
+ * Convenience wrapper around the underlying TableColumnDefinition type.
  */
 export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
     id: string;
@@ -39,8 +39,8 @@ export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
 }
 
 /**
- * Creates a data-only virtual column definition. Convenience wrapper that
- * accepts raw string paths or FieldQuery objects.
+ * Creates a data-only virtual column definition. Convenience wrapper around
+ * the underlying VirtualColumnDefinition type.
  */
 export function virtualColumn<const FieldQueries extends readonly FieldQuery[]>(args: { id: string; data: FieldQueries }): VirtualColumnDefinition<FieldQueries> {
     return {

@@ -10,47 +10,47 @@ import { majorToMinor, minorToMajor } from "./currency";
 import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from "primereact/tag";
-import { FilterState } from "./state";
-import { FilterId } from "./filters";
+import type { FilterState } from "./state";
+import type { FilterId } from "./filters";
 import type { EmptyObject, Simplify, UnionToIntersection } from "./typelevel";
 
 export type CellRendererProps<
-  Data extends Record<string, any> = Record<string, any>,
+    Data extends Record<string, any> = Record<string, any>,
 > = {
-  data: Data;
-  setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
-  applyFilters: () => void; // Function to trigger data fetch with current filter state
-  updateFilterById: (
-    filterId: FilterId,
-    updater: (currentValue: any) => any,
-  ) => void; // Narrow helper to update a specific filter by id
-  createElement: typeof createElement; // React createElement function
-  components: {
-    Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
-    FlexRow: typeof FlexRow; // Horizontal layout component
-    FlexColumn: typeof FlexColumn; // Vertical layout component
-    Mapping: typeof Mapping; // Generic mapping component for displaying mapped values
-    DateTime: typeof DateTime; // Date formatting component
-    CurrencyAmount: typeof CurrencyAmount; // Currency formatting component
-    Link: typeof Link; // Link component for creating hyperlinks
-  };
-  currency: {
-    minorToMajor: typeof minorToMajor;
-    majorToMinor: typeof majorToMinor;
-  };
-  /**
-   * The full column definition for the current cell. Allows renderers to
-   * introspect the FieldQuery definitions to derive display output generically.
-   */
-  columnDefinition: TableColumnDefinition;
+    data: Data;
+    setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
+    applyFilters: () => void; // Function to trigger data fetch with current filter state
+    updateFilterById: (
+        filterId: FilterId,
+        updater: (currentValue: any) => any,
+    ) => void; // Narrow helper to update a specific filter by id
+    createElement: typeof createElement; // React createElement function
+    components: {
+        Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
+        FlexRow: typeof FlexRow; // Horizontal layout component
+        FlexColumn: typeof FlexColumn; // Vertical layout component
+        Mapping: typeof Mapping; // Generic mapping component for displaying mapped values
+        DateTime: typeof DateTime; // Date formatting component
+        CurrencyAmount: typeof CurrencyAmount; // Currency formatting component
+        Link: typeof Link; // Link component for creating hyperlinks
+    };
+    currency: {
+        minorToMajor: typeof minorToMajor;
+        majorToMinor: typeof majorToMinor;
+    };
+    /**
+     * The full column definition for the current cell. Allows renderers to
+     * introspect the FieldQuery definitions to derive display output generically.
+     */
+    columnDefinition: TableColumnDefinition;
 };
 
 // Intentionally bivariant so strongly-typed cell renderers remain assignable
 // to framework-level column containers (e.g. `ColumnDefinition[]`).
 export type CellRenderer<
-  Data extends Record<string, any> = Record<string, any>,
+    Data extends Record<string, any> = Record<string, any>,
 > = {
-  bivarianceHack(props: CellRendererProps<Data>): ReactNode;
+    bivarianceHack(props: CellRendererProps<Data>): ReactNode;
 }["bivarianceHack"];
 
 export type ColumnId = string;
@@ -76,7 +76,7 @@ export type ObjectQuery = {
   type: "objectQuery";
   field: string;
   path?: string; // path for querying inside JSON columns
-  selectionSet: Query[];
+  selectionSet: readonly Query[];
 };
 
 export type ArrayQuery = {
@@ -87,7 +87,7 @@ export type ArrayQuery = {
   distinctOn?: string[];
   limit?: number;
   where?: HasuraCondition;
-  selectionSet: Query[];
+  selectionSet: readonly Query[];
 };
 
 export type Query = ValueQuery | ObjectQuery | ArrayQuery;
