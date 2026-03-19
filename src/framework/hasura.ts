@@ -32,7 +32,7 @@ export type HasuraCondition =
 
 // Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
-    filterState: Map<string, FilterFormState>,
+    filterState: FilterState,
     filterGroups: FilterGroups
 ): HasuraCondition {
     const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
