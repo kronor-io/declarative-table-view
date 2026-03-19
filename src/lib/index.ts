@@ -3,7 +3,7 @@
 import '../index.css';
 
 export { default as App } from '../App';
-export type { AppProps } from '../App';
+export type { AppProps, DTVAPI } from '../App';
 
 // Re-export selected framework types that are useful to consumers.
 export type { View } from '../framework/view';
@@ -22,7 +22,6 @@ export type {
     UserDataLoadCallback,
     UserDataSaveCallback
 } from '../framework/user-data-manager';
-export type { RowSelectionAPI } from '../components/Table';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
 export { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 export { buildGraphQLQueryVariables } from '../framework/data';

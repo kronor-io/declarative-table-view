@@ -1,23 +1,28 @@
 import type {
     FilterExpr,
     FilterField,
-    FilterFieldGroup,
     FilterSchema,
-    FilterSchemasAndGroups,
+    FilterGroup,
+    FilterGroups,
     FilterTransform,
 } from '../framework/filters';
 
-export type { FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups, FilterTransform };
+export type { FilterField, FilterSchema, FilterGroup, FilterGroups, FilterTransform };
 
 export const filterField = {
     and: (...fields: string[]): FilterField => ({ and: fields }),
     or: (...fields: string[]): FilterField => ({ or: fields }),
 };
 
-export function group(name: string, label: string | null = null): FilterFieldGroup {
+export function filterGroup(args: {
+    name: string;
+    label: string | null;
+    filters: FilterSchema[];
+}): FilterGroup {
     return {
-        name,
-        label,
+        name: args.name,
+        label: args.label,
+        filters: args.filters,
     };
 }
 
@@ -25,20 +30,12 @@ export function filter(args: {
     id: string;
     label: string;
     expression: FilterExpr;
-    group: string;
+    aiGenerated?: boolean;
 }): FilterSchema {
     return {
         id: args.id,
         label: args.label,
         expression: args.expression,
-        group: args.group,
-        aiGenerated: false,
-    };
-}
-
-export function filterSchema(groups: FilterFieldGroup[], filters: FilterSchema[]): FilterSchemasAndGroups {
-    return {
-        groups,
-        filters,
+        aiGenerated: args.aiGenerated ?? false,
     };
 }

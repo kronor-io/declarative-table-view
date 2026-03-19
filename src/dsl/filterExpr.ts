@@ -1,7 +1,13 @@
-import type { FilterControl, FilterExpr as FilterExprType, FilterField, FilterTransform } from '../framework/filters';
+import type {
+    ConditionOnlyTransform,
+    FilterControl,
+    FilterExpr as FilterExprType,
+    FilterField,
+    FilterTransform
+} from '../framework/filters';
 import { SUPPORTED_OPERATORS } from '../framework/filters';
 
-export type { FilterField, FilterTransform };
+export type { ConditionOnlyTransform, FilterField, FilterTransform };
 export type FilterExpr = FilterExprType;
 
 // Helper functions for building FilterExpr values
@@ -92,6 +98,16 @@ export const FilterExpr = {
             field: args.field,
             value: args.control,
             ...(args.transform && { transform: args.transform })
+        }),
+
+    // Condition-only helper for filters that are transformed into a full Hasura condition.
+    // Internally uses a leaf expr type, but the operator mapping is bypassed because the transform returns { condition }.
+    computedCondition: (args: { control: FilterControl; transform: ConditionOnlyTransform }): FilterExprType =>
+        ({
+            type: 'equals', // The operator here is a dummy value since the transform will produce the actual condition.
+            field: { or: [] },
+            value: args.control,
+            transform: args.transform
         }),
 
     and: (args: { filters: FilterExprType[] }): FilterExprType => ({ type: 'and', filters: args.filters }),

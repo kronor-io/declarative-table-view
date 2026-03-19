@@ -851,26 +851,33 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.groups).toHaveLength(2);
-            expect(result.groups[0]).toEqual({ name: 'default', label: null });
-            expect(result.groups[1]).toEqual({ name: 'advanced', label: 'Advanced Filters' });
-
-            expect(result.filters).toHaveLength(2);
-            expect(result.filters[0]).toEqual({
-                id: 'name-filter',
-                label: 'Name',
-                expression: {
-                    type: 'equals',
-                    field: 'name',
-                    value: { type: 'text' }
-                },
-                group: 'default',
-                aiGenerated: false
+            expect(result).toHaveLength(2);
+            expect(result[0]).toEqual({
+                name: 'default',
+                label: null,
+                filters: [
+                    {
+                        id: 'name-filter',
+                        label: 'Name',
+                        expression: {
+                            type: 'equals',
+                            field: 'name',
+                            value: { type: 'text' }
+                        },
+                        aiGenerated: false
+                    }
+                ]
             });
-            expect(result.filters[1].id).toBe('status-filter');
-            expect(result.filters[1].label).toBe('Status');
-            expect(result.filters[1].expression.type).toBe('in');
-            expect(result.filters[1].aiGenerated).toBe(true);
+            expect(result[1].name).toBe('advanced');
+            expect(result[1].label).toBe('Advanced Filters');
+            expect(result[1].filters).toHaveLength(1);
+
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(2);
+            expect(allFilters[1].id).toBe('status-filter');
+            expect(allFilters[1].label).toBe('Status');
+            expect(allFilters[1].expression.type).toBe('in');
+            expect(allFilters[1].aiGenerated).toBe(true);
         });
 
         it('should parse filters with transform references', () => {
@@ -906,15 +913,16 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(2);
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(2);
 
             // Check that transforms are resolved
-            const referenceFilter = result.filters[0];
+            const referenceFilter = allFilters[0];
             expect(referenceFilter.label).toBe('Reference');
             expect('transform' in referenceFilter.expression).toBe(true);
             expect((referenceFilter.expression as any).transform).toBe(testRuntime.queryTransforms.reference);
 
-            const amountFilter = result.filters[1];
+            const amountFilter = allFilters[1];
             expect(amountFilter.label).toBe('Amount');
             expect('transform' in amountFilter.expression).toBe(true);
             expect((amountFilter.expression as any).transform).toBe(testRuntime.queryTransforms.amount);
@@ -964,8 +972,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.expression.type).toBe('and');
 
             const andExpr = filter.expression as any;
@@ -1008,8 +1017,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.expression.type).toBe('equals');
             expect((filter.expression as any).value.type).toBe('customOperator');
             expect('transform' in filter.expression).toBe(true);
@@ -1210,8 +1220,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.label).toBe('Multi-field AND Filter');
             expect(filter.expression.type).toBe('equals');
 
@@ -1244,8 +1255,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.label).toBe('Multi-field OR Filter');
             expect(filter.expression.type).toBe('iLike');
             expect(filter.aiGenerated).toBe(true);
@@ -1276,8 +1288,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.expression.type).toBe('equals');
 
             const fieldValue = (filter.expression as any).field;
@@ -1312,8 +1325,9 @@ describe('parseFilterFieldSchemaJson', () => {
 
             const result = parseFilterFieldSchemaJson(json, testRuntime, undefined);
 
-            expect(result.filters).toHaveLength(1);
-            const filter = result.filters[0];
+            const allFilters = result.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(1);
+            const filter = allFilters[0];
             expect(filter.expression.type).toBe('greaterThan');
             expect('transform' in filter.expression).toBe(true);
             expect((filter.expression as any).transform).toBe(testRuntime.queryTransforms.amount);
@@ -1470,8 +1484,8 @@ describe('parseViewJson', () => {
             expect(result.boolExpType).toBe('TestBoolExp');
             expect(result.orderByType).toBe('[TestOrderBy!]');
             expect(result.columnDefinitions).toHaveLength(1);
-            expect(result.filterSchema.groups).toHaveLength(1);
-            expect(result.filterSchema.filters).toHaveLength(1);
+            expect(result.filterGroups).toHaveLength(1);
+            expect(result.filterGroups[0].filters).toHaveLength(1);
             expect(result.noRowsComponent).toBeUndefined();
             expect(result.staticConditions).toEqual([{ status: { _eq: 'ACTIVE' } }]);
             expect(result.staticOrdering).toEqual([{ status: 'ASC' }]);
@@ -1612,11 +1626,12 @@ describe('parseViewJson', () => {
             const result = parseViewJson(complexJson, viewTestRuntime);
 
             expect(result.columnDefinitions).toHaveLength(2);
-            expect(result.filterSchema.groups).toHaveLength(2);
-            expect(result.filterSchema.filters).toHaveLength(2);
-            expect(result.filterSchema.filters[0].expression.type).toBe('equals');
-            expect(result.filterSchema.filters[1].expression.type).toBe('and');
-            expect(result.filterSchema.filters[1].aiGenerated).toBe(true);
+            expect(result.filterGroups).toHaveLength(2);
+            const allFilters = result.filterGroups.flatMap((g) => g.filters);
+            expect(allFilters).toHaveLength(2);
+            expect(allFilters[0].expression.type).toBe('equals');
+            expect(allFilters[1].expression.type).toBe('and');
+            expect(allFilters[1].aiGenerated).toBe(true);
         });
     });
 

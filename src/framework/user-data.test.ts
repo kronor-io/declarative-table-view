@@ -2,29 +2,31 @@
  * @jest-environment jsdom
  */
 
-import type { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { CURRENT_FORMAT_REVISION } from './saved-filters';
 import { CURRENT_USERDATA_FORMAT_REVISION } from './user-data.migrations';
 import { defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION } from './user-data';
 import { failure, success } from './result';
 
-const basicSchema: FilterSchemasAndGroups = {
-    groups: [{ name: 'default', label: null }],
-    filters: [
-        {
-            id: 'email-filter',
-            label: 'Email Filter',
-            expression: {
-                type: 'equals',
-                field: 'email',
-                value: { type: 'text' }
-            },
-            group: 'default',
-            aiGenerated: false
-        }
-    ]
-};
+const basicSchema: FilterGroups = [
+    {
+        name: 'default',
+        label: null,
+        filters: [
+            {
+                id: 'email-filter',
+                label: 'Email Filter',
+                expression: {
+                    type: 'equals',
+                    field: 'email',
+                    value: { type: 'text' }
+                },
+                aiGenerated: false
+            }
+        ]
+    }
+];
 
 function mockLocalStorageWithBackingStore(backingStore: Record<string, string> = {}) {
     Object.defineProperty(window, 'localStorage', {

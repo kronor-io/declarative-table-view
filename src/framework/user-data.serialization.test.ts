@@ -4,24 +4,26 @@
 
 import { defaultUserPreferences, fromUserDataJson, toUserDataJson, type UserData } from './user-data';
 import { parseFilterFormState } from './filter-form-state';
-import type { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 
-const basicSchema: FilterSchemasAndGroups = {
-    groups: [{ name: 'default', label: null }],
-    filters: [
-        {
-            id: 'email-filter',
-            label: 'Email Filter',
-            expression: {
-                type: 'equals',
-                field: 'email',
-                value: { type: 'text' }
-            },
-            group: 'default',
-            aiGenerated: false
-        }
-    ]
-};
+const basicSchema: FilterGroups = [
+    {
+        name: 'default',
+        label: null,
+        filters: [
+            {
+                id: 'email-filter',
+                label: 'Email Filter',
+                expression: {
+                    type: 'equals',
+                    field: 'email',
+                    value: { type: 'text' }
+                },
+                aiGenerated: false
+            }
+        ]
+    }
+];
 
 describe('user-data serialization', () => {
     it('roundtrips savedFilters createdAt Date <-> string', () => {

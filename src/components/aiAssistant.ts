@@ -1,14 +1,15 @@
 // src/components/aiAssistant.ts
-import type { FilterExpr, FilterExprFieldNode, FilterSchemasAndGroups } from '../framework/filters';
+import type { FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
 import type { FilterFormState } from '../framework/filter-form-state';
 import { buildInitialFormState, createDefaultFilterState, FormStateInitMode, FilterState } from '../framework/state';
 import type { RefObject } from 'react';
 import type { Toast } from 'primereact/toast';
+import { getAllFilters } from '../framework/view';
 
 // --- Shared prompt and serialization helpers ---
 export interface AIApi {
     sendPrompt(
-        filterSchema: FilterSchemasAndGroups,
+        filterGroups: FilterGroups,
         userPrompt: string,
         setFormState: (state: FilterState) => void,
         apiKey: string,
@@ -21,7 +22,7 @@ export interface AIApi {
 
 export type ModifyAiFilterPromptFn = (
     promptTemplate: string,
-    args: { filterSchema: FilterSchemasAndGroups; userPrompt: string }
+    args: { filterGroups: FilterGroups; userPrompt: string }
 ) => string;
 
 // export const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash-lite';
@@ -54,16 +55,15 @@ function sanitizeFilterExpr(expr: FilterExpr): object {
     }
 }
 
-function sanitizeFilterSchemaForAI(filterSchema: FilterSchemasAndGroups): object[] {
-    // Adapt to new schema shape
-    return filterSchema.filters.map((field) => ({
+function sanitizeFilterSchemaForAI(filterGroups: FilterGroups): object[] {
+    return getAllFilters(filterGroups).map((field) => ({
         id: field.id,
         expression: sanitizeFilterExpr(field.expression),
     }));
 }
 
 function buildAiPrompt(
-    filterSchema: FilterSchemasAndGroups,
+    filterGroups: FilterGroups,
     userPrompt: string,
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn
 ): string {
@@ -71,7 +71,7 @@ function buildAiPrompt(
   | { type: 'leaf'; value: any; }
   | { type: 'and' | 'or'; children: FilterFormState[]; }
   | { type: 'not'; child: FilterFormState; };`;
-    const sanitizedSchema = sanitizeFilterSchemaForAI(filterSchema);
+    const sanitizedSchema = sanitizeFilterSchemaForAI(filterGroups);
     const schemaStr = JSON.stringify(sanitizedSchema, null, 2);
     const currentDate = new Date().toString();
     const promptTemplate = [
@@ -92,12 +92,12 @@ function buildAiPrompt(
     ].join('\n');
 
     return modifyAiFilterPrompt
-        ? modifyAiFilterPrompt(promptTemplate, { filterSchema, userPrompt })
+        ? modifyAiFilterPrompt(promptTemplate, { filterGroups, userPrompt })
         : promptTemplate;
 }
 
 export async function requestGeminiGenerateContent(args: {
-    filterSchema: FilterSchemasAndGroups;
+    filterGroups: FilterGroups;
     userPrompt: string;
     geminiApiKey: string;
     modelId?: string;
@@ -111,7 +111,7 @@ export async function requestGeminiGenerateContent(args: {
     aiText: string;
 }> {
     const modelId = args.modelId ?? DEFAULT_GEMINI_MODEL_ID;
-    const prompt = buildAiPrompt(args.filterSchema, args.userPrompt, args.modifyAiFilterPrompt);
+    const prompt = buildAiPrompt(args.filterGroups, args.userPrompt, args.modifyAiFilterPrompt);
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -150,12 +150,13 @@ export async function requestGeminiGenerateContent(args: {
 }
 
 // Helper to merge AI-generated filter object with current state
-function mergeAiStateWithCurrent(currentState: FilterState, aiStateObject: Record<string, any>, filterSchema: FilterSchemasAndGroups): FilterState {
+function mergeAiStateWithCurrent(currentState: FilterState, aiStateObject: Record<string, any>, filterGroups: FilterGroups): FilterState {
     const newState = new Map(currentState);
+    const filterById = new Map(getAllFilters(filterGroups).map((filter) => [filter.id, filter] as const));
 
     // For each filter in the AI response, merge it with the corresponding current state
     Object.entries(aiStateObject).forEach(([filterId, aiFilterState]) => {
-        const filterDef = filterSchema.filters.find(f => f.id === filterId);
+        const filterDef = filterById.get(filterId);
         if (filterDef) {
             const currentFilterState = currentState.get(filterId) || buildInitialFormState(filterDef.expression);
             const mergedFilterState = mergeFilterFormState(filterDef.expression, currentFilterState, aiFilterState);
@@ -298,10 +299,10 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
 
 // --- Gemini Flash-Lite implementation ---
 export const GeminiApi: AIApi = {
-    async sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast, options) {
+    async sendPrompt(filterGroups, userPrompt, setFormState, geminiApiKey, toast, options) {
         try {
             const { aiText } = await requestGeminiGenerateContent({
-                filterSchema,
+                filterGroups,
                 userPrompt,
                 geminiApiKey,
                 modifyAiFilterPrompt: options?.modifyAiFilterPrompt,
@@ -314,8 +315,8 @@ export const GeminiApi: AIApi = {
                 const parsed = JSON.parse(match[0]);
 
                 // Make an empty state and merge with AI response
-                const currentState = createDefaultFilterState(filterSchema, FormStateInitMode.Empty);
-                const mergedState = mergeAiStateWithCurrent(currentState, parsed, filterSchema);
+                const currentState = createDefaultFilterState(filterGroups, FormStateInitMode.Empty);
+                const mergedState = mergeAiStateWithCurrent(currentState, parsed, filterGroups);
 
                 setFormState(mergedState);
             } else {
@@ -349,7 +350,7 @@ export const GeminiApi: AIApi = {
 };
 
 export function generateFilterWithAI(
-    filterSchema: FilterSchemasAndGroups,
+    filterGroups: FilterGroups,
     userPrompt: string,
     setFormState: (state: FilterState) => void,
     apiImpl: AIApi,
@@ -359,5 +360,5 @@ export function generateFilterWithAI(
         modifyAiFilterPrompt?: ModifyAiFilterPromptFn
     }
 ): Promise<void> {
-    return apiImpl.sendPrompt(filterSchema, userPrompt, setFormState, geminiApiKey, toast, options);
+    return apiImpl.sendPrompt(filterGroups, userPrompt, setFormState, geminiApiKey, toast, options);
 }

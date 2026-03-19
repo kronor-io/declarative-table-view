@@ -2,15 +2,12 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
-import { FilterSchemasAndGroups } from '../framework/filters';
 import { View } from '../framework/view';
 import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
-    filterSchema: FilterSchemasAndGroups;
     filterState: FilterState;
-    setFilterSchema: (schema: FilterSchemasAndGroups) => void;
     setFilterState: (state: FilterState) => void;
     selectedView: View;
     geminiApiKey: string;
@@ -53,7 +50,7 @@ export default function AIAssistantForm({
                         setAiLoading(true);
                         try {
                             await generateFilterWithAI(
-                                selectedView.filterSchema,
+                                selectedView.filterGroups,
                                 aiPrompt,
                                 setFilterState,
                                 GeminiApi,

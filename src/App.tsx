@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
-import Table, { RowSelectionAPI } from './components/Table';
+import Table from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
 import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
+import { Divider } from 'primereact/divider';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { Toast } from 'primereact/toast';
@@ -19,15 +20,13 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import { fetchData, FetchDataResult } from './framework/data';
 import { FilterState, useAppState } from './framework/state';
-import { FilterSchema, FilterSchemasAndGroups, getFieldNodes, FilterField, FilterId } from './framework/filters';
 import { parseViewJson } from './framework/view-parser';
-import { View, ViewId } from './framework/view';
+import { View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
 import { parseFilterFormState } from './framework/filter-form-state';
-import { ColumnDefinition } from './framework/column-definition';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
@@ -62,13 +61,14 @@ export interface AppProps {
         rowSelectionType: 'none' | 'multiple';
         /** Callback invoked whenever the row selection changes */
         onRowSelectionChange?: (selectedRows: any[]) => void;
-        /** React ref that will be populated with RowSelectionAPI (e.g. resetRowSelection) */
-        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
+
+    /** Optional imperative API for controlling the App instance. */
+    apiRef?: React.RefObject<DTVAPI | null>;
 
     /**
         * Optional hook to modify the AI prompt template (built from schema + user prompt)
@@ -85,6 +85,16 @@ export interface AppProps {
         onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>;
     };
 }
+
+export type DTVAPI = {
+    /** Forces the table to fetch data for the current view + filters. */
+    fetchData: () => void;
+
+    rowSelection: {
+        /** Resets any current row selection (no-op if row selection is disabled). */
+        reset: () => void;
+    };
+};
 
 const builtInRuntime: Runtime = nativeRuntime
 
@@ -107,7 +117,8 @@ function App({
     rowClassFunction,
     rowsPerPageOptions = [20, 50, 100, 200],
     userData,
-    modifyAiFilterPrompt
+    modifyAiFilterPrompt,
+    apiRef
 }: AppProps) {
     const views = useMemo(() => {
         if (viewsFromProps) {
@@ -120,8 +131,8 @@ function App({
         return viewDefinitions.map((view: unknown) => parseViewJson(view, builtInRuntime, externalRuntime));
     }, [viewsFromProps, viewsJson, externalRuntime]) as View[];
 
-    const filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups> = useMemo(() => {
-        return Object.fromEntries(views.map((view) => [view.id, view.filterSchema] as const));
+    const filterGroupsByViewId = useMemo(() => {
+        return Object.fromEntries(views.map((view) => [view.id, view.filterGroups] as const));
     }, [views]);
 
     // Determine initial filter state (shared param precedence) BEFORE initializing app state
@@ -131,14 +142,23 @@ function App({
         try {
             const firstView = views[0];
             if (!firstView) return undefined;
-            return parseFilterFormState(raw, firstView.filterSchema);
+            return parseFilterFormState(raw, firstView.filterGroups);
         } catch (e) {
             console.warn('Invalid initial filter state from URL, falling back to defaults', e);
             return undefined;
         }
     }, [views]);
 
-    const { state, selectedView, setSelectedViewId, setFilterSchema, setFilterState, setDataRows, setRowsPerPage } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
+    const {
+        state,
+        selectedView,
+        setSelectedViewId,
+        setFilterState,
+        setSearchQuery,
+        setFilterGroupExpanded,
+        setDataRows,
+        setRowsPerPage
+    } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
 
     const userDataManagerOptions = useMemo(() => {
         return {
@@ -148,7 +168,7 @@ function App({
         }
     }, [userData?.onLoad, userData?.onSave])
 
-    const userDataManager = useUserDataManager(filterSchemasByViewId, selectedView.id, userDataManagerOptions);
+    const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
 
@@ -163,14 +183,13 @@ function App({
     const memoizedQuery = useMemo(() => {
         return generateGraphQLQuery(
             selectedView.collectionName,
-            selectedView.columnDefinitions as ColumnDefinition[],
+            selectedView.columnDefinitions,
             selectedView.boolExpType,
             selectedView.orderByType,
             selectedView.paginationKey
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const [search, setSearch] = useState('');
     const tableRef = useRef<DataTable<any>>(null);
     const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
@@ -180,13 +199,63 @@ function App({
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedRows, setSelectedRows] = useState<unknown[]>([]);
+
+    const triggerRefetch = useCallback(() => {
+        setRefetchTrigger(prev => prev + 1);
+    }, []);
+
+    const dtvApi = useRef<DTVAPI>({
+        fetchData: triggerRefetch,
+        rowSelection: {
+            reset: () => undefined
+        }
+    });
+
+    const handleRowSelectionResetChange = useCallback((resetFn: (() => void) | null) => {
+        dtvApi.current.rowSelection.reset = () => {
+            setSelectedRows([]);
+            resetFn?.();
+        };
+    }, []);
+
+    const rowSelectionWithInternalHandler = useMemo(() => {
+        if (!rowSelection) return undefined;
+        return {
+            ...rowSelection,
+            onRowSelectionChange: (rows: any[]) => {
+                setSelectedRows(rows);
+                rowSelection.onRowSelectionChange?.(rows);
+            }
+        };
+    }, [rowSelection]);
+
+    // Clear selection when switching views, or if row selection gets disabled.
+    useEffect(() => {
+        setSelectedRows([]);
+    }, [selectedView.id]);
+
+    useEffect(() => {
+        if ((rowSelection?.rowSelectionType ?? 'none') !== 'multiple') {
+            setSelectedRows([]);
+        }
+    }, [rowSelection?.rowSelectionType]);
+
+    // Expose imperative API to consumers.
+    useEffect(() => {
+        if (!apiRef) return;
+        apiRef.current = dtvApi.current;
+        return () => {
+            apiRef.current = null;
+        };
+    }, [apiRef]);
 
     // Auto-expand filter panel when user starts typing a search (help discover filters)
     useEffect(() => {
-        if (search && !showFilterForm) {
+        if (state.searchQuery && !showFilterForm) {
             setShowFilterForm(true);
         }
-    }, [search, showFilterForm]);
+    }, [state.searchQuery, showFilterForm]);
 
     // Lock body scroll when popout is open (only in root instance)
     useEffect(() => {
@@ -369,28 +438,7 @@ function App({
         setFilterState(filterState);
     };
 
-    // Filter filterSchema by search, get filter IDs
-    const visibleFilterIds: FilterId[] = state.filterSchemasAndGroups.filters
-        .flatMap((filter: FilterSchema) => {
-            function stringMatchesSearchQuery(string: string) {
-                return string.toLowerCase().includes(search.toLowerCase());
-            }
-
-            function fieldMatchesSearchQuery(field: FilterField): boolean {
-                if (typeof field === 'string') {
-                    return stringMatchesSearchQuery(field);
-                } else if ('and' in field) {
-                    return field.and.some((f: string) => stringMatchesSearchQuery(f));
-                } else if ('or' in field) {
-                    return field.or.some((f: string) => stringMatchesSearchQuery(f));
-                }
-                return false;
-            }
-
-            if (stringMatchesSearchQuery(filter.label)) return [filter.id];
-            const fieldFilterExprs = getFieldNodes(filter.expression);
-            return fieldFilterExprs.some(expr => fieldMatchesSearchQuery(expr.field)) ? [filter.id] : []
-        });
+    const filterDisplayState = state.filterDisplayState;
 
     // Next page handler
     const handleNextPage = async () => {
@@ -467,7 +515,7 @@ function App({
                                         const next = !prev;
                                         if (!next) {
                                             // Clear search when hiding filters to avoid auto-expanding again
-                                            setSearch('');
+                                            setSearchQuery('');
                                         }
                                         return next;
                                     });
@@ -520,12 +568,18 @@ function App({
                                     />
                                 )
                             }
+                            {
+                                actions.length > 0 && (
+                                    <Divider layout="vertical" />
+                                )
+                            }
                             <ActionButtons
                                 actions={actions}
                                 selectedView={selectedView}
                                 filterState={state.filterState}
+                                selectedRows={selectedRows}
                                 setFilterState={setFilterState}
-                                refetch={() => setRefetchTrigger(prev => prev + 1)}
+                                refetch={triggerRefetch}
                                 showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
@@ -536,7 +590,7 @@ function App({
                         <div className="tw:flex tw:gap-2">
                             <IconField iconPosition="left">
                                 <InputIcon className="pi pi-search" />
-                                <InputText value={search} onChange={e => setSearch(e.target.value)} placeholder="Search filters..." />
+                                <InputText value={state.searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search filters..." />
                             </IconField>
                             <Button
                                 type="button"
@@ -558,9 +612,7 @@ function App({
                     showAIAssistantForm && (
                         <div className="tw:mb-6">
                             <AIAssistantForm
-                                filterSchema={state.filterSchemasAndGroups}
                                 filterState={state.filterState}
-                                setFilterSchema={setFilterSchema}
                                 setFilterState={setFilterState}
                                 selectedView={selectedView}
                                 geminiApiKey={geminiApiKey}
@@ -579,28 +631,35 @@ function App({
                     onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
-                    filterSchema={state.filterSchemasAndGroups}
+                    filterGroups={state.filterGroups}
                 />
 
                 <UserPreferencesPanel
                     visible={showPreferencesPanel}
                     preferences={userDataManager.preferences}
                     onChangePreferences={userDataManager.updatePreferences}
+                    currentView={{ id: selectedView.id, title: selectedView.title }}
+                    viewData={userDataManager.viewData}
+                    columnDefinitions={selectedView.columnDefinitions}
+                    onSetHiddenColumns={userDataManager.setHiddenColumns}
                 />
 
                 {
                     showFilterForm && (
                         <FilterForm
-                            filterSchemasAndGroups={state.filterSchemasAndGroups}
+                            filterGroups={state.filterGroups}
                             filterState={state.filterState}
                             setFilterState={setFilterState}
                             onSaveFilter={handleSaveFilter}
                             onUpdateFilter={handleUpdateFilter}
                             onShareFilter={handleShareFilter}
                             savedFilters={userDataManager.savedFilters}
-                            visibleFilterIds={visibleFilterIds}
+                            displayState={filterDisplayState}
+                            onFilterGroupExpandedChange={(groupName, expanded) => {
+                                setFilterGroupExpanded(groupName, expanded);
+                            }}
                             onSubmit={() => {
-                                setRefetchTrigger(prev => prev + 1);
+                                triggerRefetch();
                             }}
                             graphqlClient={client}
                         />
@@ -611,13 +670,15 @@ function App({
                         viewId={selectedView.id}
                         ref={tableRef}
                         columns={selectedView.columnDefinitions}
+                        hiddenColumnIds={userDataManager.viewData.hiddenColumns}
                         data={state.data.flattenedRows}
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
                         filterState={state.filterState}
-                        triggerRefetch={() => setRefetchTrigger(prev => prev + 1)}
-                        rowSelection={rowSelection}
+                        triggerRefetch={triggerRefetch}
+                        rowSelection={rowSelectionWithInternalHandler}
                         rowClassFunction={rowClassFunction}
+                        onRowSelectionResetChange={handleRowSelectionResetChange}
                     />
                 </div>
                 {

@@ -30,7 +30,10 @@ describe('flattenColumnFields mixed query types', () => {
         ];
 
         const col: ColumnDefinition = { type: 'virtualColumn', id: 'mixed-queries', data: queries };
-        const result = flattenColumnFields(row, col);
+        const result = flattenColumnFields(row, col) as {
+            user: { id: number; profile: { email: string } };
+            orders: Array<{ total: number; product: { name: string } }>;
+        };
         // Should not be the same reference (per-column shaping)
         expect(result).not.toBe(row);
         // Only user & orders root fields present

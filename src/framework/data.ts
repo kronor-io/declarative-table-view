@@ -1,10 +1,10 @@
 import { GraphQLClient } from 'graphql-request';
 import { buildHasuraConditions, HasuraOrderBy } from '../framework/graphql';
 import { View } from '../framework/view';
-import type { ColumnDefinition, ColumnId } from '../framework/column-definition';
+import type { ColumnDefinition, ColumnId, FieldQuery } from '../framework/column-definition';
 import { FilterState } from './state';
 
-export type FlattenedDataRow = Record<ColumnId, Record<string, any>>;
+export type FlattenedDataRow = Record<ColumnId, Record<string, unknown>>;
 
 export interface FetchDataResult {
     rows: Record<string, unknown>[]; // Fetched rows from the query
@@ -31,7 +31,7 @@ export const buildGraphQLQueryVariables = (
     rowLimit: number,
     cursor: string | number | null
 ) => {
-    let conditions = buildHasuraConditions(filterState, view.filterSchema);
+    let conditions = buildHasuraConditions(filterState, view.filterGroups);
 
     if (view.staticConditions && view.staticConditions.length > 0) {
         // Wrap even when user conditions object is empty for consistent shape
@@ -93,8 +93,8 @@ export const fetchData = async ({
 
         // Flatten the data before returning
         return {
-            rows: rowsFetched as Record<string, any>[],
-            flattenedRows: flattenFields(rowsFetched as Record<string, any>[], view.columnDefinitions)
+            rows: rowsFetched as Record<string, unknown>[],
+            flattenedRows: flattenFields(rowsFetched as Record<string, unknown>[], view.columnDefinitions)
         }
     } catch (error) {
         // Don't log AbortError as it's expected when cancelling requests
@@ -108,7 +108,7 @@ export const fetchData = async ({
 
 // Applies flattenColumnFields to all rows for all columns
 export const flattenFields = (
-    rows: Record<string, any>[],
+    rows: Record<string, unknown>[],
     columns: ColumnDefinition[]
 ): FlattenedDataRow[] => {
     return rows.map(row => {
@@ -119,7 +119,7 @@ export const flattenFields = (
 };
 
 // Helper to extract field values for a column from a row
-export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefinition) => {
+export const flattenColumnFields = (row: Record<string, unknown>, column: ColumnDefinition) => {
     // Build a per-column cell data object that includes ONLY the fields requested
     // by the column's FieldQuery definitions. We preserve nested object structure
     // (customer.name -> { customer: { name } }) but do not create dot-key strings.
@@ -129,10 +129,9 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
     // For alias fields we prefer the alias value already present in the row (as returned
     // by GraphQL). If missing, we derive it from the underlying field query.
 
-    const cellData: Record<string, any> = {};
+    const cellData: Record<string, unknown> = {};
 
-    function getUnderlyingValue(fq: any): any {
-        if (!fq || typeof fq !== 'object') return undefined;
+    function getUnderlyingValue(fq: FieldQuery): unknown {
         switch (fq.type) {
             case 'fieldAlias': {
                 // Prefer alias value if already present
@@ -148,8 +147,7 @@ export const flattenColumnFields = (row: Record<string, any>, column: ColumnDefi
         }
     }
 
-    function processFieldQuery(fq: any) {
-        if (!fq || typeof fq !== 'object') return;
+    function processFieldQuery(fq: FieldQuery) {
         if (fq.type === 'fieldAlias') {
             const alias = fq.alias;
             if (row[alias] !== undefined) {

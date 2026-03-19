@@ -1,7 +1,7 @@
 import { fetchData } from './data';
 import { View } from './view';
 import { ColumnDefinition } from './column-definition';
-import { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 
 // We only test merging logic; GraphQL call will be mocked.
 
@@ -20,7 +20,7 @@ describe('fetchData staticConditions merging', () => {
         id: 'test',
         collectionName: 'testCollection',
         columnDefinitions: [{ type: 'virtualColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }] } as ColumnDefinition],
-        filterSchema: { groups: [], filters: [] } as FilterSchemasAndGroups,
+        filterGroups: [] as FilterGroups,
         boolExpType: 'BoolExp',
         orderByType: '[OrderBy!]',
         paginationKey: 'id',

@@ -1,9 +1,9 @@
 import { createRef } from 'react'
-import type { RowSelectionAPI } from './components/Table';
 import './index.css'
 import { Runtime } from './framework/runtime';
 import packageFile from '../package.json';
 import { renderTableView, type RenderTableViewOptions } from './lib/renderTableView.tsx';
+import type { DTVAPI } from './App';
 
 export type { RenderTableViewOptions }
 
@@ -30,13 +30,12 @@ if (import.meta.env.DEV) {
             const rowSelectionTypeParam = urlParams.get('rowSelectionType');
             const rowSelection = rowSelectionTypeParam ? {
                 rowSelectionType: (rowSelectionTypeParam === 'multiple' ? 'multiple' : 'none') as 'multiple' | 'none',
-                onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; },
-                apiRef: createRef<RowSelectionAPI>()
+                onRowSelectionChange: (rows: any[]) => { (window as any).__lastSelection = rows; }
             } : undefined;
 
-
-            // Expose for tests to call rowSelection.apiRef.current.resetRowSelection later
-            (window as any).__rowSelection = rowSelection;
+            const apiRef = createRef<DTVAPI>();
+            // Expose for tests to call dtv api methods (e.g. rowSelection.reset)
+            (window as any).__dtvApiRef = apiRef;
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
@@ -46,7 +45,8 @@ if (import.meta.env.DEV) {
                 externalRuntime: runtime,
                 syncFilterStateToUrl: urlParams.get('sync-filter-state-to-url') === 'true',
                 showPopoutButton: urlParams.get('show-popout-button') === 'false' ? false : true,
-                rowSelection
+                rowSelection,
+                apiRef
             });
         };
 

@@ -2,7 +2,7 @@
 // Separated from view.ts to avoid React import issues in tests
 
 import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './column-definition';
-import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterSchemasAndGroups } from './filters';
+import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { View } from './view';
 import type { Runtime } from './runtime';
 
@@ -502,7 +502,7 @@ export function parseFilterExprJson(
             throw new Error(`Invalid ${expr.type} FilterExpr: "filters" must be an array`);
         }
         return {
-            type: expr.type as 'and' | 'or',
+            type: expr.type,
             filters: expr.filters.map(filter => parseFilterExprJson(filter, builtInRuntime, externalRuntime))
         };
     }
@@ -563,7 +563,7 @@ export function parseFilterFieldSchemaJson(
     json: unknown,
     builtInRuntime: Runtime,
     externalRuntime?: Runtime
-): FilterSchemasAndGroups {
+): FilterGroups {
     if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('Invalid FilterFieldSchema: Expected an object');
     }
@@ -575,7 +575,7 @@ export function parseFilterFieldSchemaJson(
         throw new Error('Invalid FilterFieldSchema: "groups" must be an array');
     }
 
-    const groups: FilterFieldGroup[] = schema.groups.map((group, index) => {
+    const groupsMeta: FilterFieldGroup[] = schema.groups.map((group, index) => {
         if (!group || typeof group !== 'object' || Array.isArray(group)) {
             throw new Error(`Invalid group[${index}]: Expected an object`);
         }
@@ -596,12 +596,22 @@ export function parseFilterFieldSchemaJson(
         };
     });
 
+    const groupNameSet = new Set<string>();
+    for (const group of groupsMeta) {
+        if (groupNameSet.has(group.name)) {
+            throw new Error(`Invalid FilterFieldSchema: Duplicate group name "${group.name}"`);
+        }
+        groupNameSet.add(group.name);
+    }
+
     // Validate filters
     if (!Array.isArray(schema.filters)) {
         throw new Error('Invalid FilterFieldSchema: "filters" must be an array');
     }
 
-    const filters: FilterSchema[] = schema.filters.map((filter, index) => {
+    const filterIdSet = new Set<string>();
+
+    const parsedFilters: Array<FilterSchema & { group: string }> = schema.filters.map((filter, index) => {
         if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
             throw new Error(`Invalid filter[${index}]: Expected an object`);
         }
@@ -612,12 +622,21 @@ export function parseFilterFieldSchemaJson(
             throw new Error(`Invalid filter[${index}]: "id" must be a string`);
         }
 
+        if (filterIdSet.has(f.id)) {
+            throw new Error(`Invalid filter[${index}]: Duplicate filter id "${f.id}"`);
+        }
+        filterIdSet.add(f.id);
+
         if (typeof f.label !== 'string') {
             throw new Error(`Invalid filter[${index}]: "label" must be a string`);
         }
 
         if (typeof f.group !== 'string') {
             throw new Error(`Invalid filter[${index}]: "group" must be a string`);
+        }
+
+        if (!groupNameSet.has(f.group)) {
+            throw new Error(`Invalid filter[${index}]: "group" references unknown group "${f.group}"`);
         }
 
         if (typeof f.aiGenerated !== 'boolean') {
@@ -644,10 +663,27 @@ export function parseFilterFieldSchemaJson(
         };
     });
 
-    return {
-        groups,
-        filters
-    };
+    const groups: FilterGroups = groupsMeta.map(groupMeta => ({
+        ...groupMeta,
+        filters: []
+    }));
+
+    const groupsByName = new Map(groups.map(g => [g.name, g] as const));
+    for (const filter of parsedFilters) {
+        const group = groupsByName.get(filter.group);
+        if (!group) {
+            // Should be unreachable due to validation above
+            throw new Error(`Invalid FilterFieldSchema: Filter "${filter.id}" references unknown group "${filter.group}"`);
+        }
+        group.filters.push({
+            id: filter.id,
+            label: filter.label,
+            expression: filter.expression,
+            aiGenerated: filter.aiGenerated
+        });
+    }
+
+    return groups;
 }
 
 // Parse ViewJson into a View object with separate built-in and external runtimes
@@ -739,9 +775,9 @@ export function parseViewJson(
     });
 
     // Parse filter schema with runtime resolution
-    let filterSchema;
+    let filterGroups;
     try {
-        filterSchema = parseFilterFieldSchemaJson(view.filterSchema, builtInRuntime, externalRuntime);
+        filterGroups = parseFilterFieldSchemaJson(view.filterSchema, builtInRuntime, externalRuntime);
     } catch (error) {
         throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -793,7 +829,7 @@ export function parseViewJson(
         id: view.id,
         collectionName: view.collectionName,
         columnDefinitions,
-        filterSchema,
+        filterGroups,
         defaultAIFilterPrompt,
         boolExpType: view.boolExpType,
         orderByType: view.orderByType,

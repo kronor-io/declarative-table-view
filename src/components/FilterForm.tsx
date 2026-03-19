@@ -1,5 +1,5 @@
-import type { FilterExpr, FilterFieldGroup, FilterSchema, FilterId } from '../framework/filters';
-import { FilterControl, FilterSchemasAndGroups } from '../framework/filters';
+import type { FilterExpr, FilterSchema, FilterId, FilterGroups, FilterGroup } from '../framework/filters';
+import { FilterControl } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterFormState, isFilterEmpty } from '../framework/filter-form-state';
 import { InputText } from 'primereact/inputtext';
@@ -14,16 +14,19 @@ import { GraphQLClient } from 'graphql-request';
 import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { Autocomplete } from './Autocomplete';
+import { FilterDisplayState } from '../framework/filter-display-state';
+import { getAllFilters } from '../framework/view';
 
 interface FilterFormProps {
-    filterSchemasAndGroups: FilterSchemasAndGroups;
+    filterGroups: FilterGroups;
     filterState: FilterState
     setFilterState: (state: FilterState) => void;
     onSaveFilter: (state: FilterState) => void;
     onUpdateFilter: (filter: SavedFilter, state: FilterState) => void;
     onShareFilter: () => void;
     savedFilters: SavedFilter[];
-    visibleFilterIds: FilterId[]; // indices of filters to display
+    displayState: FilterDisplayState;
+    onFilterGroupExpandedChange: (groupName: string, expanded: boolean) => void;
     onSubmit: () => void;
     graphqlClient: GraphQLClient;
 }
@@ -230,23 +233,22 @@ function renderFilterFormState(
 
 
 function FilterForm({
-    filterSchemasAndGroups,
+    filterGroups,
     filterState,
     setFilterState,
     onSaveFilter,
     onUpdateFilter,
     onShareFilter,
     savedFilters,
-    visibleFilterIds,
+    displayState,
+    onFilterGroupExpandedChange,
     onSubmit,
     graphqlClient
 }: FilterFormProps) {
 
     const filterSchemaById: Map<FilterId, FilterSchema> = useMemo(() => new Map(
-        filterSchemasAndGroups.filters.map(filter => [filter.id, filter])
-    ), [filterSchemasAndGroups]);
-
-    const visibleSet = useMemo(() => new Set(visibleFilterIds), [visibleFilterIds]);
+        getAllFilters(filterGroups).map(filter => [filter.id, filter])
+    ), [filterGroups]);
 
     // Helper to reset a filter by its ID
     function resetFilter(filterId: FilterId) {
@@ -259,22 +261,27 @@ function FilterForm({
     // Helper to reset all filters
     function resetAllFilters() {
         setFilterState(
-            createDefaultFilterState(filterSchemasAndGroups, FormStateInitMode.Empty)
+            createDefaultFilterState(filterGroups, FormStateInitMode.Empty)
         );
         onSubmit();
     }
 
-    // Group filters by group name
-    const defaultGroup: FilterFieldGroup | undefined = filterSchemasAndGroups.groups.find(group => group.name === 'default');
-    const defaultFilters: FilterSchema[] = filterSchemasAndGroups.filters.filter(filter => filter.group === 'default' && visibleSet.has(filter.id));
-    const otherGroups: FilterFieldGroup[] = filterSchemasAndGroups.groups.filter(group => group.name !== 'default');
-    const filtersByGroup: Array<{ group: FilterFieldGroup; filters: FilterSchema[] }> =
-        otherGroups
-            .map(group => ({
-                group,
-                filters: filterSchemasAndGroups.filters.filter(filter => filter.group === group.name && visibleSet.has(filter.id))
-            }))
+    const displayedGroups: FilterGroups = displayState.type === 'all'
+        ? filterGroups
+        : displayState.filterGroups;
+
+    const defaultGroup: FilterGroup | undefined = displayedGroups.find(group => group.name === 'default');
+    const defaultFilters: FilterSchema[] = defaultGroup?.filters ?? [];
+
+    const filtersByGroup: Array<{ group: FilterGroup; filters: FilterSchema[] }> = useMemo(() => {
+        return displayedGroups
+            .filter(group => group.name !== 'default')
+            .map(group => ({ group, filters: group.filters }))
             .filter(grouping => grouping.filters.length > 0);
+    }, [displayedGroups]);
+
+    const expandedGroupsSet = useMemo(() => new Set(displayState.expandedGroups), [displayState.expandedGroups]);
+
     return (
         <form className="tw:mb-4" onSubmit={e => { e.preventDefault(); onSubmit(); }}>
             {/* Render default group filters above the dividers */}
@@ -315,7 +322,37 @@ function FilterForm({
             {/* Render other groups with Panel and captions */}
             {
                 filtersByGroup.map(({ group, filters }) => (
-                    <Panel key={group.name} header={group.label} className="tw:w-full tw:mb-4">
+                    <Panel
+                        key={group.name}
+                        header={group.label ?? group.name}
+                        headerTemplate={(options) => {
+                            return (
+                                <div
+                                    className={`${options.className} tw:cursor-pointer`}
+                                    onClick={(event) => {
+                                        const target = event.target as HTMLElement | null;
+
+                                        // Avoid double-toggling when clicking the built-in toggler button/icon.
+                                        if (target?.closest('.p-panel-header-icon')) {
+                                            return;
+                                        }
+
+                                        options.onTogglerClick(event);
+                                    }}
+                                >
+                                    {options.titleElement}
+                                    {options.iconsElement}
+                                </div>
+                            );
+                        }}
+                        className="tw:w-full tw:mb-4"
+                        toggleable
+                        collapsed={!expandedGroupsSet.has(group.name)}
+                        onToggle={(e) => {
+                            const isNowCollapsed = e.value === true;
+                            onFilterGroupExpandedChange(group.name, !isNowCollapsed);
+                        }}
+                    >
                         <div className="tw:flex tw:flex-wrap tw:gap-4 tw:items-start">
                             {
                                 filters.map((filterSchema) => (

@@ -1,5 +1,5 @@
 import { serializeFilterFormStateMap, parseFilterFormState } from './filter-form-state';
-import { FilterSchemasAndGroups } from './filters';
+import { FilterGroups } from './filters';
 import { FilterState } from './state';
 
 /**
@@ -35,8 +35,8 @@ export type SavedFilterId = SavedFilter['id'];
 
 export const SAVED_FILTERS_KEY = 'dtvSavedFilters';
 
-export function fromSavedFilterJson(rawFilter: SavedFilterJson, schema: FilterSchemasAndGroups): SavedFilter {
-    const parsedState = parseFilterFormState(rawFilter.state as Record<string, unknown>, schema);
+export function fromSavedFilterJson(rawFilter: SavedFilterJson, filterGroups: FilterGroups): SavedFilter {
+    const parsedState = parseFilterFormState(rawFilter.state as Record<string, unknown>, filterGroups);
 
     return {
         id: rawFilter.id,

@@ -15,13 +15,12 @@ import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
 import type { FlattenedDataRow } from '../framework/data';
 
-export interface RowSelectionAPI {
-    resetRowSelection(): void;
-}
+export type RowSelectionResetFn = () => void;
 
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
+    hiddenColumnIds: string[];
     data: FlattenedDataRow[]; // Array of rows, each row keyed by column id
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
@@ -31,9 +30,10 @@ type TableProps = {
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
         onRowSelectionChange?: (rows: any[]) => void;
-        /** Ref object populated by Table with RowSelectionAPI */
-        apiRef?: React.RefObject<RowSelectionAPI | null>;
     };
+
+    /** Optional callback invoked when row selection reset becomes available/unavailable. */
+    onRowSelectionResetChange?: (resetFn: RowSelectionResetFn | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
@@ -41,6 +41,7 @@ type TableProps = {
 function Table({
     viewId,
     columns,
+    hiddenColumnIds,
     data,
     noRowsComponent,
     setFilterState,
@@ -48,9 +49,14 @@ function Table({
     triggerRefetch,
     ref,
     rowSelection,
-    rowClassFunction
+    rowClassFunction,
+    onRowSelectionResetChange
 }: TableProps) {
-    const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => column.type === 'tableColumn');
+    const hiddenSet = new Set(hiddenColumnIds);
+    const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
+        if (column.type !== 'tableColumn') return false;
+        return !hiddenSet.has(column.id);
+    });
 
     // Create wrapped setFilterState that provides current state to updater function
     const wrappedSetFilterState = (updater: (currentState: FilterState) => FilterState) => {
@@ -91,14 +97,20 @@ function Table({
     const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
     const selectionType = rowSelection?.rowSelectionType ?? 'none';
 
-    // Populate imperative API ref if provided
+    // Expose row selection reset function (only when enabled)
     useEffect(() => {
-        if (rowSelection?.apiRef) {
-            rowSelection.apiRef.current = {
-                resetRowSelection: () => setSelectedRows([])
-            };
+        if (selectionType !== 'multiple') {
+            onRowSelectionResetChange?.(null);
+            return;
         }
-    }, [rowSelection]);
+
+        const resetFn: RowSelectionResetFn = () => setSelectedRows([]);
+        onRowSelectionResetChange?.(resetFn);
+
+        return () => {
+            onRowSelectionResetChange?.(null);
+        };
+    }, [selectionType, onRowSelectionResetChange]);
 
     const handleSelectionChange = (rows: any[]) => {
         if (selectionType === 'none') return; // ignore events if disabled

@@ -1,29 +1,28 @@
 import { FilterState } from './state';
 import { buildHasuraConditions } from './graphql';
-import { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
 
 describe('buildHasuraConditions', () => {
     // Helper function to create a simple filter schema for testing
-    const createFilterSchema = (filterId: string, expression: any): FilterSchemasAndGroups => ({
-        groups: [{ name: 'basic', label: 'Basic Filters' }],
-        filters: [
-            {
-                id: filterId,
-                label: 'Test Filter',
-                expression,
-                group: 'basic',
-                aiGenerated: false
-            }
-        ]
-    });
+    const createFilterSchema = (filterId: string, expression: any): FilterGroups => ([
+        {
+            name: 'basic',
+            label: 'Basic Filters',
+            filters: [
+                {
+                    id: filterId,
+                    label: 'Test Filter',
+                    expression,
+                    aiGenerated: false
+                }
+            ]
+        }
+    ]);
 
     it('should return an empty object for no conditions', () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [],
-            filters: []
-        };
+        const filterSchema: FilterGroups = [];
         expect(buildHasuraConditions(new Map(), filterSchema)).toEqual({});
     });
 
@@ -40,25 +39,26 @@ describe('buildHasuraConditions', () => {
     });
 
     it('should handle multiple conditions with an implicit AND', () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'name-filter',
-                    label: 'Name Filter',
-                    expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                },
-                {
-                    id: 'age-filter',
-                    label: 'Age Filter',
-                    expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'name-filter',
+                        label: 'Name Filter',
+                        expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
+                        aiGenerated: false
+                    },
+                    {
+                        id: 'age-filter',
+                        label: 'Age Filter',
+                        expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['name-filter', { type: 'leaf', field: 'name', filterType: 'equals', value: 'test', control: { type: 'text' } }],
@@ -202,39 +202,38 @@ describe('buildHasuraConditions', () => {
     });
 
     it('should ignore empty or invalid values', () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'name-filter',
-                    label: 'Name Filter',
-                    expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                },
-                {
-                    id: 'age-filter',
-                    label: 'Age Filter',
-                    expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
-                    group: 'basic',
-                    aiGenerated: false
-                },
-                {
-                    id: 'tags-filter',
-                    label: 'Tags Filter',
-                    expression: FilterExpr.in({ field: 'tags', control: FilterControl.multiselect({ items: [] }) }),
-                    group: 'basic',
-                    aiGenerated: false
-                },
-                {
-                    id: 'valid-filter',
-                    label: 'Valid Filter',
-                    expression: FilterExpr.equals({ field: 'valid', control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'name-filter',
+                        label: 'Name Filter',
+                        expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() }),
+                        aiGenerated: false
+                    },
+                    {
+                        id: 'age-filter',
+                        label: 'Age Filter',
+                        expression: FilterExpr.greaterThan({ field: 'age', control: FilterControl.number() }),
+                        aiGenerated: false
+                    },
+                    {
+                        id: 'tags-filter',
+                        label: 'Tags Filter',
+                        expression: FilterExpr.in({ field: 'tags', control: FilterControl.multiselect({ items: [] }) }),
+                        aiGenerated: false
+                    },
+                    {
+                        id: 'valid-filter',
+                        label: 'Valid Filter',
+                        expression: FilterExpr.equals({ field: 'valid', control: FilterControl.text() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['name-filter', { type: 'leaf', field: 'name', filterType: 'equals', value: '', control: { type: 'text' } }],
@@ -321,18 +320,20 @@ describe('buildHasuraConditions', () => {
 
 describe("Multi-field Filter Support with buildHasuraConditions", () => {
     it("should handle object format with and", () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'multi-and-filter',
-                    label: 'Multi AND Filter',
-                    expression: FilterExpr.equals({ field: { and: ['name', 'title'] }, control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'multi-and-filter',
+                        label: 'Multi AND Filter',
+                        expression: FilterExpr.equals({ field: { and: ['name', 'title'] }, control: FilterControl.text() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['multi-and-filter', {
@@ -355,18 +356,20 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
     });
 
     it("should handle object format with or", () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'multi-or-filter',
-                    label: 'Multi OR Filter',
-                    expression: FilterExpr.equals({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'multi-or-filter',
+                        label: 'Multi OR Filter',
+                        expression: FilterExpr.equals({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['multi-or-filter', {
@@ -389,18 +392,20 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
     });
 
     it("should handle nested fields with object format", () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'nested-multi-filter',
-                    label: 'Nested Multi Filter',
-                    expression: FilterExpr.iLike({ field: { or: ['user.email', 'user.username'] }, control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'nested-multi-filter',
+                        label: 'Nested Multi Filter',
+                        expression: FilterExpr.iLike({ field: { or: ['user.email', 'user.username'] }, control: FilterControl.text() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['nested-multi-filter', {
@@ -423,25 +428,26 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
     });
 
     it("should handle mixed multi-field and single field expressions", () => {
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'search-filter',
-                    label: 'Search Filter',
-                    expression: FilterExpr.iLike({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                },
-                {
-                    id: 'category-filter',
-                    label: 'Category Filter',
-                    expression: FilterExpr.equals({ field: 'category', control: FilterControl.text() }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'search-filter',
+                        label: 'Search Filter',
+                        expression: FilterExpr.iLike({ field: { or: ['name', 'title'] }, control: FilterControl.text() }),
+                        aiGenerated: false
+                    },
+                    {
+                        id: 'category-filter',
+                        label: 'Category Filter',
+                        expression: FilterExpr.equals({ field: 'category', control: FilterControl.text() }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         const formState: FilterState = new Map([
             ['search-filter', {
@@ -477,27 +483,29 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
 
     it('should handle transforms in filter schema', () => {
         // Create a filter schema with transform
-        const filterSchema: FilterSchemasAndGroups = {
-            groups: [{ name: 'basic', label: 'Basic Filters' }],
-            filters: [
-                {
-                    id: 'email-filter',
-                    label: 'Email Filter',
-                    expression: FilterExpr.equals({
-                        field: 'user.email',
-                        control: FilterControl.text(),
-                        transform: {
-                            toQuery: (input: unknown) => ({
-                                field: 'user.email_address', // transform field name
-                                value: String(input).toLowerCase() // transform value
-                            })
-                        }
-                    }),
-                    group: 'basic',
-                    aiGenerated: false
-                }
-            ]
-        };
+        const filterSchema: FilterGroups = [
+            {
+                name: 'basic',
+                label: 'Basic Filters',
+                filters: [
+                    {
+                        id: 'email-filter',
+                        label: 'Email Filter',
+                        expression: FilterExpr.equals({
+                            field: 'user.email',
+                            control: FilterControl.text(),
+                            transform: {
+                                toQuery: (input: unknown) => ({
+                                    field: 'user.email_address', // transform field name
+                                    value: String(input).toLowerCase() // transform value
+                                })
+                            }
+                        }),
+                        aiGenerated: false
+                    }
+                ]
+            }
+        ];
 
         // Create filter state with original value
         const formState = new Map();

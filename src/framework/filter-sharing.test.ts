@@ -7,6 +7,10 @@ import {
 } from './filter-sharing';
 import { FilterState } from './state';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 describe('filter-sharing', () => {
     const mockFilterState: FilterState = new Map([
         ['name-filter', {
@@ -80,6 +84,10 @@ describe('filter-sharing', () => {
             expect(typeof decoded).toBe('object');
             expect(decoded).not.toBeNull();
             expect(Array.isArray(decoded)).toBe(false);
+            expect(isRecord(decoded)).toBe(true);
+            if (!isRecord(decoded)) {
+                throw new Error('Expected decoded filter state to be a record');
+            }
             expect(Object.keys(decoded)).toHaveLength(2);
         });
 
@@ -107,11 +115,15 @@ describe('filter-sharing', () => {
     describe('round-trip encoding/decoding', () => {
         it('should preserve filter state through encode/decode cycle', () => {
             const encoded = encodeFilterState(mockFilterState);
-            const decoded: any = decodeFilterState(encoded);
+            const decoded = decodeFilterState(encoded);
 
             // The decoded state should be an object with filter ID keys
             expect(typeof decoded).toBe('object');
             expect(Array.isArray(decoded)).toBe(false);
+            expect(isRecord(decoded)).toBe(true);
+            if (!isRecord(decoded)) {
+                throw new Error('Expected decoded filter state to be a record');
+            }
             expect(Object.keys(decoded)).toHaveLength(2);
 
             // Check that both filters are present with their correct data

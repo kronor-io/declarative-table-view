@@ -259,7 +259,7 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
                 .map(([field, value]) => {
                     if (Array.isArray(value)) {
                         // Array of HasuraOperator
-                        return `${field}: ${renderHasuraOperators(value as HasuraOperator[])}`;
+                        return `${field}: ${renderHasuraOperators(value)}`;
                     }
                     if (typeof value === 'object' && value !== null) {
                         // Heuristic: if the value contains any known operator keys, treat it as HasuraOperator; otherwise treat as nested HasuraCondition.

@@ -1,6 +1,6 @@
 import { buildGraphQLQueryVariables } from './data';
 import { View } from './view';
-import { FilterSchemasAndGroups, FilterSchema } from './filters';
+import type { FilterGroups, FilterSchema } from './filters';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
 import { ColumnDefinition } from './column-definition';
@@ -12,7 +12,7 @@ const baseView: Omit<View, 'title' | 'id'> & { title: string; id: string } = {
     id: 'test',
     collectionName: 'testCollection',
     columnDefinitions: [{ type: 'virtualColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }] } as ColumnDefinition],
-    filterSchema: { groups: [], filters: [] } as FilterSchemasAndGroups,
+    filterGroups: [] as FilterGroups,
     boolExpType: 'BoolExp',
     orderByType: '[OrderBy!]',
     paginationKey: 'id'
@@ -47,12 +47,11 @@ describe('buildGraphQLQueryVariables', () => {
             id: 'f1',
             label: 'ID',
             expression: FilterExpr.equals({ field: 'id', control: FilterControl.text() }),
-            group: 'default',
             aiGenerated: false
         };
         const view: View = {
             ...baseView,
-            filterSchema: { groups: [], filters: [userFilter] }
+            filterGroups: [{ name: 'default', label: null, filters: [userFilter] }]
         };
         const filterState: FilterState = new Map([[userFilter.id, buildInitialFormState(userFilter.expression)]]);
         const existing = filterState.get(userFilter.id);

@@ -1,7 +1,7 @@
 import { ViewId } from './view';
 
 import { fromSavedFilterJson, toSavedFilterJson, type SavedFilter, type SavedFilterJson } from './saved-filters';
-import { FilterSchemasAndGroups } from './filters';
+import { FilterGroups } from './filters';
 
 export const INITIAL_USERDATA_FORMAT_REVISION = '1970-01-01T00:00:00.000Z'
 
@@ -101,15 +101,15 @@ export function toUserDataJson(data: UserData): UserDataJson {
     }
 }
 
-export function fromUserDataJson(json: UserDataJson, filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>): UserData {
+export function fromUserDataJson(json: UserDataJson, filterGroupsByViewId: Record<ViewId, FilterGroups>): UserData {
     // Only hydrate views for which we have filter schemas.
     // Other views may exist in persisted JSON, but are ignored in-memory.
     const views: Record<ViewId, ViewData> = Object.fromEntries(
         Object.entries(json.views).flatMap(([viewId, viewJson]) => {
-            const schema = filterSchemasByViewId[viewId]
-            if (!schema) return []
+            const filterGroups = filterGroupsByViewId[viewId]
+            if (!filterGroups) return []
 
-            const savedFilters = viewJson.savedFilters.map((savedFilterJson) => fromSavedFilterJson(savedFilterJson, schema))
+            const savedFilters = viewJson.savedFilters.map((savedFilterJson) => fromSavedFilterJson(savedFilterJson, filterGroups))
             return [[viewId, { ...viewJson, savedFilters }]]
         })
     )

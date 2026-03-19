@@ -1,4 +1,5 @@
-import { FilterSchemasAndGroups, FilterField, FilterControl, FilterExpr, FilterTransform } from './filters';
+import { FilterField, FilterControl, FilterExpr, FilterGroups } from './filters';
+import { getAllFilters } from './view';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 
 // Tree-like state for FilterForm
@@ -36,7 +37,7 @@ export function mapFilterFormState<T>(
 }
 
 // Type aliases for narrowed FilterExpr types
-type LeafFilterExpr = FilterExpr & { field: FilterField; value: FilterControl; transform?: FilterTransform };
+type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
 type AndFilterExpr = FilterExpr & { type: 'and' };
 type OrFilterExpr = FilterExpr & { type: 'or' };
 type NotFilterExpr = FilterExpr & { type: 'not' };
@@ -69,7 +70,7 @@ export function traverseFilterSchemaAndState<T>(
 ): T {
     switch (stateNode.type) {
         case 'leaf':
-            return handlers.leaf(schemaNode as LeafFilterExpr, stateNode as FilterFormState & { type: 'leaf' });
+            return handlers.leaf(schemaNode as LeafFilterExpr, stateNode);
 
         case 'and': {
             const state = stateNode as FilterFormState & { type: 'and' };
@@ -192,15 +193,16 @@ function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFor
  * Parse serialized filter state (object keyed by filter id) back into a FilterState Map,
  * converting date string values to Date objects by consulting the filter schema.
  */
-export function parseFilterFormState(serializedState: any, schema: FilterSchemasAndGroups): FilterState {
+export function parseFilterFormState(serializedState: any, filterGroups: FilterGroups): FilterState {
+    const filters = getAllFilters(filterGroups);
     return new Map(
-        schema.filters.map(filter => {
+        filters.map(filter => {
             const raw = serializedState ? serializedState[filter.id] : undefined;
             if (raw && typeof raw === 'object' && 'type' in raw) {
-                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)] as [string, FilterFormState];
+                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];
             }
             // If invalid/missing, fall back to an empty initialized state derived from schema
-            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)] as [string, FilterFormState];
+            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)];
         })
     );
 }

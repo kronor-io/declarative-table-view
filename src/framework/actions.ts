@@ -7,11 +7,14 @@ import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
 import { buildGraphQLQueryVariables } from './data';
 import type { PaginationState } from './state';
 import type { ShowToastFn } from './toast';
+import type { CSSProperties } from 'react';
 
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
     view: View; // Currently selected view
     filterState: FilterState; // Current filter state map
+    /** Current selected rows (simplified/flattened), empty when none selected or selection disabled. */
+    selectedRows: unknown[];
     setFilterState: (next: FilterState) => void; // Replace filter state (resets pagination)
     refetch: () => void; // Trigger a data refetch for current view & filters
     showToast: ShowToastFn; // Convenience toast helper
@@ -32,6 +35,16 @@ export interface ActionDefinition {
     label: string; // Button label
     onClick: (api: ActionAPI) => void | Promise<void>; // Handler invoked on click
     icon?: string; // Optional PrimeReact icon class (e.g. 'pi pi-cog')
+    /** Optional PrimeReact Button badge value. */
+    badge?: string;
+    /** Optional className applied to the badge element by PrimeReact Button. */
+    badgeClassName?: string;
+    /** Optional visual severity of the action button. */
+    severity?: 'secondary' | 'success' | 'info' | 'warning' | 'help' | 'danger' | 'contrast';
+    /** Optional className applied to the action button. */
+    className?: string;
+    /** Optional inline style applied to the action button. */
+    style?: CSSProperties;
     outlined?: boolean; // Optional style control (defaults to true for consistency with existing buttons)
     size?: 'small' | 'normal'; // Optional size (defaults to 'small')
     disabled?: boolean; // Optional disabled state

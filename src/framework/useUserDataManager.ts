@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { FilterSchemasAndGroups } from './filters';
+import type { FilterGroups } from './filters';
 import type { SavedFilter, SavedFilterId } from './saved-filters';
 import type { UserPreferences, ViewData } from './user-data';
 import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY, type UserDataManagerOptions } from './user-data-manager';
 import type { ViewId } from './view';
 
 export function useUserDataManager(
-    filterSchemasByViewId: Record<ViewId, FilterSchemasAndGroups>,
+    filterGroupsByViewId: Record<ViewId, FilterGroups>,
     currentViewId: ViewId,
     options: UserDataManagerOptions
 ) {
     const manager = useMemo(() => {
-        return createUserDataManager(filterSchemasByViewId, options);
-    }, [filterSchemasByViewId, options]);
+        return createUserDataManager(filterGroupsByViewId, options);
+    }, [filterGroupsByViewId, options]);
 
     // React state for the reactive parts
     const [preferences, setPreferences] = useState<UserPreferences>(() => manager.getPreferences());

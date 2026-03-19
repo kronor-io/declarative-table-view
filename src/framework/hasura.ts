@@ -1,4 +1,5 @@
-import { FilterField, FilterSchemasAndGroups, FilterExpr } from './filters';
+import { FilterField, FilterGroups, FilterExpr } from './filters';
+import { getAllFilters } from './view';
 import { FilterFormState, traverseFilterSchemaAndState } from './filter-form-state';
 import { FilterState } from './state';
 
@@ -31,9 +32,10 @@ export type HasuraCondition =
 
 // Build Hasura conditions from FilterFormState and FilterFieldSchema using schema-driven approach
 export function buildHasuraConditions(
-    filterState: FilterState,
-    filterSchema: FilterSchemasAndGroups
+    filterState: Map<string, FilterFormState>,
+    filterGroups: FilterGroups
 ): HasuraCondition {
+    const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
         if (typeof field === 'object') {
             if ('and' in field) {
@@ -72,7 +74,7 @@ export function buildHasuraConditions(
                     if (schema.transform?.toQuery !== undefined) {
                         const transformResult = schema.transform.toQuery(state.value);
                         if ('condition' in transformResult) {
-                            return transformResult.condition as HasuraCondition;
+                            return transformResult.condition;
                         }
                         if ('field' in transformResult && transformResult.field !== undefined) {
                             transformedField = transformResult.field;
@@ -127,7 +129,7 @@ export function buildHasuraConditions(
 
     const conditions: HasuraCondition[] = [];
     for (const [filterId, formState] of filterState.entries()) {
-        const filterDef = filterSchema.filters.find(f => f.id === filterId);
+        const filterDef = filtersById.get(filterId);
         if (!filterDef) continue;
         const condition = buildConditionsRecursive(filterDef.expression, formState);
         if (condition) {
