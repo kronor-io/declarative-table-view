@@ -122,6 +122,12 @@ npm test
 npm run test
 ```
 
+## Type Generation (CLI)
+
+DTV ships a CLI command for generating TypeScript types from a Hasura GraphQL schema:
+
+- See `docs/typegen.md`
+
 ## Release Process
 
 Automated release script performs validation (lint, build, unit + e2e tests), builds the library bundle, bumps the version, pushes git tags, and publishes to npm.

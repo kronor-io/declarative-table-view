@@ -2,14 +2,20 @@
   "name": "@kronor/dtv",
   "version": "4.1.0",
   "type": "module",
+  "bin": {
+    "dtv": "./bin/dtv.js"
+  },
   "files": [
+    "bin",
     "dist",
     "docs"
   ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:lib": "tsc -p tsconfig.lib.json && vite build --config vite.lib.config.ts",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "build:lib": "npm run build:cli && tsc -p tsconfig.lib.json && vite build --config vite.lib.config.ts",
+    "prepack": "npm run build:lib",
     "dev:playground": "npm run build:lib -- --watch & vite --config vite.playground.config.ts",
     "clean": "rimraf dist",
     "lint": "eslint .",
@@ -25,6 +31,10 @@
     ".": {
       "types": "./dist/types/lib/index.d.ts",
       "import": "./dist/index.es.js"
+    },
+    "./typegen": {
+      "types": "./dist/types/typegen/index.d.ts",
+      "default": "./dist/index.es.js"
     }
   },
   "main": "./dist/index.es.js",
@@ -35,12 +45,17 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "commander": "^14.0.0",
+    "fast-glob": "^3.3.3",
+    "graphql": "^16.11.0",
     "graphql-request": "^7.1.2",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwindcss": "^4.1.1"
+    "tailwindcss": "^4.1.1",
+    "tsx": "^4.20.5",
+    "typescript": "~5.7.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
@@ -61,8 +76,6 @@
     "jest-environment-jsdom": "^30.0.4",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.4.0",
-    "tsx": "^4.20.5",
-    "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0",
     "vite-plugin-css-injected-by-js": "^3.5.2"
