@@ -8,6 +8,7 @@
 import {
     type FieldQuery,
     type DataFromFieldQueriesSafe,
+    type DataFromFieldQueriesForRowSafe,
     type TableColumnDefinition,
     type VirtualColumnDefinition,
     type CellRenderer,
@@ -20,21 +21,52 @@ import {
 import type { HasuraCondition } from '../framework/graphql';
 
 /**
+ * Produces a phantom value used for type inference.
+ *
+ * Typical usage:
+ *
+ *   column({
+ *     rowType: rowType<MyRowSlice>(),
+ *     ...
+ *   })
+ */
+export function rowType<Row>(): Row {
+    return undefined as unknown as Row;
+}
+
+/**
  * Creates a renderable table column definition.
  * Convenience wrapper around the underlying TableColumnDefinition type.
  */
+export function column<Row, const FieldQueries extends readonly FieldQuery[]>(args: {
+    // Phantom type-only field used for inference; not included in the returned column definition.
+    rowType: Row;
+    id: string;
+    name: string;
+    data: FieldQueries;
+    cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
+}): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
     id: string;
     name: string;
     data: FieldQueries;
     cellRenderer: CellRenderer<DataFromFieldQueriesSafe<FieldQueries>>;
-}): TableColumnDefinition<FieldQueries> {
+}): TableColumnDefinition<FieldQueries>;
+export function column(args: {
+    rowType?: unknown;
+    id: string;
+    name: string;
+    data: readonly FieldQuery[];
+    cellRenderer: CellRenderer<Record<string, any>>;
+}): TableColumnDefinition {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { rowType, ...rest } = args;
     return {
         type: 'tableColumn',
-        id: args.id,
-        name: args.name,
-        data: args.data,
-        cellRenderer: args.cellRenderer,
+        id: rest.id,
+        name: rest.name,
+        data: rest.data,
+        cellRenderer: rest.cellRenderer,
     };
 }
 

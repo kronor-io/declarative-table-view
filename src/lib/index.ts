@@ -15,6 +15,7 @@ export { FilterExpr } from '../dsl/filterExpr';
 export { FilterControl } from '../dsl/filterControl';
 export { CellRenderer } from '../dsl/cellRenderer';
 export { FilterTransform } from '../dsl/filterTransform';
+export { rowType } from '../dsl/columns';
 export type { UserDataJson } from '../framework/user-data';
 export type {
     UserDataLoadAPI,
