@@ -9,6 +9,7 @@ import {
     type FieldQuery,
     type DataFromFieldQueriesSafe,
     type DataFromFieldQueriesForRowSafe,
+    type FieldQueryForRowSafe,
     type TableColumnDefinition,
     type VirtualColumnDefinition,
     type CellRenderer,
@@ -26,7 +27,7 @@ import type { HasuraCondition } from '../framework/graphql';
  * Typical usage:
  *
  *   column({
- *     rowType: rowType<MyRowSlice>(),
+ *     rowType: rowType<MyFullRow>(),
  *     ...
  *   })
  */
@@ -43,10 +44,11 @@ export function column<Row, const FieldQueries extends readonly FieldQuery[]>(ar
     rowType: Row;
     id: string;
     name: string;
-    data: FieldQueries;
+    data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
     cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 }): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
+    rowType?: never;
     id: string;
     name: string;
     data: FieldQueries;

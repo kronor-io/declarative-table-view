@@ -209,9 +209,7 @@ type ValueFromQueryForRow<
     Row,
     Q extends Query,
 > = Q extends { type: "valueQuery"; field: infer Field extends string }
-    ? Field extends keyof Row
-    ? Row[Field]
-    : unknown
+    ? Row[Field & keyof Row]
     : Q extends { type: "objectQuery" }
     ? ValueFromObjectQueryForRow<Row, Q>
     : Q extends { type: "arrayQuery" }
@@ -234,7 +232,7 @@ type DataFromValueQueryForRow<
     type: "valueQuery";
     field: infer Field extends string;
 }
-    ? { [K in Field]: Field extends keyof Row ? Row[Field] : unknown }
+    ? { [K in Field]: Row[K & keyof Row] }
     : EmptyObject;
 
 type DataFromObjectQueryForRow<
@@ -246,14 +244,12 @@ type DataFromObjectQueryForRow<
     selectionSet: infer SelectionSet extends readonly Query[];
 }
     ? {
-        [K in Field]: Field extends keyof Row
-        ? PreserveNullish<
-            Row[Field],
-            NonNullable<Row[Field]> extends object
-            ? DataFromSelectionSetForRow<NonNullable<Row[Field]>, SelectionSet>
+        [K in Field]: PreserveNullish<
+            Row[Field & keyof Row],
+            NonNullable<Row[Field & keyof Row]> extends object
+            ? DataFromSelectionSetForRow<NonNullable<Row[Field & keyof Row]>, SelectionSet>
             : unknown
-        >
-        : unknown;
+        >;
     }
     : EmptyObject;
 
@@ -266,14 +262,12 @@ type DataFromArrayQueryForRow<
     selectionSet: infer SelectionSet extends readonly Query[];
 }
     ? {
-        [K in Field]: Field extends keyof Row
-        ? PreserveNullish<
-            Row[Field],
-            NonNullable<Row[Field]> extends ReadonlyArray<infer Elem>
+        [K in Field]: PreserveNullish<
+            Row[Field & keyof Row],
+            NonNullable<Row[Field & keyof Row]> extends ReadonlyArray<infer Elem>
             ? Array<PreserveNullish<Elem, DataFromSelectionSetForRow<NonNullable<Elem> extends object ? NonNullable<Elem> : Record<string, unknown>, SelectionSet>>>
             : unknown
-        >
-        : unknown;
+        >;
     }
     : EmptyObject;
 
@@ -336,6 +330,127 @@ export type DataFromFieldQueriesForRowSafe<
 > = HasWideTopLevelKeys<FieldQueries> extends true
     ? Record<string, any>
     : DataFromFieldQueriesForRow<Row, FieldQueries>;
+
+type HasWideKeys<Row> = string extends keyof Row ? true : false;
+type StringKeyOf<Row> = keyof Row & string;
+type NonNullish<T> = Exclude<T, null | undefined>;
+type ElemOf<T> = T extends ReadonlyArray<infer E> ? E : never;
+
+type KeysMatching<Row, Constraint> = {
+    [K in keyof Row]-?: NonNullish<Row[K]> extends Constraint ? K : never;
+}[keyof Row];
+
+type ArrayKeys<Row> = KeysMatching<Row, ReadonlyArray<any>>;
+type ObjectKeys<Row> = {
+    [K in keyof Row]-?: NonNullish<Row[K]> extends ReadonlyArray<any>
+    ? never
+    : NonNullish<Row[K]> extends object
+    ? K
+    : never;
+}[keyof Row];
+
+export type ValueQueryForRow<Row> = ValueQuery & {
+    field: StringKeyOf<Row>;
+};
+
+export type ObjectQueryForRow<Row> = {
+    [K in Extract<ObjectKeys<Row>, string>]: ObjectQuery & {
+        field: K;
+        selectionSet: readonly QueryForRowSafe<NonNullish<Row[K]>>[];
+    };
+}[Extract<ObjectKeys<Row>, string>];
+
+export type ArrayQueryForRow<Row> = {
+    [K in Extract<ArrayKeys<Row>, string>]: ArrayQuery & {
+        field: K;
+        selectionSet: readonly QueryForRowSafe<NonNullish<ElemOf<NonNullish<Row[K]>>>>[];
+    };
+}[Extract<ArrayKeys<Row>, string>];
+
+export type QueryForRow<Row> =
+    | ValueQueryForRow<Row>
+    | ObjectQueryForRow<Row>
+    | ArrayQueryForRow<Row>;
+
+export type QueryForRowSafe<Row> = HasWideKeys<Row> extends true ? Query : QueryForRow<Row>;
+
+export type FieldAliasForRow<Row> = FieldAlias & {
+    field: FieldQueryForRowSafe<Row>;
+};
+
+export type FieldQueryForRow<Row> = QueryForRow<Row> | FieldAliasForRow<Row>;
+export type FieldQueryForRowSafe<Row> = HasWideKeys<Row> extends true ? FieldQuery : FieldQueryForRow<Row>;
+
+type IsTuple<T extends readonly unknown[]> = number extends T["length"] ? false : true;
+
+type FieldOfQuery<Q extends Query> = Q extends { field: infer Field } ? Field : never;
+type SelectionSetOfQuery<Q extends Query> = Q extends { selectionSet: infer SelectionSet extends readonly Query[] }
+    ? SelectionSet
+    : never;
+
+type ValidateQueryForRow<Row, Q extends Query> = Q extends { type: "valueQuery" }
+    ? FieldOfQuery<Q> extends StringKeyOf<Row>
+    ? Q
+    : never
+    : Q extends { type: "objectQuery" }
+    ? FieldOfQuery<Q> extends Extract<ObjectKeys<Row>, string>
+    ? ValidateSelectionSetForRow<NonNullish<Row[FieldOfQuery<Q>]>, SelectionSetOfQuery<Q>> extends never
+    ? never
+    : Q
+    : never
+    : Q extends { type: "arrayQuery" }
+    ? FieldOfQuery<Q> extends Extract<ArrayKeys<Row>, string>
+    ? ValidateSelectionSetForRow<NonNullish<ElemOf<NonNullish<Row[FieldOfQuery<Q>]>>>, SelectionSetOfQuery<Q>> extends never
+    ? never
+    : Q
+    : never
+    : never;
+
+type ValidateSelectionSetForRow<Row, SelectionSet extends readonly Query[]> = IsTuple<SelectionSet> extends true
+    ? SelectionSet extends readonly []
+    ? SelectionSet
+    : SelectionSet extends readonly [infer Head, ...infer Tail]
+    ? Head extends Query
+    ? ValidateQueryForRow<Row, Head> extends never
+    ? never
+    : Tail extends readonly Query[]
+    ? ValidateSelectionSetForRow<Row, Tail>
+    : never
+    : never
+    : never
+    : SelectionSet;
+
+type ValidateFieldQueryForRow<Row, FQ extends FieldQuery> = FQ extends FieldAlias
+    ? ValidateFieldQueryForRow<Row, FQ["field"]> extends never
+    ? never
+    : FQ
+    : FQ extends Query
+    ? ValidateQueryForRow<Row, FQ>
+    : never;
+
+type ValidateFieldQueriesTupleForRow<Row, FieldQueries extends readonly FieldQuery[]> = FieldQueries extends readonly []
+    ? FieldQueries
+    : FieldQueries extends readonly [infer Head, ...infer Tail]
+    ? Head extends FieldQuery
+    ? ValidateFieldQueryForRow<Row, Head> extends never
+    ? never
+    : Tail extends readonly FieldQuery[]
+    ? ValidateFieldQueriesTupleForRow<Row, Tail>
+    : never
+    : never
+    : never;
+
+/**
+ * Validates that every FieldQuery in FieldQueries only refers to keys present
+ * on Row (recursively for nested selection sets).
+ *
+ * When FieldQueries is a tuple (typical inline literals), validation is strict.
+ * When FieldQueries is a widened array type, validation is best-effort and
+ * requires the element type to be compatible with row-aware query types.
+ */
+export type ValidateFieldQueriesForRow<Row, FieldQueries extends readonly FieldQuery[]> = IsTuple<FieldQueries> extends true
+    ? ValidateFieldQueriesTupleForRow<Row, FieldQueries>
+    : FieldQueries;
 
 // Helper to create a FieldAlias
 export function fieldAlias<const Alias extends string, const FQ extends FieldQuery>(

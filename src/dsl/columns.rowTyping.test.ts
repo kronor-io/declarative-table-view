@@ -20,6 +20,142 @@ type ExampleRow = {
 };
 
 describe('dsl/columns row-aware typing', () => {
+    function valueFieldColumn<Row, K extends Extract<keyof Row, string>>(args: {
+        rowType: Row;
+        id: string;
+        name: string;
+        field: K;
+    }) {
+        return column({
+            rowType: args.rowType,
+            id: args.id,
+            name: args.name,
+            data: [valueQuery({ field: args.field })],
+            cellRenderer: ({ data }) => {
+                const typedData = data as unknown as Record<K, Row[K]>;
+                const value: Row[K] = typedData[args.field];
+                void value;
+                return null;
+            }
+        });
+    }
+
+    function idColumn<Row extends { id: unknown }>(args: {
+        rowType: Row;
+        id: string;
+        name: string;
+    }) {
+        return column({
+            rowType: args.rowType,
+            id: args.id,
+            name: args.name,
+            data: [valueQuery({ field: 'id' })],
+            cellRenderer: ({ data }) => {
+                const id: Row['id'] = data.id;
+                void id;
+                return null;
+            }
+        });
+    }
+
+    function stringIdColumn<Row extends { id: string }>(rowTypeArg: Row) {
+        return column({
+            rowType: rowTypeArg,
+            id: 'id',
+            name: 'ID',
+            data: [valueQuery({ field: 'id' })],
+            cellRenderer: ({ data }) => {
+                const id: string = data.id;
+                void id;
+
+                // @ts-expect-error id is string
+                const _bad: number = data.id;
+                void _bad;
+
+                return null;
+            }
+        });
+    }
+
+    it('supports reusable column helper functions', () => {
+        valueFieldColumn({
+            rowType: rowType<ExampleRow>(),
+            id: 'id',
+            name: 'ID',
+            field: 'id'
+        });
+
+        valueFieldColumn({
+            rowType: rowType<ExampleRow>(),
+            id: 'nope',
+            name: 'Nope',
+            // @ts-expect-error field must exist on ExampleRow
+            field: 'doesNotExist'
+        });
+
+        idColumn({
+            rowType: rowType<ExampleRow>(),
+            id: 'id',
+            name: 'ID'
+        });
+
+        type RowWithoutId = { amount: number };
+        idColumn({
+            // @ts-expect-error Row must have an id field
+            rowType: rowType<RowWithoutId>(),
+            id: 'id',
+            name: 'ID'
+        });
+
+        // Force the slice to treat id as string
+        stringIdColumn(rowType<ExampleRow>());
+
+        type RowIdNumber = { id: number };
+        // @ts-expect-error id must be string
+        stringIdColumn(rowType<RowIdNumber>());
+
+        type RowIdUnknown = { id: unknown };
+        // Explicitly specialize the slice: treat unknown id as string for this column
+        stringIdColumn(rowType<RowIdUnknown>() as RowIdUnknown & { id: string });
+
+        expect(true).toBe(true);
+    });
+
+    it('rejects selecting fields not present on the row type', () => {
+        // @ts-expect-error unknownField is not a key of ExampleRow
+        column({
+            rowType: rowType<ExampleRow>(),
+            id: 'bad',
+            name: 'Bad',
+            data: [valueQuery({ field: 'unknownField' })],
+            cellRenderer: () => null
+        });
+
+        expect(true).toBe(true);
+    });
+
+    it('rejects nested selections not present on the nested row type', () => {
+        // @ts-expect-error unknownNestedField is not a key of ExampleRow.customer
+        column({
+            rowType: rowType<ExampleRow>(),
+            id: 'badNested',
+            name: 'Bad Nested',
+            data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'unknownNestedField' })] })],
+            cellRenderer: () => null
+        });
+
+        // @ts-expect-error unknownLineField is not a key of ExampleRow.lines element
+        column({
+            rowType: rowType<ExampleRow>(),
+            id: 'badNestedArray',
+            name: 'Bad Nested Array',
+            data: [arrayQuery({ field: 'lines', selectionSet: [valueQuery({ field: 'unknownLineField' })] })],
+            cellRenderer: () => null
+        });
+
+        expect(true).toBe(true);
+    });
+
     it('infers scalar types for valueQuery', () => {
         column({
             rowType: rowType<ExampleRow>(),
@@ -38,31 +174,6 @@ describe('dsl/columns row-aware typing', () => {
 
                 // @ts-expect-error amount is number|null
                 const _badAmount: string = data.amount;
-                void _badAmount;
-
-                return null;
-            }
-        });
-
-        expect(true).toBe(true);
-    });
-
-    it('defaults to unknown for keys not included in the provided row slice', () => {
-        type RowSlice = Pick<ExampleRow, 'id'>;
-
-        column({
-            rowType: rowType<RowSlice>(),
-            id: 'mixed',
-            name: 'Mixed',
-            data: [valueQuery({ field: 'id' }), valueQuery({ field: 'amount' })],
-            cellRenderer: ({ data }) => {
-                const id: string = data.id;
-                const amount: unknown = data.amount;
-                void id;
-                void amount;
-
-                // @ts-expect-error amount is unknown when not present in the slice
-                const _badAmount: number = data.amount;
                 void _badAmount;
 
                 return null;
