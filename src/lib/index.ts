@@ -9,6 +9,7 @@ export type { AppProps, DTVAPI } from '../App';
 export type { View } from '../framework/view';
 export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
+export type { FieldQuery } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
 export type { FilterSchema, FilterField, SuggestionFetcher } from '../framework/filters';
 export { FilterExpr } from '../dsl/filterExpr';
