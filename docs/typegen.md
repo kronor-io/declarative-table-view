@@ -56,6 +56,13 @@ const config: DtvTypegenConfig = {
     // Optional scalar overrides: GraphQL scalar name -> TS type
     scalars: {
         // DateTime: 'string'
+        // json: 'unknown'
+        // jsonb: 'unknown'
+    },
+
+    debug: {
+        // When true, include original GraphQL type refs as comments
+        includeGraphqlTypeComments: false
     }
 };
 

@@ -9,10 +9,13 @@ describe('cli/typegen/schemaToTs', () => {
                 paymentRequests: [PaymentRequest!]!
             }
 
+            scalar CustomScalar
+
             type PaymentRequest {
                 id: ID!
                 amount: Int!
                 customer: Customer
+                custom: CustomScalar!
             }
 
             type Customer {
@@ -24,7 +27,9 @@ describe('cli/typegen/schemaToTs', () => {
         if (!root || Array.isArray(root)) throw new Error('Missing PaymentRequest type');
 
         const types = collectReachableTypes(schema, [root as any]);
-        const tsOut = renderTsFromSchema(types);
+        const tsOut = renderTsFromSchema(types, {
+            includeGraphqlTypeComments: true
+        });
 
         expect(tsOut).toContain('export type PaymentRequest');
         expect(tsOut).toContain('id: string;');
@@ -33,5 +38,9 @@ describe('cli/typegen/schemaToTs', () => {
         expect(tsOut).toContain('customer: Customer | null;');
         // Non-null nested scalar
         expect(tsOut).toContain('email: string;');
+        // Unmapped scalar falls back to unknown
+        expect(tsOut).toContain('custom: unknown;');
+        // Debug comments include original GraphQL type
+        expect(tsOut).toContain('// GraphQL: CustomScalar!');
     });
 });

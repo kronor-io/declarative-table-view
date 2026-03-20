@@ -2,6 +2,7 @@ import {
     getNamedType,
     isEnumType,
     isInterfaceType,
+    isInputObjectType,
     isListType,
     isNonNullType,
     isObjectType,
@@ -63,7 +64,13 @@ export function collectReachableTypes(_schema: GraphQLSchema, roots: GraphQLName
     return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: Record<string, string>): string {
+export function renderTsFromSchema(
+    types: GraphQLNamedType[],
+    options?: {
+        scalars?: Record<string, string>;
+        includeGraphqlTypeComments?: boolean;
+    }
+): string {
     const scalarMap: Record<string, string> = {
         ID: 'string',
         String: 'string',
@@ -76,7 +83,13 @@ export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: 
         timestamptz: 'string',
         timestamp: 'string',
         uuid: 'string',
-        ...scalarsOverride
+        ...(options?.scalars ?? {})
+    };
+
+    const renderGraphqlTypeRef = (t: GraphQLType): string => {
+        if (isNonNullType(t)) return `${renderGraphqlTypeRef(t.ofType)}!`;
+        if (isListType(t)) return `[${renderGraphqlTypeRef(t.ofType)}]`;
+        return getNamedType(t).name;
     };
 
     const renderTypeRef = (t: GraphQLType): string => {
@@ -92,10 +105,12 @@ export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: 
 
         const named = getNamedType(t);
         if (isScalarType(named)) {
-            return scalarMap[named.name] ?? 'any';
+            return scalarMap[named.name] ?? 'unknown';
         }
         return named.name;
     };
+
+    const includeGraphqlTypeComments = options?.includeGraphqlTypeComments === true;
 
     const chunks: string[] = [];
     chunks.push('/* eslint-disable @typescript-eslint/no-unused-vars */');
@@ -104,6 +119,7 @@ export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: 
     chunks.push('');
 
     for (const t of types) {
+        const typeName = t.name;
         if (t.name.startsWith('__')) continue;
 
         if (isScalarType(t)) {
@@ -112,14 +128,14 @@ export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: 
 
         if (isEnumType(t)) {
             const values = t.getValues().map(v => JSON.stringify(v.name)).join(' | ');
-            chunks.push(`export type ${t.name} = ${values || 'never'};`);
+            chunks.push(`export type ${typeName} = ${values || 'never'};`);
             chunks.push('');
             continue;
         }
 
         if (isUnionType(t)) {
             const members = t.getTypes().map(m => m.name).join(' | ');
-            chunks.push(`export type ${t.name} = ${members || 'never'};`);
+            chunks.push(`export type ${typeName} = ${members || 'never'};`);
             chunks.push('');
             continue;
         }
@@ -130,16 +146,41 @@ export function renderTsFromSchema(types: GraphQLNamedType[], scalarsOverride?: 
             for (const field of Object.values(fields)) {
                 if (field.name.startsWith('__')) continue;
                 const key = safePropKey(field.name);
-                lines.push(`    ${key}: ${renderTypeRef(field.type)};`);
+                const tsType = renderTypeRef(field.type);
+                if (includeGraphqlTypeComments) {
+                    lines.push(`    ${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
+                } else {
+                    lines.push(`    ${key}: ${tsType};`);
+                }
             }
-            chunks.push(`export type ${t.name} = {`);
+            chunks.push(`export type ${typeName} = {`);
             chunks.push(...lines);
             chunks.push('};');
             chunks.push('');
             continue;
         }
 
-        chunks.push(`export type ${t.name} = any;`);
+        if (isInputObjectType(t)) {
+            // Not expected in reachable output types, but keep deterministic behavior.
+            const fields = t.getFields();
+            const lines: string[] = [];
+            for (const field of Object.values(fields)) {
+                const key = safePropKey(field.name);
+                const tsType = renderTypeRef(field.type);
+                if (includeGraphqlTypeComments) {
+                    lines.push(`    ${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
+                } else {
+                    lines.push(`    ${key}: ${tsType};`);
+                }
+            }
+            chunks.push(`export type ${typeName} = {`);
+            chunks.push(...lines);
+            chunks.push('};');
+            chunks.push('');
+            continue;
+        }
+
+        chunks.push(`export type ${typeName} = unknown;`);
         chunks.push('');
     }
 

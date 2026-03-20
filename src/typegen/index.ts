@@ -24,4 +24,9 @@ export type DtvTypegenConfig = {
     };
 
     scalars?: Record<string, string>;
+
+    debug?: {
+        /** Include original GraphQL type references as comments in generated output. */
+        includeGraphqlTypeComments?: boolean;
+    };
 };

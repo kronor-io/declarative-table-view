@@ -26,6 +26,11 @@ type DtvTypegenConfig = {
     };
     /** Optional scalar overrides: GraphQL scalar name -> TS type expression (e.g. "DateTime": "string"). */
     scalars?: Record<string, string>;
+
+    debug?: {
+        /** Include original GraphQL type references as comments in generated output. */
+        includeGraphqlTypeComments?: boolean;
+    };
 };
 
 type ViewInfo = {
@@ -141,6 +146,13 @@ async function loadConfig(configPath: string): Promise<DtvTypegenConfig> {
 
     if (cfg.scalars !== undefined && !isRecord(cfg.scalars)) {
         throw new Error('Config.scalars must be an object when provided');
+    }
+
+    if (cfg.debug !== undefined) {
+        if (!isRecord(cfg.debug)) throw new Error('Config.debug must be an object when provided');
+        if (cfg.debug.includeGraphqlTypeComments !== undefined && typeof cfg.debug.includeGraphqlTypeComments !== 'boolean') {
+            throw new Error('Config.debug.includeGraphqlTypeComments must be a boolean when provided');
+        }
     }
 
     return cfg as DtvTypegenConfig;
@@ -411,6 +423,11 @@ ${outerIndent}]`;
         '    scalars: {',
         "        // DateTime: 'string'",
         '    }',
+        '',
+        '    debug: {',
+        '        // When true, include original GraphQL type refs as comments',
+        '        includeGraphqlTypeComments: false',
+        '    }',
         '};',
         '',
         'export default config;',
@@ -499,7 +516,10 @@ async function runTypegen(configPath: string) {
         outputFiles.add(outFile);
 
         const content = [
-            renderTsFromSchema(reachable, config.scalars).trimEnd(),
+            renderTsFromSchema(reachable, {
+                scalars: config.scalars,
+                includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true
+            }).trimEnd(),
             '',
             `export type ${viewTypeName} = ${v.rowTypeName};`,
             `export type ${collectionTypeName} = ${v.rowTypeName};`,
