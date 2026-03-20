@@ -1,4 +1,5 @@
 import { column, rowType, valueQuery, objectQuery, arrayQuery } from './columns';
+import { queryForRow } from './internal/queryForRow';
 
 // Type-level regression tests for row-aware column typing.
 // These tests don't assert at runtime; they fail if TypeScript can't typecheck.
@@ -121,6 +122,50 @@ describe('dsl/columns row-aware typing', () => {
         expect(true).toBe(true);
     });
 
+    it('supports a reusable column helper that uses an object query', () => {
+        type Row = {
+            customer?: {
+                email: string | null;
+                name: string;
+            } | null;
+        };
+
+        function customerEmailColumn(rowTypeArg: Row) {
+            const q = queryForRow<Row>();
+            return column({
+                rowType: rowTypeArg,
+                id: 'customerEmail',
+                name: 'Customer Email',
+                data: [
+                    q.object('customer', customer => [
+                        customer.value('email'),
+                    ])
+                ],
+                cellRenderer: ({ data }) => {
+                    const email: string | null | undefined = data.customer?.email;
+                    void email;
+
+                    // @ts-expect-error name is not selected in the query
+                    const _name = data.customer?.name;
+                    void _name;
+
+                    // @ts-expect-error email is string|null|undefined
+                    const _bad: number = email;
+                    void _bad;
+
+                    return null;
+                }
+            });
+        }
+
+        customerEmailColumn(rowType<Row>());
+
+        type RowWithoutCustomer = { id: string };
+        // @ts-expect-error helper requires customer.email to exist
+        customerEmailColumn(rowType<RowWithoutCustomer>());
+
+        expect(true).toBe(true);
+    });
     it('rejects selecting fields not present on the row type', () => {
         // @ts-expect-error unknownField is not a key of ExampleRow
         column({
