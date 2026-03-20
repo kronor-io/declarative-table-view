@@ -69,6 +69,11 @@ export function renderTsFromSchema(
     options?: {
         scalars?: Record<string, string>;
         includeGraphqlTypeComments?: boolean;
+        /**
+         * When true (default), emit `export type ...` declarations.
+         * When false, emit local `type ...` declarations.
+         */
+        exportTypes?: boolean;
     }
 ): string {
     const scalarMap: Record<string, string> = {
@@ -111,6 +116,8 @@ export function renderTsFromSchema(
     };
 
     const includeGraphqlTypeComments = options?.includeGraphqlTypeComments === true;
+    const exportTypes = options?.exportTypes !== false;
+    const typePrefix = exportTypes ? 'export type' : 'type';
 
     const chunks: string[] = [];
     chunks.push('/* eslint-disable @typescript-eslint/no-unused-vars */');
@@ -128,14 +135,14 @@ export function renderTsFromSchema(
 
         if (isEnumType(t)) {
             const values = t.getValues().map(v => JSON.stringify(v.name)).join(' | ');
-            chunks.push(`export type ${typeName} = ${values || 'never'};`);
+            chunks.push(`${typePrefix} ${typeName} = ${values || 'never'};`);
             chunks.push('');
             continue;
         }
 
         if (isUnionType(t)) {
             const members = t.getTypes().map(m => m.name).join(' | ');
-            chunks.push(`export type ${typeName} = ${members || 'never'};`);
+            chunks.push(`${typePrefix} ${typeName} = ${members || 'never'};`);
             chunks.push('');
             continue;
         }
@@ -153,7 +160,7 @@ export function renderTsFromSchema(
                     lines.push(`    ${key}: ${tsType};`);
                 }
             }
-            chunks.push(`export type ${typeName} = {`);
+            chunks.push(`${typePrefix} ${typeName} = {`);
             chunks.push(...lines);
             chunks.push('};');
             chunks.push('');
@@ -173,14 +180,14 @@ export function renderTsFromSchema(
                     lines.push(`    ${key}: ${tsType};`);
                 }
             }
-            chunks.push(`export type ${typeName} = {`);
+            chunks.push(`${typePrefix} ${typeName} = {`);
             chunks.push(...lines);
             chunks.push('};');
             chunks.push('');
             continue;
         }
 
-        chunks.push(`export type ${typeName} = unknown;`);
+        chunks.push(`${typePrefix} ${typeName} = unknown;`);
         chunks.push('');
     }
 

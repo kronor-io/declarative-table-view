@@ -75,10 +75,9 @@ For each discovered `DSL.view({ id, collectionName, ... })` call, the generator 
 
 That file contains:
 
-- Exported TypeScript types for GraphQL output types reachable from the view’s `collectionName` row type
-- Two convenience aliases:
+- TypeScript types for GraphQL output types reachable from the view’s `collectionName` row type (not exported)
+- One exported alias:
     - `<ViewIdPascal>Row` – the inferred row type for that view’s `collectionName`
-    - `<CollectionNamePascal>Row` – a collection-named alias for the same row type
 
 ## Current limitations (v1)
 

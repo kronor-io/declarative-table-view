@@ -31,7 +31,13 @@ describe('cli/typegen/schemaToTs', () => {
             includeGraphqlTypeComments: true
         });
 
+        const tsOutLocal = renderTsFromSchema(types, {
+            exportTypes: false
+        });
+
         expect(tsOut).toContain('export type PaymentRequest');
+        expect(tsOutLocal).toContain('type PaymentRequest');
+        expect(tsOutLocal).not.toContain('export type PaymentRequest');
         expect(tsOut).toContain('id: string;');
         expect(tsOut).toContain('amount: number;');
         // Nullable field becomes union with null

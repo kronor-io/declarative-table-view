@@ -502,7 +502,6 @@ async function runTypegen(configPath: string) {
 
         const reachable = collectReachableTypes(schema, [root as GraphQLNamedType]);
         const viewTypeName = `${toPascalCase(v.viewId)}Row`;
-        const collectionTypeName = `${toPascalCase(v.collectionName)}Row`;
 
         const fileName = applyFileNamePattern(config.output.fileNamePattern, v);
         if (!fileName.endsWith('.ts')) {
@@ -518,11 +517,11 @@ async function runTypegen(configPath: string) {
         const content = [
             renderTsFromSchema(reachable, {
                 scalars: config.scalars,
-                includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true
+                includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
+                exportTypes: false
             }).trimEnd(),
             '',
             `export type ${viewTypeName} = ${v.rowTypeName};`,
-            `export type ${collectionTypeName} = ${v.rowTypeName};`,
             ''
         ].join('\n');
 
