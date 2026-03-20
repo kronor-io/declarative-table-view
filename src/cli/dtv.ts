@@ -354,12 +354,32 @@ async function scanViews(config: DtvTypegenConfig): Promise<ViewInfo[]> {
         results.push(...findViewsInFile(text, f, dtvImport));
     }
 
-    // De-dupe by viewId (first wins)
-    const byId = new Map<string, ViewInfo>();
+    // Validate that each view id is unique across the scanned project.
+    const byId = new Map<string, ViewInfo[]>();
     for (const v of results) {
-        if (!byId.has(v.viewId)) byId.set(v.viewId, v);
+        const list = byId.get(v.viewId);
+        if (list) list.push(v);
+        else byId.set(v.viewId, [v]);
     }
-    return [...byId.values()];
+
+    const duplicates: Array<{ viewId: string; views: ViewInfo[] }> = [];
+    for (const [viewId, views] of byId.entries()) {
+        if (views.length > 1) duplicates.push({ viewId, views });
+    }
+
+    if (duplicates.length) {
+        const lines: string[] = [];
+        lines.push('Duplicate DTV view ids found (each view `id` must be unique):');
+        for (const d of duplicates.sort((a, b) => a.viewId.localeCompare(b.viewId))) {
+            lines.push(`- ${d.viewId}`);
+            for (const v of d.views) {
+                lines.push(`  - ${path.resolve(v.sourceFile)}`);
+            }
+        }
+        throw new Error(lines.join('\n'));
+    }
+
+    return results;
 }
 
 async function writeFileEnsuringDir(filePath: string, content: string) {
