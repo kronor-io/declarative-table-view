@@ -12,7 +12,12 @@ export type FilterExpr = FilterExprType;
 
 // Helper functions for building FilterExpr values
 export const FilterExpr = {
-    equals: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    equals: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'equals';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'equals',
             field: args.field,
@@ -20,7 +25,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    notEquals: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    notEquals: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'notEquals';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'notEquals',
             field: args.field,
@@ -28,7 +38,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    greaterThan: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    greaterThan: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'greaterThan';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'greaterThan',
             field: args.field,
@@ -36,7 +51,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    lessThan: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    lessThan: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'lessThan';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'lessThan',
             field: args.field,
@@ -44,7 +64,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    greaterThanOrEqual: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    greaterThanOrEqual: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'greaterThanOrEqual';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'greaterThanOrEqual',
             field: args.field,
@@ -52,7 +77,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    lessThanOrEqual: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    lessThanOrEqual: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'lessThanOrEqual';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'lessThanOrEqual',
             field: args.field,
@@ -60,7 +90,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    in: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    in: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'in';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'in',
             field: args.field,
@@ -68,7 +103,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    notIn: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    notIn: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'notIn';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'notIn',
             field: args.field,
@@ -76,7 +116,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    like: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    like: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'like';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'like',
             field: args.field,
@@ -84,7 +129,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    iLike: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    iLike: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'iLike';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'iLike',
             field: args.field,
@@ -92,7 +142,12 @@ export const FilterExpr = {
             ...(args.transform && { transform: args.transform })
         }),
 
-    isNull: (args: { field: FilterField; control: FilterControl; transform?: FilterTransform }): FilterExprType =>
+    isNull: <const Field extends FilterField>(args: { field: Field; control: FilterControl; transform?: FilterTransform }): {
+        type: 'isNull';
+        field: Field;
+        value: FilterControl;
+        transform?: FilterTransform;
+    } =>
         ({
             type: 'isNull',
             field: args.field,
@@ -102,7 +157,12 @@ export const FilterExpr = {
 
     // Condition-only helper for filters that are transformed into a full Hasura condition.
     // Internally uses a leaf expr type, but the operator mapping is bypassed because the transform returns { condition }.
-    computedCondition: (args: { control: FilterControl; transform: ConditionOnlyTransform }): FilterExprType =>
+    computedCondition: (args: { control: FilterControl; transform: ConditionOnlyTransform }): {
+        type: 'equals';
+        field: { or: [] };
+        value: FilterControl;
+        transform: ConditionOnlyTransform;
+    } =>
         ({
             type: 'equals', // The operator here is a dummy value since the transform will produce the actual condition.
             field: { or: [] },
@@ -110,10 +170,35 @@ export const FilterExpr = {
             transform: args.transform
         }),
 
-    and: (args: { filters: FilterExprType[] }): FilterExprType => ({ type: 'and', filters: args.filters }),
-    or: (args: { filters: FilterExprType[] }): FilterExprType => ({ type: 'or', filters: args.filters }),
-    not: (args: { filter: FilterExprType }): FilterExprType => ({ type: 'not', filter: args.filter }),
-    range: (args: { field: FilterField; control: (options: any) => FilterControl; transform?: FilterTransform }): FilterExprType =>
+    and: <const Filters extends readonly FilterExprType[]>(args: { filters: Filters }): {
+        type: 'and';
+        filters: [...Filters];
+    } => ({ type: 'and', filters: args.filters as unknown as [...Filters] }),
+    or: <const Filters extends readonly FilterExprType[]>(args: { filters: Filters }): {
+        type: 'or';
+        filters: [...Filters];
+    } => ({ type: 'or', filters: args.filters as unknown as [...Filters] }),
+    not: <const Filter extends FilterExprType>(args: { filter: Filter }): {
+        type: 'not';
+        filter: Filter;
+    } => ({ type: 'not', filter: args.filter }),
+    range: <const Field extends FilterField>(args: { field: Field; control: (options: any) => FilterControl; transform?: FilterTransform }): {
+        type: 'and';
+        filters: [
+            {
+                type: 'greaterThanOrEqual';
+                field: Field;
+                value: FilterControl;
+                transform?: FilterTransform;
+            },
+            {
+                type: 'lessThanOrEqual';
+                field: Field;
+                value: FilterControl;
+                transform?: FilterTransform;
+            }
+        ];
+    } =>
         FilterExpr.and({
             filters: [
                 FilterExpr.greaterThanOrEqual({ field: args.field, control: args.control({ placeholder: 'from' }), transform: args.transform }),

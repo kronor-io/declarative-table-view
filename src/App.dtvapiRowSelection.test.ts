@@ -28,6 +28,21 @@ describe('DTVAPI row selection', () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
 
+        async function waitFor(condition: () => boolean, args?: { timeoutMs?: number; intervalMs?: number }) {
+            const timeoutMs = args?.timeoutMs ?? 1000;
+            const intervalMs = args?.intervalMs ?? 10;
+            const start = Date.now();
+
+            while (Date.now() - start < timeoutMs) {
+                if (condition()) {
+                    return;
+                }
+                await new Promise(r => setTimeout(r, intervalMs));
+            }
+
+            throw new Error('Timed out waiting for condition');
+        }
+
         const apiRef = React.createRef<DTVAPI | null>();
 
         const viewsJson = JSON.stringify([
@@ -78,7 +93,7 @@ describe('DTVAPI row selection', () => {
             React.createElement(PrimeReactProvider, { value: {}, children: appElement })
         );
 
-        await new Promise(r => setTimeout(r, 25));
+        await waitFor(() => apiRef.current !== null);
 
         expect(apiRef.current).not.toBeNull();
         expect(typeof apiRef.current?.rowSelection?.reset).toBe('function');
