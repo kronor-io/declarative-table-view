@@ -8,6 +8,10 @@ When `@kronor/dtv` is installed, it exposes a `dtv` executable:
 
 - `dtv typegen -c dtv.config.ts`
 
+To generate types for a single view only:
+
+- `dtv typegen <view-id> -c dtv.config.ts`
+
 (You can also run via `npx dtv typegen ...` depending on how you install it.)
 
 To scaffold a config file:

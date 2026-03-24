@@ -17,6 +17,11 @@ function safePropKey(key: string): string {
     return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? key : JSON.stringify(key);
 }
 
+function singleQuoteStringLiteral(value: string): string {
+    // Emit a TS string literal using single quotes.
+    return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
+}
+
 export function unwrapCollectionElementType(fieldType: GraphQLType): GraphQLNamedType {
     // fieldType is usually [T!]! or [T!] etc. We want T.
     let t: GraphQLType = fieldType;
@@ -134,7 +139,7 @@ export function renderTsFromSchema(
         }
 
         if (isEnumType(t)) {
-            const values = t.getValues().map(v => JSON.stringify(v.name)).join(' | ');
+            const values = t.getValues().map(v => singleQuoteStringLiteral(v.name)).join(' | ');
             chunks.push(`${typePrefix} ${typeName} = ${values || 'never'};`);
             chunks.push('');
             continue;

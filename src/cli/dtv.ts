@@ -39,6 +39,11 @@ type ViewInfo = {
     sourceFile: string;
 };
 
+type ScanDebugOptions = {
+    enabled: boolean;
+    focusFile?: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -188,7 +193,12 @@ async function fetchSchema(endpoint: string, headers: Record<string, string>): P
     return buildClientSchema(json.data);
 }
 
-function findViewsInFile(sourceText: string, fileName: string, dtvImport: string): ViewInfo[] {
+function findViewsInFile(
+    sourceText: string,
+    fileName: string,
+    dtvImport: string,
+    debug?: { log: (line: string) => void }
+): ViewInfo[] {
     const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true);
 
     const unwrapParens = (expr: ts.Expression): ts.Expression => {
@@ -277,7 +287,13 @@ function findViewsInFile(sourceText: string, fileName: string, dtvImport: string
     };
 
     const receivers = getDslReceivers();
-    if (receivers.dslIdentifiers.size === 0 && receivers.dtvNamespaces.size === 0) return [];
+    if (receivers.dslIdentifiers.size === 0 && receivers.dtvNamespaces.size === 0) {
+        debug?.log(`- no matching imports/requires from ${JSON.stringify(dtvImport)}`);
+        return [];
+    }
+
+    debug?.log(`- dslIdentifiers: ${[...receivers.dslIdentifiers].sort().join(', ') || '(none)'}`);
+    debug?.log(`- dtvNamespaces: ${[...receivers.dtvNamespaces].sort().join(', ') || '(none)'}`);
 
     const views: ViewInfo[] = [];
 
@@ -317,10 +333,17 @@ function findViewsInFile(sourceText: string, fileName: string, dtvImport: string
 
                 if (method === 'view' && isDslReceiver) {
                     const firstArg = node.arguments[0];
-                    if (firstArg && ts.isObjectLiteralExpression(firstArg)) {
+                    if (!firstArg) {
+                        debug?.log('- found DSL.view(...) with no args (skipping)');
+                    } else if (!ts.isObjectLiteralExpression(firstArg)) {
+                        debug?.log('- found DSL.view(<non-object-literal>) (skipping)');
+                    } else {
                         const viewId = tryGetStringProp(firstArg, 'id');
                         const collectionName = tryGetStringProp(firstArg, 'collectionName');
-                        if (viewId && collectionName) {
+                        if (!viewId || !collectionName) {
+                            debug?.log(`- found DSL.view({ ... }) but id/collectionName not string literals (id=${viewId ?? 'null'}, collectionName=${collectionName ?? 'null'})`);
+                        } else {
+                            debug?.log(`- found view id=${JSON.stringify(viewId)} collectionName=${JSON.stringify(collectionName)}`);
                             views.push({
                                 viewId,
                                 collectionName,
@@ -338,7 +361,7 @@ function findViewsInFile(sourceText: string, fileName: string, dtvImport: string
     return views;
 }
 
-async function scanViews(config: DtvTypegenConfig): Promise<ViewInfo[]> {
+async function scanViews(config: DtvTypegenConfig, debug?: ScanDebugOptions): Promise<ViewInfo[]> {
     const dtvImport = config.scan.dtvImport ?? '@kronor/dtv';
 
     const files = await fg(config.scan.include, {
@@ -347,11 +370,31 @@ async function scanViews(config: DtvTypegenConfig): Promise<ViewInfo[]> {
         onlyFiles: true
     });
 
+    const focusAbs = debug?.focusFile
+        ? (path.isAbsolute(debug.focusFile) ? debug.focusFile : path.resolve(process.cwd(), debug.focusFile))
+        : undefined;
+
+    if (debug?.enabled) {
+        console.log('[dtv typegen] scan debug');
+        console.log(`- dtvImport: ${dtvImport}`);
+        console.log(`- include: ${JSON.stringify(config.scan.include)}`);
+        console.log(`- exclude: ${JSON.stringify(config.scan.exclude ?? [])}`);
+        console.log(`- matchedFiles: ${files.length}`);
+        if (focusAbs) {
+            console.log(`- focusFile: ${focusAbs}`);
+            console.log(`- focusFileMatchedByGlob: ${files.map(f => path.resolve(f)).includes(path.resolve(focusAbs))}`);
+        }
+    }
+
     const results: ViewInfo[] = [];
-    for (const f of files) {
+    const filesToScan = focusAbs ? files.filter(f => path.resolve(f) === path.resolve(focusAbs)) : files;
+    for (const f of filesToScan) {
         if (!f.endsWith('.ts') && !f.endsWith('.tsx')) continue;
         const text = await fs.readFile(f, 'utf8');
-        results.push(...findViewsInFile(text, f, dtvImport));
+        const fileDebug = debug?.enabled
+            ? { log: (line: string) => console.log(`[dtv typegen] ${path.resolve(f)} ${line}`) }
+            : undefined;
+        results.push(...findViewsInFile(text, f, dtvImport, fileDebug));
     }
 
     // Validate that each view id is unique across the scanned project.
@@ -385,6 +428,10 @@ async function scanViews(config: DtvTypegenConfig): Promise<ViewInfo[]> {
 async function writeFileEnsuringDir(filePath: string, content: string) {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, content, 'utf8');
+}
+
+function singleQuoteStringLiteral(value: string): string {
+    return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -483,12 +530,171 @@ function applyFileNamePattern(pattern: string, view: { viewId: string; collectio
         .replace(/\{collectionName\}/g, view.collectionName);
 }
 
-async function runTypegen(configPath: string) {
+function toIdentifier(pascal: string): string {
+    if (/^[A-Za-z_]/.test(pascal)) return pascal;
+    return `_${pascal}`;
+}
+
+function getColumnDefinitionsArray(argObject: ts.ObjectLiteralExpression): ts.ArrayLiteralExpression | null {
+    for (const p of argObject.properties) {
+        if (!ts.isPropertyAssignment(p)) continue;
+        const name = p.name;
+        const key = ts.isIdentifier(name)
+            ? name.text
+            : ts.isStringLiteral(name)
+                ? name.text
+                : null;
+        if (key !== 'columnDefinitions') continue;
+        return ts.isArrayLiteralExpression(p.initializer) ? p.initializer : null;
+    }
+    return null;
+}
+
+function hasRowTypeProp(obj: ts.ObjectLiteralExpression): boolean {
+    for (const p of obj.properties) {
+        if (!ts.isPropertyAssignment(p)) continue;
+        const name = p.name;
+        const key = ts.isIdentifier(name)
+            ? name.text
+            : ts.isStringLiteral(name)
+                ? name.text
+                : null;
+        if (key === 'rowType') return true;
+    }
+    return false;
+}
+
+function applyTextEdits(original: string, edits: Array<{ pos: number; insert: string }>): string {
+    const sorted = [...edits].sort((a, b) => b.pos - a.pos);
+    let out = original;
+    for (const e of sorted) {
+        out = out.slice(0, e.pos) + e.insert + out.slice(e.pos);
+    }
+    return out;
+}
+
+function ensureRowTypeImport(sourceText: string, sourceFile: ts.SourceFile, importName: string, importPathNoExt: string): { updatedText: string; changed: boolean } {
+    for (const stmt of sourceFile.statements) {
+        if (!ts.isImportDeclaration(stmt)) continue;
+        if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+        if (stmt.moduleSpecifier.text !== importPathNoExt) continue;
+
+        const nb = stmt.importClause?.namedBindings;
+        if (!nb || !ts.isNamedImports(nb)) {
+            // Import exists but is not a named import; don't try to be clever.
+            return { updatedText: sourceText, changed: false };
+        }
+
+        if (nb.elements.some(e => e.name.text === importName)) {
+            return { updatedText: sourceText, changed: false };
+        }
+
+        const insertPos = nb.getEnd() - 1; // before `}`
+        const insert = `${nb.elements.length ? ', ' : ' '}${importName}`;
+        return { updatedText: applyTextEdits(sourceText, [{ pos: insertPos, insert }]), changed: true };
+    }
+
+    const importStmts = sourceFile.statements.filter(ts.isImportDeclaration);
+    const insertPos = importStmts.length
+        ? importStmts[importStmts.length - 1].end
+        : 0;
+
+    const prefix = insertPos === 0 ? '' : '\n';
+    const importLine = `${prefix}import { ${importName} } from ${JSON.stringify(importPathNoExt)};\n`;
+    return {
+        updatedText: applyTextEdits(sourceText, [{ pos: insertPos, insert: importLine }]),
+        changed: true
+    };
+}
+
+function patchInlineColumnsWithRowType(args: {
+    sourceText: string;
+    sourceFile: ts.SourceFile;
+    viewArgObject: ts.ObjectLiteralExpression;
+    rowTypeIdentifier: string;
+    dslIdentifiers: Set<string>;
+    dtvNamespaces: Set<string>;
+}): { updatedText: string; changed: boolean; patchedCount: number } {
+    const cols = getColumnDefinitionsArray(args.viewArgObject);
+    if (!cols) return { updatedText: args.sourceText, changed: false, patchedCount: 0 };
+
+    const edits: Array<{ pos: number; insert: string }> = [];
+    let patchedCount = 0;
+
+    for (const el of cols.elements) {
+        if (!ts.isCallExpression(el)) continue;
+
+        const expr = el.expression;
+        if (!ts.isPropertyAccessExpression(expr)) continue;
+        if (expr.name.text !== 'column') continue;
+
+        const receiver = expr.expression;
+        const isDtvColumn = (() => {
+            if (ts.isIdentifier(receiver) && args.dslIdentifiers.has(receiver.text)) return true;
+            if (ts.isPropertyAccessExpression(receiver)) {
+                if (receiver.name.text !== 'DSL') return false;
+                const maybeNs = receiver.expression;
+                return ts.isIdentifier(maybeNs) && args.dtvNamespaces.has(maybeNs.text);
+            }
+            return false;
+        })();
+        if (!isDtvColumn) continue;
+
+        const firstArg = el.arguments[0];
+        if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) continue;
+        if (hasRowTypeProp(firstArg)) continue;
+
+        const firstProp = firstArg.properties[0];
+        const insertPos = firstProp ? firstProp.getStart(args.sourceFile, false) : firstArg.getEnd() - 1;
+        const between = args.sourceText.slice(firstArg.getStart(args.sourceFile, false) + 1, insertPos);
+        const isMultiline = between.includes('\n');
+
+        if (!isMultiline) {
+            edits.push({ pos: insertPos, insert: `rowType: ${args.rowTypeIdentifier}, ` });
+            patchedCount += 1;
+            continue;
+        }
+
+        const lineStart = args.sourceText.lastIndexOf('\n', insertPos - 1) + 1;
+        const before = args.sourceText.slice(lineStart, insertPos);
+        const indentMatch = before.match(/^[ \t]*/);
+        const indent = indentMatch ? indentMatch[0] : '';
+
+        edits.push({ pos: insertPos, insert: `${indent}rowType: ${args.rowTypeIdentifier},\n` });
+        patchedCount += 1;
+    }
+
+    if (edits.length === 0) {
+        return { updatedText: args.sourceText, changed: false, patchedCount: 0 };
+    }
+
+    return {
+        updatedText: applyTextEdits(args.sourceText, edits),
+        changed: true,
+        patchedCount
+    };
+}
+
+async function runTypegen(configPath: string, debug?: ScanDebugOptions, onlyViewId?: string) {
     const config = await loadConfig(configPath);
 
-    const views = await scanViews(config);
+    const dtvImport = config.scan.dtvImport ?? '@kronor/dtv';
+
+    const views = await scanViews(config, debug);
     if (views.length === 0) {
         throw new Error('No views found. Ensure Config.scan.include matches files that import DSL from your configured DTV specifier and call DSL.view({ ... }).');
+    }
+
+    const selectedViews = onlyViewId
+        ? views.filter(v => v.viewId === onlyViewId)
+        : views;
+
+    if (onlyViewId && selectedViews.length === 0) {
+        const sample = views.map(v => v.viewId).slice(0, 25);
+        throw new Error(
+            `No view found with id ${JSON.stringify(onlyViewId)}. `
+            + `Sample discovered view ids: ${sample.join(', ')}${sample.length === 25 ? ', ...' : ''}`
+        );
     }
 
     const schema = await fetchSchema(config.schema.endpoint, config.schema.headers ?? {});
@@ -497,7 +703,7 @@ async function runTypegen(configPath: string) {
     const queryFields = queryType.getFields();
 
     // Resolve view -> row type
-    const viewRows = views.map(v => {
+    const viewRows = selectedViews.map(v => {
         const f = queryFields[v.collectionName];
         if (!f) {
             const sample = Object.keys(queryFields).slice(0, 25);
@@ -521,7 +727,8 @@ async function runTypegen(configPath: string) {
         }
 
         const reachable = collectReachableTypes(schema, [root as GraphQLNamedType]);
-        const viewTypeName = `${toPascalCase(v.viewId)}Row`;
+        const viewTypeName = `${toIdentifier(toPascalCase(v.viewId))}Row`;
+        const rowTypeConstName = `${toIdentifier(toPascalCase(v.viewId))}RowType`;
 
         const fileName = applyFileNamePattern(config.output.fileNamePattern, v);
         if (!fileName.endsWith('.ts')) {
@@ -535,6 +742,8 @@ async function runTypegen(configPath: string) {
         outputFiles.add(outFile);
 
         const content = [
+            `import { DSL as DTV } from ${singleQuoteStringLiteral(dtvImport)};`,
+            '',
             renderTsFromSchema(reachable, {
                 scalars: config.scalars,
                 includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
@@ -542,13 +751,174 @@ async function runTypegen(configPath: string) {
             }).trimEnd(),
             '',
             `export type ${viewTypeName} = ${v.rowTypeName};`,
+            `export const ${rowTypeConstName} = DTV.rowType<${viewTypeName}>();`,
             ''
         ].join('\n');
 
         await writeFileEnsuringDir(outFile, content);
+
+        // Best-effort: patch inline `DTV.column({ ... })` calls in the view module
+        // to include `rowType: <ViewRowTypeConst>`.
+        try {
+            const viewText = await fs.readFile(v.sourceFile, 'utf8');
+            const sf = ts.createSourceFile(v.sourceFile, viewText, ts.ScriptTarget.Latest, true);
+
+            // Reuse the same import/require detection strategy as view scanning.
+            // (Local to this patching block to keep changes minimal.)
+            const dslIdentifiers = new Set<string>();
+            const dtvNamespaces = new Set<string>();
+            for (const stmt of sf.statements) {
+                if (ts.isImportDeclaration(stmt)) {
+                    if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+                    if (stmt.moduleSpecifier.text !== dtvImport) continue;
+                    const clause = stmt.importClause;
+                    if (!clause) continue;
+                    if (clause.name) dtvNamespaces.add(clause.name.text);
+                    const nb = clause.namedBindings;
+                    if (!nb) continue;
+                    if (ts.isNamespaceImport(nb)) {
+                        dtvNamespaces.add(nb.name.text);
+                        continue;
+                    }
+                    if (ts.isNamedImports(nb)) {
+                        for (const el of nb.elements) {
+                            const imported = (el.propertyName ?? el.name).text;
+                            const local = el.name.text;
+                            if (imported === 'DSL') dslIdentifiers.add(local);
+                        }
+                    }
+                }
+                if (ts.isImportEqualsDeclaration(stmt)) {
+                    const mr = stmt.moduleReference;
+                    if (!ts.isExternalModuleReference(mr)) continue;
+                    const expr = mr.expression;
+                    if (!expr || !ts.isStringLiteral(expr)) continue;
+                    if (expr.text !== dtvImport) continue;
+                    dtvNamespaces.add(stmt.name.text);
+                }
+                if (ts.isVariableStatement(stmt)) {
+                    for (const decl of stmt.declarationList.declarations) {
+                        if (!decl.initializer) continue;
+                        if (!ts.isCallExpression(decl.initializer)) continue;
+                        if (!ts.isIdentifier(decl.initializer.expression) || decl.initializer.expression.text !== 'require') continue;
+                        const arg0 = decl.initializer.arguments[0];
+                        if (!arg0 || !ts.isStringLiteral(arg0) || arg0.text !== dtvImport) continue;
+
+                        if (ts.isIdentifier(decl.name)) {
+                            dtvNamespaces.add(decl.name.text);
+                        } else if (ts.isObjectBindingPattern(decl.name)) {
+                            for (const el of decl.name.elements) {
+                                const imported = (el.propertyName ?? el.name);
+                                if (ts.isIdentifier(imported) && imported.text === 'DSL') {
+                                    if (ts.isIdentifier(el.name)) dslIdentifiers.add(el.name.text);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Locate the view call object literal for this view id.
+            let viewArgObject: ts.ObjectLiteralExpression | null = null;
+            const visit = (node: ts.Node) => {
+                if (viewArgObject) return;
+                if (ts.isCallExpression(node)) {
+                    const expr = node.expression;
+                    if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'view') {
+                        const receiver = expr.expression;
+                        const isDslReceiver = (() => {
+                            if (ts.isIdentifier(receiver) && dslIdentifiers.has(receiver.text)) return true;
+                            if (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'DSL') {
+                                const maybeNs = receiver.expression;
+                                return ts.isIdentifier(maybeNs) && dtvNamespaces.has(maybeNs.text);
+                            }
+                            return false;
+                        })();
+                        if (!isDslReceiver) {
+                            // keep searching
+                        } else {
+                            const firstArg = node.arguments[0];
+                            if (firstArg && ts.isObjectLiteralExpression(firstArg)) {
+                                const idProp = firstArg.properties.find(p => ts.isPropertyAssignment(p)
+                                    && ((ts.isIdentifier(p.name) && p.name.text === 'id')
+                                        || (ts.isStringLiteral(p.name) && p.name.text === 'id'))
+                                ) as ts.PropertyAssignment | undefined;
+                                const idVal = idProp?.initializer;
+                                const id = idVal && (ts.isStringLiteral(idVal) || ts.isNoSubstitutionTemplateLiteral(idVal))
+                                    ? idVal.text
+                                    : null;
+                                if (id === v.viewId) {
+                                    viewArgObject = firstArg;
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+                ts.forEachChild(node, visit);
+            };
+            visit(sf);
+            if (!viewArgObject) {
+                continue;
+            }
+
+            const importPathNoExt = './' + fileName.replace(/\.ts$/i, '');
+            const withImport = ensureRowTypeImport(viewText, sf, rowTypeConstName, importPathNoExt);
+            const sf2 = ts.createSourceFile(v.sourceFile, withImport.updatedText, ts.ScriptTarget.Latest, true);
+
+            // Re-find the view object in the updated source.
+            let viewArgObject2: ts.ObjectLiteralExpression | null = null;
+            const visit2 = (node: ts.Node) => {
+                if (viewArgObject2) return;
+                if (ts.isCallExpression(node)) {
+                    const expr = node.expression;
+                    if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'view') {
+                        const firstArg = node.arguments[0];
+                        if (firstArg && ts.isObjectLiteralExpression(firstArg)) {
+                            const idProp = firstArg.properties.find(p => ts.isPropertyAssignment(p)
+                                && ((ts.isIdentifier(p.name) && p.name.text === 'id')
+                                    || (ts.isStringLiteral(p.name) && p.name.text === 'id'))
+                            ) as ts.PropertyAssignment | undefined;
+                            const idVal = idProp?.initializer;
+                            const id = idVal && (ts.isStringLiteral(idVal) || ts.isNoSubstitutionTemplateLiteral(idVal))
+                                ? idVal.text
+                                : null;
+                            if (id === v.viewId) {
+                                viewArgObject2 = firstArg;
+                                return;
+                            }
+                        }
+                    }
+                }
+                ts.forEachChild(node, visit2);
+            };
+            visit2(sf2);
+            if (!viewArgObject2) {
+                continue;
+            }
+
+            const patched = patchInlineColumnsWithRowType({
+                sourceText: withImport.updatedText,
+                sourceFile: sf2,
+                viewArgObject: viewArgObject2,
+                rowTypeIdentifier: rowTypeConstName,
+                dslIdentifiers,
+                dtvNamespaces
+            });
+
+            if (withImport.changed || patched.changed) {
+                await fs.writeFile(v.sourceFile, patched.updatedText, 'utf8');
+            }
+        } catch {
+            // Ignore patching errors; generation still succeeds.
+        }
     }
 
-    console.log(`Generated types for ${viewRows.length} view(s).`);
+    if (onlyViewId) {
+        console.log(`Generated types for view ${JSON.stringify(onlyViewId)}.`);
+    } else {
+        console.log(`Generated types for ${viewRows.length} view(s).`);
+    }
 }
 
 const program = new Command();
@@ -560,10 +930,20 @@ program
 program
     .command('typegen')
     .description('Generate TypeScript types from a Hasura GraphQL schema')
+    .argument('[viewId]', 'Optional view id to generate types for (only that view will be regenerated)')
     .option('-c, --config <path>', 'Path to dtv.config.ts', 'dtv.config.ts')
-    .action(async (opts: { config: string }) => {
+    .option('--debug-scan', 'Print view scanning debug information', false)
+    .option('--debug-scan-file <path>', 'Only scan a specific file and print debug output for it')
+    .action(async (viewId: string | undefined, opts: { config: string; debugScan?: boolean; debugScanFile?: string }) => {
         try {
-            await runTypegen(opts.config);
+            await runTypegen(
+                opts.config,
+                {
+                    enabled: Boolean(opts.debugScan || opts.debugScanFile),
+                    focusFile: opts.debugScanFile
+                },
+                viewId
+            );
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             console.error(msg);
