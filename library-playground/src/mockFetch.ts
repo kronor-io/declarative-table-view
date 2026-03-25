@@ -45,7 +45,7 @@ export function installFetchMock(graphqlHost: string) {
                 const text = init?.body ? String(init.body) : '{}';
                 const body = JSON.parse(text);
                 const pageRows = applyConditions(STATIC_ROWS, body).slice(0, body.variables?.rowLimit || 20);
-                // Basic pagination condition support: if paginationCondition contains _lt, apply it.
+                // Basic pagination condition support: if paginationCondition contains _lt or _gt, apply it.
                 const paginationCond = body.variables?.paginationCondition || {};
                 const ltEntry = paginationCond && Object.entries(paginationCond)[0];
                 if (ltEntry) {
@@ -54,6 +54,12 @@ export function installFetchMock(graphqlHost: string) {
                         const cursor = (cond as any)._lt;
                         // Emulate Hasura _lt filtering
                         const filtered = pageRows.filter(r => (r as any)[field] < cursor);
+                        return new Response(JSON.stringify({ data: { simpleTestDataCollection: filtered } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    }
+                    if (cond && typeof cond === 'object' && '_gt' in cond) {
+                        const cursor = (cond as any)._gt;
+                        // Emulate Hasura _gt filtering
+                        const filtered = pageRows.filter(r => (r as any)[field] > cursor);
                         return new Response(JSON.stringify({ data: { simpleTestDataCollection: filtered } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
                     }
                 }

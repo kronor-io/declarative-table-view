@@ -24,7 +24,7 @@ let requestCounter = 0;
 //  - conditions: user filter conditions merged with staticConditions (if any)
 //  - paginationCondition: isolated cursor condition so the cursor value is parameterized separately
 //  - rowLimit: result size cap
-//  - orderBy: descending on the view.paginationKey (matches existing pagination behavior)
+//  - orderBy: ordering on the view.paginationKey (defaults to DESC; can be overridden)
 export const buildGraphQLQueryVariables = (
     view: View,
     filterState: FilterState,
@@ -38,11 +38,14 @@ export const buildGraphQLQueryVariables = (
         conditions = { _and: [conditions, ...view.staticConditions] };
     }
 
+    const paginationDirection: 'ASC' | 'DESC' = view.paginationDirection ?? 'DESC';
+    const cursorOperator: '_lt' | '_gt' = paginationDirection === 'DESC' ? '_lt' : '_gt';
+
     const paginationCondition = cursor !== null
-        ? { [view.paginationKey]: { _lt: cursor } }
+        ? { [view.paginationKey]: { [cursorOperator]: cursor } }
         : {}; // Empty object becomes a no-op inside an _and
 
-    const paginationOrdering: HasuraOrderBy = { [view.paginationKey]: 'DESC' };
+    const paginationOrdering: HasuraOrderBy = { [view.paginationKey]: paginationDirection };
     const orderBy: HasuraOrderBy[] = (view.staticOrdering && view.staticOrdering.length > 0)
         ? [paginationOrdering, ...view.staticOrdering]
         : [paginationOrdering];

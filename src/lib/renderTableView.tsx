@@ -47,7 +47,10 @@ export type RenderTableViewOptions = {
     userData?: RenderTableViewUserDataOptions
 } & (
         | {
-            /** JSON string containing an array of view definitions (ViewJson). */
+            /**
+             * JSON string containing an array of view definitions (ViewJson).
+             * Tip: ViewJson supports optional `paginationDirection: 'ASC' | 'DESC'` (default: 'DESC').
+             */
             viewsJson: string
             views?: never
         }

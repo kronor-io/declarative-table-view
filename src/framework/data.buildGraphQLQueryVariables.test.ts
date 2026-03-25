@@ -32,6 +32,17 @@ describe('buildGraphQLQueryVariables', () => {
         expect(vars.orderBy).toEqual([{ id: 'DESC' }]);
     });
 
+    it('respects paginationDirection=ASC for cursor condition and orderBy', () => {
+        const view: View = {
+            ...baseView,
+            paginationDirection: 'ASC'
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 25, 50);
+        expect(vars.paginationCondition).toEqual({ id: { _gt: 50 } });
+        expect(vars.orderBy).toEqual([{ id: 'ASC' }]);
+    });
+
     it('builds variables with staticOrdering (without pagination ordering included)', () => {
         const view: View = {
             ...baseView,

@@ -117,6 +117,8 @@ export type ViewJson = {
     id: string;
     collectionName: string;
     paginationKey: string;
+    /** Optional direction for cursor-based pagination ordering on paginationKey. Defaults to 'DESC'. */
+    paginationDirection?: 'ASC' | 'DESC';
     columns: ColumnDefinitionJson[];
     filterSchema: FilterFieldSchemaJson;
     /** Optional default prompt shown in the AI Filter Assistant for this view. */
@@ -715,6 +717,15 @@ export function parseViewJson(
         throw new Error('View "paginationKey" must be a string');
     }
 
+    // Optional paginationDirection
+    let paginationDirection: 'ASC' | 'DESC' | undefined;
+    if (view.paginationDirection !== undefined) {
+        if (view.paginationDirection !== 'ASC' && view.paginationDirection !== 'DESC') {
+            throw new Error('View "paginationDirection" must be "ASC" or "DESC" when provided');
+        }
+        paginationDirection = view.paginationDirection as 'ASC' | 'DESC';
+    }
+
     if (typeof view.boolExpType !== 'string') {
         throw new Error('View "boolExpType" must be a string');
     }
@@ -834,6 +845,7 @@ export function parseViewJson(
         boolExpType: view.boolExpType,
         orderByType: view.orderByType,
         paginationKey: view.paginationKey,
+        paginationDirection,
         noRowsComponent,
         staticConditions,
         staticOrdering

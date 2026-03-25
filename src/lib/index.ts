@@ -7,6 +7,7 @@ export type { AppProps, DTVAPI } from '../App';
 
 // Re-export selected framework types that are useful to consumers.
 export type { View } from '../framework/view';
+export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
 export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FieldQuery } from '../framework/column-definition';

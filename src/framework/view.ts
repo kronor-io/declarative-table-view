@@ -28,12 +28,17 @@ export type View = {
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     paginationKey: string; // Field to use for cursor-based pagination
+    /**
+     * Optional direction for cursor-based pagination ordering on paginationKey.
+     * Defaults to 'DESC' for backwards compatibility.
+     */
+    paginationDirection?: 'ASC' | 'DESC';
     noRowsComponent?: NoRowsComponent;
     // Optional static GraphQL conditions (Hasura boolean expressions) always applied in addition to user filters
     staticConditions?: HasuraCondition[];
     // Optional static ordering entries always applied in addition to pagination ordering.
     // Each entry is a HasuraOrderBy object e.g. { createdAt: 'DESC' }
-    // Pagination will still enforce a descending ordering on paginationKey if not provided here.
+    // Pagination will still enforce an ordering on paginationKey (defaults to 'DESC') even if not provided here.
     staticOrdering?: HasuraOrderBy[];
 };
 
