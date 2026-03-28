@@ -2,8 +2,7 @@ import { PhoneNumberFilter } from '../../components/PhoneNumberFilter';
 import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRowsExtendDateRange';
 import { Runtime } from '../runtime';
 import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
-import { FilterTransform } from '../filters';
-import * as FilterValue from '../filterValue';
+import { FilterTransform, TransformResult } from '../filters';
 
 export type NativeRuntime = Runtime & {
     cellRenderers: {
@@ -47,18 +46,18 @@ export const filterTransforms = {
     autocomplete: {
         toQuery: (input: any) => {
             if (!input) {
-                return { value: FilterValue.empty };
+                return TransformResult.empty();
             }
-            return { value: FilterValue.value(input.value) };
+            return TransformResult.value(input.value);
         }
     },
 
     autocompleteMultiple: {
         toQuery: (input: any) => {
             if (!input) {
-                return { value: FilterValue.empty };
+                return TransformResult.empty();
             }
-            return { value: FilterValue.value(input.map((item: any) => item.value)) };
+            return TransformResult.value(input.map((item: any) => item.value));
         }
     }
 } satisfies Record<string, FilterTransform>

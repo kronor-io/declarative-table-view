@@ -5,6 +5,7 @@ import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
 import { ColumnDefinition } from './column-definition';
 import { FilterState, buildInitialFormState } from './state';
+import { Hasura } from './graphql';
 
 // Helper to create a minimal view for tests
 const baseView: Omit<View, 'title' | 'id'> & { title: string; id: string } = {
@@ -22,11 +23,11 @@ describe('buildGraphQLQueryVariables', () => {
     it('builds variables with staticConditions and cursor', () => {
         const view: View = {
             ...baseView,
-            staticConditions: [{ status: { _eq: 'ACTIVE' } }]
+            staticConditions: [Hasura.condition('status', Hasura.eq('ACTIVE'))]
         };
         const filterState: FilterState = new Map();
         const vars = buildGraphQLQueryVariables(view, filterState, 25, 50);
-        expect(vars.conditions).toEqual({ _and: [{}, { status: { _eq: 'ACTIVE' } }] });
+        expect(vars.conditions).toEqual({ status: { _eq: 'ACTIVE' } });
         expect(vars.paginationCondition).toEqual({ id: { _lt: 50 } });
         expect(vars.rowLimit).toBe(25);
         expect(vars.orderBy).toEqual([{ id: 'DESC' }]);

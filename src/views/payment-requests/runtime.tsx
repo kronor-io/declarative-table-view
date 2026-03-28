@@ -3,6 +3,7 @@ import { PaymentMethod } from "./components/PaymentMethod";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { Runtime } from "../../framework/runtime";
 import * as FilterValue from "../../framework/filterValue";
+import { TransformResult as TR } from '../../framework/filters';
 import type { TransformResult } from '../../framework/filters';
 
 // Static runtime configuration for payment requests view
@@ -103,7 +104,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         reference: {
             toQuery: (input: unknown) => {
                 if (!input || typeof input !== 'object') {
-                    return { value: FilterValue.empty };
+                    return TR.empty();
                 }
 
                 const record = input as { operator?: unknown; value?: unknown };
@@ -111,10 +112,10 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
                 const value = record.value;
 
                 if (operator === '_like' && typeof value === 'string' && value !== '') {
-                    return { value: FilterValue.value({ ...record, operator, value: `${value}%` }) };
+                    return TR.value({ ...record, operator, value: `${value}%` });
                 }
 
-                return { value: FilterValue.value(input) };
+                return TR.value(input);
             }
         },
 
@@ -122,9 +123,9 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         amount: {
             toQuery: (input: unknown) => {
                 if (typeof input === 'number') {
-                    return { value: FilterValue.value(input * 100) };
+                    return TR.value(input * 100);
                 }
-                return { value: FilterValue.empty };
+                return TR.empty();
             }
         },
 
@@ -132,24 +133,24 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         creditCardNumber: {
             toQuery: (input: unknown) => {
                 if (typeof input === 'string' && input !== '') {
-                    return { value: FilterValue.value(`%${input}%`) };
+                    return TR.value(`%${input}%`);
                 }
-                return { value: FilterValue.empty };
+                return TR.empty();
             }
         },
 
         transactionId: {
             toQuery: (input: unknown) => {
                 if (!input || typeof input !== 'object') {
-                    return { value: FilterValue.empty };
+                    return TR.empty();
                 }
 
                 const record = input as { value?: unknown };
                 const value = record.value;
                 if (typeof value === 'string' && value !== '') {
-                    return { value: FilterValue.value(value) };
+                    return TR.value(value);
                 }
-                return { value: FilterValue.empty };
+                return TR.empty();
             }
         }
     },

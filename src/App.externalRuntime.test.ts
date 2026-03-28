@@ -5,6 +5,7 @@ import { FlexRow, FlexColumn, DateTime } from './framework/cell-renderer-compone
 import { CurrencyAmount } from './framework/cell-renderer-components/CurrencyAmount';
 import { Mapping } from './framework/cell-renderer-components/Mapping';
 import { Link } from './framework/cell-renderer-components/Link';
+import { TransformResult } from './framework/filters';
 
 describe('External Runtime Integration', () => {
     it('should use external runtime when available', () => {
@@ -22,7 +23,7 @@ describe('External Runtime Integration', () => {
             },
             queryTransforms: {
                 customTransform: {
-                    toQuery: (input: any) => ({ value: input }),
+                    toQuery: (input: any) => TransformResult.value(input),
                 },
             },
             noRowsComponents: {

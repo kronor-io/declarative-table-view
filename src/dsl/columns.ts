@@ -19,7 +19,7 @@ import {
     type ObjectQuery,
     type ArrayQuery,
 } from "../framework/column-definition";
-import type { HasuraCondition } from '../framework/graphql';
+import type { HasuraFilterExpression } from '../framework/graphql';
 
 /**
  * Produces a phantom value used for type inference.
@@ -122,7 +122,7 @@ export function arrayQuery<const Field extends string, const SelectionSet extend
     orderBy?: OrderByConfig | OrderByConfig[];
     distinctOn?: string[];
     limit?: number;
-    where?: HasuraCondition;
+    where?: HasuraFilterExpression;
 }): ArrayQuery & { field: Field; selectionSet: SelectionSet } {
     return {
         type: 'arrayQuery',

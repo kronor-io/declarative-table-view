@@ -24,6 +24,17 @@ jest.mock('./framework/data', () => {
 });
 
 describe('App action button disabled while running', () => {
+    async function waitUntil(predicate: () => boolean, { timeoutMs, intervalMs }: { timeoutMs: number; intervalMs: number }): Promise<void> {
+        const start = Date.now();
+        while (true) {
+            if (predicate()) return;
+            if (Date.now() - start > timeoutMs) {
+                throw new Error('Timed out waiting for condition');
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+    }
+
     it('disables and re-enables async action button', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -82,8 +93,8 @@ describe('App action button disabled while running', () => {
         expect(button.disabled).toBe(true);
         expect(button.textContent).toBe('Async Action...');
 
-        // Wait for async to finish
-        await new Promise(r => setTimeout(r, 20));
+        // Wait for async to finish + state to commit
+        await waitUntil(() => button.disabled === false, { timeoutMs: 500, intervalMs: 5 });
         expect(button.disabled).toBe(false);
         expect(button.textContent).toBe('Async Action');
     });

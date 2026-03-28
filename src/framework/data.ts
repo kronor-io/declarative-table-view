@@ -1,5 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
-import { buildHasuraConditions, HasuraOrderBy } from '../framework/graphql';
+import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
 import { View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery } from '../framework/column-definition';
 import { FilterState } from './state';
@@ -31,19 +31,18 @@ export const buildGraphQLQueryVariables = (
     rowLimit: number,
     cursor: string | number | null
 ) => {
-    let conditions = buildHasuraConditions(filterState, view.filterGroups);
+    let conditionsExpr = buildHasuraConditions(filterState, view.filterGroups);
 
     if (view.staticConditions && view.staticConditions.length > 0) {
-        // Wrap even when user conditions object is empty for consistent shape
-        conditions = { _and: [conditions, ...view.staticConditions] };
+        conditionsExpr = Hasura.and(conditionsExpr, ...view.staticConditions);
     }
 
     const paginationDirection: 'ASC' | 'DESC' = view.paginationDirection ?? 'DESC';
     const cursorOperator: '_lt' | '_gt' = paginationDirection === 'DESC' ? '_lt' : '_gt';
 
-    const paginationCondition = cursor !== null
-        ? { [view.paginationKey]: { [cursorOperator]: cursor } }
-        : {}; // Empty object becomes a no-op inside an _and
+    const paginationConditionExpr = cursor !== null
+        ? Hasura.condition(view.paginationKey, { [cursorOperator]: cursor })
+        : Hasura.empty();
 
     const paginationOrdering: HasuraOrderBy = { [view.paginationKey]: paginationDirection };
     const orderBy: HasuraOrderBy[] = (view.staticOrdering && view.staticOrdering.length > 0)
@@ -51,8 +50,8 @@ export const buildGraphQLQueryVariables = (
         : [paginationOrdering];
 
     return {
-        conditions,
-        paginationCondition,
+        conditions: hasuraFilterExpressionToObject(conditionsExpr),
+        paginationCondition: hasuraFilterExpressionToObject(paginationConditionExpr),
         rowLimit,
         orderBy
     };

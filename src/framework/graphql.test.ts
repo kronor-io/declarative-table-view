@@ -1,4 +1,4 @@
-import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST } from "./graphql";
+import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST, Hasura } from "./graphql";
 import { ColumnDefinition, fieldAlias } from "./column-definition";
 import { valueQuery, objectQuery, arrayQuery } from "../dsl/columns";
 
@@ -47,13 +47,11 @@ describe("renderGraphQLQuery", () => {
                 { field: "name" },
                 {
                     field: "posts",
-                    where: {
-                        _and: [
-                            { title: { _ilike: "%graphql%" } },
-                            { published: { _eq: true } },
-                            { author_id: { _in: [1, 2, 3] } }
-                        ]
-                    },
+                    where: Hasura.and(
+                        Hasura.condition('title', Hasura.ilike('%graphql%')),
+                        Hasura.condition('published', Hasura.eq(true)),
+                        Hasura.condition('author_id', Hasura.in([1, 2, 3]))
+                    ),
                     limit: 10,
                     order_by: [{ createdAt: 'DESC' }],
                     selections: [

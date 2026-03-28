@@ -1,9 +1,11 @@
-import { ColumnDefinition, FieldQuery, OrderByConfig } from './column-definition';
-import { HasuraCondition, HasuraOperator, hasuraConditionsAreEqual, unorderedArrayEqual } from './hasura';
-export type { HasuraCondition, HasuraOperator } from './hasura';
-export { hasuraConditionsAreEqual, hasuraOperatorsAreEqual, buildHasuraConditions } from './hasura';
-
-// Hasura-specific types and helpers moved to ./hasura
+import { ColumnDefinition, FieldQuery, OrderByConfig } from '../column-definition';
+import {
+    hasuraFilterExpressionToObject,
+    HasuraFilterExpression,
+    hasuraFilterExpressionsAreEqual,
+    unorderedArrayEqual,
+} from './hasura-filter-expression';
+import type { HasuraFilterObject, HasuraOperator } from './hasura-filter-object';
 
 // Helper to merge two GraphQLSelectionSets
 function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet): GraphQLSelectionSet {
@@ -33,7 +35,7 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
             a.limit === b.limit &&
             unorderedArrayEqual(a.distinct_on || [], b.distinct_on || [], (x, y) => x === y) &&
             orderByEqual(a.order_by, b.order_by) &&
-            ((a.where && b.where) ? hasuraConditionsAreEqual(a.where, b.where) : a.where === b.where) &&
+            ((a.where && b.where) ? hasuraFilterExpressionsAreEqual(a.where, b.where) : a.where === b.where) &&
             selectionsEqual(a.selections, b.selections);
     };
 
@@ -103,6 +105,7 @@ export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): Gr
         }
         return null;
     }
+
     // Build selection set for all columns and all FieldQuery[] then apply dedupe-only merge
     const allSelections = columns.flatMap(col => col.data.map(processFieldQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
     return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => mergeSelectionSets(acc, [current]), []);
@@ -116,6 +119,7 @@ export function generateGraphQLQueryAST(
     paginationKey: string
 ): GraphQLQueryAST {
     const selectionSet = generateSelectionSetFromColumns(columns);
+
     // Ensure pagination key is present in selection set (append if missing)
     const hasPaginationKey = selectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
     if (!hasPaginationKey) {
@@ -127,6 +131,7 @@ export function generateGraphQLQueryAST(
         };
         selectionSet.push(buildNested(paginationKey));
     }
+
     return {
         operation: 'query',
         variables: [
@@ -143,10 +148,6 @@ export function generateGraphQLQueryAST(
     };
 }
 
-// Generates a full GraphQL query string for a given root field and schema, supporting only limit (Int), conditions (Hasura condition), and orderBy (Hasura ordering)
-// If paginationKey is provided and not already part of the selection set derived from columns,
-// it will be appended to ensure cursor-based pagination works even when the user has not defined
-// a column for that field.
 export function generateGraphQLQuery(
     rootField: string,
     columns: ColumnDefinition[],
@@ -158,20 +159,18 @@ export function generateGraphQLQuery(
     return renderGraphQLQuery(ast);
 }
 
-// AST-like representation for GraphQL queries
 export type GraphQLVariable = {
     name: string;
     type: string;
 };
 
-// Hasura order_by type: { field: 'asc' | 'desc' }
 export type HasuraOrderBy = Record<string, 'ASC' | 'DESC'>;
 
 export type GraphQLSelectionSetItem = {
     field: string;
-    alias?: string; // field alias support
-    path?: string; // path for querying inside JSON columns
-    where?: HasuraCondition;
+    alias?: string;
+    path?: string;
+    where?: HasuraFilterExpression;
     order_by?: HasuraOrderBy | HasuraOrderBy[];
     limit?: number;
     offset?: number;
@@ -189,11 +188,6 @@ export type GraphQLQueryAST = {
     selectionSet: GraphQLSelectionSet;
 };
 
-// Deep equality for HasuraCondition values (order-insensitive for logical arrays like _and/_or)
-// Deep equality for HasuraOperator objects
-// Equality helpers now imported from ./hasura
-
-// Renders a GraphQLQueryAST to a GraphQL query string
 export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     function renderVariables(vars: GraphQLVariable[]): string {
         if (!vars.length) return '';
@@ -232,25 +226,25 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
         return `[${ops.map(renderHasuraOperator).join(', ')}]`;
     };
 
-    const isAnd = (cond: HasuraCondition): cond is { _and: HasuraCondition[] } => {
+    const isAnd = (cond: HasuraFilterObject): cond is { _and: HasuraFilterObject[] } => {
         return typeof cond === 'object' && cond !== null && '_and' in cond && Array.isArray((cond as any)._and);
     };
-    const isOr = (cond: HasuraCondition): cond is { _or: HasuraCondition[] } => {
+    const isOr = (cond: HasuraFilterObject): cond is { _or: HasuraFilterObject[] } => {
         return typeof cond === 'object' && cond !== null && '_or' in cond && Array.isArray((cond as any)._or);
     };
-    const isNot = (cond: HasuraCondition): cond is { _not: HasuraCondition } => {
+    const isNot = (cond: HasuraFilterObject): cond is { _not: HasuraFilterObject } => {
         return typeof cond === 'object' && cond !== null && '_not' in cond;
     };
 
-    const renderHasuraCondition = (cond: HasuraCondition): string => {
+    const renderHasuraFilterObject = (cond: HasuraFilterObject): string => {
         if (isAnd(cond)) {
-            return `{_and: [${cond._and.map(renderHasuraCondition).join(', ')}]}`;
+            return `{_and: [${cond._and.map(renderHasuraFilterObject).join(', ')}]}`;
         }
         if (isOr(cond)) {
-            return `{_or: [${cond._or.map(renderHasuraCondition).join(', ')}]}`;
+            return `{_or: [${cond._or.map(renderHasuraFilterObject).join(', ')}]}`;
         }
         if (isNot(cond)) {
-            return `{_not: ${renderHasuraCondition(cond._not)}}`;
+            return `{_not: ${renderHasuraFilterObject(cond._not)}}`;
         }
 
         const entries = Object.entries(cond);
@@ -258,17 +252,30 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             entries
                 .map(([field, value]) => {
                     if (Array.isArray(value)) {
-                        // Array of HasuraOperator
-                        return `${field}: ${renderHasuraOperators(value)}`;
+                        const isOperatorObject = (val: unknown): val is HasuraOperator => {
+                            if (typeof val !== 'object' || val === null) return false;
+                            const keys = Object.keys(val as Record<string, unknown>);
+                            if (keys.length === 0) return false;
+                            return keys.every(k =>
+                                k.startsWith('_') && k !== '_and' && k !== '_or' && k !== '_not'
+                            );
+                        };
+
+                        const looksLikeOperatorArray = value.every(isOperatorObject);
+                        if (looksLikeOperatorArray) {
+                            return `${field}: ${renderHasuraOperators(value as HasuraOperator[])}`;
+                        }
+
+                        return `${field}: [${(value as HasuraFilterObject[]).map(renderHasuraFilterObject).join(', ')}]`;
                     }
                     if (typeof value === 'object' && value !== null) {
-                        // Heuristic: if the value contains any known operator keys, treat it as HasuraOperator; otherwise treat as nested HasuraCondition.
                         const obj = value as Record<string, unknown>;
                         const keys = Object.keys(obj);
-                        const looksLikeOperator = keys.some(k => k.startsWith('_'));
+                        const looksLikeLogical = keys.includes('_and') || keys.includes('_or') || keys.includes('_not');
+                        const looksLikeOperator = !looksLikeLogical && keys.some(k => k.startsWith('_'));
                         return looksLikeOperator
                             ? `${field}: ${renderHasuraOperator(value as HasuraOperator)}`
-                            : `${field}: ${renderHasuraCondition(value as HasuraCondition)}`;
+                            : `${field}: ${renderHasuraFilterObject(value as HasuraFilterObject)}`;
                     }
                     return `${field}: ${renderGraphQLLiteral(value)}`;
                 })
@@ -279,29 +286,22 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     function renderArgs(item: GraphQLSelectionSetItem): string {
         const args: string[] = [];
         if (item.where) {
-            args.push(`where: ${renderHasuraCondition(item.where)}`);
+            args.push(`where: ${renderHasuraFilterObject(hasuraFilterExpressionToObject(item.where))}`);
         }
-        if (item.limit !== undefined)
-            args.push(`limit: ${item.limit}`);
-        if (item.path)
-            args.push(`path: "${item.path}"`);
+        if (item.limit !== undefined) args.push(`limit: ${item.limit}`);
+        if (item.path) args.push(`path: "${item.path}"`);
         if (item.distinct_on && item.distinct_on.length) {
             const cols = item.distinct_on.map(c => String(c)).join(', ');
             args.push(`distinctOn: [${cols}]`);
         }
         if (item.order_by) {
-            // Custom rendering for orderBy to avoid quotes around asc/desc
             const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | undefined): string => {
                 if (Array.isArray(orderBy)) {
-                    return (
-                        '[' + orderBy.map(renderOrderBy).join(', ') + ']'
-                    );
+                    return '[' + orderBy.map(renderOrderBy).join(', ') + ']';
                 } else if (typeof orderBy === 'object' && orderBy !== undefined) {
-                    return (
-                        '{' + Object.entries(orderBy)
-                            .map(([k, v]) => `${k}: ${String(v).toUpperCase()}`)
-                            .join(', ') + '}'
-                    );
+                    return '{' + Object.entries(orderBy)
+                        .map(([k, v]) => `${k}: ${String(v).toUpperCase()}`)
+                        .join(', ') + '}';
                 }
                 return String(orderBy).toUpperCase();
             };
@@ -321,9 +321,8 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
                         renderSelectionSet(item.selections, indent + '  ') +
                         `${indent}}`
                     );
-                } else {
-                    return `${indent}${fieldName}${args}`;
                 }
+                return `${indent}${fieldName}${args}`;
             })
             .join('\n');
     }
@@ -335,8 +334,6 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
         `${ast.operation}${opName}${vars} {` +
         `  ${ast.rootField} {` +
         selection +
-        `
-  }
-}`
+        `\n  }\n}`
     );
 }

@@ -1,5 +1,5 @@
 import { ReactNode, createElement } from "react";
-import type { HasuraCondition } from "./graphql";
+import type { HasuraFilterExpression } from "./graphql";
 import {
     FlexRow,
     FlexColumn,
@@ -87,7 +87,7 @@ export type ArrayQuery = {
     orderBy?: OrderByConfig | OrderByConfig[];
     distinctOn?: string[];
     limit?: number;
-    where?: HasuraCondition;
+    where?: HasuraFilterExpression;
     selectionSet: readonly Query[];
 };
 

@@ -1,5 +1,5 @@
 import { FilterState } from './state';
-import { buildHasuraConditions } from './graphql';
+import { buildHasuraConditions, hasuraFilterExpressionToObject, Hasura } from './graphql';
 import type { FilterGroups } from './filters';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
@@ -24,7 +24,7 @@ describe('buildHasuraConditions', () => {
 
     it('should return an empty object for no conditions', () => {
         const filterSchema: FilterGroups = [];
-        expect(buildHasuraConditions(new Map(), filterSchema)).toEqual({});
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(new Map(), filterSchema))).toEqual({});
     });
 
     it('should handle a single condition', () => {
@@ -36,7 +36,7 @@ describe('buildHasuraConditions', () => {
         const formState: FilterState = new Map([
             ['name-filter', { type: 'leaf', value: FilterValue.value('test') }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({ name: { _eq: 'test' } });
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({ name: { _eq: 'test' } });
     });
 
     it('should handle multiple conditions with an implicit AND', () => {
@@ -65,7 +65,7 @@ describe('buildHasuraConditions', () => {
             ['name-filter', { type: 'leaf', value: FilterValue.value('test') }],
             ['age-filter', { type: 'leaf', value: FilterValue.value(20) }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             _and: [
                 { name: { _eq: 'test' } },
                 { age: { _gt: 20 } }
@@ -82,7 +82,7 @@ describe('buildHasuraConditions', () => {
         const formState: FilterState = new Map([
             ['user-name-filter', { type: 'leaf', value: FilterValue.value('test') }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             user: { name: { _eq: 'test' } }
         });
     });
@@ -96,7 +96,7 @@ describe('buildHasuraConditions', () => {
         const formState: FilterState = new Map([
             ['deep-filter', { type: 'leaf', value: FilterValue.value('deep') }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             a: { b: { c: { d: { _eq: 'deep' } } } }
         });
     });
@@ -122,7 +122,7 @@ describe('buildHasuraConditions', () => {
                 ]
             }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             _or: [
                 { name: { _eq: 'test' } },
                 { name: { _eq: 'another' } }
@@ -145,7 +145,7 @@ describe('buildHasuraConditions', () => {
                 child: { type: 'leaf', value: FilterValue.value('test') }
             }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             _not: { name: { _eq: 'test' } }
         });
     });
@@ -189,7 +189,7 @@ describe('buildHasuraConditions', () => {
                 ]
             }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             _and: [
                 { age: { _gt: 20 } },
                 {
@@ -242,7 +242,7 @@ describe('buildHasuraConditions', () => {
             ['tags-filter', { type: 'leaf', value: FilterValue.empty }],
             ['valid-filter', { type: 'leaf', value: FilterValue.value('good') }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({ valid: { _eq: 'good' } });
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({ valid: { _eq: 'good' } });
     });
 
     it('should handle custom operators', () => {
@@ -263,7 +263,7 @@ describe('buildHasuraConditions', () => {
                 value: FilterValue.value({ operator: '_custom_op', value: FilterValue.value('some_value') })
             }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             custom_field: { _custom_op: 'some_value' }
         });
     });
@@ -286,13 +286,13 @@ describe('buildHasuraConditions', () => {
                 value: FilterValue.value({ operator: '_ilike', value: FilterValue.value('%test%') })
             }]
         ]);
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             user: { name: { _ilike: '%test%' } }
         });
     });
 
-    it('should accept a prebuilt HasuraCondition via transform.toQuery', () => {
-        const prebuilt = { user: { is_active: { _eq: true } } };
+    it('should accept a prebuilt condition expr via transform.toQuery', () => {
+        const prebuilt = Hasura.scope('user', Hasura.condition('is_active', Hasura.eq(true)));
         const filterSchema = createFilterSchema(
             'prebuilt-condition',
             FilterExpr.equals({
@@ -309,6 +309,9 @@ describe('buildHasuraConditions', () => {
         ]);
 
         expect(buildHasuraConditions(formState, filterSchema)).toEqual(prebuilt);
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
+            user: { is_active: { _eq: true } }
+        });
     });
 
 });
@@ -339,7 +342,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
 
         const result = buildHasuraConditions(formState, filterSchema);
 
-        expect(result).toEqual({
+        expect(hasuraFilterExpressionToObject(result)).toEqual({
             _and: [
                 { name: { _eq: 'test' } },
                 { title: { _eq: 'test' } }
@@ -372,7 +375,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
 
         const result = buildHasuraConditions(formState, filterSchema);
 
-        expect(result).toEqual({
+        expect(hasuraFilterExpressionToObject(result)).toEqual({
             _or: [
                 { name: { _eq: 'test' } },
                 { title: { _eq: 'test' } }
@@ -405,7 +408,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
 
         const result = buildHasuraConditions(formState, filterSchema);
 
-        expect(result).toEqual({
+        expect(hasuraFilterExpressionToObject(result)).toEqual({
             _or: [
                 { user: { email: { _ilike: '%john%' } } },
                 { user: { username: { _ilike: '%john%' } } }
@@ -448,7 +451,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
 
         const result = buildHasuraConditions(formState, filterSchema);
 
-        expect(result).toEqual({
+        expect(hasuraFilterExpressionToObject(result)).toEqual({
             _and: [
                 {
                     _or: [
@@ -494,7 +497,7 @@ describe("Multi-field Filter Support with buildHasuraConditions", () => {
             value: FilterValue.value('TEST@EXAMPLE.COM')
         });
 
-        expect(buildHasuraConditions(formState, filterSchema)).toEqual({
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             user: { email_address: { _eq: 'test@example.com' } }
         });
     });

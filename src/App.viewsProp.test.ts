@@ -34,6 +34,17 @@ import { parseViewJson } from './framework/view-parser';
 import App from './App';
 
 describe('App views prop', () => {
+    async function waitUntil(predicate: () => boolean, { timeoutMs, intervalMs }: { timeoutMs: number; intervalMs: number }): Promise<void> {
+        const start = Date.now();
+        while (true) {
+            if (predicate()) return;
+            if (Date.now() - start > timeoutMs) {
+                throw new Error('Timed out waiting for condition');
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+    }
+
     it('bypasses view JSON parsing when views are provided', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -74,7 +85,7 @@ describe('App views prop', () => {
             React.createElement(PrimeReactProvider, { value: {}, children: appElement })
         );
 
-        await new Promise(r => setTimeout(r, 25));
+        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 500, intervalMs: 5 });
 
         expect(parseViewJson).not.toHaveBeenCalled();
 
@@ -91,7 +102,8 @@ describe('App views prop', () => {
         root.render(
             React.createElement(PrimeReactProvider, { value: {}, children: appElementWithTitle })
         );
-        await new Promise(r => setTimeout(r, 25));
+
+        await waitUntil(() => (container.textContent || '').includes('Provided View'), { timeoutMs: 1000, intervalMs: 10 });
         expect(container.textContent || '').toContain('Provided View');
     });
 });

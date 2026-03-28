@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GraphQLClient } from 'graphql-request';
-import { HasuraCondition } from './hasura';
+import { HasuraFilterExpression } from './graphql';
 import * as FilterValue from './filterValue';
 
 // Multi-field specification
@@ -13,11 +13,36 @@ export type FilterField =
 // Transform result type - must return an object with optional field/value fields
 export type TransformResult =
     | { field?: FilterField; value: FilterValue.FilterValue }
-    | { condition: HasuraCondition };
+    | { condition: HasuraFilterExpression };
+
+export const TransformResult = {
+    empty: (): Extract<TransformResult, { value: FilterValue.FilterValue }> => ({
+        value: FilterValue.empty,
+    }),
+    filterValue: (
+        value: FilterValue.FilterValue
+    ): Extract<TransformResult, { value: FilterValue.FilterValue }> => ({
+        value,
+    }),
+    value: (value: unknown): Extract<TransformResult, { value: FilterValue.FilterValue }> => ({
+        value: FilterValue.value(value),
+    }),
+    fieldValue: (
+        field: FilterField,
+        value: unknown
+    ): Extract<TransformResult, { field?: FilterField; value: FilterValue.FilterValue }> => ({
+        field,
+        value: FilterValue.value(value),
+    }),
+    condition: (condition: HasuraFilterExpression): Extract<TransformResult, { condition: HasuraFilterExpression }> => ({
+        condition,
+    }),
+} as const;
 
 // Alias for the TransformResult variant that yields a full Hasura condition.
 // Useful for helpers that *require* a condition-producing transform.
-export type TransformConditionResult = Extract<TransformResult, { condition: HasuraCondition }>;
+export type TransformConditionResult = Extract<TransformResult, { condition: HasuraFilterExpression }>;
+
 
 export type ConditionOnlyTransform = {
     toQuery: (input: unknown) => TransformConditionResult;

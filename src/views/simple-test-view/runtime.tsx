@@ -1,6 +1,7 @@
 import { CellRenderer } from "../../framework/column-definition";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import { Runtime } from "../../framework/runtime";
+import { TransformResult } from "../../framework/filters";
 import * as FilterValue from "../../framework/filterValue";
 
 // Define a simple data type for this view
@@ -66,14 +67,14 @@ export const simpleTestViewRuntime: Runtime = {
     },
     queryTransforms: {
         amountOffset: {
-            toQuery: (input: number) => ({ value: FilterValue.value(input + 5) })
+            toQuery: (input: number) => TransformResult.value(input + 5)
         },
         keyValueTransform: {
             toQuery: (input: unknown) => {
                 if (!input || input === '') {
-                    return { value: FilterValue.empty };
+                    return TransformResult.empty();
                 }
-                return { field: "transformedField", value: FilterValue.value(`prefix_${input}`) };
+                return TransformResult.fieldValue("transformedField", `prefix_${input}`);
             }
         }
     },
