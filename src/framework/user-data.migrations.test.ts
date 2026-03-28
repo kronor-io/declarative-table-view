@@ -193,7 +193,7 @@ describe('user-data migrations', () => {
         };
 
         // Store valid dtvUserData JSON but force an old revision so migrations run
-        const json = toUserDataJson(existing);
+        const json = toUserDataJson(existing, { 'view-a': basicSchema });
         json.formatRevision = INITIAL_USERDATA_FORMAT_REVISION;
         mockLocalStorage['dtvUserData'] = JSON.stringify(json);
 

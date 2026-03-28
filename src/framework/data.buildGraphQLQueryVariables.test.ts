@@ -67,7 +67,7 @@ describe('buildGraphQLQueryVariables', () => {
         const filterState: FilterState = new Map([[userFilter.id, buildInitialFormState(userFilter.expression)]]);
         const existing = filterState.get(userFilter.id);
         if (existing && existing.type === 'leaf') {
-            existing.value = '123';
+            existing.value = { type: 'value', value: '123' };
         }
         const vars = buildGraphQLQueryVariables(view, filterState, 10, null);
         expect(vars.conditions).toEqual({ id: { _eq: '123' } });

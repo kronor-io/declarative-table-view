@@ -2,6 +2,7 @@
 import type { FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
 import type { FilterFormState } from '../framework/filter-form-state';
 import { buildInitialFormState, createDefaultFilterState, FormStateInitMode, FilterState } from '../framework/state';
+import * as FilterValue from '../framework/filterValue';
 import type { RefObject } from 'react';
 import type { Toast } from 'primereact/toast';
 import { getAllFilters } from '../framework/view';
@@ -178,8 +179,9 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
         const collectValues = (node: any, acc: any[]) => {
             if (!node) return acc;
             if (node.type === 'leaf') {
-                if (node.value !== undefined && node.value !== '') {
-                    acc.push(node.value);
+                const v = node.value;
+                if (v !== undefined && v !== '' && v !== null) {
+                    acc.push(v);
                 }
             } else if (node.type === 'or' && Array.isArray(node.children)) {
                 node.children.forEach((c: any) => collectValues(c, acc));
@@ -190,7 +192,7 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
         return {
             ...currentState,
             type: 'leaf',
-            value: values
+            value: values.length === 0 ? FilterValue.empty : FilterValue.value(values)
         };
     }
 
@@ -255,7 +257,9 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
 
         return {
             ...currentState,
-            value: value
+            value: (value === undefined || value === '' || value === null || (Array.isArray(value) && value.length === 0))
+                ? FilterValue.empty
+                : FilterValue.value(value)
         };
     }
 

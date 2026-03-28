@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { GraphQLClient } from 'graphql-request';
 import { HasuraCondition } from './hasura';
+import * as FilterValue from './filterValue';
 
 // Multi-field specification
 export type FilterField =
@@ -11,7 +12,7 @@ export type FilterField =
 
 // Transform result type - must return an object with optional field/value fields
 export type TransformResult =
-    | { field?: FilterField; value?: unknown }
+    | { field?: FilterField; value: FilterValue.FilterValue }
     | { condition: HasuraCondition };
 
 // Alias for the TransformResult variant that yields a full Hasura condition.

@@ -4,6 +4,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { FilterExpr } from '../framework/filters';
+import * as FilterValue from '../framework/filterValue';
 
 describe('FilterForm state builders', () => {
     describe('buildInitialFormState vs buildEmptyFormState', () => {
@@ -20,7 +21,7 @@ describe('FilterForm state builders', () => {
             const initialState = buildInitialFormState(expr);
             expect(initialState).toEqual({
                 type: 'leaf',
-                value: 'default-value'
+                value: { type: 'value', value: 'default-value' }
             });
         });
 
@@ -36,9 +37,8 @@ describe('FilterForm state builders', () => {
             const initialState = buildInitialFormState(expr);
             const emptyState = buildInitialFormState(expr, FormStateInitMode.Empty);
 
-            // Both should have empty string value when no initialValue is provided
-            expect((initialState as any).value).toBe('');
-            expect((emptyState as any).value).toBe('');
+            expect(FilterValue.isEmpty((initialState as any).value)).toBe(true);
+            expect(FilterValue.isEmpty((emptyState as any).value)).toBe(true);
         });
 
         it('buildInitialFormState with mode=Empty handles complex nested expressions', () => {
@@ -72,11 +72,11 @@ describe('FilterForm state builders', () => {
             expect((emptyState as any).children).toHaveLength(2);
 
             // First child should be empty
-            expect((emptyState as any).children[0].value).toBe('');
+            expect(FilterValue.isEmpty((emptyState as any).children[0].value)).toBe(true);
 
             // Second child is a NOT expression, check its nested child
             expect((emptyState as any).children[1].type).toBe('not');
-            expect((emptyState as any).children[1].child.value).toBe('');
+            expect(FilterValue.isEmpty((emptyState as any).children[1].child.value)).toBe(true);
         });
     });
 });

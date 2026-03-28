@@ -50,12 +50,12 @@ export function fromSavedFilterJson(rawFilter: SavedFilterJson, filterGroups: Fi
     };
 }
 
-export function toSavedFilterJson(savedFilter: SavedFilter): SavedFilterJson {
+export function toSavedFilterJson(savedFilter: SavedFilter, filterGroups: FilterGroups): SavedFilterJson {
     return {
         id: savedFilter.id,
         name: savedFilter.name,
         view: savedFilter.view,
-        state: serializeFilterFormStateMap(savedFilter.state),
+        state: serializeFilterFormStateMap(savedFilter.state, filterGroups),
         createdAt: savedFilter.createdAt.toISOString(),
         formatRevision: CURRENT_FORMAT_REVISION
     };

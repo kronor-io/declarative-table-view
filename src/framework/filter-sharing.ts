@@ -1,12 +1,13 @@
 import { serializeFilterFormStateMap } from './filter-form-state';
+import type { FilterGroups } from './filters';
 import { FilterState } from './state';
 
 /**
  * Encode filter state to a base64 URL-safe string
  */
-export function encodeFilterState(filterState: FilterState): string {
+export function encodeFilterState(filterState: FilterState, filterGroups: FilterGroups): string {
     try {
-        const serializedState = serializeFilterFormStateMap(filterState);
+        const serializedState = serializeFilterFormStateMap(filterState, filterGroups);
         const jsonString = JSON.stringify(serializedState);
         // Convert to base64 and make it URL-safe
         return btoa(jsonString)
@@ -43,9 +44,9 @@ export function decodeFilterState(encodedState: string): unknown {
  */
 const FILTER_PARAM = 'dtv-filter-state';
 
-export function createShareableUrl(filterState: FilterState): string {
+export function createShareableUrl(filterState: FilterState, filterGroups: FilterGroups): string {
     try {
-        const encodedFilter = encodeFilterState(filterState);
+        const encodedFilter = encodeFilterState(filterState, filterGroups);
         const url = new URL(window.location.href);
         url.searchParams.set(FILTER_PARAM, encodedFilter);
         return url.toString();
@@ -53,6 +54,24 @@ export function createShareableUrl(filterState: FilterState): string {
         console.error('Failed to create shareable URL:', error);
         throw new Error('Failed to create shareable URL');
     }
+}
+
+export function createShareableUrlForSchema(filterState: FilterState, filterGroups: FilterGroups): string {
+    try {
+        const encodedFilter = encodeFilterState(filterState, filterGroups);
+        const url = new URL(window.location.href);
+        url.searchParams.set(FILTER_PARAM, encodedFilter);
+        return url.toString();
+    } catch (error) {
+        console.error('Failed to create shareable URL:', error);
+        throw new Error('Failed to create shareable URL');
+    }
+}
+
+export function setFilterInUrl(filterState: FilterState, filterGroups: FilterGroups): void {
+    const url = new URL(window.location.href);
+    url.searchParams.set(FILTER_PARAM, encodeFilterState(filterState, filterGroups));
+    window.history.replaceState({}, '', url);
 }
 
 /**
@@ -102,17 +121,4 @@ export function clearFilterFromUrl(): void {
     const url = new URL(window.location.href);
     url.searchParams.delete(FILTER_PARAM);
     window.history.replaceState({}, '', url.toString());
-}
-
-export function setFilterInUrl(filterState: FilterState): void {
-    try {
-        const encoded = encodeFilterState(filterState);
-        const url = new URL(window.location.href);
-        if (url.searchParams.get(FILTER_PARAM) !== encoded) {
-            url.searchParams.set(FILTER_PARAM, encoded);
-            window.history.replaceState({}, '', url.toString());
-        }
-    } catch (e) {
-        console.warn('Failed to set filter in URL', e);
-    }
 }

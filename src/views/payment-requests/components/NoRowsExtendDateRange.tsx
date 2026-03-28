@@ -2,6 +2,7 @@ import { FlexColumn } from "../../../framework/cell-renderer-components/LayoutHe
 import { Button } from "primereact/button";
 import { NoRowsComponentProps } from "../../../framework/view";
 import { FilterFormState } from "../../../framework/filter-form-state";
+import * as FilterValue from "../../../framework/filterValue";
 
 const NoRowsExtendDateRange = ({ updateFilterById, applyFilters }: Pick<NoRowsComponentProps, 'updateFilterById' | 'applyFilters'>) => {
     const handleExtend = () => {
@@ -10,13 +11,17 @@ const NoRowsExtendDateRange = ({ updateFilterById, applyFilters }: Pick<NoRowsCo
             if (currentFilter.type === 'and' && currentFilter.children.length > 0) {
                 const firstChild = currentFilter.children[0];
                 if (firstChild.type === 'leaf') {
-                    const current = new Date(firstChild.value);
+                    if (!FilterValue.isValue(firstChild.value) || !(firstChild.value.value instanceof Date)) {
+                        return currentFilter;
+                    }
+
+                    const current = new Date(firstChild.value.value);
                     current.setMonth(current.getMonth() - 1);
 
                     return {
                         ...currentFilter,
                         children: [
-                            { ...firstChild, value: current },
+                            { ...firstChild, value: FilterValue.value(current) },
                             ...currentFilter.children.slice(1)
                         ]
                     };

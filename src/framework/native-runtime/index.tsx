@@ -3,6 +3,7 @@ import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRow
 import { Runtime } from '../runtime';
 import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
 import { FilterTransform } from '../filters';
+import * as FilterValue from '../filterValue';
 
 export type NativeRuntime = Runtime & {
     cellRenderers: {
@@ -45,19 +46,19 @@ export const cellRenderers = {
 export const filterTransforms = {
     autocomplete: {
         toQuery: (input: any) => {
-            if (input) {
-                return { value: input.value };
+            if (!input) {
+                return { value: FilterValue.empty };
             }
-            return { value: input };
+            return { value: FilterValue.value(input.value) };
         }
     },
 
     autocompleteMultiple: {
         toQuery: (input: any) => {
-            if (input) {
-                return { value: input.map((item: any) => item.value) };
+            if (!input) {
+                return { value: FilterValue.empty };
             }
-            return { value: input };
+            return { value: FilterValue.value(input.map((item: any) => item.value)) };
         }
     }
 } satisfies Record<string, FilterTransform>

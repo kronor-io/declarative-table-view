@@ -1,26 +1,27 @@
 import { nativeRuntime } from './index';
+import * as FilterValue from '../filterValue';
 
 describe('nativeRuntime.queryTransforms.autocomplete.toQuery', () => {
     const { toQuery } = nativeRuntime.queryTransforms.autocomplete;
 
     it('extracts value from object with value property', () => {
         const input = { value: 'ABC', label: 'Something Else' };
-        expect(toQuery(input)).toEqual({ value: 'ABC' });
+        expect(toQuery(input)).toEqual({ value: FilterValue.value('ABC') });
     });
 
     it('returns value as-is when input is empty string', () => {
         const input = '';
-        expect(toQuery(input)).toEqual({ value: '' });
+        expect(toQuery(input)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is null', () => {
         const input = null;
-        expect(toQuery(input)).toEqual({ value: null });
+        expect(toQuery(input)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is undefined', () => {
         const input = undefined;
-        expect(toQuery(input)).toEqual({ value: undefined });
+        expect(toQuery(input)).toEqual({ value: FilterValue.empty });
     });
 });
 
@@ -33,21 +34,21 @@ describe('nativeRuntime.queryTransforms.autocompleteMultiple.toQuery', () => {
             { value: 'B', label: 'B Label' },
             { value: 123, label: 'Number Label' }
         ];
-        expect(toQuery(input)).toEqual({ value: ['A', 'B', 123] });
+        expect(toQuery(input)).toEqual({ value: FilterValue.value(['A', 'B', 123]) });
     });
 
     it('handles empty array', () => {
         const input: any[] = [];
-        expect(toQuery(input)).toEqual({ value: [] });
+        expect(toQuery(input)).toEqual({ value: FilterValue.value([]) });
     });
 
     it('returns value as-is when input is null', () => {
         const input = null;
-        expect(toQuery(input)).toEqual({ value: null });
+        expect(toQuery(input)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is undefined', () => {
         const input = undefined;
-        expect(toQuery(input)).toEqual({ value: undefined });
+        expect(toQuery(input)).toEqual({ value: FilterValue.empty });
     });
 });

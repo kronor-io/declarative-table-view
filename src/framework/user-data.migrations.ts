@@ -1,6 +1,6 @@
 import { FilterGroups } from './filters';
-import { fromSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
-import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, ViewData, type UserData } from './user-data';
+import { fromSavedFilterJson, toSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
+import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, REVISION_2026_03_26, ViewData, type UserData } from './user-data';
 import { ViewId } from './view';
 import { failure, success, type Result } from './result'
 
@@ -124,9 +124,42 @@ const step_addPreference_syncFilterStateToUrlOverride: MigrationStep = {
     }
 }
 
+const step_migrateSavedFilterStateToLeafAdt: MigrationStep = {
+    fromRevision: REVISION_2026_01_29,
+    toRevision: REVISION_2026_03_26,
+    migrate: (userData: UserData, context: MigrationContext): UserData => {
+        // Re-save all saved filters with the latest SavedFilterJson shape.
+        // This will:
+        // - Migrate legacy leaf values into FilterValue ADT during parsing
+        // - Omit empty filters during serialization
+        const nextViews: UserData['views'] = { ...userData.views }
+
+        for (const [viewId, viewData] of Object.entries(userData.views)) {
+            const filterGroups = context.filterGroupsByViewId[viewId]
+            if (!filterGroups) continue;
+
+            const nextSavedFilters = viewData.savedFilters.map((savedFilter) => {
+                const json = toSavedFilterJson(savedFilter, filterGroups)
+                return fromSavedFilterJson(json, filterGroups)
+            })
+
+            nextViews[viewId] = {
+                ...viewData,
+                savedFilters: nextSavedFilters
+            }
+        }
+
+        return {
+            ...userData,
+            views: nextViews
+        }
+    }
+}
+
 const MIGRATIONS: MigrationStep[] = [
     step_migrateSavedFilters,
-    step_addPreference_syncFilterStateToUrlOverride
+    step_addPreference_syncFilterStateToUrlOverride,
+    step_migrateSavedFilterStateToLeafAdt
 ];
 
 export const CURRENT_USERDATA_FORMAT_REVISION = MIGRATIONS[MIGRATIONS.length - 1].toRevision;

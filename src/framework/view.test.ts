@@ -1,5 +1,6 @@
 import { parseColumnDefinitionJson, parseFilterFieldSchemaJson, parseViewJson } from './view-parser';
 import { Runtime } from './runtime';
+import * as FilterValue from './filterValue';
 
 describe('parseColumnDefinitionJson', () => {
     const testRuntime: Runtime = {
@@ -797,13 +798,13 @@ describe('parseFilterFieldSchemaJson', () => {
         customFilterComponents: {},
         queryTransforms: {
             reference: {
-                toQuery: (input: any) => ({ value: `${input}%` })
+                toQuery: (input: any) => ({ value: FilterValue.value(`${input}%`) })
             },
             amount: {
-                toQuery: (input: any) => ({ value: input * 100 })
+                toQuery: (input: any) => ({ value: FilterValue.value(input * 100) })
             },
             creditCard: {
-                toQuery: (input: any) => ({ value: `%${input}%` })
+                toQuery: (input: any) => ({ value: FilterValue.value(`%${input}%`) })
             }
         },
         initialValues: {},
@@ -1415,13 +1416,13 @@ describe('parseViewJson', () => {
         },
         queryTransforms: {
             reference: {
-                toQuery: (input: any) => ({ value: `${input}%` })
+                toQuery: (input: any) => ({ value: FilterValue.value(`${input}%`) })
             },
             amount: {
-                toQuery: (input: any) => ({ value: input * 100 })
+                toQuery: (input: any) => ({ value: FilterValue.value(input * 100) })
             },
             creditCardNumber: {
-                toQuery: (input: any) => ({ value: `%${input}%` })
+                toQuery: (input: any) => ({ value: FilterValue.value(`%${input}%`) })
             }
         },
         noRowsComponents: {

@@ -2,6 +2,7 @@ import type { FilterExpr, FilterSchema, FilterId, FilterGroups, FilterGroup } fr
 import { FilterControl } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterFormState, isFilterEmpty } from '../framework/filter-form-state';
+import * as FilterValue from '../framework/filterValue';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
@@ -92,20 +93,36 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
             );
         case 'customOperator': {
             const operator = value?.operator ?? control.operators[0]?.value;
-            const valueOrDefault = value?.value ?? '';
+            const innerValueOrDefault = FilterValue.valueOrNull(value?.value ?? FilterValue.empty) ?? '';
             return (
                 <div className="tw:flex tw:gap-2">
                     <Dropdown
                         className="tw:min-w-[90px]"
                         value={operator}
                         options={control.operators}
-                        onChange={e => setValue({ operator: e.value, value: valueOrDefault })}
+                        onChange={e => setValue({ operator: e.value, value: value?.value ?? FilterValue.empty })}
                         optionLabel="label"
                         optionValue="value"
                         placeholder="operator"
                     />
                     <div className="tw:flex-1">
-                        {renderInput(control.valueControl, valueOrDefault, v => setValue({ operator, value: v }), graphqlClient)}
+                        {renderInput(
+                            control.valueControl,
+                            innerValueOrDefault,
+                            rawValue => {
+                                const shouldBeEmpty =
+                                    rawValue === undefined ||
+                                    rawValue === null ||
+                                    rawValue === '' ||
+                                    (Array.isArray(rawValue) && rawValue.length === 0);
+                                const filterValue =
+                                    shouldBeEmpty
+                                        ? FilterValue.empty
+                                        : FilterValue.value(rawValue);
+                                setValue({ operator, value: filterValue });
+                            },
+                            graphqlClient
+                        )}
                     </div>
                 </div>
             );
@@ -214,12 +231,30 @@ function renderFilterFormState(
         }
 
         const handleSetValue = (value: unknown) => {
-            const newState = { ...state, value };
+            if (filterExpression.value.type === 'customOperator') {
+                const operatorAndValue = value as { operator: string; value: FilterValue.FilterValue };
+                const newState = {
+                    ...state,
+                    value: FilterValue.value(operatorAndValue)
+                };
+                setState(newState);
+                return;
+            }
+            const shouldBeEmpty =
+                value === undefined ||
+                value === null ||
+                value === '' ||
+                (Array.isArray(value) && value.length === 0);
+
+            const newState = {
+                ...state,
+                value: shouldBeEmpty ? FilterValue.empty : FilterValue.value(value)
+            };
+
             setState(newState);
         };
 
-        // Use the raw state value for display - transforms are applied during query building
-        const displayValue = state.value;
+        const displayValue = FilterValue.valueOrNull(state.value);
 
         return (
             <div className="tw:flex tw:flex-col tw:min-w-[220px] tw:mb-2">

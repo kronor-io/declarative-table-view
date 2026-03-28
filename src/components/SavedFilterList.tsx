@@ -159,31 +159,27 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return getFieldValueDisplay(controlValue);
     }
 
-    function isLeafValueEmpty(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): boolean {
-        const value = stateLeaf.value;
-        if (schemaLeaf.value.type === 'customOperator') {
-            const inner = value?.value;
-            return inner === '' || inner === null || (Array.isArray(inner) && inner.length === 0);
-        }
-        return value === '' || value === null || (Array.isArray(value) && value.length === 0);
-    }
-
     function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): string {
-        if (isLeafValueEmpty(schemaLeaf, stateLeaf)) {
+        if (isFilterEmpty(stateLeaf, schemaLeaf)) {
             return '';
         }
 
         const field = `${getFilterFieldDisplay(schemaLeaf.field)} `
 
         if (schemaLeaf.value.type === 'customOperator') {
-            const operatorValue = stateLeaf.value?.operator;
+            const raw = (stateLeaf.value as any);
+            const valueObj = raw?.type === 'value' ? raw.value : raw;
+
+            const operatorValue = valueObj?.operator;
             const operatorLabel = schemaLeaf.value.operators.find(o => o.value === operatorValue)?.label ?? String(operatorValue ?? '');
-            const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, stateLeaf.value?.value);
+            const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, valueObj?.value);
             return `${field}${operatorLabel} ${valueStr}`.trim();
         }
 
         const operator = getOperatorDisplay(schemaLeaf.type);
-        const valueStr = getControlValueDisplay(schemaLeaf.value, stateLeaf.value);
+        const raw = (stateLeaf.value as any);
+        const value = raw?.type === 'value' ? raw.value : raw;
+        const valueStr = getControlValueDisplay(schemaLeaf.value, value);
         return `${field}${operator} ${valueStr}`.trim();
     }
 

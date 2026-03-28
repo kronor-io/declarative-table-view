@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FilterFormState } from "./filter-form-state";
+import * as FilterValue from "./filterValue";
 import { FilterGroups, FilterId, FilterExpr } from "./filters";
 import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
@@ -31,28 +32,30 @@ export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode 
             // For customOperator we store an object: { operator, value }
             // Operator defaults to first provided operator value
             const operator = expr.value.operators[0]?.value;
+
             // Determine base initial value (NOT already wrapped):
             // - Empty mode => ''
             // - Top-level initialValue if present
             // - Nested valueControl.initialValue if present
-            // - Fallback ''
-            const baseValue = mode === FormStateInitMode.Empty
-                ? ''
-                : (('initialValue' in expr.value && expr.value.initialValue !== undefined)
-                    ? expr.value.initialValue
-                    : (('initialValue' in expr.value.valueControl && expr.value.valueControl.initialValue !== undefined)
-                        ? expr.value.valueControl.initialValue
-                        : ''));
+            const value = mode === FormStateInitMode.Empty
+                ? FilterValue.empty
+                : FilterValue.alt([
+                    FilterValue.fromJS(expr.value.initialValue),
+                    FilterValue.fromJS(expr.value.valueControl.initialValue)
+                ])
             return {
                 type: 'leaf',
-                value: { operator, value: baseValue }
+                value: FilterValue.value({ operator, value })
             };
         }
+
+        const value = mode === FormStateInitMode.Empty
+            ? FilterValue.empty
+            : FilterValue.fromJS(expr.value.initialValue);
+
         return {
             type: 'leaf',
-            value: mode === FormStateInitMode.Empty
-                ? ''
-                : ('initialValue' in expr.value && expr.value.initialValue !== undefined ? expr.value.initialValue : '')
+            value
         };
     }
 }

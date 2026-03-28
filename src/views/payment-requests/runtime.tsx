@@ -2,6 +2,8 @@ import { CellRenderer } from "../../framework/column-definition";
 import { PaymentMethod } from "./components/PaymentMethod";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { Runtime } from "../../framework/runtime";
+import * as FilterValue from "../../framework/filterValue";
+import type { TransformResult } from '../../framework/filters';
 
 // Static runtime configuration for payment requests view
 export type PaymentRequestsRuntime = Runtime & {
@@ -16,13 +18,13 @@ export type PaymentRequestsRuntime = Runtime & {
     };
     queryTransforms: {
         reference: {
-            toQuery: (input: any) => any;
+            toQuery: (input: unknown) => TransformResult;
         };
         amount: {
-            toQuery: (input: any) => any;
+            toQuery: (input: unknown) => TransformResult;
         };
         creditCardNumber: {
-            toQuery: (input: any) => any;
+            toQuery: (input: unknown) => TransformResult;
         };
     };
     initialValues: {
@@ -56,10 +58,14 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexColumn, FlexRow } }) => {
             const handleEmailClick = () => {
                 // 'customer-email' is the filter id defined in view.json
-                updateFilterById('customer-email', (currentFilter: any) => {
+                const email = data.customer?.email;
+                if (!email) {
+                    return;
+                }
+                updateFilterById('customer-email', (currentFilter) => {
                     return {
                         ...currentFilter,
-                        value: { operator: '_eq', value: data.customer?.email }
+                        value: FilterValue.value({ operator: '_eq', value: FilterValue.value(email) })
                     };
                 });
                 applyFilters();
@@ -95,40 +101,55 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     queryTransforms: {
         // Transform for Reference filter (starts with functionality)
         reference: {
-            toQuery: (input: any) => {
-                if (input.operator === '_like' && input.value) {
-                    return { value: { ...input, value: `${input.value}%` } };
+            toQuery: (input: unknown) => {
+                if (!input || typeof input !== 'object') {
+                    return { value: FilterValue.empty };
                 }
-                return { value: input };
+
+                const record = input as { operator?: unknown; value?: unknown };
+                const operator = record.operator;
+                const value = record.value;
+
+                if (operator === '_like' && typeof value === 'string' && value !== '') {
+                    return { value: FilterValue.value({ ...record, operator, value: `${value}%` }) };
+                }
+
+                return { value: FilterValue.value(input) };
             }
         },
 
         // Transform for Amount filter (convert between display and storage format)
         amount: {
-            toQuery: (input: any) => {
-                if (input) {
-                    return { value: input * 100 };
+            toQuery: (input: unknown) => {
+                if (typeof input === 'number') {
+                    return { value: FilterValue.value(input * 100) };
                 }
-                return { value: input };
+                return { value: FilterValue.empty };
             }
         },
 
         // Transform for Credit Card Number filter (add wildcards)
         creditCardNumber: {
-            toQuery: (input: any) => {
-                if (input) {
-                    return { value: `%${input}%` };
+            toQuery: (input: unknown) => {
+                if (typeof input === 'string' && input !== '') {
+                    return { value: FilterValue.value(`%${input}%`) };
                 }
-                return { value: input };
+                return { value: FilterValue.empty };
             }
         },
 
         transactionId: {
-            toQuery: (input: any) => {
-                if (input) {
-                    return { value: input.value };
+            toQuery: (input: unknown) => {
+                if (!input || typeof input !== 'object') {
+                    return { value: FilterValue.empty };
                 }
-                return { value: input };
+
+                const record = input as { value?: unknown };
+                const value = record.value;
+                if (typeof value === 'string' && value !== '') {
+                    return { value: FilterValue.value(value) };
+                }
+                return { value: FilterValue.empty };
             }
         }
     },

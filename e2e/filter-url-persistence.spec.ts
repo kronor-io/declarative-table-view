@@ -21,6 +21,8 @@ test.describe('Filter state URL persistence flag', () => {
     test('enabled: applying filter sets and persists dtv-filter-state', async ({ page }) => {
         await page.route('**/v1/graphql', mockPaginationGraphQL);
         await page.goto('/?test-view=simple-test-view&sync-filter-state-to-url=true');
+
+        const before = getParam(page.url(), 'dtv-filter-state');
         await page.getByText('Filters', { exact: true }).click();
         const amountLabel = page.getByText('Amount', { exact: true });
         const amountInput = amountLabel.locator('..').locator('~ div input');
@@ -29,6 +31,7 @@ test.describe('Filter state URL persistence flag', () => {
         const encoded = getParam(page.url(), 'dtv-filter-state');
         expect(encoded).not.toBeNull();
         expect(encoded).toMatch(b64urlRe);
+        expect(encoded).not.toEqual(before);
         await page.reload();
         await expect(page.getByRole('table')).toBeVisible();
         expect(getParam(page.url(), 'dtv-filter-state')).not.toBeNull();

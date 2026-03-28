@@ -5,6 +5,7 @@ import { describe, it, expect } from '@jest/globals';
 import { buildInitialFormState, FormStateInitMode } from './state';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
+import * as FilterValue from './filterValue';
 
 describe('buildInitialFormState customOperator handling', () => {
     it('should build initial state object with operator and nested value (valueControl initialValue)', () => {
@@ -18,7 +19,7 @@ describe('buildInitialFormState customOperator handling', () => {
         const formState = buildInitialFormState(expr, FormStateInitMode.WithInitialValues);
         expect(formState).toEqual({
             type: 'leaf',
-            value: { operator: '_eq', value: 'abc' }
+            value: FilterValue.value({ operator: '_eq', value: FilterValue.value('abc') })
         });
     });
 
@@ -35,11 +36,11 @@ describe('buildInitialFormState customOperator handling', () => {
         const formState = buildInitialFormState(expr, FormStateInitMode.WithInitialValues);
         expect(formState).toEqual({
             type: 'leaf',
-            value: { operator: '_eq', value: 'top' }
+            value: FilterValue.value({ operator: '_eq', value: FilterValue.value('top') })
         });
     });
 
-    it('should build empty mode with operator and empty value', () => {
+    it('should build a state node with operator and empty value in Empty mode', () => {
         const expr = FilterExpr.equals({
             field: 'field', control: FilterControl.customOperator({
                 operators: [{ label: 'Equals', value: '_eq' }],
@@ -49,7 +50,7 @@ describe('buildInitialFormState customOperator handling', () => {
         const formState = buildInitialFormState(expr, FormStateInitMode.Empty);
         expect(formState).toEqual({
             type: 'leaf',
-            value: { operator: '_eq', value: '' }
+            value: FilterValue.value({ operator: '_eq', value: FilterValue.empty })
         });
     });
 });

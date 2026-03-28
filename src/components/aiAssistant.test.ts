@@ -36,8 +36,11 @@ describe('aiAssistant customOperator patching', () => {
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
             expect(result.value).toEqual({
-                operator: '_eq',
-                value: 'test_value'
+                type: 'value',
+                value: {
+                    operator: '_eq',
+                    value: 'test_value'
+                }
             });
         }
     });
@@ -76,8 +79,11 @@ describe('aiAssistant customOperator patching', () => {
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
             expect(result.value).toEqual({
-                operator: '_neq',
-                value: 'test_value'
+                type: 'value',
+                value: {
+                    operator: '_neq',
+                    value: 'test_value'
+                }
             });
         }
     });
@@ -105,7 +111,7 @@ describe('aiAssistant customOperator patching', () => {
         // The result should preserve the original string value
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
-            expect(result.value).toBe('test_value');
+            expect(result.value).toEqual({ type: 'value', value: 'test_value' });
         }
     });
 
@@ -169,7 +175,7 @@ describe('aiAssistant customOperator patching', () => {
         const result = mergeFilterFormState(expression, emptyState, aiState);
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
-            expect(result.value).toEqual(['A', 'B']);
+            expect(result.value).toEqual({ type: 'value', value: ['A', 'B'] });
         }
     });
 
@@ -192,7 +198,7 @@ describe('aiAssistant customOperator patching', () => {
         const result = mergeFilterFormState(expression, emptyState, aiState);
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
-            expect(result.value).toEqual(['NEW', 'ARCHIVED']);
+            expect(result.value).toEqual({ type: 'value', value: ['NEW', 'ARCHIVED'] });
         }
     });
 });

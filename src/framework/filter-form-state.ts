@@ -1,12 +1,13 @@
 import { FilterField, FilterControl, FilterExpr, FilterGroups } from './filters';
 import { getAllFilters } from './view';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
+import * as FilterValue from './filterValue';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
     | {
         type: 'leaf';
-        value: any;
+        value: FilterValue.FilterValue;
     }
     | { type: 'and' | 'or'; children: FilterFormState[] }
     | { type: 'not'; child: FilterFormState };
@@ -16,12 +17,12 @@ export type FilterFormState =
  */
 export function mapFilterFormState<T>(
     node: FilterFormState,
-    transformValue: (value: any) => T
+    transformValue: (value: unknown) => T
 ): FilterFormState {
     if (node.type === 'leaf') {
         return {
             ...node,
-            value: transformValue(node.value)
+            value: FilterValue.map(transformValue, node.value)
         };
     } else if (node.type === 'not') {
         return {
@@ -50,7 +51,6 @@ type NotFilterExpr = FilterExpr & { type: 'not' };
  * such as:
  * - Building query conditions recursively
  * - Building validation result trees
- * - Transforming data structures while preserving tree shape
  * - Building UI components from schema + state
  *
  * @param schemaNode - The schema node to traverse
@@ -136,6 +136,51 @@ export function makeFilterFormStateSerializable(node: FilterFormState): FilterFo
     });
 }
 
+function isEmptyLikePrimitive(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === null ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeCustomOperatorLeafValue(value: unknown): FilterValue.FilterValue {
+    // Canonical shape (in memory): { operator: string, value: FilterValue }
+    // Empty-ness is determined solely by the nested `value`.
+    if (!isRecord(value)) return FilterValue.empty;
+
+    const operator = value['operator'];
+    const inner = value['value'];
+    if (typeof operator !== 'string') return FilterValue.empty;
+
+    // New form: inner is already a FilterValue
+    const innerFilterValue = FilterValue.fromObject(inner);
+    if (innerFilterValue) {
+        if (FilterValue.isEmpty(innerFilterValue)) return FilterValue.empty;
+        return FilterValue.value({ operator, value: innerFilterValue });
+    }
+
+    // Legacy form: inner is a primitive
+    if (isEmptyLikePrimitive(inner)) return FilterValue.empty;
+    return FilterValue.value({ operator, value: FilterValue.value(inner) });
+}
+
+function migrateLegacyLeafValue(value: unknown, schemaLeaf: LeafFilterExpr): FilterValue.FilterValue {
+    // Legacy leaves stored raw primitives; convert to ADT.
+    // Preserve false/0; treat [] as empty (multiselect etc.).
+    if (schemaLeaf.value.type === 'customOperator') {
+        return normalizeCustomOperatorLeafValue(value);
+    }
+
+    if (isEmptyLikePrimitive(value)) return FilterValue.empty;
+    return FilterValue.value(value);
+}
+
 /**
  * Schema-aware emptiness check for a FilterFormState tree.
  * A leaf is considered empty when its primitive value is '' | null | [] (if array).
@@ -144,12 +189,12 @@ export function makeFilterFormStateSerializable(node: FilterFormState): FilterFo
 export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): boolean {
     return traverseFilterSchemaAndState<boolean>(schemaExpr, state, {
         leaf: (schemaLeaf, stateLeaf) => {
-            const value = stateLeaf.value;
+            if (FilterValue.isEmpty(stateLeaf.value)) return true;
             if (schemaLeaf.value.type === 'customOperator') {
-                const inner = value?.value; // { operator, value }
-                return inner === '' || inner === null || (Array.isArray(inner) && inner.length === 0);
+                const operatorAndValue = stateLeaf.value.value as { operator: string; value: FilterValue.FilterValue };
+                return FilterValue.isEmpty(operatorAndValue.value);
             }
-            return value === '' || value === null || (Array.isArray(value) && value.length === 0);
+            return false;
         },
         and: (_schemaAnd, _stateAnd, childResults) => childResults.every(Boolean),
         or: (_schemaOr, _stateOr, childResults) => childResults.every(Boolean),
@@ -158,12 +203,24 @@ export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): b
 }
 
 /**
- * Serialize a FilterState Map to JSON object for storage
+ * Serialize a FilterState Map to a JSON object for persistence/sharing.
+ * Requires schema so emptiness can be evaluated correctly.
  */
-export function serializeFilterFormStateMap(state: FilterState): Record<string, any> {
+export function serializeFilterFormStateMap(
+    state: FilterState,
+    filterGroups: FilterGroups
+): Record<string, any> {
+    const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
+
     return Object.fromEntries(
-        Array.from(state.entries())
-            .map(([id, node]) => [id, makeFilterFormStateSerializable(node)])
+        Array.from(state.entries()).flatMap(([id, node]) => {
+            const filter = filtersById.get(id);
+            if (filter && isFilterEmpty(node, filter.expression)) {
+                return [];
+            }
+
+            return [[id, makeFilterFormStateSerializable(node)]];
+        })
     );
 }
 
@@ -174,14 +231,24 @@ export function serializeFilterFormStateMap(state: FilterState): Record<string, 
 function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFormState): FilterFormState {
     return traverseFilterSchemaAndState<FilterFormState>(expression, stored, {
         leaf: (schemaLeaf, stateLeaf) => {
-            let value = stateLeaf.value;
+            const migrated = FilterValue.fromObject(stateLeaf.value)
+                ?? migrateLegacyLeafValue((stateLeaf as unknown as { value?: unknown }).value, schemaLeaf);
+
+            if (FilterValue.isEmpty(migrated)) {
+                return { type: 'leaf', value: migrated };
+            }
+
+            const value = migrated.value;
             if (schemaLeaf.value.type === 'date' && typeof value === 'string') {
                 const date = new Date(value);
                 if (!isNaN(date.getTime())) {
-                    value = date;
+                    return { type: 'leaf', value: FilterValue.value(date) };
+                } else {
+                    return { type: 'leaf', value: FilterValue.empty };
                 }
             }
-            return { type: 'leaf', value };
+
+            return { type: 'leaf', value: FilterValue.value(value) };
         },
         and: (_schemaAnd, _stateAnd, childResults) => ({ type: 'and', children: childResults }),
         or: (_schemaOr, _stateOr, childResults) => ({ type: 'or', children: childResults }),

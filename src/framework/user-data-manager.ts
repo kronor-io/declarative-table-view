@@ -138,7 +138,7 @@ export function createUserDataManager(
             : nextUserData
 
         // Convert the subset of views (with known schemas) to JSON
-        const nextUserDataJson: UserDataJson = toUserDataJson(persistedUserData)
+        const nextUserDataJson: UserDataJson = toUserDataJson(persistedUserData, filterGroupsByViewId)
 
         // Merge existing per-view data from local storage to avoid data loss for unknown views
         const existingUserDataJson = readUserDataJsonFromLocalStorage()

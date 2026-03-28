@@ -1,6 +1,7 @@
 import { CellRenderer } from "../../framework/column-definition";
 import { PhoneNumberFilter } from "../../components/PhoneNumberFilter";
 import { Runtime } from "../../framework/runtime";
+import * as FilterValue from "../../framework/filterValue";
 
 // Define a simple data type for this view
 export type SimpleTestData = {
@@ -14,8 +15,8 @@ export type SimpleTestData = {
 // Email cell renderer that allows filtering by email
 const emailCellRenderer: CellRenderer = ({ data, updateFilterById, applyFilters }) => {
     const handleEmailClick = () => {
-        updateFilterById('email-eq', (currentFilter: any) => {
-            return { ...currentFilter, value: data.email };
+        updateFilterById('email-eq', (currentFilter) => {
+            return { ...currentFilter, value: FilterValue.value(data.email) };
         });
         applyFilters();
     };
@@ -65,15 +66,14 @@ export const simpleTestViewRuntime: Runtime = {
     },
     queryTransforms: {
         amountOffset: {
-            toQuery: (input: number) => ({ value: input + 5 })
+            toQuery: (input: number) => ({ value: FilterValue.value(input + 5) })
         },
         keyValueTransform: {
-            toQuery: (input: any) => {
-                // Handle empty or null input
+            toQuery: (input: unknown) => {
                 if (!input || input === '') {
-                    return { value: input }; // Return object with original value for empty input
+                    return { value: FilterValue.empty };
                 }
-                return { field: "transformedField", value: `prefix_${input}` };
+                return { field: "transformedField", value: FilterValue.value(`prefix_${input}`) };
             }
         }
     },

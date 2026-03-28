@@ -1,7 +1,8 @@
-import { FilterField, FilterGroups, FilterExpr } from './filters';
+import { FilterField, FilterGroups, FilterExpr, TransformResult } from './filters';
 import { getAllFilters } from './view';
 import { FilterFormState, traverseFilterSchemaAndState } from './filter-form-state';
 import { FilterState } from './state';
+import * as FilterValue from './filterValue';
 
 // All supported Hasura operators for a field
 export type HasuraOperator =
@@ -35,7 +36,9 @@ export function buildHasuraConditions(
     filterState: FilterState,
     filterGroups: FilterGroups
 ): HasuraCondition {
-    const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
+    const filtersById = new Map(getAllFilters(filterGroups)
+        .map(filterSchema => [filterSchema.id, filterSchema] as const));
+
     function buildNestedKey(field: FilterField, cond: any): HasuraCondition {
         if (typeof field === 'object') {
             if ('and' in field) {
@@ -59,6 +62,17 @@ export function buildHasuraConditions(
         return parts.reverse().reduce((acc, k) => ({ [k]: acc }), cond);
     }
 
+    function isNonEmptyCustomOperatorValue(
+        value: unknown
+    ): value is { operator: string; value: FilterValue.FilterValue } {
+        if (typeof value !== 'object' || value === null) return false;
+        if (!('operator' in value) || typeof (value as any).operator !== 'string') return false;
+        if (!('value' in value)) return false;
+
+        const inner = (value as any).value;
+        return FilterValue.isValue(inner);
+    }
+
     function buildConditionsRecursive(
         schemaNode: FilterExpr,
         stateNode: FilterFormState
@@ -68,47 +82,64 @@ export function buildHasuraConditions(
             stateNode,
             {
                 leaf: (schema, state): HasuraCondition | null => {
-                    let transformedValue = state.value;
-                    let transformedField = schema.field;
+                    const baseValue = state.value;
+                    return FilterValue.match({
+                        empty: null,
+                        value: (filterValue: unknown) => {
+                            const transform = schema.transform?.toQuery;
 
-                    if (schema.transform?.toQuery !== undefined) {
-                        const transformResult = schema.transform.toQuery(state.value);
-                        if ('condition' in transformResult) {
-                            return transformResult.condition;
+                            const transformResult: TransformResult =
+                                transform
+                                    ? transform(filterValue)
+                                    : { field: schema.field, value: baseValue };
+
+                            if ('condition' in transformResult) {
+                                return transformResult.condition;
+                            }
+
+                            const transformedValue = transformResult.value;
+
+                            return FilterValue.match({
+                                empty: null,
+                                value: (value: unknown) => {
+                                    if (
+                                        value === undefined ||
+                                        value === '' ||
+                                        value === null ||
+                                        (Array.isArray(value) && value.length === 0)
+                                    ) return null;
+
+                                    const field = transformResult.field ?? schema.field;
+
+                                    if (schema.value.type === 'customOperator') {
+                                        if (!isNonEmptyCustomOperatorValue(value)) return null;
+                                        return FilterValue.match({
+                                            empty: null,
+                                            value: (inner: unknown) => buildNestedKey(field, { [value.operator]: inner })
+                                        }, value.value);
+                                    }
+
+                                    const opMap: Record<string, string> = {
+                                        equals: '_eq',
+                                        notEquals: '_neq',
+                                        greaterThan: '_gt',
+                                        lessThan: '_lt',
+                                        greaterThanOrEqual: '_gte',
+                                        lessThanOrEqual: '_lte',
+                                        in: '_in',
+                                        notIn: '_nin',
+                                        like: '_like',
+                                        iLike: '_ilike',
+                                        isNull: '_is_null',
+                                    };
+                                    const op = opMap[schema.type];
+                                    if (!op) return null;
+
+                                    return buildNestedKey(field, { [op]: value });
+                                }
+                            }, transformedValue);
                         }
-                        if ('field' in transformResult && transformResult.field !== undefined) {
-                            transformedField = transformResult.field;
-                        }
-                        if ('value' in transformResult && transformResult.value !== undefined) {
-                            transformedValue = transformResult.value;
-                        }
-                    }
-
-                    if (schema.value.type === 'customOperator') {
-                        const opVal = transformedValue;
-                        if (!opVal || !opVal.operator || opVal.value === undefined || opVal.value === '' || opVal.value === null || (Array.isArray(opVal.value) && opVal.value.length === 0)) return null;
-                        return buildNestedKey(transformedField, { [opVal.operator]: opVal.value });
-                    }
-
-                    if (transformedValue === undefined || transformedValue === '' || transformedValue === null || (Array.isArray(transformedValue) && transformedValue.length === 0)) return null;
-
-                    const opMap: Record<string, string> = {
-                        equals: '_eq',
-                        notEquals: '_neq',
-                        greaterThan: '_gt',
-                        lessThan: '_lt',
-                        greaterThanOrEqual: '_gte',
-                        lessThanOrEqual: '_lte',
-                        in: '_in',
-                        notIn: '_nin',
-                        like: '_like',
-                        iLike: '_ilike',
-                        isNull: '_is_null',
-                    };
-                    const op = opMap[schema.type];
-                    if (!op) return null;
-
-                    return buildNestedKey(transformedField, { [op]: transformedValue });
+                    }, baseValue)
                 },
                 and: (_schema, _state, childResults): HasuraCondition | null => {
                     const validChildren = childResults.filter((c): c is HasuraCondition => c !== null);

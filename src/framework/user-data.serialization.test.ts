@@ -52,7 +52,7 @@ describe('user-data serialization', () => {
             formatRevision: 'rev-user'
         };
 
-        const json = toUserDataJson(data);
+        const json = toUserDataJson(data, { 'view-a': basicSchema });
         expect(typeof json.views['view-a'].savedFilters[0].createdAt).toBe('string');
         expect(json.views['view-a'].savedFilters[0].createdAt).toBe('2026-01-02T03:04:05.000Z');
 

@@ -11,6 +11,7 @@ import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from "primereact/tag";
 import type { FilterState } from "./state";
+import type { FilterFormState } from "./filter-form-state";
 import type { FilterId } from "./filters";
 import type { EmptyObject, Simplify, UnionToIntersection } from "./typelevel";
 
@@ -22,7 +23,7 @@ export type CellRendererProps<
     applyFilters: () => void; // Function to trigger data fetch with current filter state
     updateFilterById: (
         filterId: FilterId,
-        updater: (currentValue: any) => any,
+        updater: (currentValue: FilterFormState) => FilterFormState,
     ) => void; // Narrow helper to update a specific filter by id
     createElement: typeof createElement; // React createElement function
     components: {

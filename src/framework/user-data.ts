@@ -9,6 +9,8 @@ export const REVISION_2026_01_05 = '2026-01-05T00:00:00.000Z'
 
 export const REVISION_2026_01_29 = '2026-01-29T00:00:00.000Z'
 
+export const REVISION_2026_03_26 = '2026-03-26T00:00:00.000Z'
+
 
 export interface ViewData {
     columnOrder: string[] | null;
@@ -85,10 +87,13 @@ export function defaultViewData(): ViewData {
     return { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
 }
 
-export function toUserDataJson(data: UserData): UserDataJson {
+export function toUserDataJson(data: UserData, filterGroupsByViewId: Record<ViewId, FilterGroups>): UserDataJson {
     const viewsJson: Record<ViewId, ViewDataJson> = Object.fromEntries(
         Object.entries(data.views).map(([viewId, view]) => {
-            const rawSavedFilters = view.savedFilters.map(toSavedFilterJson);
+            const filterGroups = filterGroupsByViewId[viewId]
+            const rawSavedFilters = filterGroups
+                ? view.savedFilters.map((savedFilter) => toSavedFilterJson(savedFilter, filterGroups))
+                : view.savedFilters.map((savedFilter) => ({ ...savedFilter, state: null }));
             return [viewId, { ...view, savedFilters: rawSavedFilters }];
         })
     )

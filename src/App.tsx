@@ -302,7 +302,7 @@ function App({
     useEffect(() => {
         if (!syncFilterStateToUrlWithOverride) return;
         // Only write after an application event (refetchTrigger change), not on every keystroke
-        setFilterInUrl(state.filterState);
+        setFilterInUrl(state.filterState, selectedView.filterGroups);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [syncFilterStateToUrlWithOverride, refetchTrigger]);
 
@@ -348,7 +348,7 @@ function App({
     // Share current filter state
     const handleShareFilter = async () => {
         try {
-            const shareableUrl = createShareableUrl(state.filterState);
+            const shareableUrl = createShareableUrl(state.filterState, selectedView.filterGroups);
             await copyToClipboard(shareableUrl);
 
             toast.current?.show({
@@ -371,7 +371,7 @@ function App({
     // Share a specific saved filter state
     const handleShareSavedFilter = async (filterState: FilterState) => {
         try {
-            const shareableUrl = createShareableUrl(filterState);
+            const shareableUrl = createShareableUrl(filterState, selectedView.filterGroups);
             await copyToClipboard(shareableUrl);
 
             toast.current?.show({

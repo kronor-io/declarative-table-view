@@ -6,32 +6,57 @@ import {
     decodeFilterState
 } from './filter-sharing';
 import { FilterState } from './state';
+import type { FilterGroups } from './filters';
+import * as FilterValue from './filterValue';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 describe('filter-sharing', () => {
+    const filterGroups: FilterGroups = [
+        {
+            name: 'test',
+            label: 'Test',
+            filters: [
+                {
+                    id: 'name-filter',
+                    label: 'Name',
+                    expression: {
+                        type: 'equals',
+                        field: 'name',
+                        value: { type: 'text', initialValue: null }
+                    },
+                    aiGenerated: false,
+                },
+                {
+                    id: 'date-filter',
+                    label: 'Date',
+                    expression: {
+                        type: 'equals',
+                        field: 'date',
+                        value: { type: 'date', initialValue: null }
+                    },
+                    aiGenerated: false,
+                }
+            ]
+        }
+    ];
+
     const mockFilterState: FilterState = new Map([
         ['name-filter', {
             type: 'leaf',
-            field: 'name',
-            value: 'test',
-            control: { type: 'text' },
-            filterType: 'equals'
+            value: FilterValue.value('test')
         }],
         ['date-filter', {
             type: 'leaf',
-            field: 'date',
-            value: new Date('2023-01-01'),
-            control: { type: 'date' },
-            filterType: 'greaterThanOrEqual'
+            value: FilterValue.value(new Date('2023-01-01'))
         }]
     ]);
 
     describe('encodeFilterState', () => {
         it('should encode filter state to base64 URL-safe string', () => {
-            const encoded = encodeFilterState(mockFilterState);
+            const encoded = encodeFilterState(mockFilterState, filterGroups);
 
             expect(typeof encoded).toBe('string');
             expect(encoded.length).toBeGreaterThan(0);
@@ -40,7 +65,7 @@ describe('filter-sharing', () => {
         });
 
         it('should handle empty filter state', () => {
-            const encoded = encodeFilterState(new Map());
+            const encoded = encodeFilterState(new Map(), filterGroups);
             expect(typeof encoded).toBe('string');
         });
 
@@ -51,34 +76,26 @@ describe('filter-sharing', () => {
                     children: [
                         {
                             type: 'leaf',
-                            field: 'name',
-                            value: 'test',
-                            control: { type: 'text' },
-                            filterType: 'equals'
+                            value: FilterValue.value('test')
                         },
                         {
                             type: 'not',
                             child: {
                                 type: 'leaf',
-                                field: 'status',
-                                value: 'inactive',
-                                control: { type: 'text' },
-                                filterType: 'equals'
+                                value: FilterValue.value('inactive')
                             },
-                            filterType: 'not'
                         }
                     ],
-                    filterType: 'and'
                 }]
             ]);
 
-            expect(() => encodeFilterState(complexFilter)).not.toThrow();
+            expect(() => encodeFilterState(complexFilter, filterGroups)).not.toThrow();
         });
     });
 
     describe('decodeFilterState', () => {
         it('should decode base64 string back to filter state', () => {
-            const encoded = encodeFilterState(mockFilterState);
+            const encoded = encodeFilterState(mockFilterState, filterGroups);
             const decoded = decodeFilterState(encoded);
 
             expect(typeof decoded).toBe('object');
@@ -114,7 +131,7 @@ describe('filter-sharing', () => {
 
     describe('round-trip encoding/decoding', () => {
         it('should preserve filter state through encode/decode cycle', () => {
-            const encoded = encodeFilterState(mockFilterState);
+            const encoded = encodeFilterState(mockFilterState, filterGroups);
             const decoded = decodeFilterState(encoded);
 
             // The decoded state should be an object with filter ID keys
@@ -129,18 +146,12 @@ describe('filter-sharing', () => {
             // Check that both filters are present with their correct data
             expect(decoded['name-filter']).toEqual({
                 type: 'leaf',
-                field: 'name',
-                value: 'test',
-                control: { type: 'text' },
-                filterType: 'equals'
+                value: { type: 'value', value: 'test' }
             });
 
             expect(decoded['date-filter']).toEqual({
                 type: 'leaf',
-                field: 'date',
-                value: '2023-01-01T00:00:00.000Z', // Date serialized as ISO string
-                control: { type: 'date' },
-                filterType: 'greaterThanOrEqual'
+                value: { type: 'value', value: '2023-01-01T00:00:00.000Z' } // Date serialized as ISO string
             });
         });
     });
