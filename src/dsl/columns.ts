@@ -123,7 +123,17 @@ export function arrayQuery<const Field extends string, const SelectionSet extend
     distinctOn?: string[];
     limit?: number;
     where?: HasuraFilterExpression;
-}): ArrayQuery & { field: Field; selectionSet: SelectionSet } {
+}): ArrayQuery & { field: Field; selectionSet: SelectionSet };
+
+export function arrayQuery(args: {
+    field: string;
+    selectionSet: readonly Query[];
+    path?: string;
+    orderBy?: OrderByConfig | OrderByConfig[];
+    distinctOn?: string[];
+    limit?: number;
+    where?: HasuraFilterExpression;
+}): ArrayQuery {
     return {
         type: 'arrayQuery',
         field: args.field,
@@ -133,7 +143,7 @@ export function arrayQuery<const Field extends string, const SelectionSet extend
         ...(args.distinctOn !== undefined ? { distinctOn: args.distinctOn } : {}),
         ...(args.limit !== undefined ? { limit: args.limit } : {}),
         ...(args.where !== undefined ? { where: args.where } : {}),
-    } as ArrayQuery & { field: Field; selectionSet: SelectionSet };
+    } as ArrayQuery;
 }
 
 // Convenience re-export of Query type for selectionSet construction in user code.

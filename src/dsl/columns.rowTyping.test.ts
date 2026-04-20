@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { column, rowType, valueQuery, objectQuery, arrayQuery } from './columns';
 import { queryForRow } from './internal/queryForRow';
 
@@ -137,9 +138,12 @@ describe('dsl/columns row-aware typing', () => {
                 id: 'customerEmail',
                 name: 'Customer Email',
                 data: [
-                    q.object('customer', customer => [
-                        customer.value('email'),
-                    ])
+                    q.object({
+                        field: 'customer',
+                        selectionSet: customer => [
+                            customer.value({ field: 'email' }),
+                        ]
+                    })
                 ],
                 cellRenderer: ({ data }) => {
                     const email: string | null | undefined = data.customer?.email;

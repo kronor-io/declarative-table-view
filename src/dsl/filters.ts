@@ -59,6 +59,29 @@ export type FilterFieldPath<Row, Depth extends keyof PrevDepth = 10> =
                       : K;
           }[StringKeyOf<Row>];
 
+type PropValue<Row, Key extends string> =
+    // If Row is too wide (e.g. generic object), we can't safely resolve path values.
+    string extends keyof Row
+        ? unknown
+        : Key extends keyof Row
+            ? Row[Key]
+            : never;
+
+/**
+ * Resolve the (possibly nullable) value type at a dotted field path.
+ *
+ * Examples:
+ * - PathValue<Row, "id"> => Row["id"]
+ * - PathValue<Row, "customer.email"> => Row["customer"]["email"] (with nullables preserved)
+ * - Arrays are traversed via their element type.
+ */
+export type PathValue<Row, Path extends string> =
+    string extends keyof Row
+        ? unknown
+        : Path extends `${infer Head}.${infer Tail}`
+            ? PathValue<NextPathTarget<PropValue<Row, Head>>, Tail>
+            : PropValue<Row, Path>;
+
 export type FilterFieldForRow<Row> =
     | FilterFieldPath<Row>
     | { and: FilterFieldPath<Row>[] }

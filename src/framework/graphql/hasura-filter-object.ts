@@ -1,24 +1,48 @@
 // Raw Hasura filter objects (the actual GraphQL "*_bool_exp" JSON shape).
 // This is the wire format that gets sent to Hasura.
 
-export type HasuraOperator =
-    | { _eq?: any }
-    | { _neq?: any }
-    | { _gt?: any }
-    | { _lt?: any }
-    | { _gte?: any }
-    | { _lte?: any }
-    | { _in?: any[] }
-    | { _nin?: any[] }
-    | { _like?: string }
-    | { _ilike?: string }
-    | { _is_null?: boolean }
-    | { _similar?: string }
-    | { _nsimilar?: string }
-    | { _regex?: string }
-    | { _nregex?: string }
-    | { _iregex?: string }
-    | { _niregex?: string };
+// Generic, value-typed operator object.
+// This is for compile-time help in DSLs/wrappers; it still serializes to the same wire shape.
+export type HasuraComparable = string | number | Date;
+
+type ComparableOf<T> = Extract<T, HasuraComparable>;
+type StringOf<T> = Extract<T, string>;
+type InOf<T> = ReadonlyArray<NonNullable<T>>;
+
+type ComparableOps<C> = [C] extends [never]
+    ? Record<never, never>
+    : {
+          _gt?: C;
+          _lt?: C;
+          _gte?: C;
+          _lte?: C;
+      };
+
+type StringOps<S> = [S] extends [never]
+    ? Record<never, never>
+    : {
+          _like?: string;
+          _ilike?: string;
+          _similar?: string;
+          _nsimilar?: string;
+          _regex?: string;
+          _nregex?: string;
+          _iregex?: string;
+          _niregex?: string;
+      };
+
+export type HasuraOperatorFor<T> = {
+    _eq?: T;
+    _neq?: T;
+    _in?: InOf<T>;
+    _nin?: InOf<T>;
+    _is_null?: boolean;
+} & ComparableOps<ComparableOf<T>> & StringOps<StringOf<T>>;
+
+// Public operator type (wire format). Kept intentionally loose.
+// Historically this was expressed as a union of single-key objects; the object form is equivalent
+// (and matches Hasura's actual input shape, which can include multiple operators).
+export type HasuraOperator = HasuraOperatorFor<any>;
 
 export type HasuraFilterObject = HasuraFilterObjectLogical | HasuraFilterObjectField;
 
