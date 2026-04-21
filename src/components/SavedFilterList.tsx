@@ -6,6 +6,7 @@ import { FilterState } from '../framework/state';
 import { FilterControl, FilterExpr, FilterField, FilterGroups } from '../framework/filters';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 import { getAllFilters } from '../framework/view';
+import * as FilterValue from '../framework/filterValue';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
@@ -159,6 +160,40 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         return getFieldValueDisplay(controlValue);
     }
 
+    function isEmptyLikeDisplayValue(value: unknown): boolean {
+        return (
+            value === undefined ||
+            value === null ||
+            value === '' ||
+            (Array.isArray(value) && value.length === 0)
+        );
+    }
+
+    function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): unknown {
+        const baseInput = FilterValue.valueOrNull(stateLeaf.value);
+
+        const transform = schemaLeaf.transform?.toQuery;
+        if (!transform) {
+            return baseInput;
+        }
+
+        try {
+            const transformed = transform(baseInput);
+            if ('condition' in transformed) {
+                return baseInput;
+            }
+
+            const transformedValue = FilterValue.valueOrNull(transformed.value);
+            if (isEmptyLikeDisplayValue(transformedValue)) {
+                return baseInput;
+            }
+
+            return transformedValue;
+        } catch {
+            return baseInput;
+        }
+    }
+
     function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): string {
         if (isFilterEmpty(stateLeaf, schemaLeaf)) {
             return '';
@@ -166,9 +201,14 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
 
         const field = `${getFilterFieldDisplay(schemaLeaf.field)} `
 
+        const displayValue = getLeafValueForDisplay(schemaLeaf, stateLeaf);
+
         if (schemaLeaf.value.type === 'customOperator') {
-            const raw = (stateLeaf.value as any);
-            const valueObj = raw?.type === 'value' ? raw.value : raw;
+            const baseRaw = (stateLeaf.value as any);
+            const baseValueObj = baseRaw?.type === 'value' ? baseRaw.value : baseRaw;
+            const valueObj = (displayValue && typeof displayValue === 'object' && 'operator' in displayValue)
+                ? displayValue as any
+                : baseValueObj;
 
             const operatorValue = valueObj?.operator;
             const operatorLabel = schemaLeaf.value.operators.find(o => o.value === operatorValue)?.label ?? String(operatorValue ?? '');
@@ -177,9 +217,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
         }
 
         const operator = getOperatorDisplay(schemaLeaf.type);
-        const raw = (stateLeaf.value as any);
-        const value = raw?.type === 'value' ? raw.value : raw;
-        const valueStr = getControlValueDisplay(schemaLeaf.value, value);
+        const valueStr = getControlValueDisplay(schemaLeaf.value, displayValue);
         return `${field}${operator} ${valueStr}`.trim();
     }
 
