@@ -70,6 +70,32 @@ describe("renderGraphQLQuery", () => {
         expect(result).toContain("title");
         expect(result).toContain("content");
     });
+
+    it("renders Hasura isNull as _isNull in GraphQL output", () => {
+        const ast: GraphQLQueryAST = {
+            operation: "query",
+            name: "GetUsersWithNullFilter",
+            variables: [
+                { name: "conditions", type: "UserBoolExp" },
+                { name: "rowLimit", type: "Int" }
+            ],
+            rootField: "users",
+            selectionSet: [
+                {
+                    field: "posts",
+                    where: Hasura.condition('deleted_at', Hasura.isNull(true)),
+                    selections: [
+                        { field: "id" }
+                    ]
+                }
+            ]
+        };
+
+        const result = renderGraphQLQuery(ast);
+
+        expect(result).toContain("posts(where: {deleted_at: {_isNull: true}})");
+        expect(result).not.toContain("_is_null");
+    });
 });
 
 describe("generateGraphQLQueryAST", () => {

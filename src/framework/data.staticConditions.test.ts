@@ -41,7 +41,7 @@ describe('fetchData staticConditions merging', () => {
         expect(capturedVariables.conditions).toEqual({
             _and: [
                 { status: { _eq: 'ACTIVE' } },
-                { deleted_at: { _is_null: true } }
+                { deleted_at: { _isNull: true } }
             ]
         });
         // When no cursor is provided the separate paginationCondition variable is an empty object

@@ -101,7 +101,7 @@ export const SUPPORTED_OPERATORS = [
     { label: 'not in', value: '_nin' },
     { label: 'like', value: '_like' },
     { label: 'ilike', value: '_ilike' },
-    { label: 'is null', value: '_is_null' }
+    { label: 'is null', value: '_isNull' }
 ];
 
 export type SuggestionItem = { label: string };

@@ -52,7 +52,7 @@ export const Hasura = {
     nin: (value: unknown[]): HasuraOperator => ({ _nin: value }),
     like: (value: string): HasuraOperator => ({ _like: value }),
     ilike: (value: string): HasuraOperator => ({ _ilike: value }),
-    isNull: (value: boolean): HasuraOperator => ({ _is_null: value }),
+    isNull: (value: boolean): HasuraOperator => ({ _isNull: value }),
     similar: (value: string): HasuraOperator => ({ _similar: value }),
     nsimilar: (value: string): HasuraOperator => ({ _nsimilar: value }),
     regex: (value: string): HasuraOperator => ({ _regex: value }),
@@ -190,7 +190,7 @@ export function buildHasuraConditions(
                                         notIn: '_nin',
                                         like: '_like',
                                         iLike: '_ilike',
-                                        isNull: '_is_null',
+                                        isNull: '_isNull',
                                     };
                                     const op = opMap[schema.type];
                                     if (!op) return null;

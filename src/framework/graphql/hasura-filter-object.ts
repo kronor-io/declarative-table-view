@@ -1,8 +1,8 @@
-// Raw Hasura filter objects (the actual GraphQL "*_bool_exp" JSON shape).
-// This is the wire format that gets sent to Hasura.
+// Hasura filter objects used inside the app.
+// The GraphQL renderer serializes this structure directly into the query string.
 
 // Generic, value-typed operator object.
-// This is for compile-time help in DSLs/wrappers; it still serializes to the same wire shape.
+// This is for compile-time help in DSLs/wrappers; serialization happens separately.
 export type HasuraComparable = string | number | Date;
 
 type ComparableOf<T> = Extract<T, HasuraComparable>;
@@ -36,12 +36,12 @@ export type HasuraOperatorFor<T> = {
     _neq?: T;
     _in?: InOf<T>;
     _nin?: InOf<T>;
-    _is_null?: boolean;
+    _isNull?: boolean;
 } & ComparableOps<ComparableOf<T>> & StringOps<StringOf<T>>;
 
-// Public operator type (wire format). Kept intentionally loose.
+// Public operator type (normalized internal format). Kept intentionally loose.
 // Historically this was expressed as a union of single-key objects; the object form is equivalent
-// (and matches Hasura's actual input shape, which can include multiple operators).
+// for the app's internal representation, and the GraphQL renderer converts it to Hasura's input shape.
 export type HasuraOperator = HasuraOperatorFor<any>;
 
 export type HasuraFilterObject = HasuraFilterObjectLogical | HasuraFilterObjectField;

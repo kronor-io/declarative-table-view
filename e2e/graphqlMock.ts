@@ -114,7 +114,7 @@ export async function mockPaginationGraphQL(route: Route) {
                 const regex = new RegExp(`^${pattern}$`, 'i');
                 pass = pass && regex.test(String(fieldValue));
             }
-            if (ops._is_null !== undefined) pass = pass && ((fieldValue == null) === ops._is_null);
+            if (ops._isNull !== undefined) pass = pass && ((fieldValue == null) === ops._isNull);
         }
 
         return pass;

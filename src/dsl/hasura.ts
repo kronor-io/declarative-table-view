@@ -66,7 +66,7 @@ export type HasuraForRow<Row> = {
     nin: <T>(value: ReadonlyArray<NonNullable<T>>) => { _nin: ReadonlyArray<NonNullable<T>> };
     like: (value: string) => { _like: string };
     ilike: (value: string) => { _ilike: string };
-    isNull: (value: boolean) => { _is_null: boolean };
+    isNull: (value: boolean) => { _isNull: boolean };
     similar: (value: string) => { _similar: string };
     nsimilar: (value: string) => { _nsimilar: string };
     regex: (value: string) => { _regex: string };
@@ -112,7 +112,7 @@ export function hasuraDSLforRowType<Row>(_rowType?: Row): HasuraForRow<Row> {
         nin: <T,>(value: ReadonlyArray<NonNullable<T>>): { _nin: ReadonlyArray<NonNullable<T>> } => ({ _nin: value }),
         like: (value: string): { _like: string } => ({ _like: value }),
         ilike: (value: string): { _ilike: string } => ({ _ilike: value }),
-        isNull: (value: boolean): { _is_null: boolean } => ({ _is_null: value }),
+        isNull: (value: boolean): { _isNull: boolean } => ({ _isNull: value }),
         similar: (value: string): { _similar: string } => ({ _similar: value }),
         nsimilar: (value: string): { _nsimilar: string } => ({ _nsimilar: value }),
         regex: (value: string): { _regex: string } => ({ _regex: value }),
