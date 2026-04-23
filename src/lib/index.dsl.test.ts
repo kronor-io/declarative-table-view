@@ -9,10 +9,11 @@ jest.mock('graphql-request', () => {
     };
 }, { virtual: true });
 
-import { DSL as DTV, CellRenderer, FilterExpr } from './index';
+import * as API from './index';
 
 describe('lib exports', () => {
     it('exposes DSL as DTV helpers', () => {
+        const { DSL: DTV } = API;
         expect(typeof DTV.column).toBe('function');
         expect(typeof DTV.valueQuery).toBe('function');
         expect(typeof DTV.runtimeRef).toBe('function');
@@ -23,13 +24,18 @@ describe('lib exports', () => {
     });
 
     it('exposes built-in cell renderers', () => {
-        expect(typeof CellRenderer.text).toBe('function');
-        expect(typeof CellRenderer.json).toBe('function');
+        expect(typeof API.CellRenderer.text).toBe('function');
+        expect(typeof API.CellRenderer.json).toBe('function');
     });
 
     it('exposes framework filterExpr helpers', () => {
-        expect(typeof FilterExpr.equals).toBe('function');
-        expect(typeof FilterExpr.and).toBe('function');
-        expect(Array.isArray(FilterExpr.allOperators)).toBe(true);
+        expect(typeof API.FilterExpr.equals).toBe('function');
+        expect(typeof API.FilterExpr.and).toBe('function');
+        expect(Array.isArray(API.FilterExpr.allOperators)).toBe(true);
+    });
+
+    it('does not expose Hasura and exposes hasuraDSLforRowType instead', () => {
+        expect('Hasura' in API).toBe(false);
+        expect(typeof API.hasuraDSLforRowType).toBe('function');
     });
 });

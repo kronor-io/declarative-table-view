@@ -28,7 +28,30 @@ export type {
     UserDataSaveCallback
 } from '../framework/user-data-manager';
 export type { ActionDefinition, ActionAPI } from '../framework/actions';
-export * from '../framework/graphql';
+export type {
+    HasuraFilterObject,
+    HasuraOperator,
+    HasuraOperatorFor,
+    HasuraComparable,
+    HasuraFilterExpression,
+    GraphQLVariable,
+    HasuraOrderBy,
+    GraphQLSelectionSetItem,
+    GraphQLSelectionSet,
+    GraphQLQueryAST,
+} from '../framework/graphql';
+export {
+    hasuraFilterExpressionToObject,
+    hasuraFilterExpressionsAreEqual,
+    buildHasuraConditions,
+    hasuraOperatorsAreEqual,
+    generateSelectionSetFromColumns,
+    generateGraphQLQueryAST,
+    generateGraphQLQuery,
+    renderGraphQLQuery,
+} from '../framework/graphql';
+export { hasuraDSLforRowType } from '../dsl/hasura';
+export type { HasuraForRow } from '../dsl/hasura';
 export { buildGraphQLQueryVariables } from '../framework/data';
 
 export type { Result, Failure, Success } from '../framework/result';
