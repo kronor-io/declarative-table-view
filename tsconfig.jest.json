@@ -2,10 +2,14 @@
     "extends": "./tsconfig.app.json",
     "compilerOptions": {
         "jsx": "react-jsx",
-        "types": ["jest", "node"]
+        "types": ["jest", "node", "vite/client", "dom-speech-recognition"]
     },
     "include": [
+        "src/vite-env.d.ts",
         "src/**/*.test.ts",
         "src/**/*.test.tsx"
+    ],
+    "exclude": [
+        "src/cli"
     ]
 }
