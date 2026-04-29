@@ -211,6 +211,71 @@ function patchInlineColumnsWithRowType(args: {
     };
 }
 
+function findViewArgObjectById(
+    sourceFile: ts.SourceFile,
+    viewId: string,
+    receivers?: { dslIdentifiers: Set<string>; dtvNamespaces: Set<string> }
+): ts.ObjectLiteralExpression | null {
+    let viewArgObject: ts.ObjectLiteralExpression | null = null;
+
+    const visit = (node: ts.Node) => {
+        if (viewArgObject) return;
+        if (ts.isCallExpression(node)) {
+            const expr = node.expression;
+            if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'view') {
+                if (receivers) {
+                    const receiver = expr.expression;
+                    const isDslReceiver = (() => {
+                        if (ts.isIdentifier(receiver) && receivers.dslIdentifiers.has(receiver.text)) return true;
+                        if (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'DSL') {
+                            const maybeNs = receiver.expression;
+                            return ts.isIdentifier(maybeNs) && receivers.dtvNamespaces.has(maybeNs.text);
+                        }
+                        return false;
+                    })();
+                    if (!isDslReceiver) return;
+                }
+
+                const firstArg = node.arguments[0];
+                if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) return;
+
+                const idProp = firstArg.properties.find(p => ts.isPropertyAssignment(p)
+                    && ((ts.isIdentifier(p.name) && p.name.text === 'id')
+                        || (ts.isStringLiteral(p.name) && p.name.text === 'id'))
+                ) as ts.PropertyAssignment | undefined;
+                const idVal = idProp?.initializer;
+                const id = idVal && (ts.isStringLiteral(idVal) || ts.isNoSubstitutionTemplateLiteral(idVal))
+                    ? idVal.text
+                    : null;
+
+                if (id === viewId) {
+                    viewArgObject = firstArg;
+                }
+            }
+        }
+        ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+    return viewArgObject;
+}
+
+function viewArgObjectHasIdentifier(viewArgObject: ts.ObjectLiteralExpression, identifier: string): boolean {
+    let found = false;
+
+    const visit = (node: ts.Node) => {
+        if (found) return;
+        if (ts.isIdentifier(node) && node.text === identifier) {
+            found = true;
+            return;
+        }
+        ts.forEachChild(node, visit);
+    };
+
+    visit(viewArgObject);
+    return found;
+}
+
 function findViewsInFile(
     sourceText: string,
     fileName: string,
@@ -504,26 +569,6 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
         }
 
         const outFile = path.join(path.dirname(v.sourceFile), fileName);
-        if (outputFiles.has(outFile)) {
-            throw new Error(`Multiple views would write the same output file: ${outFile}`);
-        }
-        outputFiles.add(outFile);
-
-        const content = [
-            `import { DSL as DTV } from ${singleQuoteStringLiteral(dtvImport)};`,
-            '',
-            renderTsFromSchema(reachable, {
-                scalars: config.scalars,
-                includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
-                exportTypes: false
-            }).trimEnd(),
-            '',
-            `export type ${viewTypeName} = ${v.rowTypeName};`,
-            `export const ${rowTypeConstName} = DTV.rowType<${viewTypeName}>();`,
-            ''
-        ].join('\n');
-
-        await writeFileEnsuringDir(outFile, content);
 
         // Best-effort patch view file for inline columns.
         try {
@@ -585,44 +630,7 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
                 }
             }
 
-            // Find the first matching view call object for this viewId.
-            let viewArgObject: ts.ObjectLiteralExpression | null = null;
-            const visit = (node: ts.Node) => {
-                if (viewArgObject) return;
-                if (ts.isCallExpression(node)) {
-                    const expr = node.expression;
-                    if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'view') {
-                        const receiver = expr.expression;
-                        const isDslReceiver = (() => {
-                            if (ts.isIdentifier(receiver) && dslIdentifiers.has(receiver.text)) return true;
-                            if (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'DSL') {
-                                const maybeNs = receiver.expression;
-                                return ts.isIdentifier(maybeNs) && dtvNamespaces.has(maybeNs.text);
-                            }
-                            return false;
-                        })();
-                        if (!isDslReceiver) return;
-
-                        const firstArg = node.arguments[0];
-                        if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) return;
-
-                        const idProp = firstArg.properties.find(p => ts.isPropertyAssignment(p)
-                            && ((ts.isIdentifier(p.name) && p.name.text === 'id')
-                                || (ts.isStringLiteral(p.name) && p.name.text === 'id'))
-                        ) as ts.PropertyAssignment | undefined;
-                        const idVal = idProp?.initializer;
-                        const id = idVal && (ts.isStringLiteral(idVal) || ts.isNoSubstitutionTemplateLiteral(idVal))
-                            ? idVal.text
-                            : null;
-
-                        if (id === v.viewId) {
-                            viewArgObject = firstArg;
-                        }
-                    }
-                }
-                ts.forEachChild(node, visit);
-            };
-            visit(sf);
+            const viewArgObject = findViewArgObjectById(sf, v.viewId, { dslIdentifiers, dtvNamespaces });
             if (!viewArgObject) {
                 continue;
             }
@@ -631,33 +639,7 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
             const withImport = ensureRowTypeImport(viewText, sf, rowTypeConstName, importPathNoExt);
             const sf2 = ts.createSourceFile(v.sourceFile, withImport.updatedText, ts.ScriptTarget.Latest, true);
 
-            // Re-find view object in updated text.
-            let viewArgObject2: ts.ObjectLiteralExpression | null = null;
-            const visit2 = (node: ts.Node) => {
-                if (viewArgObject2) return;
-                if (ts.isCallExpression(node)) {
-                    const expr = node.expression;
-                    if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'view') {
-                        const firstArg = node.arguments[0];
-                        if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) return;
-
-                        const idProp = firstArg.properties.find(p => ts.isPropertyAssignment(p)
-                            && ((ts.isIdentifier(p.name) && p.name.text === 'id')
-                                || (ts.isStringLiteral(p.name) && p.name.text === 'id'))
-                        ) as ts.PropertyAssignment | undefined;
-                        const idVal = idProp?.initializer;
-                        const id = idVal && (ts.isStringLiteral(idVal) || ts.isNoSubstitutionTemplateLiteral(idVal))
-                            ? idVal.text
-                            : null;
-
-                        if (id === v.viewId) {
-                            viewArgObject2 = firstArg;
-                        }
-                    }
-                }
-                ts.forEachChild(node, visit2);
-            };
-            visit2(sf2);
+            const viewArgObject2 = findViewArgObjectById(sf2, v.viewId);
             if (!viewArgObject2) {
                 continue;
             }
@@ -670,6 +652,33 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
                 dslIdentifiers,
                 dtvNamespaces
             });
+
+            const shouldEmitForView = viewArgObjectHasIdentifier(viewArgObject2, rowTypeConstName);
+            if (!shouldEmitForView) {
+                await fs.rm(outFile, { force: true });
+                continue;
+            }
+
+            if (outputFiles.has(outFile)) {
+                throw new Error(`Multiple views would write the same output file: ${outFile}`);
+            }
+            outputFiles.add(outFile);
+
+            const content = [
+                `import { DSL as DTV } from ${singleQuoteStringLiteral(dtvImport)};`,
+                '',
+                renderTsFromSchema(reachable, {
+                    scalars: config.scalars,
+                    includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
+                    exportTypes: false
+                }).trimEnd(),
+                '',
+                `export type ${viewTypeName} = ${v.rowTypeName};`,
+                `export const ${rowTypeConstName} = DTV.rowType<${viewTypeName}>();`,
+                ''
+            ].join('\n');
+
+            await writeFileEnsuringDir(outFile, content);
 
             if (withImport.changed || patched.changed) {
                 await fs.writeFile(v.sourceFile, patched.updatedText, 'utf8');
