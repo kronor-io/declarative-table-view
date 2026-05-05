@@ -27,6 +27,7 @@ jest.mock('../framework/data', () => {
 });
 
 import App from '../App';
+import { REVISION_2026_03_26 } from '../framework/user-data';
 
 let capturedAst: any = null;
 let capturedAliasedAst: any = null;
@@ -34,6 +35,7 @@ let capturedQuery: string | null = null;
 let capturedVariables: any = null;
 let capturedPagination: any = null;
 let capturedRowsPerPage: number | null = null;
+let capturedUserData: any = null;
 
 const action = {
     label: 'Capture AST',
@@ -60,6 +62,17 @@ const action = {
 };
 
 describe('ActionAPI GraphQL helpers', () => {
+    beforeEach(() => {
+        capturedAst = null;
+        capturedAliasedAst = null;
+        capturedQuery = null;
+        capturedVariables = null;
+        capturedPagination = null;
+        capturedRowsPerPage = null;
+        capturedUserData = null;
+        localStorage.clear();
+    });
+
     it('provides both GraphQL AST helpers and the variable builder to actions', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -117,5 +130,85 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedPagination).toHaveProperty('page');
         expect(capturedPagination).toHaveProperty('cursors');
         expect(capturedRowsPerPage).toBe(20); // default from App rowsPerPage prop
+    });
+
+    it('exposes current user preferences and view data to actions', async () => {
+        localStorage.setItem('dtvUserData', JSON.stringify({
+            preferences: {
+                syncFilterStateToUrlOverride: true
+            },
+            views: {
+                'test-view': {
+                    columnOrder: ['id'],
+                    hiddenColumns: ['id'],
+                    rowsPerPage: 50,
+                    savedFilters: []
+                }
+            },
+            revision: 1,
+            formatRevision: REVISION_2026_03_26
+        }));
+
+        const captureUserDataAction = {
+            label: 'Capture user data',
+            onClick: (api: any) => {
+                capturedUserData = {
+                    preferences: api.userData.preferences,
+                    viewData: api.userData.viewData
+                };
+            }
+        };
+
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        const viewsJson = JSON.stringify([
+            {
+                title: 'Test View',
+                id: 'test-view',
+                collectionName: 'testCollection',
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    { type: 'tableColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }], name: 'ID', cellRenderer: { section: 'cellRenderers', key: 'text' } }
+                ],
+                filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
+            }
+        ]);
+
+        const runtime = { cellRenderers: { text: () => 'cell' }, queryTransforms: {}, noRowsComponents: {}, customFilterComponents: {}, initialValues: {} };
+
+        const appElement = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            graphqlToken: 'token',
+            geminiApiKey: 'gemini',
+            showViewsMenu: false,
+            showViewTitle: false,
+            viewsJson,
+            externalRuntime: runtime as any,
+            syncFilterStateToUrl: false,
+            actions: [captureUserDataAction]
+        });
+
+        createRoot(container).render(
+            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+        );
+
+        await new Promise(r => setTimeout(r, 25));
+        const btn = container.querySelector('[data-testid="dtv-action-0"]') as HTMLButtonElement | null;
+        if (!btn) throw new Error('Action button not found');
+        btn.click();
+        await new Promise(r => setTimeout(r, 25));
+
+        expect(capturedUserData).toEqual({
+            preferences: { syncFilterStateToUrlOverride: true },
+            viewData: {
+                columnOrder: ['id'],
+                hiddenColumns: ['id'],
+                rowsPerPage: 50,
+                savedFilters: []
+            },
+        });
     });
 });

@@ -8,7 +8,13 @@ import { generateColumnAliasedGraphQLQueryAST } from './graphql/query';
 import { buildGraphQLQueryVariables } from './data';
 import type { PaginationState } from './state';
 import type { ShowToastFn } from './toast';
+import type { UserPreferences, ViewData } from './user-data';
 import type { CSSProperties } from 'react';
+
+export interface ActionUserDataAPI {
+    preferences: UserPreferences;
+    viewData: ViewData;
+}
 
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
@@ -31,6 +37,8 @@ export interface ActionAPI {
     buildGraphQLQueryVariables: typeof buildGraphQLQueryVariables;
     /** Access current pagination state (page number and cursor history). */
     getPaginationState: () => PaginationState;
+    /** Access persisted user data for the current view. */
+    userData: ActionUserDataAPI;
 }
 
 // Definition for a single action button.

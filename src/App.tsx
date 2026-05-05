@@ -30,7 +30,7 @@ import { parseFilterFormState } from './framework/filter-form-state';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
-import { ActionDefinition } from './framework/actions';
+import { ActionDefinition, type ActionUserDataAPI } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
 import type { ShowToastFn } from './framework/toast'
 import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
@@ -171,6 +171,10 @@ function App({
     const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
+    const actionUserData: ActionUserDataAPI = {
+        preferences: userDataManager.preferences,
+        viewData: userDataManager.viewData
+    }
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: {
@@ -583,6 +587,7 @@ function App({
                                 showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
+                                userData={actionUserData}
                             />
                         </div>
                     }

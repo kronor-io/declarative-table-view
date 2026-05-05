@@ -27,7 +27,7 @@ export type {
     UserDataLoadCallback,
     UserDataSaveCallback
 } from '../framework/user-data-manager';
-export type { ActionDefinition, ActionAPI } from '../framework/actions';
+export type { ActionDefinition, ActionAPI, ActionUserDataAPI } from '../framework/actions';
 export type {
     HasuraFilterObject,
     HasuraOperator,

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from 'primereact/button';
-import { ActionDefinition, ActionAPI } from '../framework/actions';
+import { ActionDefinition, ActionAPI, ActionUserDataAPI } from '../framework/actions';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 import { generateColumnAliasedGraphQLQueryAST } from '../framework/graphql/query';
 import { buildGraphQLQueryVariables } from '../framework/data';
@@ -18,9 +18,10 @@ export interface ActionButtonsProps {
     showToast: ShowToastFn;
     paginationState: PaginationState;
     rowsPerPage: number;
+    userData: ActionUserDataAPI;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, showToast, paginationState, rowsPerPage }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, showToast, paginationState, rowsPerPage, userData }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     return (
         <>
@@ -41,7 +42,8 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         renderGraphQLQuery,
                         buildGraphQLQueryVariables,
                         getPaginationState: () => paginationState,
-                        rowsPerPage
+                        rowsPerPage,
+                        userData
                     };
                     try {
                         await action.onClick(api);
