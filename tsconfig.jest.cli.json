@@ -1,0 +1,14 @@
+{
+    "extends": "./tsconfig.cli.json",
+    "compilerOptions": {
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "noEmit": true,
+        "isolatedModules": true,
+        "types": ["jest", "node"]
+    },
+    "include": [
+        "src/cli/**/*.ts",
+        "src/cli/**/*.tsx"
+    ]
+}

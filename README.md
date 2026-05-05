@@ -113,6 +113,7 @@ npm run dev
 ### Run unit tests
 ```sh
 npm run test-unit
+npm run test-unit:cli
 ```
 
 ### Run E2E tests (Playwright)

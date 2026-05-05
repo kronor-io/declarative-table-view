@@ -653,7 +653,11 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
                 dtvNamespaces
             });
 
-            const shouldEmitForView = viewArgObjectHasIdentifier(viewArgObject2, rowTypeConstName);
+            const sf3 = ts.createSourceFile(v.sourceFile, patched.updatedText, ts.ScriptTarget.Latest, true);
+            const viewArgObject3 = findViewArgObjectById(sf3, v.viewId, { dslIdentifiers, dtvNamespaces });
+            const shouldEmitForView = viewArgObject3
+                ? viewArgObjectHasIdentifier(viewArgObject3, rowTypeConstName)
+                : false;
             if (!shouldEmitForView) {
                 await fs.rm(outFile, { force: true });
                 continue;

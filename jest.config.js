@@ -2,11 +2,12 @@
 // - Move deprecated ts-jest config from globals to transform
 // - Treat TS/TSX as ESM (project is type: module)
 // - Mock CSS imports to avoid syntax errors in component tests
-// - Use jsdom environment for React component tests
+// - Use jsdom environment for React component tests only
 export default {
     preset: 'ts-jest',
     testEnvironment: 'jsdom',
     testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+    testPathIgnorePatterns: ['<rootDir>/src/cli/'],
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: 'tsconfig.jest.json', useESM: true }]

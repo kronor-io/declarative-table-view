@@ -20,7 +20,7 @@
 - **Cell Renderers**: All cell renderers receive `setFilterState` as a required prop, allowing them to programmatically update filter state when users interact with table cells.
 
 ## Testing & Code Quality
-- **Unit Tests**: Run with `npm run test-unit` (Jest)
+- **Unit Tests**: Run app/library tests with `npm run test-unit` and CLI tests with `npm run test-unit:cli` (Jest)
 - **E2E Tests**: Run with `npm test` or `npm run test` (Playwright)
 - **Linting**: Run with `npm run lint` (ESLint with TypeScript)
 - E2E test files are located in `e2e/` directory
