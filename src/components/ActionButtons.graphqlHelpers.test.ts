@@ -29,6 +29,7 @@ jest.mock('../framework/data', () => {
 import App from '../App';
 
 let capturedAst: any = null;
+let capturedAliasedAst: any = null;
 let capturedQuery: string | null = null;
 let capturedVariables: any = null;
 let capturedPagination: any = null;
@@ -44,6 +45,13 @@ const action = {
             api.view.orderByType,
             api.view.paginationKey
         );
+        capturedAliasedAst = api.generateColumnAliasedGraphQLQueryAST(
+            api.view.collectionName,
+            api.view.columnDefinitions,
+            api.view.boolExpType,
+            api.view.orderByType,
+            api.view.paginationKey
+        );
         capturedQuery = api.renderGraphQLQuery(capturedAst);
         capturedVariables = api.buildGraphQLQueryVariables(api.view, api.filterState, 5, null);
         capturedPagination = api.getPaginationState();
@@ -52,7 +60,7 @@ const action = {
 };
 
 describe('ActionAPI GraphQL helpers', () => {
-    it('provides GraphQL helpers and variable builder to actions', async () => {
+    it('provides both GraphQL AST helpers and the variable builder to actions', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
 
@@ -97,6 +105,8 @@ describe('ActionAPI GraphQL helpers', () => {
 
         expect(capturedAst).toBeTruthy();
         expect(capturedAst.rootField).toContain('testCollection');
+        expect(capturedAliasedAst).toBeTruthy();
+        expect(capturedAliasedAst.rootField).toContain('testCollection');
         expect(capturedQuery).toBeTruthy();
         expect(capturedQuery).toContain('testCollection');
         expect(capturedVariables).toBeTruthy();

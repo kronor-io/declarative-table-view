@@ -4,6 +4,7 @@
 import type { View } from './view';
 import type { FilterState } from './state';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
+import { generateColumnAliasedGraphQLQueryAST } from './graphql/query';
 import { buildGraphQLQueryVariables } from './data';
 import type { PaginationState } from './state';
 import type { ShowToastFn } from './toast';
@@ -22,6 +23,8 @@ export interface ActionAPI {
     rowsPerPage: number;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually view.collectionName). */
     generateGraphQLQueryAST: typeof generateGraphQLQueryAST;
+    /** Build a GraphQLQueryAST with top-level selections aliased to column ids. */
+    generateColumnAliasedGraphQLQueryAST: typeof generateColumnAliasedGraphQLQueryAST;
     /** Render a GraphQLQueryAST to a string. */
     renderGraphQLQuery: typeof renderGraphQLQuery;
     /** Build GraphQL variables (conditions, paginationCondition, orderBy, rowLimit) for the current view. */

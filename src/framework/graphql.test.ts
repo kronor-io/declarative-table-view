@@ -1,4 +1,15 @@
-import { renderGraphQLQuery, GraphQLQueryAST, generateGraphQLQueryAST, Hasura } from "./graphql";
+import {
+    renderGraphQLQuery,
+    GraphQLQueryAST,
+    generateGraphQLQueryAST,
+    generateSelectionSetFromColumns,
+    Hasura,
+} from "./graphql";
+import {
+    generateColumnAliasedGraphQLQuery,
+    generateColumnAliasedGraphQLQueryAST,
+    generateColumnAliasedSelectionSetFromColumns,
+} from "./graphql/query";
 import { ColumnDefinition, fieldAlias } from "./column-definition";
 import { valueQuery, objectQuery, arrayQuery } from "../dsl/columns";
 
@@ -254,5 +265,149 @@ describe("generateGraphQLQueryAST", () => {
         const query = renderGraphQLQuery(ast);
         expect(query).toContain('metadata(path: "$.user.preferences.theme")');
         expect(query).toContain('firstTag: tags(path: "$[0]")');
+    });
+
+    it("carries all supported arrayQuery options into the selection set", () => {
+        const where = Hasura.and(
+            Hasura.condition('status', Hasura.eq('ACTIVE')),
+            Hasura.condition('priority', Hasura.gt(5))
+        );
+        const columns: ColumnDefinition[] = [
+            {
+                type: 'tableColumn',
+                id: 'events',
+                name: 'Events',
+                data: [
+                    arrayQuery({
+                        field: 'events',
+                        path: '$.recent',
+                        orderBy: [
+                            { key: 'createdAt', direction: 'DESC' },
+                            { key: 'id', direction: 'ASC' }
+                        ],
+                        distinctOn: ['user_id'],
+                        limit: 3,
+                        where,
+                        selectionSet: [valueQuery({ field: 'type' })]
+                    })
+                ],
+                cellRenderer: () => null,
+            }
+        ];
+
+        expect(generateSelectionSetFromColumns(columns)).toEqual([
+            {
+                field: 'events',
+                path: '$.recent',
+                order_by: [
+                    { createdAt: 'DESC' },
+                    { id: 'ASC' }
+                ],
+                distinct_on: ['user_id'],
+                limit: 3,
+                where,
+                selections: [{ field: 'type' }],
+            }
+        ]);
+    });
+});
+
+describe("generateColumnAliasedGraphQLQueryAST", () => {
+    it("aliases each top-level selection to the column id", () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null },
+            {
+                type: 'tableColumn',
+                id: 'customer-name',
+                name: 'Customer Name',
+                data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'name' })] })],
+                cellRenderer: () => null,
+            },
+            {
+                type: 'tableColumn',
+                id: 'latest-posts',
+                name: 'Latest Posts',
+                data: [fieldAlias('recentPosts', arrayQuery({ field: 'posts', selectionSet: [valueQuery({ field: 'title' })] }))],
+                cellRenderer: () => null,
+            },
+        ];
+
+        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual([
+            { field: 'id', alias: 'id' },
+            {
+                field: 'customer',
+                alias: 'customer-name',
+                selections: [{ field: 'name' }],
+            },
+            {
+                field: 'posts',
+                alias: 'latest-posts',
+                selections: [{ field: 'title' }],
+            },
+        ]);
+
+        const ast = generateColumnAliasedGraphQLQueryAST('testRoot', columns, 'TestBoolExp', 'TestOrderBy', 'id');
+
+        expect(ast.selectionSet).toEqual([
+            { field: 'id', alias: 'id' },
+            {
+                field: 'customer',
+                alias: 'customer-name',
+                selections: [{ field: 'name' }],
+            },
+            {
+                field: 'posts',
+                alias: 'latest-posts',
+                selections: [{ field: 'title' }],
+            },
+        ]);
+    });
+
+    it("uses only the first field query for columns with multiple field queries", () => {
+        const columns: ColumnDefinition[] = [
+            {
+                type: 'tableColumn',
+                id: 'fullName',
+                name: 'Full Name',
+                data: [
+                    valueQuery({ field: 'firstName' }),
+                    valueQuery({ field: 'lastName' }),
+                ],
+                cellRenderer: () => null,
+            },
+        ];
+
+        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual([
+            { field: 'firstName', alias: 'fullName' },
+        ]);
+    });
+
+    it("renders the aliased query using only the first field query for each column", () => {
+        const columns: ColumnDefinition[] = [
+            {
+                type: 'tableColumn',
+                id: 'fullName',
+                name: 'Full Name',
+                data: [
+                    valueQuery({ field: 'firstName' }),
+                    valueQuery({ field: 'lastName' }),
+                ],
+                cellRenderer: () => null,
+            },
+            {
+                type: 'tableColumn',
+                id: 'posts',
+                name: 'Posts',
+                data: [arrayQuery({ field: 'posts', selectionSet: [valueQuery({ field: 'title' })] })],
+                cellRenderer: () => null,
+            },
+        ];
+
+        const query = generateColumnAliasedGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'id');
+
+        expect(query).toContain('fullName: firstName');
+        expect(query).not.toContain('lastName');
+        expect(query).toContain('posts: posts');
+        expect(query).toMatch(/\bid\b/);
     });
 });

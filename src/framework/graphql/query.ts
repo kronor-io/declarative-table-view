@@ -1,4 +1,4 @@
-import { ColumnDefinition, FieldQuery, OrderByConfig } from '../column-definition';
+import { ColumnDefinition, FieldQuery, OrderByConfig, Query } from '../column-definition';
 import {
     hasuraFilterExpressionToObject,
     HasuraFilterExpression,
@@ -48,80 +48,134 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
     return merged;
 }
 
-export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
+type SelectionSetFromColumnsOptions = {
+    getTopLevelAlias?: (column: ColumnDefinition) => string | undefined;
+};
+
+function generateSelectionSetFromColumnsInternal(
+    columns: ColumnDefinition[],
+    options?: SelectionSetFromColumnsOptions,
+): GraphQLSelectionSet {
+    const toSelectionSetItem = (query: Query, alias?: string): GraphQLSelectionSetItem => {
+        const item: GraphQLSelectionSetItem = { field: query.field };
+
+        if (alias !== undefined) {
+            item.alias = alias;
+        }
+
+        if (query.path) {
+            item.path = query.path;
+        }
+
+        return item;
+    };
+
+    const toHasuraOrderBy = (orderBy: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
+        if (Array.isArray(orderBy)) {
+            return orderBy.map(item => ({ [item.key]: item.direction.toUpperCase() as 'ASC' | 'DESC' }));
+        }
+
+        return { [orderBy.key]: orderBy.direction.toUpperCase() as 'ASC' | 'DESC' };
+    };
+
+    const processSelectionSet = (selectionSet: readonly Query[]): GraphQLSelectionSet | undefined => {
+        if (!selectionSet.length) {
+            return undefined;
+        }
+
+        return selectionSet.map(query => processNewQueryTypes(query));
+    };
+
+    const assertNever = (value: never): never => {
+        throw new Error(`Unhandled query type: ${JSON.stringify(value)}`);
+    };
+
     // Helper to process new Query types (valueQuery, objectQuery, arrayQuery) recursively
-    function processNewQueryTypes(q: any): GraphQLSelectionSetItem | null { // 'any' due to discriminated union runtime checks
-        if (q.type === 'valueQuery') {
-            const item: GraphQLSelectionSetItem = { field: q.field };
-            if (q.path) item.path = q.path;
-            return item;
-        }
-        if (q.type === 'objectQuery') {
-            const item: GraphQLSelectionSetItem = { field: q.field };
-            if (q.path) item.path = q.path;
-            if (Array.isArray(q.selectionSet) && q.selectionSet.length) {
-                item.selections = q.selectionSet
-                    .map(processNewQueryTypes)
-                    .filter((s: GraphQLSelectionSetItem | null): s is GraphQLSelectionSetItem => !!s);
+    function processNewQueryTypes(query: Query, alias?: string): GraphQLSelectionSetItem {
+        switch (query.type) {
+            case 'valueQuery':
+                return toSelectionSetItem(query, alias);
+            case 'objectQuery': {
+                const item = toSelectionSetItem(query, alias);
+                const selections = processSelectionSet(query.selectionSet);
+
+                if (selections) {
+                    item.selections = selections;
+                }
+
+                return item;
             }
-            return item;
-        }
-        if (q.type === 'arrayQuery') {
-            const item: GraphQLSelectionSetItem = { field: q.field };
-            if (q.path) item.path = q.path;
-            if (q.orderBy) {
-                const toHasuraOrderBy = (ob: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
-                    if (Array.isArray(ob)) {
-                        return ob.map(o => ({ [o.key]: o.direction.toUpperCase() as 'ASC' | 'DESC' }));
-                    }
-                    return { [ob.key]: ob.direction.toUpperCase() as 'ASC' | 'DESC' };
-                };
-                item.order_by = toHasuraOrderBy(q.orderBy);
+            case 'arrayQuery': {
+                const item = toSelectionSetItem(query, alias);
+
+                if (query.orderBy) item.order_by = toHasuraOrderBy(query.orderBy);
+                if (query.distinctOn) item.distinct_on = query.distinctOn;
+                if (query.limit !== undefined) item.limit = query.limit;
+                if (query.where) item.where = query.where;
+
+                const selections = processSelectionSet(query.selectionSet);
+                if (selections) {
+                    item.selections = selections;
+                }
+
+                return item;
             }
-            if (q.distinctOn) item.distinct_on = q.distinctOn;
-            if (q.limit !== undefined) item.limit = q.limit;
-            if (q.where) item.where = q.where;
-            if (Array.isArray(q.selectionSet) && q.selectionSet.length) {
-                item.selections = q.selectionSet
-                    .map(processNewQueryTypes)
-                    .filter((s: GraphQLSelectionSetItem | null): s is GraphQLSelectionSetItem => !!s);
-            }
-            return item;
+            default:
+                return assertNever(query);
         }
-        return null;
     }
 
     // Helper to process FieldQuery recursively (legacy + new query types)
-    function processFieldQuery(fieldQuery: FieldQuery): GraphQLSelectionSetItem | null {
-        if (fieldQuery.type === 'fieldAlias') {
-            const underlyingItem = processFieldQuery(fieldQuery.field);
-            if (underlyingItem) {
-                underlyingItem.alias = fieldQuery.alias;
-                return underlyingItem;
-            }
-            return underlyingItem;
-        } else if (fieldQuery.type === 'valueQuery' || fieldQuery.type === 'objectQuery' || fieldQuery.type === 'arrayQuery') {
-            return processNewQueryTypes(fieldQuery);
+    function processFieldQuery(fieldQuery: FieldQuery, aliasOverride?: string): GraphQLSelectionSetItem {
+        switch (fieldQuery.type) {
+            case 'fieldAlias':
+                return {
+                    ...processFieldQuery(fieldQuery.field),
+                    alias: aliasOverride ?? fieldQuery.alias,
+                };
+            case 'valueQuery':
+            case 'objectQuery':
+            case 'arrayQuery':
+                return processNewQueryTypes(fieldQuery, aliasOverride);
+            default:
+                return assertNever(fieldQuery);
         }
-        return null;
     }
 
     // Build selection set for all columns and all FieldQuery[] then apply dedupe-only merge
-    const allSelections = columns.flatMap(col => col.data.map(processFieldQuery).filter((item): item is GraphQLSelectionSetItem => !!item));
+    const allSelections = columns.flatMap(column =>
+        (options?.getTopLevelAlias ? column.data.slice(0, 1) : column.data).map(fieldQuery =>
+            processFieldQuery(
+                fieldQuery,
+                options?.getTopLevelAlias?.(column),
+            ),
+        ),
+    );
+
     return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => mergeSelectionSets(acc, [current]), []);
 }
 
-export function generateGraphQLQueryAST(
-    rootField: string,
-    columns: ColumnDefinition[],
-    boolExpType: string,
-    orderByType: string,
-    paginationKey: string
-): GraphQLQueryAST {
-    const selectionSet = generateSelectionSetFromColumns(columns);
+export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
+    return generateSelectionSetFromColumnsInternal(columns);
+}
 
-    // Ensure pagination key is present in selection set (append if missing)
-    const hasPaginationKey = selectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
+function getColumnAliasedTopLevelAlias(column: ColumnDefinition): string {
+    return column.id;
+}
+
+export function generateColumnAliasedSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
+    return generateSelectionSetFromColumnsInternal(columns, {
+        getTopLevelAlias: getColumnAliasedTopLevelAlias,
+    });
+}
+
+function ensurePaginationKeyInSelectionSet(
+    selectionSet: GraphQLSelectionSet,
+    paginationKey: string,
+): GraphQLSelectionSet {
+    const nextSelectionSet = [...selectionSet];
+
+    const hasPaginationKey = nextSelectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
     if (!hasPaginationKey) {
         const buildNested = (path: string): GraphQLSelectionSetItem => {
             const parts = path.split('.');
@@ -129,9 +183,19 @@ export function generateGraphQLQueryAST(
             if (parts.length === 1) return { field: head };
             return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
         };
-        selectionSet.push(buildNested(paginationKey));
+        nextSelectionSet.push(buildNested(paginationKey));
     }
 
+    return nextSelectionSet;
+}
+
+function buildGraphQLQueryAST(
+    rootField: string,
+    selectionSet: GraphQLSelectionSet,
+    boolExpType: string,
+    orderByType: string,
+    paginationKey: string,
+): GraphQLQueryAST {
     return {
         operation: 'query',
         variables: [
@@ -144,8 +208,40 @@ export function generateGraphQLQueryAST(
         // the pagination condition. When there is no active cursor the paginationCondition
         // will simply be an empty object {} which Hasura will treat as a no-op in the boolean expression.
         rootField: `${rootField}(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)`,
-        selectionSet
+        selectionSet: ensurePaginationKeyInSelectionSet(selectionSet, paginationKey)
     };
+}
+
+export function generateGraphQLQueryAST(
+    rootField: string,
+    columns: ColumnDefinition[],
+    boolExpType: string,
+    orderByType: string,
+    paginationKey: string
+): GraphQLQueryAST {
+    return buildGraphQLQueryAST(
+        rootField,
+        generateSelectionSetFromColumns(columns),
+        boolExpType,
+        orderByType,
+        paginationKey,
+    );
+}
+
+export function generateColumnAliasedGraphQLQueryAST(
+    rootField: string,
+    columns: ColumnDefinition[],
+    boolExpType: string,
+    orderByType: string,
+    paginationKey: string,
+): GraphQLQueryAST {
+    return buildGraphQLQueryAST(
+        rootField,
+        generateColumnAliasedSelectionSetFromColumns(columns),
+        boolExpType,
+        orderByType,
+        paginationKey,
+    );
 }
 
 export function generateGraphQLQuery(
@@ -156,6 +252,17 @@ export function generateGraphQLQuery(
     paginationKey: string
 ): string {
     const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey);
+    return renderGraphQLQuery(ast);
+}
+
+export function generateColumnAliasedGraphQLQuery(
+    rootField: string,
+    columns: ColumnDefinition[],
+    boolExpType: string,
+    orderByType: string,
+    paginationKey: string,
+): string {
+    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey);
     return renderGraphQLQuery(ast);
 }
 
@@ -227,10 +334,10 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     };
 
     const isAnd = (cond: HasuraFilterObject): cond is { _and: HasuraFilterObject[] } => {
-        return typeof cond === 'object' && cond !== null && '_and' in cond && Array.isArray((cond as any)._and);
+        return typeof cond === 'object' && cond !== null && '_and' in cond && Array.isArray(cond._and);
     };
     const isOr = (cond: HasuraFilterObject): cond is { _or: HasuraFilterObject[] } => {
-        return typeof cond === 'object' && cond !== null && '_or' in cond && Array.isArray((cond as any)._or);
+        return typeof cond === 'object' && cond !== null && '_or' in cond && Array.isArray(cond._or);
     };
     const isNot = (cond: HasuraFilterObject): cond is { _not: HasuraFilterObject } => {
         return typeof cond === 'object' && cond !== null && '_not' in cond;

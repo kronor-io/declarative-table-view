@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Button } from 'primereact/button';
 import { ActionDefinition, ActionAPI } from '../framework/actions';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
+import { generateColumnAliasedGraphQLQueryAST } from '../framework/graphql/query';
 import { buildGraphQLQueryVariables } from '../framework/data';
 import { View } from '../framework/view';
 import type { ShowToastFn } from '../framework/toast'
@@ -36,6 +37,7 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         refetch,
                         showToast,
                         generateGraphQLQueryAST,
+                        generateColumnAliasedGraphQLQueryAST,
                         renderGraphQLQuery,
                         buildGraphQLQueryVariables,
                         getPaginationState: () => paginationState,
