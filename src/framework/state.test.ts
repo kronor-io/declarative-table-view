@@ -2,9 +2,14 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
+import * as React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setSearchQuery, setFilterGroupExpanded, FilterState } from './state';
-import { buildInitialFormState } from './state';
+import { buildInitialFormState, useAppState } from './state';
 import { View } from './view';
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Mock view definitions
 const mockViews: View[] = [
@@ -152,5 +157,36 @@ describe('AppState', () => {
         expect(state.searchQuery).toBe('');
         expect(state.filterDisplayState.type).toBe('all');
         expect(state.filterDisplayState.expandedGroups).toEqual([]);
+    });
+
+    it('useAppState returns stable setter references across rerenders', () => {
+        const container = document.createElement('div');
+        const root = createRoot(container);
+        const observedSetFilterState: Array<(filterState: FilterState) => void> = [];
+        const observedSetSelectedViewId: Array<(id: string) => void> = [];
+
+        function Harness({ tick }: { tick: number }) {
+            const { setFilterState, setSelectedViewId } = useAppState(mockViews, []);
+            observedSetFilterState.push(setFilterState);
+            observedSetSelectedViewId.push(setSelectedViewId as (id: string) => void);
+            return React.createElement('div', { 'data-tick': tick });
+        }
+
+        act(() => {
+            root.render(React.createElement(Harness, { tick: 1 }));
+        });
+
+        act(() => {
+            root.render(React.createElement(Harness, { tick: 2 }));
+        });
+
+        expect(observedSetFilterState).toHaveLength(2);
+        expect(observedSetSelectedViewId).toHaveLength(2);
+        expect(observedSetFilterState[0]).toBe(observedSetFilterState[1]);
+        expect(observedSetSelectedViewId[0]).toBe(observedSetSelectedViewId[1]);
+
+        act(() => {
+            root.unmount();
+        });
     });
 });

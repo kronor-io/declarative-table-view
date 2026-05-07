@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { FilterFormState } from "./filter-form-state";
 import * as FilterValue from "./filterValue";
 import { FilterGroups, FilterId, FilterExpr } from "./filters";
@@ -236,16 +236,45 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         }
         return base;
     });
+
+    const updateSelectedViewId = useCallback((id: ViewId) => {
+        setAppState(prev => setSelectedViewId(prev, id));
+    }, []);
+
+    const updateDataRows = useCallback((rows: FetchDataResult, pagination?: PaginationState) => {
+        setAppState(prev => setDataRows(prev, rows, pagination));
+    }, []);
+
+    const updateFilterGroups = useCallback((groups: FilterGroups) => {
+        setAppState(prev => setFilterGroups(prev, groups));
+    }, []);
+
+    const updateFilterState = useCallback((filterState: FilterState) => {
+        setAppState(prev => setFilterState(prev, filterState));
+    }, []);
+
+    const updateSearchQuery = useCallback((searchQuery: string) => {
+        setAppState(prev => setSearchQuery(prev, searchQuery));
+    }, []);
+
+    const updateFilterGroupExpanded = useCallback((groupName: string, expanded: boolean) => {
+        setAppState(prev => setFilterGroupExpanded(prev, groupName, expanded));
+    }, []);
+
+    const updateRowsPerPage = useCallback((value: number) => {
+        setAppState(prev => setRowsPerPage(prev, value));
+    }, []);
+
     return {
         state: appState,
         selectedView: getSelectedView(appState),
-        setSelectedViewId: (id: ViewId) => setAppState(prev => setSelectedViewId(prev, id)),
-        setDataRows: (rows: FetchDataResult, pagination?: PaginationState) => setAppState(prev => setDataRows(prev, rows, pagination)),
-        setFilterGroups: (groups: FilterGroups) => setAppState(prev => setFilterGroups(prev, groups)),
-        setFilterState: (filterState: FilterState) => setAppState(prev => setFilterState(prev, filterState)),
-        setSearchQuery: (searchQuery: string) => setAppState(prev => setSearchQuery(prev, searchQuery)),
-        setFilterGroupExpanded: (groupName: string, expanded: boolean) => setAppState(prev => setFilterGroupExpanded(prev, groupName, expanded)),
-        setRowsPerPage: (value: number) => setAppState(prev => setRowsPerPage(prev, value))
+        setSelectedViewId: updateSelectedViewId,
+        setDataRows: updateDataRows,
+        setFilterGroups: updateFilterGroups,
+        setFilterState: updateFilterState,
+        setSearchQuery: updateSearchQuery,
+        setFilterGroupExpanded: updateFilterGroupExpanded,
+        setRowsPerPage: updateRowsPerPage
     };
 }
 

@@ -243,7 +243,6 @@ function App({
         setSelectedRows([]);
     }, [selectedView.id]);
 
-    // Clear selection immediately when multi-select is turned off.
     useEffect(() => {
         if ((rowSelection?.rowSelectionType ?? 'none') !== 'multiple') {
             setSelectedRows([]);
@@ -321,7 +320,6 @@ function App({
         clearFilterFromUrl();
     }, [syncFilterStateToUrlWithOverride]);
 
-    // Hydrate filter state from user data when view-level sync is enabled.
     useEffect(() => {
         if (!syncFilterStateToUserData) return
 
@@ -336,7 +334,6 @@ function App({
         setFilterState(persistedFilterState)
     }, [selectedView.id, selectedView.filterGroups, setFilterState, syncFilterStateToUserData, userDataManager.viewData.persistedFilterState])
 
-    // Persist applied filters to user data only after an explicit apply action.
     useEffect(() => {
         const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
         previousRefetchTrigger.current = refetchTrigger
@@ -347,7 +344,6 @@ function App({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [syncFilterStateToUserData, refetchTrigger]);
 
-    // Remove stored filter state when user-data syncing is turned off for this view.
     useEffect(() => {
         if (syncFilterStateToUserData) return;
         if (userDataManager.viewData.persistedFilterState === null) return;
