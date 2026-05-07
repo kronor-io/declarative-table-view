@@ -75,6 +75,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                     optionLabel='label'
                     optionValue='value'
                     placeholder='Any'
+                    filter={control.filterable}
                 />
             );
         case 'multiselect':

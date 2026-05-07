@@ -48,7 +48,7 @@ export type FilterControlJson =
     | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'date'; label?: string; placeholder?: string; initialValue?: any }
-    | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; initialValue?: any }
+    | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; filterable?: boolean; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
     | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControlJson; initialValue?: any }
     | { type: 'autocomplete'; label?: string; placeholder?: string; initialValue?: any; suggestionFetcher: RuntimeReference; queryMinLength?: number; suggestionLabelField?: string; multiple?: boolean; selectionLimit?: number }

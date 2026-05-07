@@ -114,7 +114,7 @@ export default function AIAssistantForm({
                                 '  | { type: "text"; label?: string; placeholder?: string }',
                                 '  | { type: "number"; label?: string; placeholder?: string }',
                                 '  | { type: "date"; label?: string; placeholder?: string }',
-                                '  | { type: "dropdown"; label?: string; items: { label: string; value: any }[] }',
+                                '  | { type: "dropdown"; label?: string; items: { label: string; value: any }[]; filterable?: boolean }',
                                 '  | { type: "multiselect"; label?: string; items: { label: string; value: any }[], filterable?: boolean }',
                                 '  | { type: "customOperator"; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl }',
                                 '  | { type: "custom"; component: React.ComponentType<any>; props?: Record<string, any>; label?: string };'

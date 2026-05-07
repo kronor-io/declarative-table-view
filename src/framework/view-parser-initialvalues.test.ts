@@ -105,6 +105,7 @@ describe('FilterControlJson initialValue runtime reference parsing', () => {
                     { label: '18-25', value: 25 },
                     { label: '26-35', value: 30 }
                 ],
+                filterable: true,
                 initialValue: { section: 'initialValues', key: 'defaultAge' }
             };
 
@@ -116,6 +117,7 @@ describe('FilterControlJson initialValue runtime reference parsing', () => {
                     { label: '18-25', value: 25 },
                     { label: '26-35', value: 30 }
                 ],
+                filterable: true,
                 initialValue: 25
             });
         });

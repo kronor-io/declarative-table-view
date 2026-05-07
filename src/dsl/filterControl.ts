@@ -12,7 +12,7 @@ export const FilterControl = {
         ({ type: 'number', ...options }),
     date: (options?: { label?: string; placeholder?: string; showTime?: boolean; initialValue?: any }): FrameworkFilterControl =>
         ({ type: 'date', ...options }),
-    dropdown: (options: { label?: string; items: { label: string; value: any }[] }): FrameworkFilterControl =>
+    dropdown: (options: { label?: string; items: { label: string; value: any }[]; filterable?: boolean }): FrameworkFilterControl =>
         ({ type: 'dropdown', ...options }),
     multiselect: (options: { label?: string; items: { label: string; value: any }[], filterable?: boolean }): FrameworkFilterControl =>
         ({ type: 'multiselect', ...options }),
