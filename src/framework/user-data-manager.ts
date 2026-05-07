@@ -1,5 +1,6 @@
 import { FilterGroups } from './filters';
 import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
+import type { FilterState } from './state';
 import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from './user-data';
 import { applyUserDataMigrations, userDataMigrationErrorToMessage } from './user-data.migrations';
 import { ViewId } from './view';
@@ -21,6 +22,8 @@ export interface UserDataManager {
     setColumnOrder(viewId: ViewId, order: string[] | null): Promise<ViewData>
     setHiddenColumns(viewId: ViewId, hidden: string[] | null): Promise<ViewData>
     setRowsPerPage(viewId: ViewId, rowsPerPage: number): Promise<ViewData>
+    setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData>
+    setPersistedFilterState(viewId: ViewId, filterState: FilterState | null): Promise<ViewData>
 
     getSavedFilters(viewId: ViewId): SavedFilter[]
 
@@ -218,6 +221,23 @@ export function createUserDataManager(
 
     async function setRowsPerPage(viewId: ViewId, rowsPerPage: number): Promise<ViewData> {
         const result = await updateViewData(viewId, (prevViewData) => ({ ...prevViewData, rowsPerPage }))
+        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    }
+
+    async function setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData> {
+        const result = await updateViewData(viewId, (prevViewData) => ({
+            ...prevViewData,
+            syncFilterStateToUserData: enabled,
+            persistedFilterState: enabled ? prevViewData.persistedFilterState : null
+        }))
+        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    }
+
+    async function setPersistedFilterState(viewId: ViewId, filterState: FilterState | null): Promise<ViewData> {
+        const result = await updateViewData(viewId, (prevViewData) => ({
+            ...prevViewData,
+            persistedFilterState: filterState
+        }))
         return Result.isFailure(result) ? getViewData(viewId) : result.value
     }
 
@@ -445,6 +465,8 @@ export function createUserDataManager(
         setColumnOrder,
         setHiddenColumns,
         setRowsPerPage,
+        setSyncFilterStateToUserData,
+        setPersistedFilterState,
         getSavedFilters,
         createFilter,
         updateFilter,

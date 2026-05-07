@@ -1,6 +1,6 @@
 import { FilterGroups } from './filters';
 import { fromSavedFilterJson, toSavedFilterJson, SAVED_FILTERS_KEY, type SavedFilter, type SavedFilterJson } from './saved-filters';
-import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, REVISION_2026_03_26, ViewData, type UserData } from './user-data';
+import { defaultViewData, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_01_29, REVISION_2026_03_26, REVISION_2026_05_06, ViewData, type UserData } from './user-data';
 import { ViewId } from './view';
 import { failure, success, type Result } from './result'
 
@@ -156,10 +156,31 @@ const step_migrateSavedFilterStateToLeafAdt: MigrationStep = {
     }
 }
 
+const step_addViewPreference_syncFilterStateToUserData: MigrationStep = {
+    fromRevision: REVISION_2026_03_26,
+    toRevision: REVISION_2026_05_06,
+    migrate: (userData: UserData): UserData => {
+        const nextViews: UserData['views'] = Object.fromEntries(
+            Object.entries(userData.views).map(([viewId, viewData]) => [viewId, {
+                ...defaultViewData(),
+                ...viewData,
+                syncFilterStateToUserData: false,
+                persistedFilterState: null
+            }])
+        )
+
+        return {
+            ...userData,
+            views: nextViews
+        }
+    }
+}
+
 const MIGRATIONS: MigrationStep[] = [
     step_migrateSavedFilters,
     step_addPreference_syncFilterStateToUrlOverride,
-    step_migrateSavedFilterStateToLeafAdt
+    step_migrateSavedFilterStateToLeafAdt,
+    step_addViewPreference_syncFilterStateToUserData
 ];
 
 export const CURRENT_USERDATA_FORMAT_REVISION = MIGRATIONS[MIGRATIONS.length - 1].toRevision;

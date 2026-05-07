@@ -2,6 +2,8 @@ import { ViewId } from './view';
 
 import { fromSavedFilterJson, toSavedFilterJson, type SavedFilter, type SavedFilterJson } from './saved-filters';
 import { FilterGroups } from './filters';
+import { parseFilterFormState, serializeFilterFormStateMap } from './filter-form-state';
+import { FilterState } from './state';
 
 export const INITIAL_USERDATA_FORMAT_REVISION = '1970-01-01T00:00:00.000Z'
 
@@ -11,11 +13,15 @@ export const REVISION_2026_01_29 = '2026-01-29T00:00:00.000Z'
 
 export const REVISION_2026_03_26 = '2026-03-26T00:00:00.000Z'
 
+export const REVISION_2026_05_06 = '2026-05-06T00:00:00.000Z'
+
 
 export interface ViewData {
     columnOrder: string[] | null;
     hiddenColumns: string[];
     rowsPerPage: number | null;
+    syncFilterStateToUserData: boolean;
+    persistedFilterState: FilterState | null;
     savedFilters: SavedFilter[];
 }
 
@@ -23,6 +29,8 @@ export interface ViewDataJson {
     columnOrder: string[] | null;
     hiddenColumns: string[];
     rowsPerPage: number | null;
+    syncFilterStateToUserData?: boolean;
+    persistedFilterState?: unknown;
     savedFilters: SavedFilterJson[];
 }
 
@@ -84,7 +92,14 @@ export function defaultUserData(): UserData {
 }
 
 export function defaultViewData(): ViewData {
-    return { columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] }
+    return {
+        columnOrder: null,
+        hiddenColumns: [],
+        rowsPerPage: null,
+        syncFilterStateToUserData: false,
+        persistedFilterState: null,
+        savedFilters: []
+    }
 }
 
 export function toUserDataJson(data: UserData, filterGroupsByViewId: Record<ViewId, FilterGroups>): UserDataJson {
@@ -94,7 +109,11 @@ export function toUserDataJson(data: UserData, filterGroupsByViewId: Record<View
             const rawSavedFilters = filterGroups
                 ? view.savedFilters.map((savedFilter) => toSavedFilterJson(savedFilter, filterGroups))
                 : view.savedFilters.map((savedFilter) => ({ ...savedFilter, state: null }));
-            return [viewId, { ...view, savedFilters: rawSavedFilters }];
+            const persistedFilterState = filterGroups && view.persistedFilterState
+                ? serializeFilterFormStateMap(view.persistedFilterState, filterGroups)
+                : null
+
+            return [viewId, { ...view, persistedFilterState, savedFilters: rawSavedFilters }];
         })
     )
 
@@ -115,7 +134,17 @@ export function fromUserDataJson(json: UserDataJson, filterGroupsByViewId: Recor
             if (!filterGroups) return []
 
             const savedFilters = viewJson.savedFilters.map((savedFilterJson) => fromSavedFilterJson(savedFilterJson, filterGroups))
-            return [[viewId, { ...viewJson, savedFilters }]]
+            const persistedFilterState = viewJson.persistedFilterState
+                ? parseFilterFormState(viewJson.persistedFilterState as Record<string, unknown>, filterGroups)
+                : null
+
+            return [[viewId, {
+                ...defaultViewData(),
+                ...viewJson,
+                syncFilterStateToUserData: viewJson.syncFilterStateToUserData === true,
+                persistedFilterState,
+                savedFilters
+            }]]
         })
     )
 

@@ -21,6 +21,7 @@ interface UserPreferencesPanelProps {
     viewData: ViewData;
     columnDefinitions: ColumnDefinition[];
     onSetHiddenColumns: (viewId: ViewId, hiddenColumns: string[]) => Promise<ViewData>;
+    onSetSyncFilterStateToUserData: (viewId: ViewId, enabled: boolean) => Promise<ViewData>;
 }
 
 export default function UserPreferencesPanel({
@@ -30,7 +31,8 @@ export default function UserPreferencesPanel({
     currentView,
     viewData,
     columnDefinitions,
-    onSetHiddenColumns
+    onSetHiddenColumns,
+    onSetSyncFilterStateToUserData
 }: UserPreferencesPanelProps) {
     const tableColumns: TableColumnDefinition[] = useMemo(() => {
         return columnDefinitions.filter((col): col is TableColumnDefinition => col.type === 'tableColumn');
@@ -94,6 +96,28 @@ export default function UserPreferencesPanel({
             </div>
 
             <div className="tw:flex tw:flex-col tw:gap-6 tw:w-1/3">
+                <div className="tw:flex tw:justify-between tw:items-center tw:gap-3 tw:flex-wrap">
+                    <label className="tw:text-sm tw:text-gray-700 tw:w-[240px] tw:flex-shrink-0">
+                        Persist filter state for this view
+                    </label>
+
+                    <div className="tw:min-w-[240px]">
+                        <Dropdown
+                            value={viewData.syncFilterStateToUserData}
+                            options={[
+                                { label: 'No', value: false },
+                                { label: 'Yes', value: true }
+                            ]}
+                            optionLabel="label"
+                            optionValue="value"
+                            onChange={(e) => {
+                                void onSetSyncFilterStateToUserData(currentView.id, e.value === true);
+                            }}
+                            className="tw:min-w-[240px]"
+                        />
+                    </div>
+                </div>
+
                 <div>
                     <div className="tw:flex tw:justify-between tw:items-center tw:gap-3 tw:flex-wrap">
                         <label className="tw:text-sm tw:text-gray-700 tw:w-[240px] tw:flex-shrink-0">

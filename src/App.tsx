@@ -171,6 +171,7 @@ function App({
     const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
+    const syncFilterStateToUserData = userDataManager.viewData.syncFilterStateToUserData
     const actionUserData: ActionUserDataAPI = {
         preferences: userDataManager.preferences,
         viewData: userDataManager.viewData
@@ -204,6 +205,9 @@ function App({
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRows, setSelectedRows] = useState<unknown[]>([]);
+    const initialSelectedViewId = useRef<View['id'] | undefined>(views[0]?.id)
+    const shouldSkipUserDataHydrationForInitialUrl = useRef(Boolean(initialFilterStateFromUrl))
+    const previousRefetchTrigger = useRef(refetchTrigger)
 
     const triggerRefetch = useCallback(() => {
         setRefetchTrigger(prev => prev + 1);
@@ -239,6 +243,7 @@ function App({
         setSelectedRows([]);
     }, [selectedView.id]);
 
+    // Clear selection immediately when multi-select is turned off.
     useEffect(() => {
         if ((rowSelection?.rowSelectionType ?? 'none') !== 'multiple') {
             setSelectedRows([]);
@@ -315,6 +320,40 @@ function App({
         if (syncFilterStateToUrlWithOverride) return;
         clearFilterFromUrl();
     }, [syncFilterStateToUrlWithOverride]);
+
+    // Hydrate filter state from user data when view-level sync is enabled.
+    useEffect(() => {
+        if (!syncFilterStateToUserData) return
+
+        if (shouldSkipUserDataHydrationForInitialUrl.current && selectedView.id === initialSelectedViewId.current) {
+            shouldSkipUserDataHydrationForInitialUrl.current = false
+            return
+        }
+
+        const persistedFilterState = userDataManager.viewData.persistedFilterState
+        if (!persistedFilterState) return
+
+        setFilterState(persistedFilterState)
+    }, [selectedView.id, selectedView.filterGroups, setFilterState, syncFilterStateToUserData, userDataManager.viewData.persistedFilterState])
+
+    // Persist applied filters to user data only after an explicit apply action.
+    useEffect(() => {
+        const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
+        previousRefetchTrigger.current = refetchTrigger
+
+        if (!syncFilterStateToUserData) return;
+        if (!didApplyFilters) return;
+        void userDataManager.setPersistedFilterState(selectedView.id, state.filterState)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [syncFilterStateToUserData, refetchTrigger]);
+
+    // Remove stored filter state when user-data syncing is turned off for this view.
+    useEffect(() => {
+        if (syncFilterStateToUserData) return;
+        if (userDataManager.viewData.persistedFilterState === null) return;
+        void userDataManager.setPersistedFilterState(selectedView.id, null)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedView.id, syncFilterStateToUserData, userDataManager.setPersistedFilterState, userDataManager.viewData.persistedFilterState])
 
     // Save a new filter
     const handleSaveFilter = async (state: FilterState) => {
@@ -647,6 +686,7 @@ function App({
                     viewData={userDataManager.viewData}
                     columnDefinitions={selectedView.columnDefinitions}
                     onSetHiddenColumns={userDataManager.setHiddenColumns}
+                    onSetSyncFilterStateToUserData={userDataManager.setSyncFilterStateToUserData}
                 />
 
                 {

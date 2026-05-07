@@ -36,6 +36,8 @@ describe('user-data serialization', () => {
                     columnOrder: ['c1'],
                     hiddenColumns: ['h1'],
                     rowsPerPage: 50,
+                    syncFilterStateToUserData: true,
+                    persistedFilterState: filterState,
                     savedFilters: [
                         {
                             id: 'sf-1',
@@ -53,6 +55,8 @@ describe('user-data serialization', () => {
         };
 
         const json = toUserDataJson(data, { 'view-a': basicSchema });
+        expect(json.views['view-a'].syncFilterStateToUserData).toBe(true);
+        expect(json.views['view-a'].persistedFilterState).toEqual({});
         expect(typeof json.views['view-a'].savedFilters[0].createdAt).toBe('string');
         expect(json.views['view-a'].savedFilters[0].createdAt).toBe('2026-01-02T03:04:05.000Z');
 
@@ -60,5 +64,7 @@ describe('user-data serialization', () => {
         const createdAt = roundtripped.views['view-a'].savedFilters[0].createdAt;
         expect(createdAt instanceof Date).toBe(true);
         expect(createdAt.toISOString()).toBe('2026-01-02T03:04:05.000Z');
+        expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(true);
+        expect(roundtripped.views['view-a'].persistedFilterState).toEqual(filterState);
     });
 });

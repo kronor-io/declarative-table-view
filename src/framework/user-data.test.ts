@@ -74,7 +74,14 @@ describe('user-data manager', () => {
         const { userData } = await loadUserDataManager();
 
         expect(userData.getPreferences()).toEqual(defaultUserPreferences);
-        expect(userData.getViewData('test-view')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
+        expect(userData.getViewData('test-view')).toEqual({
+            columnOrder: null,
+            hiddenColumns: [],
+            rowsPerPage: null,
+            syncFilterStateToUserData: false,
+            persistedFilterState: null,
+            savedFilters: []
+        });
     });
 
     it('persists per-view updates (single call)', async () => {
@@ -89,7 +96,35 @@ describe('user-data manager', () => {
         ({ userData } = await loadUserDataManager());
 
         const data = userData.getViewData('view-a');
-        expect(data).toEqual({ columnOrder: ['col1', 'col2', 'col3'], hiddenColumns: ['col9'], rowsPerPage: null, savedFilters: [] });
+        expect(data).toEqual({
+            columnOrder: ['col1', 'col2', 'col3'],
+            hiddenColumns: ['col9'],
+            rowsPerPage: null,
+            syncFilterStateToUserData: false,
+            persistedFilterState: null,
+            savedFilters: []
+        });
+    });
+
+    it('persists per-view filter state preference and state', async () => {
+        const store = mockLocalStorageWithBackingStore({});
+        let { userData } = await loadUserDataManager();
+
+        const filterState = parseFilterFormState({}, basicSchema);
+        await userData.setSyncFilterStateToUserData('view-a', true)
+        await userData.setPersistedFilterState('view-a', filterState)
+
+        mockLocalStorageWithBackingStore(store);
+        ({ userData } = await loadUserDataManager());
+
+        expect(userData.getViewData('view-a')).toEqual({
+            columnOrder: null,
+            hiddenColumns: [],
+            rowsPerPage: null,
+            syncFilterStateToUserData: true,
+            persistedFilterState: filterState,
+            savedFilters: []
+        });
     });
 
     it('persists preferences updates', async () => {
@@ -112,7 +147,14 @@ describe('user-data manager', () => {
 
         const { userData } = await loadUserDataManager();
         expect(userData.getPreferences()).toEqual(defaultUserPreferences);
-        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
+        expect(userData.getViewData('any')).toEqual({
+            columnOrder: null,
+            hiddenColumns: [],
+            rowsPerPage: null,
+            syncFilterStateToUserData: false,
+            persistedFilterState: null,
+            savedFilters: []
+        });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to parse user data JSON:', expect.any(Error));
         consoleSpy.mockRestore();
     });
@@ -131,7 +173,14 @@ describe('user-data manager', () => {
         });
 
         const { userData } = await loadUserDataManager();
-        expect(userData.getViewData('any')).toEqual({ columnOrder: null, hiddenColumns: [], rowsPerPage: null, savedFilters: [] });
+        expect(userData.getViewData('any')).toEqual({
+            columnOrder: null,
+            hiddenColumns: [],
+            rowsPerPage: null,
+            syncFilterStateToUserData: false,
+            persistedFilterState: null,
+            savedFilters: []
+        });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to read localStorage:', expect.any(Error));
         consoleSpy.mockRestore();
     });

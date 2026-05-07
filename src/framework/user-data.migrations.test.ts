@@ -3,7 +3,7 @@
  */
 import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
 import { __applyUserDataMigrationsWithStepsForTest } from './user-data.migrations';
-import { defaultUserData, defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, toUserDataJson, type UserData } from './user-data';
+import { defaultUserData, defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_03_26, toUserDataJson, type UserData } from './user-data';
 import type { FilterGroups } from './filters';
 import { parseFilterFormState } from './filter-form-state';
 import { SAVED_FILTERS_KEY } from './saved-filters';
@@ -176,6 +176,8 @@ describe('user-data migrations', () => {
                     columnOrder: null,
                     hiddenColumns: [],
                     rowsPerPage: null,
+                    syncFilterStateToUserData: false,
+                    persistedFilterState: null,
                     savedFilters: [
                         {
                             id: 'dup',
@@ -289,6 +291,36 @@ describe('user-data migrations', () => {
         if (isSuccess(result)) {
             // Migration step sets the field to null (use App option) regardless of prior value.
             expect(result.value.preferences.syncFilterStateToUrlOverride).toBe(null)
+        }
+    })
+
+    it('adds per-view filter-state persistence fields when migrating', () => {
+        const data = defaultUserData();
+        data.formatRevision = REVISION_2026_03_26;
+        data.views['view-a'] = {
+            columnOrder: ['col-a'],
+            hiddenColumns: ['col-b'],
+            rowsPerPage: 50,
+            syncFilterStateToUserData: false,
+            persistedFilterState: null,
+            savedFilters: []
+        };
+
+        const result = applyUserDataMigrations(data, {
+            filterGroupsByViewId: {
+                'view-a': basicSchema,
+                'view-b': basicSchema,
+                'test-view': basicSchema
+            }
+        })
+
+        expect(isSuccess(result)).toBe(true)
+        if (isSuccess(result)) {
+            expect(result.value.views['view-a'].columnOrder).toEqual(['col-a'])
+            expect(result.value.views['view-a'].hiddenColumns).toEqual(['col-b'])
+            expect(result.value.views['view-a'].rowsPerPage).toBe(50)
+            expect(result.value.views['view-a'].syncFilterStateToUserData).toBe(false)
+            expect(result.value.views['view-a'].persistedFilterState).toBe(null)
         }
     })
 

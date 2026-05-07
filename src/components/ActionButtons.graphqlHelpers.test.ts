@@ -206,8 +206,10 @@ describe('ActionAPI GraphQL helpers', () => {
             viewData: {
                 columnOrder: ['id'],
                 hiddenColumns: ['id'],
+                persistedFilterState: null,
                 rowsPerPage: 50,
-                savedFilters: []
+                savedFilters: [],
+                syncFilterStateToUserData: false
             },
         });
     });

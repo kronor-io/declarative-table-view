@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { FilterGroups } from './filters';
 import type { SavedFilter, SavedFilterId } from './saved-filters';
+import type { FilterState } from './state';
 import type { UserPreferences, ViewData } from './user-data';
 import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY, type UserDataManagerOptions } from './user-data-manager';
 import type { ViewId } from './view';
@@ -84,6 +85,22 @@ export function useUserDataManager(
         return result;
     }, [currentViewId, manager]);
 
+    const setSyncFilterStateToUserData = useCallback(async (viewId: ViewId, enabled: boolean) => {
+        const result = await manager.setSyncFilterStateToUserData(viewId, enabled);
+        if (viewId === currentViewId) {
+            setViewData(result)
+        }
+        return result;
+    }, [currentViewId, manager]);
+
+    const setPersistedFilterState = useCallback(async (viewId: ViewId, filterState: FilterState | null) => {
+        const result = await manager.setPersistedFilterState(viewId, filterState);
+        if (viewId === currentViewId) {
+            setViewData(result)
+        }
+        return result;
+    }, [currentViewId, manager]);
+
     const createFilter = useCallback(async (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => {
         await manager.createFilter(filter);
         setSavedFilters(manager.getSavedFilters(currentViewId))
@@ -111,6 +128,8 @@ export function useUserDataManager(
         setRowsPerPage,
         setColumnOrder,
         setHiddenColumns,
+        setSyncFilterStateToUserData,
+        setPersistedFilterState,
         createFilter,
         updateFilter,
         deleteFilter
