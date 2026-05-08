@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
@@ -98,9 +99,13 @@ describe('App apiRef', () => {
             apiRef
         });
 
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         // Allow initial effect-driven fetch + render.
         await waitFor(
@@ -119,8 +124,9 @@ describe('App apiRef', () => {
         // Navigate to next page (should use last row cursor).
         const next = container.querySelector('[data-testid="pagination-next"]') as HTMLButtonElement | null;
         if (!next) throw new Error('pagination-next button not found');
-        next.click();
-
+        await act(async () => {
+            next.click();
+        });
         await waitFor(
             () => (fetchDataMock as any).mock.calls.length,
             (count) => count >= 2
@@ -132,8 +138,9 @@ describe('App apiRef', () => {
 
         // apiRef fetchData triggers the same first-page fetch (cursor=null) without resetting pagination.
         if (!apiRef.current) throw new Error('apiRef.current was not set');
-        apiRef.current.fetchData();
-
+        await act(async () => {
+            apiRef.current?.fetchData();
+        });
         await waitFor(
             () => (fetchDataMock as any).mock.calls.length,
             (count) => count >= 3
@@ -147,5 +154,9 @@ describe('App apiRef', () => {
             () => pageEl.textContent,
             (text) => text === '21-40'
         );
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 });

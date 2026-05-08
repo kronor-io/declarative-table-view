@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
@@ -89,9 +90,13 @@ describe('DTVAPI row selection', () => {
             }
         });
 
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         await waitFor(() => apiRef.current !== null);
 
@@ -99,6 +104,12 @@ describe('DTVAPI row selection', () => {
         expect(typeof apiRef.current?.rowSelection?.reset).toBe('function');
 
         // Should be safe to call even if nothing is selected.
-        apiRef.current?.rowSelection.reset();
+        await act(async () => {
+            apiRef.current?.rowSelection.reset();
+        });
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 });

@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
@@ -73,9 +74,13 @@ describe('App action button disabled while running', () => {
             syncFilterStateToUrl: false,
             actions: [{ label: 'Async Action', onClick: asyncAction }]
         });
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         // Allow initial effects / state propagation + async fetchData mock
         await new Promise(r => setTimeout(r, 0));
@@ -86,16 +91,29 @@ describe('App action button disabled while running', () => {
         expect(button.disabled).toBe(false);
 
         // Click triggers async
-        button.click();
+        await act(async () => {
+            button.click();
+            await new Promise(r => setTimeout(r, 0));
+        });
         expect(asyncAction).toHaveBeenCalledTimes(1);
-        // Wait a microtask for runningActions state to commit
-        await new Promise(r => setTimeout(r, 0));
         expect(button.disabled).toBe(true);
         expect(button.textContent).toBe('Async Action...');
 
-        // Wait for async to finish + state to commit
+        const actionPromise = asyncAction.mock.results[0]?.value;
+        if (!(actionPromise instanceof Promise)) {
+            throw new Error('Expected async action promise');
+        }
+
+        await act(async () => {
+            await actionPromise;
+        });
+
         await waitUntil(() => button.disabled === false, { timeoutMs: 500, intervalMs: 5 });
         expect(button.disabled).toBe(false);
         expect(button.textContent).toBe('Async Action');
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 });

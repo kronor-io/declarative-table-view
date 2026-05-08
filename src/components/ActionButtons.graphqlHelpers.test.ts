@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
@@ -106,15 +107,21 @@ describe('ActionAPI GraphQL helpers', () => {
             actions: [action]
         });
 
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         await new Promise(r => setTimeout(r, 25));
         const btn = container.querySelector('[data-testid="dtv-action-0"]') as HTMLButtonElement | null;
         if (!btn) throw new Error('Action button not found');
-        btn.click();
-        await new Promise(r => setTimeout(r, 0));
+        await act(async () => {
+            btn.click();
+            await new Promise(r => setTimeout(r, 0));
+        });
 
         expect(capturedAst).toBeTruthy();
         expect(capturedAst.rootField).toContain('testCollection');
@@ -130,6 +137,10 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedPagination).toHaveProperty('page');
         expect(capturedPagination).toHaveProperty('cursors');
         expect(capturedRowsPerPage).toBe(20); // default from App rowsPerPage prop
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 
     it('exposes current user preferences and view data to actions', async () => {
@@ -191,15 +202,21 @@ describe('ActionAPI GraphQL helpers', () => {
             actions: [captureUserDataAction]
         });
 
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         await new Promise(r => setTimeout(r, 25));
         const btn = container.querySelector('[data-testid="dtv-action-0"]') as HTMLButtonElement | null;
         if (!btn) throw new Error('Action button not found');
-        btn.click();
-        await new Promise(r => setTimeout(r, 25));
+        await act(async () => {
+            btn.click();
+            await new Promise(r => setTimeout(r, 25));
+        });
 
         expect(capturedUserData).toEqual({
             preferences: { syncFilterStateToUrlOverride: true },
@@ -211,6 +228,10 @@ describe('ActionAPI GraphQL helpers', () => {
                 savedFilters: [],
                 syncFilterStateToUserData: false
             },
+        });
+
+        await act(async () => {
+            root.unmount();
         });
     });
 });

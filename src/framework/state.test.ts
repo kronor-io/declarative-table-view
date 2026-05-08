@@ -5,11 +5,9 @@ import { describe, it, expect } from '@jest/globals';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setSearchQuery, setFilterGroupExpanded, FilterState } from './state';
+import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, FilterState } from './state';
 import { buildInitialFormState, useAppState } from './state';
 import { View } from './view';
-
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Mock view definitions
 const mockViews: View[] = [
@@ -54,6 +52,9 @@ describe('AppState', () => {
         expect(state.filterState).toEqual(
             new Map(mockViews[0].filterGroups[0].filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
+        expect(state.appliedFilterState).toEqual(
+            new Map(mockViews[0].filterGroups[0].filters.map(f => [f.id, buildInitialFormState(f.expression)]))
+        );
         expect(state.data).toEqual({ rows: [], flattenedRows: [] });
     });
 
@@ -63,6 +64,9 @@ describe('AppState', () => {
         expect(state.selectedViewId).toBe('bar');
         expect(state.filterGroups).toEqual(mockViews[1].filterGroups);
         expect(state.filterState).toEqual(
+            new Map(mockViews[1].filterGroups[0].filters.map(f => [f.id, buildInitialFormState(f.expression)]))
+        );
+        expect(state.appliedFilterState).toEqual(
             new Map(mockViews[1].filterGroups[0].filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
     });
@@ -96,6 +100,14 @@ describe('AppState', () => {
         const newFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
         state = setFilterState(state, newFilterState);
         expect(state.filterState).toBe(newFilterState);
+        expect(state.appliedFilterState).not.toBe(newFilterState);
+    });
+
+    it('setAppliedFilterState updates appliedFilterState', () => {
+        let state = createDefaultAppState(mockViews, []);
+        const newAppliedFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
+        state = setAppliedFilterState(state, newAppliedFilterState);
+        expect(state.appliedFilterState).toBe(newAppliedFilterState);
     });
 
     it('setSearchQuery computes searchResults display state and expands matching groups', () => {

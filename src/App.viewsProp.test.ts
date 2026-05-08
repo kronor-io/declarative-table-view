@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 import type { View } from './framework/view';
@@ -81,9 +82,11 @@ describe('App views prop', () => {
             syncFilterStateToUrl: false
         });
 
-        root.render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 500, intervalMs: 5 });
 
@@ -99,11 +102,17 @@ describe('App views prop', () => {
             views,
             syncFilterStateToUrl: false
         });
-        root.render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElementWithTitle })
-        );
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElementWithTitle })
+            );
+        });
 
         await waitUntil(() => (container.textContent || '').includes('Provided View'), { timeoutMs: 1000, intervalMs: 10 });
         expect(container.textContent || '').toContain('Provided View');
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 });

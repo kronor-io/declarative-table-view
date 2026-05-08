@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 import App from './App';
@@ -67,9 +68,13 @@ describe('Remote save failure shows warning toast and persists locally', () => {
             }
         });
 
-        createRoot(container).render(
-            React.createElement(PrimeReactProvider, { value: {}, children: appElement })
-        );
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
 
         // Allow initial effects / state propagation + async fetchData mock
         await new Promise(r => setTimeout(r, 0));
@@ -78,17 +83,20 @@ describe('Remote save failure shows warning toast and persists locally', () => {
         // Open Filters panel
         const filtersButton = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent?.includes('Filters')) as HTMLButtonElement | undefined;
         expect(filtersButton).toBeDefined();
-        filtersButton!.click();
-        // Wait for the filter form to render after toggling
-        await new Promise(r => setTimeout(r, 20));
+        await act(async () => {
+            filtersButton!.click();
+            // Wait for the filter form to render after toggling
+            await new Promise(r => setTimeout(r, 20));
+        });
 
         // Click "Save Filter"
         const saveButton = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent?.includes('Save Filter')) as HTMLButtonElement | undefined;
         expect(saveButton).toBeDefined();
-        saveButton!.click();
-
-        // Wait for async handlers
-        await new Promise(r => setTimeout(r, 20));
+        await act(async () => {
+            saveButton!.click();
+            // Wait for async handlers
+            await new Promise(r => setTimeout(r, 20));
+        });
 
         // Expect warning toast rendered with external save failure message
         const toastMessage = Array.from(container.querySelectorAll('.p-toast-message-text')).find(el => {
@@ -106,5 +114,9 @@ describe('Remote save failure shows warning toast and persists locally', () => {
 
         // Cleanup spies
         promptSpy.mockRestore();
+
+        await act(async () => {
+            root.unmount();
+        });
     });
 });

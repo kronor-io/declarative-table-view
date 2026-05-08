@@ -18,10 +18,12 @@ import AIAssistantForm from './components/AIAssistantForm';
 import type { ModifyAiFilterPromptFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
+import AppliedFilters from './components/AppliedFilterPills';
+import { getAppliedFilterItems } from './components/appliedFilterPills.utils';
 import { fetchData, FetchDataResult } from './framework/data';
-import { FilterState, useAppState } from './framework/state';
+import { buildInitialFormState, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
-import { View } from './framework/view';
+import { getAllFilters, View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -35,6 +37,7 @@ import ActionButtons from './components/ActionButtons';
 import type { ShowToastFn } from './framework/toast'
 import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
 import type { Result } from './framework/result'
+import type { FilterId, FilterSchema } from './framework/filters'
 
 export interface AppProps {
     graphqlHost: string;
@@ -154,11 +157,20 @@ function App({
         selectedView,
         setSelectedViewId,
         setFilterState,
+        setAppliedFilterState,
         setSearchQuery,
         setFilterGroupExpanded,
         setDataRows,
         setRowsPerPage
     } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
+
+    const filterSchemaById = useMemo(() => new Map<FilterId, FilterSchema>(
+        getAllFilters(state.filterGroups).map(filter => [filter.id, filter])
+    ), [state.filterGroups]);
+
+    const appliedFilterItems = useMemo(() => {
+        return getAppliedFilterItems(state.appliedFilterState, getAllFilters(state.filterGroups));
+    }, [state.appliedFilterState, state.filterGroups]);
 
     const userDataManagerOptions = useMemo(() => {
         return {
@@ -213,6 +225,11 @@ function App({
         setRefetchTrigger(prev => prev + 1);
     }, []);
 
+    const applyFilterState = useCallback((filterState: FilterState) => {
+        setAppliedFilterState(filterState);
+        triggerRefetch();
+    }, [setAppliedFilterState, triggerRefetch]);
+
     const dtvApi = useRef<DTVAPI>({
         fetchData: triggerRefetch,
         rowSelection: {
@@ -226,6 +243,18 @@ function App({
             resetFn?.();
         };
     }, []);
+
+    const handleResetAppliedFilter = useCallback((filterId: FilterId) => {
+        const filterSchema = filterSchemaById.get(filterId);
+        if (!filterSchema) return;
+
+        const initialFilterState = buildInitialFormState(filterSchema.expression, FormStateInitMode.Empty);
+        const nextDraftFilterState = setFilterStateById(state.filterState, filterId, initialFilterState);
+        const nextAppliedFilterState = setFilterStateById(state.appliedFilterState, filterId, initialFilterState);
+
+        setFilterState(nextDraftFilterState);
+        applyFilterState(nextAppliedFilterState);
+    }, [applyFilterState, filterSchemaById, setFilterState, state.appliedFilterState, state.filterState]);
 
     const rowSelectionWithInternalHandler = useMemo(() => {
         if (!rowSelection) return undefined;
@@ -310,9 +339,8 @@ function App({
     useEffect(() => {
         if (!syncFilterStateToUrlWithOverride) return;
         // Only write after an application event (refetchTrigger change), not on every keystroke
-        setFilterInUrl(state.filterState, selectedView.filterGroups);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [syncFilterStateToUrlWithOverride, refetchTrigger]);
+        setFilterInUrl(state.appliedFilterState, selectedView.filterGroups);
+    }, [syncFilterStateToUrlWithOverride, refetchTrigger, state.appliedFilterState, selectedView.filterGroups]);
 
     // If URL syncing is disabled via preferences ("No"), immediately clear any existing URL state.
     useEffect(() => {
@@ -332,7 +360,9 @@ function App({
         if (!persistedFilterState) return
 
         setFilterState(persistedFilterState)
-    }, [selectedView.id, selectedView.filterGroups, setFilterState, syncFilterStateToUserData, userDataManager.viewData.persistedFilterState])
+        setAppliedFilterState(persistedFilterState)
+        triggerRefetch()
+    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.viewData.persistedFilterState])
 
     useEffect(() => {
         const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
@@ -340,9 +370,9 @@ function App({
 
         if (!syncFilterStateToUserData) return;
         if (!didApplyFilters) return;
-        void userDataManager.setPersistedFilterState(selectedView.id, state.filterState)
+        void userDataManager.setPersistedFilterState(selectedView.id, state.appliedFilterState)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [syncFilterStateToUserData, refetchTrigger]);
+    }, [syncFilterStateToUserData, refetchTrigger, state.appliedFilterState]);
 
     useEffect(() => {
         if (syncFilterStateToUserData) return;
@@ -442,11 +472,11 @@ function App({
             client,
             view: selectedView,
             query: memoizedQuery,
-            filterState: state.filterState,
+            filterState: state.appliedFilterState,
             rowLimit,
             cursor
         });
-    }, [client, selectedView, memoizedQuery, state.filterState]);
+    }, [client, selectedView, memoizedQuery, state.appliedFilterState]);
 
     // Apply per-view rowsPerPage from user data (when present)
     useEffect(() => {
@@ -668,7 +698,7 @@ function App({
                     savedFilters={userDataManager.savedFilters}
                     onFilterDelete={handleDeleteFilter}
                     onFilterLoad={handleFilterLoad}
-                    onFilterApply={() => setRefetchTrigger(prev => prev + 1)}
+                    onFilterApply={applyFilterState}
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
                     filterGroups={state.filterGroups}
@@ -699,11 +729,21 @@ function App({
                             onFilterGroupExpandedChange={(groupName, expanded) => {
                                 setFilterGroupExpanded(groupName, expanded);
                             }}
-                            onSubmit={() => {
-                                triggerRefetch();
+                            onSubmit={(submittedFilterState) => {
+                                applyFilterState(submittedFilterState);
                             }}
                             graphqlClient={client}
                         />
+                    )
+                }
+                {
+                    !showFilterForm && appliedFilterItems.length > 0 && (
+                        <div className="tw:mb-4">
+                            <AppliedFilters
+                                items={appliedFilterItems}
+                                onRemove={handleResetAppliedFilter}
+                            />
+                        </div>
                     )
                 }
                 <div style={{ flexShrink: 1, minHeight: 0 }}>
