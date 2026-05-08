@@ -50,6 +50,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                     placeholder={control.placeholder}
                     value={value ?? null}
                     onValueChange={e => setValue(e.value)}
+                    maxFractionDigits={12}
                 />
             )
         case 'date':
