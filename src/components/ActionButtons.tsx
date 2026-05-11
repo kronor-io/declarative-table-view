@@ -63,6 +63,7 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         key={`custom-action-${idx}`}
                         type="button"
                         icon={action.icon}
+                        loading={isRunning}
                         badge={action.badge}
                         badgeClassName={action.badgeClassName}
                         severity={action.severity}

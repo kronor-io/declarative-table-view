@@ -72,7 +72,7 @@ describe('App action button disabled while running', () => {
             viewsJson,
             externalRuntime: runtime as any,
             syncFilterStateToUrl: false,
-            actions: [{ label: 'Async Action', onClick: asyncAction }]
+            actions: [{ label: 'Async Action', icon: 'pi pi-play', onClick: asyncAction }]
         });
         const root = createRoot(container);
 
@@ -98,6 +98,9 @@ describe('App action button disabled while running', () => {
         expect(asyncAction).toHaveBeenCalledTimes(1);
         expect(button.disabled).toBe(true);
         expect(button.textContent).toBe('Async Action...');
+        expect(button.className).toContain('p-button-loading');
+        expect(button.querySelector('.p-button-loading-icon')).toBeTruthy();
+        expect(button.querySelector('.pi-play')).toBeFalsy();
 
         const actionPromise = asyncAction.mock.results[0]?.value;
         if (!(actionPromise instanceof Promise)) {
@@ -111,6 +114,8 @@ describe('App action button disabled while running', () => {
         await waitUntil(() => button.disabled === false, { timeoutMs: 500, intervalMs: 5 });
         expect(button.disabled).toBe(false);
         expect(button.textContent).toBe('Async Action');
+        expect(button.className).not.toContain('p-button-loading');
+        expect(button.querySelector('.pi-play')).toBeTruthy();
 
         await act(async () => {
             root.unmount();
