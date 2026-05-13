@@ -1,6 +1,6 @@
 {
   "name": "@kronor/dtv",
-  "version": "6.2.2",
+  "version": "7.0.0",
   "type": "module",
   "bin": {
     "dtv": "./bin/dtv.js"
