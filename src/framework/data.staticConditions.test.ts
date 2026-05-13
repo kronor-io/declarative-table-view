@@ -19,7 +19,7 @@ describe('fetchData staticConditions merging', () => {
     const view: View = {
         title: 'Test',
         id: 'test',
-        collectionName: 'testCollection',
+        source: { type: 'collection', collectionName: 'testCollection' },
         columnDefinitions: [{ type: 'virtualColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }] } as ColumnDefinition],
         filterGroups: [] as FilterGroups,
         boolExpType: 'BoolExp',
@@ -55,5 +55,24 @@ describe('fetchData staticConditions merging', () => {
         expect(capturedVariables.conditions._and.length).toBe(2); // two static
         // Pagination condition is isolated in its own variable
         expect(capturedVariables.paginationCondition).toEqual({ id: { _lt: 50 } });
+    });
+
+    it('reads rows from a function root field', async () => {
+        mockClient.request.mockResolvedValueOnce({ searchPayments: [] });
+
+        const functionView: View = {
+            title: 'Function Test',
+            id: 'function-test',
+            source: { type: 'function', functionName: 'searchPayments', args: { merchantId: 'merchant-123' } },
+            columnDefinitions: [{ type: 'virtualColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }] } as ColumnDefinition],
+            filterGroups: [] as FilterGroups,
+            boolExpType: 'BoolExp',
+            orderByType: '[OrderBy!]',
+            paginationKey: 'id'
+        };
+
+        const result = await fetchData({ client: mockClient, view: functionView, query: 'query', filterState: new Map(), rowLimit: 10, cursor: null });
+
+        expect(result.rows).toEqual([]);
     });
 });

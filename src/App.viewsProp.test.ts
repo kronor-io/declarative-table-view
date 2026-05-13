@@ -55,7 +55,7 @@ describe('App views prop', () => {
             {
                 title: 'Provided View',
                 id: 'provided-view',
-                collectionName: 'testCollection',
+                source: { type: 'collection', collectionName: 'testCollection' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',

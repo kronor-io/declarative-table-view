@@ -30,7 +30,7 @@ describe('App collapsed filter panel summary', () => {
         return {
             title: 'Provided View',
             id: 'provided-view',
-            collectionName: 'testCollection',
+            source: { type: 'collection', collectionName: 'testCollection' },
             paginationKey: 'id',
             boolExpType: 'TestBoolExp',
             orderByType: '[TestOrderBy!]',

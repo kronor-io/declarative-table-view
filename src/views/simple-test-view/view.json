@@ -1,7 +1,10 @@
 {
     "title": "Simple Test View",
     "id": "simple-test-view",
-    "collectionName": "simpleTestDataCollection",
+    "source": {
+        "type": "collection",
+        "collectionName": "simpleTestDataCollection"
+    },
     "paginationKey": "id",
     "boolExpType": "SimpleTestBoolExp",
     "orderByType": "[SimpleTestOrderBy!]",

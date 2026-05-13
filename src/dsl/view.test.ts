@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { view } from './view';
+import type { View } from './view';
 import { filter, filterGroup } from './filters';
 import { column, valueQuery } from './columns';
 import { FilterExpr } from './filterExpr';
@@ -7,10 +8,27 @@ import { FilterControl } from './filterControl';
 
 describe('dsl/view', () => {
     it('is identity for View', () => {
-        const input = {
+        const input: View = {
             title: 'My View',
             id: 'my-view',
-            collectionName: 'things',
+            source: { type: 'collection', collectionName: 'things' },
+            paginationKey: 'createdAt',
+            boolExpType: 'ThingBoolExp',
+            orderByType: '[ThingOrderBy!]',
+            columnDefinitions: [
+                column({ id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+            ],
+            filterGroups: [filterGroup({ name: 'default', label: null, filters: [] })],
+        };
+
+        expect(view(input)).toBe(input);
+    });
+
+    it('accepts a function-backed view', () => {
+        const input: View = {
+            title: 'My Function View',
+            id: 'my-function-view',
+            source: { type: 'function', functionName: 'searchThings', args: { tenantId: 'tenant-123' } },
             paginationKey: 'createdAt',
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
@@ -24,10 +42,10 @@ describe('dsl/view', () => {
     });
 
     it('throws when columnDefinitions has duplicate ids', () => {
-        const input = {
+        const input: View = {
             title: 'My View',
             id: 'my-view',
-            collectionName: 'things',
+            source: { type: 'collection', collectionName: 'things' },
             paginationKey: 'createdAt',
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
@@ -53,10 +71,10 @@ describe('dsl/view', () => {
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         });
 
-        const input = {
+        const input: View = {
             title: 'My View',
             id: 'my-view',
-            collectionName: 'things',
+            source: { type: 'collection', collectionName: 'things' },
             paginationKey: 'createdAt',
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',

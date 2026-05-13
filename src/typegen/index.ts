@@ -18,6 +18,7 @@ export type DtvTypegenConfig = {
          *
          * Supported placeholders:
          * - `{viewId}`
+         * - `{rootFieldName}`
          * - `{collectionName}`
          */
         fileNamePattern: string;

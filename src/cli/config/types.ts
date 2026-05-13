@@ -29,7 +29,7 @@ export type DtvTypegenConfig = {
 
 export type ViewInfo = {
     viewId: string;
-    collectionName: string;
+    rootFieldName: string;
     sourceFile: string;
 };
 

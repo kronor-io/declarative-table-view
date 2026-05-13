@@ -1,6 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
 import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
-import { View } from '../framework/view';
+import { getViewRootFieldName, View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery } from '../framework/column-definition';
 import { FilterState } from './state';
 
@@ -86,12 +86,14 @@ export const fetchData = async ({
             throw new DOMException('Request superseded by newer request', 'AbortError');
         }
 
-        if (!hasKey(response, view.collectionName)) {
+        const rootFieldName = getViewRootFieldName(view);
+
+        if (!hasKey(response, rootFieldName)) {
             console.error('Error fetching data, unexpected response format:', response);
             return { rows: [], flattenedRows: [] };
         }
 
-        const rowsFetched = response[view.collectionName];
+        const rowsFetched = response[rootFieldName];
 
         // Flatten the data before returning
         return {

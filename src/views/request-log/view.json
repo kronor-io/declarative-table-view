@@ -1,7 +1,10 @@
 {
     "title": "Request Logs",
     "id": "request-logs",
-    "collectionName": "requestsLog",
+    "source": {
+        "type": "collection",
+        "collectionName": "requestsLog"
+    },
     "paginationKey": "createdAt",
     "boolExpType": "RequestLogBoolExp",
     "orderByType": "[RequestLogOrderBy!]",

@@ -22,7 +22,7 @@ describe("renderGraphQLQuery", () => {
                 { name: "conditions", type: "UserBoolExp" },
                 { name: "rowLimit", type: "Int" }
             ],
-            rootField: "users",
+            rootField: { field: "users" },
             selectionSet: [
                 { field: "id" },
                 { field: "name" },
@@ -52,7 +52,7 @@ describe("renderGraphQLQuery", () => {
                 { name: "conditions", type: "UserBoolExp" },
                 { name: "rowLimit", type: "Int" }
             ],
-            rootField: "users",
+            rootField: { field: "users" },
             selectionSet: [
                 { field: "id" },
                 { field: "name" },
@@ -90,7 +90,7 @@ describe("renderGraphQLQuery", () => {
                 { name: "conditions", type: "UserBoolExp" },
                 { name: "rowLimit", type: "Int" }
             ],
-            rootField: "users",
+            rootField: { field: "users" },
             selectionSet: [
                 {
                     field: "posts",
@@ -126,7 +126,22 @@ describe("generateGraphQLQueryAST", () => {
             { name: "rowLimit", type: "Int" },
             { name: "orderBy", type: "TestOrderBy" },
         ]);
-        expect(ast.rootField).toBe("testRoot(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)");
+        expect(ast.rootField).toEqual({
+            field: 'testRoot',
+            args: [
+                {
+                    name: 'where',
+                    value: {
+                        _and: [
+                            { type: 'variable', name: 'conditions' },
+                            { type: 'variable', name: 'paginationCondition' },
+                        ],
+                    },
+                },
+                { name: 'limit', value: { type: 'variable', name: 'rowLimit' } },
+                { name: 'orderBy', value: { type: 'variable', name: 'orderBy' } },
+            ],
+        });
         expect(ast.selectionSet).toEqual([
             { field: "id" },
             { field: "name" },
@@ -135,6 +150,48 @@ describe("generateGraphQLQueryAST", () => {
                 selections: [{ field: "title" }],
             },
         ]);
+    });
+
+    it('should include static function args in the root field', () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }
+        ];
+
+        const ast = generateGraphQLQueryAST(
+            'searchPayments',
+            columns,
+            'PaymentBoolExp',
+            '[PaymentOrderBy!]',
+            'id',
+            {
+                merchantId: 'merchant-123',
+                statuses: ['AUTHORIZED', 'CAPTURED']
+            }
+        );
+
+        expect(ast.rootField).toEqual({
+            field: 'searchPayments',
+            args: [
+                {
+                    name: 'args',
+                    value: {
+                        merchantId: 'merchant-123',
+                        statuses: ['AUTHORIZED', 'CAPTURED'],
+                    },
+                },
+                {
+                    name: 'where',
+                    value: {
+                        _and: [
+                            { type: 'variable', name: 'conditions' },
+                            { type: 'variable', name: 'paginationCondition' },
+                        ],
+                    },
+                },
+                { name: 'limit', value: { type: 'variable', name: 'rowLimit' } },
+                { name: 'orderBy', value: { type: 'variable', name: 'orderBy' } },
+            ],
+        });
     });
 
     it("should handle nested fields with separate selection entries (no merge)", () => {

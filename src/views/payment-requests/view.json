@@ -1,7 +1,10 @@
 {
     "title": "Payment Requests",
     "id": "payment-requests",
-    "collectionName": "paymentRequests",
+    "source": {
+        "type": "collection",
+        "collectionName": "paymentRequests"
+    },
     "paginationKey": "createdAt",
     "boolExpType": "PaymentRequestBoolExp",
     "orderByType": "[PaymentRequestOrderBy!]",

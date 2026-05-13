@@ -27,7 +27,7 @@ export interface ActionAPI {
     showToast: ShowToastFn; // Convenience toast helper
     /** Current rows-per-page setting for pagination. */
     rowsPerPage: number;
-    /** Build a GraphQLQueryAST for an arbitrary rootField (usually view.collectionName). */
+    /** Build a GraphQLQueryAST for an arbitrary rootField (usually the current view root field). */
     generateGraphQLQueryAST: typeof generateGraphQLQueryAST;
     /** Build a GraphQLQueryAST with top-level selections aliased to column ids. */
     generateColumnAliasedGraphQLQueryAST: typeof generateColumnAliasedGraphQLQueryAST;

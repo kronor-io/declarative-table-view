@@ -3,7 +3,7 @@
 
 import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
-import { View } from './view';
+import { CollectionViewSource, FunctionViewSource, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
 
 // Runtime reference type for referencing components/functions from runtime
@@ -112,10 +112,23 @@ export type VirtualColumnDefinitionJson = {
 
 export type ColumnDefinitionJson = TableColumnDefinitionJson | VirtualColumnDefinitionJson;
 
+export type CollectionViewSourceJson = {
+    type: 'collection';
+    collectionName: string;
+};
+
+export type FunctionViewSourceJson = {
+    type: 'function';
+    functionName: string;
+    args?: Record<string, unknown>;
+};
+
+export type ViewSourceJson = CollectionViewSourceJson | FunctionViewSourceJson;
+
 export type ViewJson = {
     title: string;
     id: string;
-    collectionName: string;
+    source: ViewSourceJson;
     paginationKey: string;
     /** Optional direction for cursor-based pagination ordering on paginationKey. Defaults to 'DESC'. */
     paginationDirection?: 'ASC' | 'DESC';
@@ -709,9 +722,50 @@ export function parseViewJson(
         throw new Error('View "id" must be a string');
     }
 
-    if (typeof view.collectionName !== 'string') {
-        throw new Error('View "collectionName" must be a string');
+    const source = view.source;
+
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        throw new Error('View "source" must be an object');
     }
+
+    const sourceObject = source as Record<string, unknown>;
+
+    if (sourceObject.type !== 'collection' && sourceObject.type !== 'function') {
+        throw new Error('View "source.type" must be "collection" or "function"');
+    }
+
+    if (sourceObject.type === 'collection') {
+        if (typeof sourceObject.collectionName !== 'string') {
+            throw new Error('View "source.collectionName" must be a string');
+        }
+        if (sourceObject.functionName !== undefined) {
+            throw new Error('View "source.functionName" is not allowed for collection sources');
+        }
+        if (sourceObject.args !== undefined) {
+            throw new Error('View "source.args" is not allowed for collection sources');
+        }
+    } else {
+        if (typeof sourceObject.functionName !== 'string') {
+            throw new Error('View "source.functionName" must be a string');
+        }
+        if (sourceObject.collectionName !== undefined) {
+            throw new Error('View "source.collectionName" is not allowed for function sources');
+        }
+        if (sourceObject.args !== undefined && (typeof sourceObject.args !== 'object' || sourceObject.args === null || Array.isArray(sourceObject.args))) {
+            throw new Error('View "source.args" must be a non-null object when provided');
+        }
+    }
+
+    const parsedSource: ViewSource = sourceObject.type === 'collection'
+        ? {
+            type: 'collection',
+            collectionName: sourceObject.collectionName as CollectionViewSource['collectionName']
+        }
+        : {
+            type: 'function',
+            functionName: sourceObject.functionName as FunctionViewSource['functionName'],
+            args: sourceObject.args as FunctionViewSource['args']
+        };
 
     if (typeof view.paginationKey !== 'string') {
         throw new Error('View "paginationKey" must be a string');
@@ -835,10 +889,9 @@ export function parseViewJson(
         staticOrdering = view.staticOrdering;
     }
 
-    return {
+    const baseView = {
         title: view.title,
         id: view.id,
-        collectionName: view.collectionName,
         columnDefinitions,
         filterGroups,
         defaultAIFilterPrompt,
@@ -849,5 +902,17 @@ export function parseViewJson(
         noRowsComponent,
         staticConditions,
         staticOrdering
+    };
+
+    if (parsedSource.type === 'collection') {
+        return {
+            ...baseView,
+            source: parsedSource
+        };
+    }
+
+    return {
+        ...baseView,
+        source: parsedSource
     };
 }

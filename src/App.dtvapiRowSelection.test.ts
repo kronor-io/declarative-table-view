@@ -50,7 +50,7 @@ describe('DTVAPI row selection', () => {
             {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: { type: 'collection', collectionName: 'testCollection' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',

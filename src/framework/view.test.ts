@@ -1439,7 +1439,10 @@ describe('parseViewJson', () => {
             const validJson = {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: {
+                    type: 'collection',
+                    collectionName: 'testCollection'
+                },
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1480,7 +1483,7 @@ describe('parseViewJson', () => {
 
             expect(result.title).toBe('Test View');
             expect(result.id).toBe('test-view');
-            expect(result.collectionName).toBe('testCollection');
+            expect(result.source).toEqual({ type: 'collection', collectionName: 'testCollection' });
             expect(result.paginationKey).toBe('createdAt');
             expect(result.boolExpType).toBe('TestBoolExp');
             expect(result.orderByType).toBe('[TestOrderBy!]');
@@ -1496,7 +1499,10 @@ describe('parseViewJson', () => {
             const validJson = {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: {
+                    type: 'collection',
+                    collectionName: 'testCollection'
+                },
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1512,11 +1518,52 @@ describe('parseViewJson', () => {
             expect(result.defaultAIFilterPrompt).toBe('authorized payments in EUR');
         });
 
+        it('should parse a function-backed view with static args', () => {
+            const validJson = {
+                title: 'Function View',
+                id: 'function-view',
+                source: {
+                    type: 'function',
+                    functionName: 'searchPayments',
+                    args: {
+                        merchantId: 'merchant-123',
+                        statuses: ['AUTHORIZED', 'CAPTURED']
+                    }
+                },
+                paginationKey: 'createdAt',
+                boolExpType: 'PaymentBoolExp',
+                orderByType: '[PaymentOrderBy!]',
+                columns: [],
+                filterSchema: {
+                    groups: [{ name: 'default', label: null }],
+                    filters: []
+                }
+            };
+
+            const result = parseViewJson(validJson, viewTestRuntime);
+
+            expect(result.source).toEqual({
+                type: 'function',
+                functionName: 'searchPayments',
+                args: {
+                    merchantId: 'merchant-123',
+                    statuses: ['AUTHORIZED', 'CAPTURED']
+                }
+            });
+            expect((result.source.type === 'function' ? result.source.args : undefined)).toEqual({
+                merchantId: 'merchant-123',
+                statuses: ['AUTHORIZED', 'CAPTURED']
+            });
+        });
+
         it('should parse ViewJson with noRowsComponent', () => {
             const validJson = {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: {
+                    type: 'collection',
+                    collectionName: 'testCollection'
+                },
                 paginationKey: 'createdAt',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1545,7 +1592,10 @@ describe('parseViewJson', () => {
             const complexJson = {
                 title: 'Complex View',
                 id: 'complex-view',
-                collectionName: 'complexCollection',
+                source: {
+                    type: 'collection',
+                    collectionName: 'complexCollection'
+                },
                 paginationKey: 'updatedAt',
                 boolExpType: 'ComplexBoolExp',
                 orderByType: '[ComplexOrderBy!]',
@@ -1655,7 +1705,7 @@ describe('parseViewJson', () => {
             const invalidDefaultPrompt = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1671,7 +1721,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing or invalid title', () => {
             const noTitle = {
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1690,7 +1740,7 @@ describe('parseViewJson', () => {
         it('should throw error for missing or invalid id', () => {
             const noId = {
                 title: 'Test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1706,7 +1756,7 @@ describe('parseViewJson', () => {
                 .toThrow('View "id" must be a string');
         });
 
-        it('should throw error for missing or invalid collectionName', () => {
+        it('should throw error when source is missing or ambiguous', () => {
             const noCollectionName = {
                 title: 'Test',
                 id: 'test',
@@ -1718,18 +1768,82 @@ describe('parseViewJson', () => {
             };
 
             expect(() => parseViewJson(noCollectionName, viewTestRuntime))
-                .toThrow('View "collectionName" must be a string');
+                .toThrow('View "source" must be an object');
 
-            const invalidCollectionName = { ...noCollectionName, collectionName: {} };
+            const bothCollectionAndFunction = {
+                ...noCollectionName,
+                source: {
+                    type: 'invalid',
+                    collectionName: 'testCollection',
+                    functionName: 'searchPayments'
+                }
+            };
+
+            expect(() => parseViewJson(bothCollectionAndFunction, viewTestRuntime))
+                .toThrow('View "source.type" must be "collection" or "function"');
+        });
+
+        it('should throw error for invalid source fields', () => {
+            const invalidCollectionName = {
+                title: 'Test',
+                id: 'test',
+                source: {
+                    type: 'collection',
+                    collectionName: {}
+                },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
             expect(() => parseViewJson(invalidCollectionName, viewTestRuntime))
-                .toThrow('View "collectionName" must be a string');
+                .toThrow('View "source.collectionName" must be a string');
+
+            const invalidFunctionName = {
+                title: 'Test',
+                id: 'test',
+                source: {
+                    type: 'function',
+                    functionName: {}
+                },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(invalidFunctionName, viewTestRuntime))
+                .toThrow('View "source.functionName" must be a string');
+        });
+
+        it('should throw error for invalid function args usage', () => {
+            const invalidArgs = {
+                title: 'Test',
+                id: 'test',
+                source: {
+                    type: 'function',
+                    functionName: 'searchPayments',
+                    args: 'merchant-123'
+                },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [],
+                filterSchema: { groups: [], filters: [] }
+            };
+
+            expect(() => parseViewJson(invalidArgs, viewTestRuntime))
+                .toThrow('View "source.args" must be a non-null object when provided');
         });
 
         it('should throw error for missing or invalid paginationKey', () => {
             const noPaginationKey = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
                 columns: [],
@@ -1748,7 +1862,7 @@ describe('parseViewJson', () => {
             const noBoolExpType = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 orderByType: '[TestOrderBy!]',
                 columns: [],
@@ -1761,7 +1875,7 @@ describe('parseViewJson', () => {
             const noOrderByType = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 columns: [],
@@ -1776,7 +1890,7 @@ describe('parseViewJson', () => {
             const noColumns = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1795,7 +1909,7 @@ describe('parseViewJson', () => {
             const noFilterSchema = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1810,7 +1924,7 @@ describe('parseViewJson', () => {
             const invalidColumn = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1834,7 +1948,7 @@ describe('parseViewJson', () => {
             const invalidFilterSchema = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1853,7 +1967,7 @@ describe('parseViewJson', () => {
             const missingNoRowsComponent = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1876,7 +1990,7 @@ describe('parseViewJson', () => {
             const withNoRowsComponent = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1893,7 +2007,7 @@ describe('parseViewJson', () => {
             const invalidStatic = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1909,7 +2023,7 @@ describe('parseViewJson', () => {
             const invalidStaticEntry = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1925,7 +2039,7 @@ describe('parseViewJson', () => {
             const invalidStaticOrdering = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -1941,7 +2055,7 @@ describe('parseViewJson', () => {
             const invalidStaticOrderingEntry = {
                 title: 'Test',
                 id: 'test',
-                collectionName: 'test',
+                source: { type: 'collection', collectionName: 'test' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',

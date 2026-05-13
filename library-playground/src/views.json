@@ -1,8 +1,10 @@
 [
     {
         "title": "Playground Simple View",
-        "id": "playground-simple-view",
-        "collectionName": "simpleTestDataCollection",
+        "source": {
+            "type": "collection",
+            "collectionName": "simpleTestDataCollection"
+        },
         "paginationKey": "id",
         "boolExpType": "SimpleTestBoolExp",
         "orderByType": "[SimpleTestOrderBy!]",

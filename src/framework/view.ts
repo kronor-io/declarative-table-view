@@ -17,10 +17,23 @@ export type NoRowsComponent = (props: NoRowsComponentProps) => ReactNode;
 
 export type ViewId = string;
 
-export type View = {
+export type CollectionViewSource = {
+    type: 'collection';
+    collectionName: string;
+};
+
+export type FunctionViewSource = {
+    type: 'function';
+    functionName: string;
+    args?: Record<string, unknown>;
+};
+
+export type ViewSource = CollectionViewSource | FunctionViewSource;
+
+type ViewBase = {
     title: string;
     id: ViewId;
-    collectionName: string;
+    source: ViewSource;
     columnDefinitions: ColumnDefinition[];
     filterGroups: FilterGroups;
     /** Optional default prompt shown in the AI Filter Assistant for this view. */
@@ -41,6 +54,26 @@ export type View = {
     // Pagination will still enforce an ordering on paginationKey (defaults to 'DESC') even if not provided here.
     staticOrdering?: HasuraOrderBy[];
 };
+
+export type CollectionView = ViewBase & {
+    source: CollectionViewSource;
+};
+
+export type FunctionView = ViewBase & {
+    source: FunctionViewSource;
+};
+
+export type View = CollectionView | FunctionView;
+
+export function getViewRootFieldName(view: View): string {
+    return view.source.type === 'function'
+        ? view.source.functionName
+        : view.source.collectionName;
+}
+
+export function getViewStaticArgs(view: View): Record<string, unknown> | undefined {
+    return view.source.type === 'function' ? view.source.args : undefined;
+}
 
 export function getAllFilters(filterGroups: FilterGroups): FilterSchema[] {
     return filterGroups.flatMap(group => group.filters);

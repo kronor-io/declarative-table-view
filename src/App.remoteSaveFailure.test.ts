@@ -41,7 +41,7 @@ describe('Remote save failure shows warning toast and persists locally', () => {
             {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: { type: 'collection', collectionName: 'testCollection' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',

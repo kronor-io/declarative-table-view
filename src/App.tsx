@@ -23,7 +23,7 @@ import { getAppliedFilterItems } from './components/appliedFilterPills.utils';
 import { fetchData, FetchDataResult } from './framework/data';
 import { buildInitialFormState, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
-import { getAllFilters, View } from './framework/view';
+import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
 import { generateGraphQLQuery } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -199,11 +199,12 @@ function App({
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
         return generateGraphQLQuery(
-            selectedView.collectionName,
+            getViewRootFieldName(selectedView),
             selectedView.columnDefinitions,
             selectedView.boolExpType,
             selectedView.orderByType,
-            selectedView.paginationKey
+            selectedView.paginationKey,
+            getViewStaticArgs(selectedView)
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

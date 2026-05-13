@@ -66,10 +66,11 @@ async function fetchSchema(endpoint: string, headers: Record<string, string>): P
     return buildClientSchema(json.data);
 }
 
-function applyFileNamePattern(pattern: string, view: { viewId: string; collectionName: string }): string {
+function applyFileNamePattern(pattern: string, view: { viewId: string; rootFieldName: string }): string {
     return pattern
         .replace(/\{viewId\}/g, view.viewId)
-        .replace(/\{collectionName\}/g, view.collectionName);
+        .replace(/\{rootFieldName\}/g, view.rootFieldName)
+        .replace(/\{collectionName\}/g, view.rootFieldName);
 }
 
 function getColumnDefinitionsArray(argObject: ts.ObjectLiteralExpression): ts.ArrayLiteralExpression | null {
@@ -419,14 +420,40 @@ function findViewsInFile(
                         debug?.log('- found DSL.view(<non-object-literal>) (skipping)');
                     } else {
                         const viewId = tryGetStringProp(firstArg, 'id');
-                        const collectionName = tryGetStringProp(firstArg, 'collectionName');
-                        if (!viewId || !collectionName) {
-                            debug?.log(`- found DSL.view({ ... }) but id/collectionName not string literals (id=${viewId ?? 'null'}, collectionName=${collectionName ?? 'null'})`);
+                        const sourceProp = firstArg.properties.find((prop) => {
+                            if (!ts.isPropertyAssignment(prop)) return false;
+                            const name = prop.name;
+                            const key = ts.isIdentifier(name)
+                                ? name.text
+                                : ts.isStringLiteral(name)
+                                    ? name.text
+                                    : null;
+                            return key === 'source';
+                        });
+
+                        let collectionName: string | null = null;
+                        let functionName: string | null = null;
+                        let sourceType: string | null = null;
+
+                        if (sourceProp && ts.isPropertyAssignment(sourceProp) && ts.isObjectLiteralExpression(sourceProp.initializer)) {
+                            sourceType = tryGetStringProp(sourceProp.initializer, 'type');
+                            collectionName = tryGetStringProp(sourceProp.initializer, 'collectionName');
+                            functionName = tryGetStringProp(sourceProp.initializer, 'functionName');
+                        }
+
+                        const rootFieldName = sourceType === 'collection'
+                            ? collectionName
+                            : sourceType === 'function'
+                                ? functionName
+                                : null;
+
+                        if (!viewId || !sourceType || !rootFieldName || (collectionName && functionName)) {
+                            debug?.log(`- found DSL.view({ ... }) but id/source not valid string literals (id=${viewId ?? 'null'}, sourceType=${sourceType ?? 'null'}, collectionName=${collectionName ?? 'null'}, functionName=${functionName ?? 'null'})`);
                         } else {
-                            debug?.log(`- found view id=${JSON.stringify(viewId)} collectionName=${JSON.stringify(collectionName)}`);
+                            debug?.log(`- found view id=${JSON.stringify(viewId)} rootFieldName=${JSON.stringify(rootFieldName)}`);
                             views.push({
                                 viewId,
-                                collectionName,
+                                rootFieldName,
                                 sourceFile: fileName
                             });
                         }
@@ -537,11 +564,11 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
 
     // Resolve view -> row type
     const viewRows = selectedViews.map(v => {
-        const f = queryFields[v.collectionName];
+        const f = queryFields[v.rootFieldName];
         if (!f) {
             const sample = Object.keys(queryFields).slice(0, 25);
             throw new Error(
-                `View "${v.viewId}" references collectionName "${v.collectionName}" but it was not found on Query. `
+                `View "${v.viewId}" references query root "${v.rootFieldName}" but it was not found on Query. `
                 + `Sample Query fields: ${sample.join(', ')}${sample.length === 25 ? ', ...' : ''}`
             );
         }

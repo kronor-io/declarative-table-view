@@ -29,6 +29,7 @@ jest.mock('../framework/data', () => {
 
 import App from '../App';
 import { REVISION_2026_03_26 } from '../framework/user-data';
+import { getViewRootFieldName } from '../framework/view';
 
 let capturedAst: any = null;
 let capturedAliasedAst: any = null;
@@ -42,14 +43,14 @@ const action = {
     label: 'Capture AST',
     onClick: (api: any) => {
         capturedAst = api.generateGraphQLQueryAST(
-            api.view.collectionName,
+            getViewRootFieldName(api.view),
             api.view.columnDefinitions,
             api.view.boolExpType,
             api.view.orderByType,
             api.view.paginationKey
         );
         capturedAliasedAst = api.generateColumnAliasedGraphQLQueryAST(
-            api.view.collectionName,
+            getViewRootFieldName(api.view),
             api.view.columnDefinitions,
             api.view.boolExpType,
             api.view.orderByType,
@@ -82,7 +83,7 @@ describe('ActionAPI GraphQL helpers', () => {
             {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: { type: 'collection', collectionName: 'testCollection' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',
@@ -124,9 +125,9 @@ describe('ActionAPI GraphQL helpers', () => {
         });
 
         expect(capturedAst).toBeTruthy();
-        expect(capturedAst.rootField).toContain('testCollection');
+        expect(capturedAst.rootField.field).toContain('testCollection');
         expect(capturedAliasedAst).toBeTruthy();
-        expect(capturedAliasedAst.rootField).toContain('testCollection');
+        expect(capturedAliasedAst.rootField.field).toContain('testCollection');
         expect(capturedQuery).toBeTruthy();
         expect(capturedQuery).toContain('testCollection');
         expect(capturedVariables).toBeTruthy();
@@ -177,7 +178,7 @@ describe('ActionAPI GraphQL helpers', () => {
             {
                 title: 'Test View',
                 id: 'test-view',
-                collectionName: 'testCollection',
+                source: { type: 'collection', collectionName: 'testCollection' },
                 paginationKey: 'id',
                 boolExpType: 'TestBoolExp',
                 orderByType: '[TestOrderBy!]',

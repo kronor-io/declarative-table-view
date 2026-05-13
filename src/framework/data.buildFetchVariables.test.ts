@@ -1,6 +1,6 @@
 // Legacy filename retained; tests updated to new helper name.
 import { buildGraphQLQueryVariables } from './data';
-import { View } from './view';
+import { CollectionView, View } from './view';
 import type { FilterGroups, FilterSchema } from './filters';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
@@ -9,10 +9,10 @@ import { FilterState, buildInitialFormState } from './state';
 import { Hasura } from './graphql';
 
 // Helper to create a minimal view for tests
-const baseView: Omit<View, 'title' | 'id'> & { title: string; id: string } = {
+const baseView: CollectionView = {
     title: 'Test',
     id: 'test',
-    collectionName: 'testCollection',
+    source: { type: 'collection', collectionName: 'testCollection' },
     columnDefinitions: [{ type: 'virtualColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }] } as ColumnDefinition],
     filterGroups: [] as FilterGroups,
     boolExpType: 'BoolExp',

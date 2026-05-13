@@ -169,6 +169,58 @@ export function generateColumnAliasedSelectionSetFromColumns(columns: ColumnDefi
     });
 }
 
+function renderGraphQLLiteral(value: unknown): string {
+    if (value === null) return 'null';
+    if (value === undefined) return 'null';
+    if (typeof value === 'string') return JSON.stringify(value);
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) {
+        return `[${value.map(renderGraphQLLiteral).join(', ')}]`;
+    }
+    if (typeof value === 'object') {
+        return `{${
+            Object.entries(value as Record<string, unknown>)
+                .map(([key, entryValue]) => `${key}: ${renderGraphQLLiteral(entryValue)}`)
+                .join(', ')
+        }}`;
+    }
+
+    return JSON.stringify(value);
+}
+
+function graphqlVariableReference(name: string): GraphQLVariableReference {
+    return {
+        type: 'variable',
+        name,
+    };
+}
+
+function isGraphQLVariableReference(value: unknown): value is GraphQLVariableReference {
+    return typeof value === 'object' && value !== null && !Array.isArray(value) && (value as GraphQLVariableReference).type === 'variable' && typeof (value as GraphQLVariableReference).name === 'string';
+}
+
+function toGraphQLArgumentValue(value: unknown): GraphQLArgumentValue {
+    if (isGraphQLVariableReference(value)) {
+        return value;
+    }
+
+    if (value === null || value === undefined || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(toGraphQLArgumentValue);
+    }
+
+    if (typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => [key, toGraphQLArgumentValue(entryValue)])
+        );
+    }
+
+    return String(value);
+}
+
 function ensurePaginationKeyInSelectionSet(
     selectionSet: GraphQLSelectionSet,
     paginationKey: string,
@@ -195,7 +247,20 @@ function buildGraphQLQueryAST(
     boolExpType: string,
     orderByType: string,
     paginationKey: string,
+    staticArgs?: Record<string, unknown>,
 ): GraphQLQueryAST {
+    const rootFieldArgs: GraphQLArgument[] = [
+        ...(staticArgs ? [{ name: 'args', value: toGraphQLArgumentValue(staticArgs) }] : []),
+        {
+            name: 'where',
+            value: toGraphQLArgumentValue({
+                _and: [graphqlVariableReference('conditions'), graphqlVariableReference('paginationCondition')]
+            })
+        },
+        { name: 'limit', value: toGraphQLArgumentValue(graphqlVariableReference('rowLimit')) },
+        { name: 'orderBy', value: toGraphQLArgumentValue(graphqlVariableReference('orderBy')) }
+    ];
+
     return {
         operation: 'query',
         variables: [
@@ -207,7 +272,10 @@ function buildGraphQLQueryAST(
         // Always compose the final where via an _and that combines user/static conditions with
         // the pagination condition. When there is no active cursor the paginationCondition
         // will simply be an empty object {} which Hasura will treat as a no-op in the boolean expression.
-        rootField: `${rootField}(where: {_and: [$conditions, $paginationCondition]}, limit: $rowLimit, orderBy: $orderBy)`,
+        rootField: {
+            field: rootField,
+            args: rootFieldArgs,
+        },
         selectionSet: ensurePaginationKeyInSelectionSet(selectionSet, paginationKey)
     };
 }
@@ -217,7 +285,8 @@ export function generateGraphQLQueryAST(
     columns: ColumnDefinition[],
     boolExpType: string,
     orderByType: string,
-    paginationKey: string
+    paginationKey: string,
+    staticArgs?: Record<string, unknown>,
 ): GraphQLQueryAST {
     return buildGraphQLQueryAST(
         rootField,
@@ -225,6 +294,7 @@ export function generateGraphQLQueryAST(
         boolExpType,
         orderByType,
         paginationKey,
+        staticArgs,
     );
 }
 
@@ -234,6 +304,7 @@ export function generateColumnAliasedGraphQLQueryAST(
     boolExpType: string,
     orderByType: string,
     paginationKey: string,
+    staticArgs?: Record<string, unknown>,
 ): GraphQLQueryAST {
     return buildGraphQLQueryAST(
         rootField,
@@ -241,6 +312,7 @@ export function generateColumnAliasedGraphQLQueryAST(
         boolExpType,
         orderByType,
         paginationKey,
+        staticArgs,
     );
 }
 
@@ -249,9 +321,10 @@ export function generateGraphQLQuery(
     columns: ColumnDefinition[],
     boolExpType: string,
     orderByType: string,
-    paginationKey: string
+    paginationKey: string,
+    staticArgs?: Record<string, unknown>,
 ): string {
-    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey);
+    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs);
     return renderGraphQLQuery(ast);
 }
 
@@ -261,14 +334,45 @@ export function generateColumnAliasedGraphQLQuery(
     boolExpType: string,
     orderByType: string,
     paginationKey: string,
+    staticArgs?: Record<string, unknown>,
 ): string {
-    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey);
+    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs);
     return renderGraphQLQuery(ast);
 }
 
 export type GraphQLVariable = {
     name: string;
     type: string;
+};
+
+export type GraphQLVariableReference = {
+    type: 'variable';
+    name: string;
+};
+
+export type GraphQLArgumentObject = {
+    [key: string]: GraphQLArgumentValue;
+};
+
+export type GraphQLArgumentValue =
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | GraphQLVariableReference
+    | GraphQLArgumentValue[]
+    | GraphQLArgumentObject;
+
+export type GraphQLArgument = {
+    name: string;
+    value: GraphQLArgumentValue;
+};
+
+export type GraphQLFieldNode = {
+    field: string;
+    alias?: string;
+    args?: GraphQLArgument[];
 };
 
 export type HasuraOrderBy = Record<string, 'ASC' | 'DESC'>;
@@ -291,7 +395,7 @@ export type GraphQLQueryAST = {
     operation: 'query';
     name?: string;
     variables: GraphQLVariable[];
-    rootField: string;
+    rootField: GraphQLFieldNode;
     selectionSet: GraphQLSelectionSet;
 };
 
@@ -303,22 +407,34 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             + ')';
     }
 
-    const renderGraphQLLiteral = (value: unknown): string => {
-        if (value === null) return 'null';
-        if (value === undefined) return 'null';
-        if (typeof value === 'string') return JSON.stringify(value);
-        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-        if (Array.isArray(value)) {
-            return `[${value.map(renderGraphQLLiteral).join(', ')}]`;
+    const renderGraphQLArgumentValue = (value: GraphQLArgumentValue): string => {
+        if (isGraphQLVariableReference(value)) {
+            return `$${value.name}`;
         }
-        if (typeof value === 'object') {
+
+        if (Array.isArray(value)) {
+            return `[${value.map(renderGraphQLArgumentValue).join(', ')}]`;
+        }
+
+        if (typeof value === 'object' && value !== null) {
             return `{${
-                Object.entries(value as Record<string, unknown>)
-                    .map(([k, v]) => `${k}: ${renderGraphQLLiteral(v)}`)
+                Object.entries(value)
+                    .map(([key, entryValue]) => `${key}: ${renderGraphQLArgumentValue(entryValue)}`)
                     .join(', ')
             }}`;
         }
-        return JSON.stringify(value);
+
+        return renderGraphQLLiteral(value);
+    };
+
+    const renderFieldNode = (fieldNode: GraphQLFieldNode): string => {
+        const fieldName = fieldNode.alias ? `${fieldNode.alias}: ${fieldNode.field}` : fieldNode.field;
+
+        if (!fieldNode.args || fieldNode.args.length === 0) {
+            return fieldName;
+        }
+
+        return `${fieldName}(${fieldNode.args.map(arg => `${arg.name}: ${renderGraphQLArgumentValue(arg.value)}`).join(', ')})`;
     };
 
     const renderHasuraOperator = (op: HasuraOperator): string => {
@@ -439,7 +555,7 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     const opName = ast.name ? ` ${ast.name}` : '';
     return (
         `${ast.operation}${opName}${vars} {` +
-        `  ${ast.rootField} {` +
+        `  ${renderFieldNode(ast.rootField)} {` +
         selection +
         `\n  }\n}`
     );
