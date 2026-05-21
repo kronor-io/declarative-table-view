@@ -246,4 +246,55 @@ describe('App collapsed filter panel summary', () => {
         await waitUntil(() => !(container.textContent || '').includes('email = jane@example.com'), { timeoutMs: 1000, intervalMs: 10 });
         expect(fetchDataMock.mock.calls.length).toBeGreaterThan(initialFetchCallCount);
     });
+
+    it('shows filters, saved filters, and preferences as mutually exclusive panels', async () => {
+        fetchDataMock.mockClear();
+
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                <PrimeReactProvider value={{}}>
+                    <App
+                        graphqlHost="http://example.com/graphql"
+                        graphqlToken="token"
+                        geminiApiKey="gemini"
+                        showViewsMenu={false}
+                        showViewTitle={false}
+                        views={[createView()]}
+                        syncFilterStateToUrl={false}
+                    />
+                </PrimeReactProvider>
+            );
+        });
+
+        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 1000, intervalMs: 10 });
+
+        await act(async () => {
+            getButtonByText(container, 'Filters').click();
+        });
+
+        expect(getButtonByText(container, 'Hide Filters')).toBeDefined();
+        expect(Array.from(container.querySelectorAll('input')).some(input => (input as HTMLInputElement).value === 'jane@example.com')).toBe(true);
+
+        await act(async () => {
+            getButtonByText(container, 'Saved Filters').click();
+        });
+
+        expect(getButtonByText(container, 'Filters')).toBeDefined();
+        expect(getButtonByText(container, 'Hide Saved Filters')).toBeDefined();
+        expect(container.textContent || '').toContain('No saved filters for this view');
+        expect(Array.from(container.querySelectorAll('input')).some(input => (input as HTMLInputElement).value === 'jane@example.com')).toBe(false);
+
+        await act(async () => {
+            getButtonByText(container, 'Preferences').click();
+        });
+
+        expect(getButtonByText(container, 'Saved Filters')).toBeDefined();
+        expect(getButtonByText(container, 'Hide Preferences')).toBeDefined();
+        expect(container.textContent || '').toContain('Persist filter state for this view');
+        expect(container.textContent || '').not.toContain('No saved filters for this view');
+    });
 });

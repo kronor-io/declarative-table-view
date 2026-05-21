@@ -99,6 +99,8 @@ export type DTVAPI = {
     };
 };
 
+type ActivePanel = 'filters' | 'savedFilters' | 'preferences' | null;
+
 const builtInRuntime: Runtime = nativeRuntime
 
 function App({
@@ -211,9 +213,7 @@ function App({
     const tableRef = useRef<DataTable<any>>(null);
     const toast = useRef<Toast>(null);
     const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
-    const [showFilterForm, setShowFilterForm] = useState(false);
-    const [showSavedFilterList, setShowSavedFilterList] = useState(false);
-    const [showPreferencesPanel, setShowPreferencesPanel] = useState(false);
+    const [activePanel, setActivePanel] = useState<ActivePanel>(null);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const [showPopout, setShowPopout] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -221,9 +221,29 @@ function App({
     const initialSelectedViewId = useRef<View['id'] | undefined>(views[0]?.id)
     const shouldSkipUserDataHydrationForInitialUrl = useRef(Boolean(initialFilterStateFromUrl))
     const previousRefetchTrigger = useRef(refetchTrigger)
+    const showFilterForm = activePanel === 'filters';
+    const showSavedFilterList = activePanel === 'savedFilters';
+    const showPreferencesPanel = activePanel === 'preferences';
 
     const triggerRefetch = useCallback(() => {
         setRefetchTrigger(prev => prev + 1);
+    }, []);
+
+    const togglePanel = useCallback((panel: Exclude<ActivePanel, null>) => {
+        setActivePanel(prev => prev === panel ? null : panel);
+    }, []);
+
+    const setFilterFormVisible = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+        setActivePanel(prevActivePanel => {
+            const isVisible = prevActivePanel === 'filters';
+            const nextVisible = typeof value === 'function' ? value(isVisible) : value;
+
+            if (nextVisible) {
+                return 'filters';
+            }
+
+            return isVisible ? null : prevActivePanel;
+        });
     }, []);
 
     const applyFilterState = useCallback((filterState: FilterState) => {
@@ -291,9 +311,9 @@ function App({
     // Auto-expand filter panel when user starts typing a search (help discover filters)
     useEffect(() => {
         if (state.searchQuery && !showFilterForm) {
-            setShowFilterForm(true);
+            setFilterFormVisible(true);
         }
-    }, [state.searchQuery, showFilterForm]);
+    }, [setFilterFormVisible, state.searchQuery, showFilterForm]);
 
     // Lock body scroll when popout is open (only in root instance)
     useEffect(() => {
@@ -581,14 +601,11 @@ function App({
                                 size='small'
                                 label={showFilterForm ? 'Hide Filters' : 'Filters'}
                                 onClick={() => {
-                                    setShowFilterForm(prev => {
-                                        const next = !prev;
-                                        if (!next) {
-                                            // Clear search when hiding filters to avoid auto-expanding again
-                                            setSearchQuery('');
-                                        }
-                                        return next;
-                                    });
+                                    if (showFilterForm) {
+                                        // Clear search when hiding filters to avoid auto-expanding again
+                                        setSearchQuery('');
+                                    }
+                                    togglePanel('filters');
                                 }}
                             />
                             <Button
@@ -597,7 +614,7 @@ function App({
                                 outlined
                                 size='small'
                                 label={showSavedFilterList ? 'Hide Saved Filters' : 'Saved Filters'}
-                                onClick={() => setShowSavedFilterList(v => !v)}
+                                onClick={() => togglePanel('savedFilters')}
                             />
                             <Button
                                 type="button"
@@ -605,7 +622,7 @@ function App({
                                 outlined
                                 size='small'
                                 label={showPreferencesPanel ? 'Hide Preferences' : 'Preferences'}
-                                onClick={() => setShowPreferencesPanel(v => !v)}
+                                onClick={() => togglePanel('preferences')}
                             />
                             {
                                 showCsvExportButton && (
@@ -688,7 +705,7 @@ function App({
                                 selectedView={selectedView}
                                 geminiApiKey={geminiApiKey}
                                 toast={toast}
-                                setShowFilterForm={setShowFilterForm}
+                                setShowFilterForm={setFilterFormVisible}
                                 modifyAiFilterPrompt={modifyAiFilterPrompt}
                             />
                         </div>
