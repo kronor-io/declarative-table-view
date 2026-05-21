@@ -67,4 +67,27 @@ describe('user-data serialization', () => {
         expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(true);
         expect(roundtripped.views['view-a'].persistedFilterState).toEqual(filterState);
     });
+
+    it('roundtrips closeFilterPanelOnApply when present', () => {
+        const json = toUserDataJson({
+            preferences: {
+                ...defaultUserPreferences,
+                closeFilterPanelOnApply: true
+            },
+            views: {},
+            revision: 1,
+            formatRevision: 'rev-user'
+        }, {});
+
+        expect(json.preferences).toEqual({
+            syncFilterStateToUrlOverride: null,
+            closeFilterPanelOnApply: true
+        });
+
+        const roundtripped = fromUserDataJson(json, {});
+        expect(roundtripped.preferences).toEqual({
+            syncFilterStateToUrlOverride: null,
+            closeFilterPanelOnApply: true
+        });
+    });
 });

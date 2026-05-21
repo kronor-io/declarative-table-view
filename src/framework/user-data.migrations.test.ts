@@ -277,7 +277,7 @@ describe('user-data migrations', () => {
     it('sets syncFilterStateToUrlOverride to null when migrating', () => {
         const data = defaultUserData();
         data.formatRevision = REVISION_2026_01_05;
-        data.preferences = { syncFilterStateToUrlOverride: true };
+        data.preferences = { syncFilterStateToUrlOverride: true, closeFilterPanelOnApply: false };
 
         const result = applyUserDataMigrations(data, {
             filterGroupsByViewId: {

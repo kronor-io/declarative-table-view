@@ -147,7 +147,8 @@ describe('ActionAPI GraphQL helpers', () => {
     it('exposes current user preferences and view data to actions', async () => {
         localStorage.setItem('dtvUserData', JSON.stringify({
             preferences: {
-                syncFilterStateToUrlOverride: true
+                syncFilterStateToUrlOverride: true,
+                closeFilterPanelOnApply: false
             },
             views: {
                 'test-view': {
@@ -220,7 +221,7 @@ describe('ActionAPI GraphQL helpers', () => {
         });
 
         expect(capturedUserData).toEqual({
-            preferences: { syncFilterStateToUrlOverride: true },
+            preferences: { syncFilterStateToUrlOverride: true, closeFilterPanelOnApply: false },
             viewData: {
                 columnOrder: ['id'],
                 hiddenColumns: ['id'],

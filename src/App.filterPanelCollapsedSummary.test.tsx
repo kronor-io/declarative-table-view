@@ -247,6 +247,90 @@ describe('App collapsed filter panel summary', () => {
         expect(fetchDataMock.mock.calls.length).toBeGreaterThan(initialFetchCallCount);
     });
 
+    it('keeps the filters panel open after apply by default', async () => {
+        fetchDataMock.mockClear();
+
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                <PrimeReactProvider value={{}}>
+                    <App
+                        graphqlHost="http://example.com/graphql"
+                        graphqlToken="token"
+                        geminiApiKey="gemini"
+                        showViewsMenu={false}
+                        showViewTitle={false}
+                        views={[createView()]}
+                        syncFilterStateToUrl={false}
+                    />
+                </PrimeReactProvider>
+            );
+        });
+
+        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 1000, intervalMs: 10 });
+
+        await act(async () => {
+            getButtonByText(container, 'Filters').click();
+        });
+
+        await act(async () => {
+            getButtonByText(container, 'Apply filter').click();
+        });
+
+        expect(getButtonByText(container, 'Hide Filters')).toBeDefined();
+        expect(Array.from(container.querySelectorAll('input')).some(input => (input as HTMLInputElement).value === 'jane@example.com')).toBe(true);
+    });
+
+    it('closes the filters panel after apply when the preference is enabled', async () => {
+        fetchDataMock.mockClear();
+        localStorage.setItem('dtvUserData', JSON.stringify({
+            preferences: {
+                closeFilterPanelOnApply: true
+            },
+            views: {},
+            revision: 0,
+            formatRevision: '1970-01-01T00:00:00.000Z'
+        }));
+
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                <PrimeReactProvider value={{}}>
+                    <App
+                        graphqlHost="http://example.com/graphql"
+                        graphqlToken="token"
+                        geminiApiKey="gemini"
+                        showViewsMenu={false}
+                        showViewTitle={false}
+                        views={[createView()]}
+                        syncFilterStateToUrl={false}
+                    />
+                </PrimeReactProvider>
+            );
+        });
+
+        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 1000, intervalMs: 10 });
+
+        await act(async () => {
+            getButtonByText(container, 'Filters').click();
+        });
+
+        await act(async () => {
+            getButtonByText(container, 'Apply filter').click();
+        });
+
+        await waitUntil(() => (container.textContent || '').includes('Filters'), { timeoutMs: 1000, intervalMs: 10 });
+        expect(getButtonByText(container, 'Filters')).toBeDefined();
+        expect(container.querySelector('button[aria-label="Reset filter email"]')).not.toBeNull();
+        expect(Array.from(container.querySelectorAll('input')).some(input => (input as HTMLInputElement).value === 'jane@example.com')).toBe(false);
+    });
+
     it('shows filters, saved filters, and preferences as mutually exclusive panels', async () => {
         fetchDataMock.mockClear();
 

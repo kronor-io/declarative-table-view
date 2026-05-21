@@ -185,6 +185,7 @@ function App({
     const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
+    const closeFilterPanelOnApply = userDataManager.preferences.closeFilterPanelOnApply === true
     const syncFilterStateToUserData = userDataManager.viewData.syncFilterStateToUserData
     const actionUserData: ActionUserDataAPI = {
         preferences: userDataManager.preferences,
@@ -749,6 +750,9 @@ function App({
                             }}
                             onSubmit={(submittedFilterState) => {
                                 applyFilterState(submittedFilterState);
+                                if (closeFilterPanelOnApply) {
+                                    setFilterFormVisible(false);
+                                }
                             }}
                             graphqlClient={client}
                         />

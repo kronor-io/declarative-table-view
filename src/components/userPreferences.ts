@@ -31,5 +31,19 @@ export const PREFERENCE_DEFINITIONS: PreferenceDefinition[] = [
             ...prev,
             syncFilterStateToUrlOverride: value
         })
+    },
+    {
+        id: 'closeFilterPanelOnApply',
+        kind: 'dropdown',
+        label: 'Close filters after applying',
+        options: [
+            { label: 'No', value: false },
+            { label: 'Yes', value: true }
+        ],
+        getValue: (preferences) => preferences.closeFilterPanelOnApply === true,
+        setValue: (prev, value) => ({
+            ...prev,
+            closeFilterPanelOnApply: value === true
+        })
     }
 ];

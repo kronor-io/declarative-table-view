@@ -42,6 +42,10 @@ export type UserPreferences = {
      * - `null`: use the App option
      */
     syncFilterStateToUrlOverride: boolean | null;
+    /**
+     * When enabled, closes the filters panel after applying the current filter state.
+     */
+    closeFilterPanelOnApply: boolean;
 }
 
 function parseUserPreferences(userPreferencesJson: unknown): UserPreferences {
@@ -56,8 +60,15 @@ function parseUserPreferences(userPreferencesJson: unknown): UserPreferences {
             ? null
             : syncFilterStateToUrlOverrideRaw;
 
+    const closeFilterPanelOnApplyRaw: unknown = userPreferencesRecord.closeFilterPanelOnApply;
+    const closeFilterPanelOnApply: boolean =
+        typeof closeFilterPanelOnApplyRaw === 'boolean'
+            ? closeFilterPanelOnApplyRaw
+            : false;
+
     return {
-        syncFilterStateToUrlOverride
+        syncFilterStateToUrlOverride,
+        closeFilterPanelOnApply
     }
 }
 
@@ -79,7 +90,8 @@ export interface UserDataJson {
 }
 
 export const defaultUserPreferences: UserPreferences = {
-    syncFilterStateToUrlOverride: null
+    syncFilterStateToUrlOverride: null,
+    closeFilterPanelOnApply: false
 }
 
 export function defaultUserData(): UserData {
