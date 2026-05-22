@@ -4,7 +4,7 @@ import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import type { ColumnDefinition, TableColumnDefinition } from '../framework/column-definition';
-import { NoRowsComponent } from '../framework/view';
+import { NoRowsComponent, RowExpansionDefinition } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
 import { majorToMinor, minorToMajor } from '../framework/currency';
@@ -13,15 +13,22 @@ import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
-import type { FlattenedDataRow } from '../framework/data';
+import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
 
 export type RowSelectionResetFn = () => void;
+export type RowExpansionApi = {
+    reset: () => void;
+    collapseAll: () => void;
+    expandAll: () => void;
+};
 
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
     hiddenColumnIds: string[];
     data: FlattenedDataRow[]; // Array of rows, each row keyed by column id
+    rawRows: Record<string, unknown>[];
+    rowExpansion?: RowExpansionDefinition;
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
     filterState: FilterState; // Current filter state
@@ -34,6 +41,7 @@ type TableProps = {
 
     /** Optional callback invoked when row selection reset becomes available/unavailable. */
     onRowSelectionResetChange?: (resetFn: RowSelectionResetFn | null) => void;
+    onRowExpansionApiChange?: (api: RowExpansionApi | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
 };
@@ -43,6 +51,8 @@ function Table({
     columns,
     hiddenColumnIds,
     data,
+    rawRows,
+    rowExpansion,
     noRowsComponent,
     setFilterState,
     filterState,
@@ -50,7 +60,8 @@ function Table({
     ref,
     rowSelection,
     rowClassFunction,
-    onRowSelectionResetChange
+    onRowSelectionResetChange,
+    onRowExpansionApiChange
 }: TableProps) {
     const hiddenSet = new Set(hiddenColumnIds);
     const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
@@ -64,24 +75,43 @@ function Table({
         setFilterState(newState);
     };
 
+    const updateFilterById = (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
+        wrappedSetFilterState(currentState => {
+            try {
+                const currentFilter = getFilterStateById(currentState, filterId);
+                const updatedFilter = updater(currentFilter);
+                if (updatedFilter === currentFilter) return currentState;
+                return setFilterStateById(currentState, filterId, updatedFilter);
+            } catch {
+                return currentState;
+            }
+        });
+    };
+
+    const sharedRendererProps = {
+        setFilterState: wrappedSetFilterState,
+        applyFilters: triggerRefetch,
+        updateFilterById,
+        createElement: React.createElement,
+        components: {
+            Badge: Tag,
+            FlexRow,
+            FlexColumn,
+            Mapping,
+            DateTime,
+            CurrencyAmount,
+            Link
+        },
+        currency: { minorToMajor, majorToMinor }
+    };
+
     // Instantiate the noRowsComponent if it exists
     const noDataRowsComponent = noRowsComponent
         ? noRowsComponent({
             filterState,
             setFilterState: wrappedSetFilterState,
             applyFilters: triggerRefetch,
-            updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
-                wrappedSetFilterState(currentState => {
-                    try {
-                        const currentFilter = getFilterStateById(currentState, filterId);
-                        const updatedFilter = updater(currentFilter);
-                        if (updatedFilter === currentFilter) return currentState;
-                        return setFilterStateById(currentState, filterId, updatedFilter);
-                    } catch {
-                        return currentState; // filter missing -> no change
-                    }
-                });
-            }
+            updateFilterById
         })
         : null;
 
@@ -95,7 +125,44 @@ function Table({
 
     // Internal selection state only relevant if enabled
     const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
+    const [expandedRows, setExpandedRows] = useState<FlattenedDataRow[]>([]);
     const selectionType = rowSelection?.rowSelectionType ?? 'none';
+
+    const getRawRow = React.useCallback((rowData: FlattenedDataRow) => {
+        const rowIndex = data.indexOf(rowData);
+        const rawRow = rowIndex >= 0 ? rawRows[rowIndex] : undefined;
+        return (rawRow && typeof rawRow === 'object') ? rawRow : {};
+    }, [data, rawRows]);
+
+    const getRowExpansionData = React.useCallback((rowData: FlattenedDataRow) => {
+        const rawRow = getRawRow(rowData);
+        if (!rowExpansion?.data || rowExpansion.data.length === 0) {
+            return rawRow as Record<string, any>;
+        }
+        return flattenFieldQueries(rawRow as Record<string, unknown>, rowExpansion.data);
+    }, [getRawRow, rowExpansion]);
+
+    const canExpandRow = React.useCallback((rowData: FlattenedDataRow) => {
+        if (!rowExpansion) return false;
+        if (!rowExpansion.canExpand) return true;
+        return rowExpansion.canExpand({
+            row: simplifyRow(rowData),
+            data: getRowExpansionData(rowData)
+        });
+    }, [getRowExpansionData, rowExpansion]);
+
+    const toggleExpandedRow = React.useCallback((rowData: FlattenedDataRow) => {
+        setExpandedRows(currentExpandedRows => {
+            const isExpanded = currentExpandedRows.includes(rowData);
+            if (isExpanded) {
+                return currentExpandedRows.filter(expandedRow => expandedRow !== rowData);
+            }
+            if (rowExpansion?.mode === 'single') {
+                return [rowData];
+            }
+            return [...currentExpandedRows, rowData];
+        });
+    }, [rowExpansion?.mode]);
 
     // Expose row selection reset function (only when enabled)
     useEffect(() => {
@@ -118,6 +185,47 @@ function Table({
         rowSelection?.onRowSelectionChange?.(simplifyRows(rows));
     };
 
+    useEffect(() => {
+        setExpandedRows([]);
+    }, [data, rowExpansion]);
+
+    useEffect(() => {
+        if (!rowExpansion) {
+            onRowExpansionApiChange?.(null);
+            return;
+        }
+
+        const collapseAll = () => setExpandedRows([]);
+        const expandAll = () => {
+            const expandableRows = data.filter(canExpandRow);
+            setExpandedRows(rowExpansion.mode === 'single' ? expandableRows.slice(0, 1) : expandableRows);
+        };
+
+        onRowExpansionApiChange?.({
+            reset: collapseAll,
+            collapseAll,
+            expandAll,
+        });
+
+        return () => {
+            onRowExpansionApiChange?.(null);
+        };
+    }, [canExpandRow, data, onRowExpansionApiChange, rowExpansion]);
+
+    const rowExpansionTemplate = (rowData: FlattenedDataRow) => {
+        if (!rowExpansion) return null;
+
+        return rowExpansion.render({
+            row: simplifyRow(rowData),
+            data: getRowExpansionData(rowData),
+            collapse: () => {
+                setExpandedRows(currentExpandedRows => currentExpandedRows.filter(expandedRow => expandedRow !== rowData));
+            },
+            toggle: () => toggleExpandedRow(rowData),
+            ...sharedRendererProps
+        });
+    };
+
     return (
         <DataTable
             ref={ref}
@@ -133,11 +241,18 @@ function Table({
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
+            expandedRows={rowExpansion ? expandedRows : undefined}
+            onRowToggle={rowExpansion ? (e: any) => {
+                const nextExpandedRows = Array.isArray(e.data) ? e.data as FlattenedDataRow[] : [];
+                setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
+            } : undefined}
+            rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
             rowClassName={rowClassFunction ? (row: any) => rowClassFunction(simplifyRow(row)) : undefined}
             scrollable
             scrollHeight='flex'
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple" />}
+            {rowExpansion && <Column expander={(rowData: FlattenedDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
             {renderableColumns
                 .map(column => (
                     <Column
@@ -146,31 +261,7 @@ function Table({
                         header={column.name}
                         body={(rowData: FlattenedDataRow) => column.cellRenderer({
                             data: rowData[column.id],
-                            setFilterState: wrappedSetFilterState,
-                            applyFilters: triggerRefetch,
-                            updateFilterById: (filterId: string, updater: (currentValue: FilterFormState) => FilterFormState) => {
-                                wrappedSetFilterState(currentState => {
-                                    try {
-                                        const currentFilter = getFilterStateById(currentState, filterId);
-                                        const updatedFilter = updater(currentFilter);
-                                        if (updatedFilter === currentFilter) return currentState;
-                                        return setFilterStateById(currentState, filterId, updatedFilter);
-                                    } catch {
-                                        return currentState;
-                                    }
-                                });
-                            },
-                            createElement: React.createElement,
-                            components: {
-                                Badge: Tag,
-                                FlexRow,
-                                FlexColumn,
-                                Mapping,
-                                DateTime,
-                                CurrencyAmount,
-                                Link
-                            },
-                            currency: { minorToMajor, majorToMinor },
+                            ...sharedRendererProps,
                             columnDefinition: column
                         })}
                     />

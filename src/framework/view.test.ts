@@ -12,6 +12,11 @@ describe('parseColumnDefinitionJson', () => {
         },
         queryTransforms: {},
         noRowsComponents: {},
+        rowExpansions: {
+            details: {
+                render: () => 'details'
+            }
+        },
         customFilterComponents: {},
         initialValues: {},
         suggestionFetchers: {}
@@ -788,6 +793,80 @@ describe('parseColumnDefinitionJson', () => {
             });
             expect('extraProperty' in result).toBe(false);
         });
+    });
+});
+
+describe('parseViewJson rowExpansion', () => {
+    const runtime: Runtime = {
+        cellRenderers: {
+            text: () => 'text'
+        },
+        queryTransforms: {},
+        noRowsComponents: {},
+        rowExpansions: {
+            details: {
+                render: () => 'details',
+                canExpand: ({ data }) => Boolean(data.id)
+            }
+        },
+        customFilterComponents: {},
+        initialValues: {},
+        suggestionFetchers: {}
+    };
+
+    it('parses rowExpansion runtime and mode', () => {
+        const view = parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                mode: 'single',
+                runtime: { section: 'rowExpansions', key: 'details' },
+                data: [{ type: 'valueQuery', field: 'id' }]
+            }
+        }, runtime);
+
+        expect(view.rowExpansion?.mode).toBe('single');
+        expect(view.rowExpansion?.data).toEqual([{ type: 'valueQuery', field: 'id' }]);
+        expect(typeof view.rowExpansion?.render).toBe('function');
+        expect(typeof view.rowExpansion?.canExpand).toBe('function');
+    });
+
+    it('requires rowExpansions runtime section for rowExpansion runtime', () => {
+        expect(() => parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                runtime: { section: 'cellRenderers', key: 'text' }
+            }
+        }, runtime)).toThrow('Invalid rowExpansion.runtime: section must be "rowExpansions"');
     });
 });
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { CellRenderer } from "./column-definition";
-import { NoRowsComponent } from "./view";
+import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
 import { TransformResult, SuggestionFetcher } from "./filters";
 
 // Use SuggestionFetcher alias from filters.ts; runtime suggestionFetchers return string arrays.
@@ -12,6 +12,7 @@ export type Runtime = {
         toQuery: (input: any) => TransformResult;
     }>;
     noRowsComponents: Record<string, NoRowsComponent>;
+    rowExpansions?: Record<string, RowExpansionRuntimeEntry>;
     customFilterComponents: Record<string, React.ComponentType<any>>;
     initialValues: Record<string, any>;
     // New runtime section for dynamic suggestion fetchers used by autocomplete filter controls

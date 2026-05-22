@@ -24,7 +24,7 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseRuntimeReference(json);
-            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, customFilterComponents, queryTransforms, initialValues, suggestionFetchers');
+            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, rowExpansions, customFilterComponents, queryTransforms, initialValues, suggestionFetchers');
         });
 
         it('should validate that section is a string', () => {
@@ -78,6 +78,7 @@ describe('RuntimeReference', () => {
             },
             queryTransforms: {},
             noRowsComponents: {},
+            rowExpansions: {},
             customFilterComponents: {},
             initialValues: {},
             suggestionFetchers: {}
@@ -157,6 +158,7 @@ describe('RuntimeReference', () => {
             cellRenderers: {},
             queryTransforms: {},
             noRowsComponents: {},
+            rowExpansions: {},
             customFilterComponents: {
                 phoneNumberFilter: () => 'PhoneNumberFilter',
                 emailFilter: () => 'EmailFilter'
@@ -170,6 +172,7 @@ describe('RuntimeReference', () => {
                 cellRenderers: {},
                 queryTransforms: {},
                 noRowsComponents: {},
+                rowExpansions: {},
                 customFilterComponents: {},
                 initialValues: {},
                 suggestionFetchers: {

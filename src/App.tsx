@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
-import Table from './components/Table';
+import Table, { type RowExpansionApi } from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
 import FilterForm from './components/FilterForm';
 import { Menubar } from 'primereact/menubar';
@@ -96,6 +96,13 @@ export type DTVAPI = {
     rowSelection: {
         /** Resets any current row selection (no-op if row selection is disabled). */
         reset: () => void;
+    };
+
+    rowExpansion: {
+        /** Collapses all expanded rows on the current page. */
+        reset: () => void;
+        collapseAll: () => void;
+        expandAll: () => void;
     };
 };
 
@@ -207,7 +214,8 @@ function App({
             selectedView.boolExpType,
             selectedView.orderByType,
             selectedView.paginationKey,
-            getViewStaticArgs(selectedView)
+            getViewStaticArgs(selectedView),
+            selectedView.rowExpansion?.data
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -256,6 +264,11 @@ function App({
         fetchData: triggerRefetch,
         rowSelection: {
             reset: () => undefined
+        },
+        rowExpansion: {
+            reset: () => undefined,
+            collapseAll: () => undefined,
+            expandAll: () => undefined
         }
     });
 
@@ -264,6 +277,13 @@ function App({
             setSelectedRows([]);
             resetFn?.();
         };
+    }, []);
+
+    const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
+        const collapseAll = () => api?.collapseAll();
+        dtvApi.current.rowExpansion.reset = collapseAll;
+        dtvApi.current.rowExpansion.collapseAll = collapseAll;
+        dtvApi.current.rowExpansion.expandAll = () => api?.expandAll();
     }, []);
 
     const handleResetAppliedFilter = useCallback((filterId: FilterId) => {
@@ -775,6 +795,8 @@ function App({
                         columns={selectedView.columnDefinitions}
                         hiddenColumnIds={userDataManager.viewData.hiddenColumns}
                         data={state.data.flattenedRows}
+                        rawRows={state.data.rows}
+                        rowExpansion={selectedView.rowExpansion}
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
                         filterState={state.filterState}
@@ -782,6 +804,7 @@ function App({
                         rowSelection={rowSelectionWithInternalHandler}
                         rowClassFunction={rowClassFunction}
                         onRowSelectionResetChange={handleRowSelectionResetChange}
+                        onRowExpansionApiChange={handleRowExpansionApiChange}
                     />
                 </div>
                 {

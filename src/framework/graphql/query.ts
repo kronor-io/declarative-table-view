@@ -50,6 +50,7 @@ function mergeSelectionSets(set1: GraphQLSelectionSet, set2: GraphQLSelectionSet
 
 type SelectionSetFromColumnsOptions = {
     getTopLevelAlias?: (column: ColumnDefinition) => string | undefined;
+    additionalFieldQueries?: readonly FieldQuery[];
 };
 
 function generateSelectionSetFromColumnsInternal(
@@ -152,7 +153,11 @@ function generateSelectionSetFromColumnsInternal(
         ),
     );
 
-    return allSelections.reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => mergeSelectionSets(acc, [current]), []);
+    const additionalSelections = (options?.additionalFieldQueries ?? []).map(fieldQuery =>
+        processFieldQuery(fieldQuery)
+    );
+
+    return [...allSelections, ...additionalSelections].reduce((acc: GraphQLSelectionSet, current: GraphQLSelectionSetItem) => mergeSelectionSets(acc, [current]), []);
 }
 
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
@@ -287,10 +292,11 @@ export function generateGraphQLQueryAST(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
+    additionalFieldQueries?: readonly FieldQuery[],
 ): GraphQLQueryAST {
     return buildGraphQLQueryAST(
         rootField,
-        generateSelectionSetFromColumns(columns),
+        generateSelectionSetFromColumnsInternal(columns, { additionalFieldQueries }),
         boolExpType,
         orderByType,
         paginationKey,
@@ -323,8 +329,9 @@ export function generateGraphQLQuery(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
+    additionalFieldQueries?: readonly FieldQuery[],
 ): string {
-    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs);
+    const ast = generateGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs, additionalFieldQueries);
     return renderGraphQLQuery(ast);
 }
 

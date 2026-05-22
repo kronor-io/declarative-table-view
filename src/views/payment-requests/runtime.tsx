@@ -34,6 +34,37 @@ export type PaymentRequestsRuntime = Runtime & {
     };
 };
 
+const rowExpansion = ({ row, data, collapse, createElement, components: { FlexColumn, FlexRow } }: any) => {
+    return createElement('div', {
+        'data-testid': `row-expansion-${row.id}`,
+        className: 'tw:px-4 tw:py-3 tw:bg-slate-50',
+        children: createElement(FlexColumn, {
+            gap: 'gap-2',
+            children: [
+                createElement(FlexRow, {
+                    key: 'summary',
+                    justify: 'between',
+                    children: [
+                        createElement('strong', { children: `Attempts for ${row.transactionId}` }),
+                        createElement('button', {
+                            type: 'button',
+                            className: 'tw:text-blue-600 hover:tw:text-blue-800 tw:underline',
+                            onClick: collapse,
+                            children: 'Collapse'
+                        })
+                    ]
+                }),
+                ...[
+                    data.allAttempts?.map((attempt: any, index: number) => createElement('div', {
+                        key: `attempt-${index}`,
+                        children: `Attempt ${index + 1}: state: ${attempt.state}, created at: ${attempt.createdAt}`
+                    })) ?? []
+                ]
+            ]
+        })
+    });
+};
+
 // Static object of cell renderers for payment requests
 export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     cellRenderers: {
@@ -96,6 +127,13 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
             <FlexRow align="center" justify="end">
                 <CurrencyAmount amount={minorToMajor(Number(amount), currency)} currency={currency} />
             </FlexRow>
+    },
+
+    rowExpansions: {
+        attemptsRowExpansion: {
+            render: rowExpansion,
+            canExpand: ({ data }) => Boolean(data.allAttempts?.length)
+        },
     },
 
     // Transform functions for filter values

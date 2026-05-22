@@ -3,12 +3,12 @@
 
 import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
-import { CollectionViewSource, FunctionViewSource, View, ViewSource } from './view';
+import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
     key: string;
 };
 
@@ -139,6 +139,11 @@ export type ViewJson = {
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
     noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
+    rowExpansion?: {
+        data?: FieldQueryJson[];
+        runtime: RuntimeReference;
+        mode?: 'single' | 'multiple';
+    };
 };
 
 // Conversion functions from JSON types to actual types
@@ -157,7 +162,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -862,6 +867,56 @@ export function parseViewJson(
         );
     }
 
+    let rowExpansion;
+    if (view.rowExpansion !== undefined) {
+        if (typeof view.rowExpansion !== 'object' || view.rowExpansion === null || Array.isArray(view.rowExpansion)) {
+            throw new Error('View "rowExpansion" must be an object when provided');
+        }
+
+        const rowExpansionJson = view.rowExpansion as Record<string, unknown>;
+
+        if (!rowExpansionJson.runtime) {
+            throw new Error('View "rowExpansion.runtime" is required when rowExpansion is provided');
+        }
+
+        const rowExpansionRef = parseRuntimeReference(rowExpansionJson.runtime);
+        if (rowExpansionRef.section !== 'rowExpansions') {
+            throw new Error('Invalid rowExpansion.runtime: section must be "rowExpansions"');
+        }
+
+        const rowExpansionEntry = resolveRuntimeReference<RowExpansionRuntimeEntry>(
+            rowExpansionRef,
+            externalRuntime,
+            builtInRuntime
+        );
+
+        let rowExpansionData;
+        if (rowExpansionJson.data !== undefined) {
+            if (!Array.isArray(rowExpansionJson.data)) {
+                throw new Error('View "rowExpansion.data" must be an array when provided');
+            }
+
+            rowExpansionData = rowExpansionJson.data.map((item, index) => {
+                try {
+                    return parseFieldQueryJson(item);
+                } catch (error) {
+                    throw new Error(`Invalid rowExpansion.data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            });
+        }
+
+        if (rowExpansionJson.mode !== undefined && rowExpansionJson.mode !== 'single' && rowExpansionJson.mode !== 'multiple') {
+            throw new Error('View "rowExpansion.mode" must be "single" or "multiple" when provided');
+        }
+
+        rowExpansion = {
+            data: rowExpansionData,
+            render: rowExpansionEntry.render,
+            canExpand: rowExpansionEntry.canExpand,
+            mode: rowExpansionJson.mode as 'single' | 'multiple' | undefined
+        };
+    }
+
     // Optional staticConditions: validate it's an array of objects (shallow validation)
     let staticConditions;
     if (view.staticConditions !== undefined) {
@@ -893,6 +948,7 @@ export function parseViewJson(
         title: view.title,
         id: view.id,
         columnDefinitions,
+        rowExpansion,
         filterGroups,
         defaultAIFilterPrompt,
         boolExpType: view.boolExpType,

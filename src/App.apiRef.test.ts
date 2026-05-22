@@ -159,4 +159,88 @@ describe('App apiRef', () => {
             root.unmount();
         });
     });
+
+    it('exposes rowExpansion controls when a view defines rowExpansion', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        const apiRef = React.createRef<DTVAPI | null>();
+
+        const viewsJson = JSON.stringify([
+            {
+                title: 'Test View',
+                id: 'test-view',
+                source: { type: 'collection', collectionName: 'testCollection' },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    {
+                        type: 'tableColumn',
+                        id: 'id',
+                        data: [{ type: 'valueQuery', field: 'id' }],
+                        name: 'ID',
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
+                    }
+                ],
+                rowExpansion: {
+                    runtime: { section: 'rowExpansions', key: 'details' },
+                    mode: 'multiple',
+                    data: [{ type: 'valueQuery', field: 'id' }]
+                },
+                filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
+            }
+        ]);
+
+        const runtime = {
+            cellRenderers: { text: () => 'cell' },
+            queryTransforms: {},
+            noRowsComponents: {},
+            rowExpansions: {
+                details: { render: () => 'details' }
+            },
+            customFilterComponents: {},
+            initialValues: {},
+            suggestionFetchers: {}
+        };
+
+        const appElement = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            graphqlToken: 'token',
+            geminiApiKey: 'gemini',
+            showViewsMenu: false,
+            showViewTitle: false,
+            viewsJson,
+            externalRuntime: runtime as any,
+            syncFilterStateToUrl: false,
+            apiRef
+        });
+
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
+
+        const resolvedApi = await waitFor(
+            () => apiRef.current,
+            (value): value is DTVAPI => value !== null
+        );
+
+        expect(typeof resolvedApi.rowExpansion.reset).toBe('function');
+        expect(typeof resolvedApi.rowExpansion.collapseAll).toBe('function');
+        expect(typeof resolvedApi.rowExpansion.expandAll).toBe('function');
+
+        await act(async () => {
+            resolvedApi.rowExpansion.expandAll();
+            resolvedApi.rowExpansion.collapseAll();
+            resolvedApi.rowExpansion.reset();
+        });
+
+        await act(async () => {
+            root.unmount();
+        });
+    });
 });

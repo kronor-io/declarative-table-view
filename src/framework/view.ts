@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, createElement } from 'react';
+import type { CellRendererProps, DataFromFieldQueriesSafe, FieldQuery } from './column-definition';
 import { ColumnDefinition } from "./column-definition";
 import { FilterGroups, FilterSchema } from "./filters";
 import { FilterState } from "./state";
@@ -13,6 +14,49 @@ export type NoRowsComponentProps = {
 };
 
 export type NoRowsComponent = (props: NoRowsComponentProps) => ReactNode;
+
+export type RowExpansionRendererProps<
+    Data extends Record<string, any> = Record<string, any>,
+> = {
+    row: Record<string, any>;
+    data: Data;
+    collapse: () => void;
+    toggle: () => void;
+    setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
+    applyFilters: () => void;
+    updateFilterById: (
+        filterId: string,
+        updater: (currentValue: FilterFormState) => FilterFormState,
+    ) => void;
+    createElement: typeof createElement;
+    components: CellRendererProps['components'];
+    currency: CellRendererProps['currency'];
+};
+
+export type RowExpansionRenderer<
+    Data extends Record<string, any> = Record<string, any>,
+> = (props: RowExpansionRendererProps<Data>) => ReactNode;
+
+export type RowExpansionPredicate<
+    Data extends Record<string, any> = Record<string, any>,
+> = (args: { row: Record<string, any>; data: Data }) => boolean;
+
+export type RowExpansionRuntimeEntry<
+    Data extends Record<string, any> = Record<string, any>,
+> = {
+    render: RowExpansionRenderer<Data>;
+    canExpand?: RowExpansionPredicate<Data>;
+};
+
+export type RowExpansionDefinition<
+    FieldQueries extends readonly FieldQuery[] = readonly FieldQuery[],
+    Data extends Record<string, any> = DataFromFieldQueriesSafe<FieldQueries>,
+> = {
+    data?: FieldQueries;
+    render: RowExpansionRenderer<Data>;
+    canExpand?: RowExpansionPredicate<Data>;
+    mode?: 'single' | 'multiple';
+};
 
 
 export type ViewId = string;
@@ -35,6 +79,7 @@ type ViewBase = {
     id: ViewId;
     source: ViewSource;
     columnDefinitions: ColumnDefinition[];
+    rowExpansion?: RowExpansionDefinition;
     filterGroups: FilterGroups;
     /** Optional default prompt shown in the AI Filter Assistant for this view. */
     defaultAIFilterPrompt?: string;

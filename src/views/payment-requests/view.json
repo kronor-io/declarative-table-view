@@ -13,6 +13,33 @@
         "section": "noRowsComponents",
         "key": "noRowsExtendDateRange"
     },
+    "rowExpansion": {
+        "mode": "multiple",
+        "runtime": {
+            "section": "rowExpansions",
+            "key": "attemptsRowExpansion"
+        },
+        "data": [
+            {
+                "type": "fieldAlias",
+                "alias": "allAttempts",
+                "field": {
+                        "type": "arrayQuery",
+                        "field": "attempts",
+                        "selectionSet": [
+                            {
+                                "type": "valueQuery",
+                                "field": "createdAt"
+                            },
+                            {
+                                "type": "valueQuery",
+                                "field": "state"
+                            }
+                        ]
+                }
+            }
+        ]
+    },
     "columns": [
         {
             "type": "tableColumn",

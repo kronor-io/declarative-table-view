@@ -7,7 +7,13 @@ const allRows = Array.from({ length: 30 }, (_, i) => ({
     testField: `Test ${i + 1}`,
     amount: (i + 1) * 10,
     email: `user${i + 1}@example.com`,
-    phone: `+467000000${(i + 1).toString().padStart(2, '0')}`
+    phone: `+467000000${(i + 1).toString().padStart(2, '0')}`,
+    details: i % 7 === 0
+        ? null
+        : {
+            note: `Detail note ${i + 1}`,
+            owner: `Owner ${((i % 3) + 1)}`
+        }
 }));
 
 export async function mockPaginationGraphQL(route: Route) {

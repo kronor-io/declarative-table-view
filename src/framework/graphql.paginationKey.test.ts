@@ -1,6 +1,6 @@
 import { generateGraphQLQuery } from './graphql';
 import { ColumnDefinition } from './column-definition';
-import { valueQuery } from '../dsl/columns';
+import { objectQuery, valueQuery } from '../dsl/columns';
 
 describe('generateGraphQLQuery paginationKey inclusion', () => {
     it('includes paginationKey field when not present in column definitions', () => {
@@ -26,5 +26,25 @@ describe('generateGraphQLQuery paginationKey inclusion', () => {
         const idMatches = query.match(/\bid\b/g) || [];
         // Should be at least one, but not more than 2 (one might appear in orderBy variable name or types in some schemas). We just assert not > 3 to be safe.
         expect(idMatches.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('includes additional field queries outside visible columns', () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'name', name: 'Name', data: [valueQuery({ field: 'name' })], cellRenderer: () => null }
+        ];
+
+        const query = generateGraphQLQuery(
+            'users',
+            columns,
+            'UserBoolExp',
+            'UserOrderBy',
+            'id',
+            undefined,
+            [objectQuery({ field: 'details', selectionSet: [valueQuery({ field: 'status' })] })]
+        );
+
+        expect(query).toContain('name');
+        expect(query).toContain('details');
+        expect(query).toContain('status');
     });
 });

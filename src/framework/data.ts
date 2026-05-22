@@ -122,8 +122,7 @@ export const flattenFields = (
     });
 };
 
-// Helper to extract field values for a column from a row
-export const flattenColumnFields = (row: Record<string, unknown>, column: ColumnDefinition) => {
+export const flattenFieldQueries = (row: Record<string, unknown>, fieldQueries: readonly FieldQuery[]) => {
     // Build a per-column cell data object that includes ONLY the fields requested
     // by the column's FieldQuery definitions. We preserve nested object structure
     // (customer.name -> { customer: { name } }) but do not create dot-key strings.
@@ -169,6 +168,11 @@ export const flattenColumnFields = (row: Record<string, unknown>, column: Column
         }
     }
 
-    column.data.forEach(processFieldQuery);
+    fieldQueries.forEach(processFieldQuery);
     return cellData;
+};
+
+// Helper to extract field values for a column from a row
+export const flattenColumnFields = (row: Record<string, unknown>, column: ColumnDefinition) => {
+    return flattenFieldQueries(row, column.data);
 };
