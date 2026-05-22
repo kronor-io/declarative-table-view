@@ -51,4 +51,43 @@ test.describe('Row expansion', () => {
 
         await expect(page.getByText('Details for Test 30', { exact: true })).not.toBeVisible();
     });
+
+    test('lazy row expansion fetches on demand, shows a spinner, and reuses cached data', async ({ page }) => {
+        const queries: string[] = [];
+
+        await page.route('**/v1/graphql', async route => {
+            const postData = route.request().postDataJSON?.();
+            const query = typeof postData?.query === 'string' ? postData.query : '';
+            queries.push(query);
+
+            if (query.includes('details')) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            await mockPaginationGraphQL(route);
+        });
+
+        await page.goto('/?test-view=lazy-row-expansion-test-view');
+
+        const table = page.getByRole('table');
+        await expect(table).toBeVisible();
+
+        await expect.poll(() => queries[0] ?? '').not.toContain('details');
+
+        const row30 = table.getByRole('row', { name: /Test 30/ });
+        await row30.getByRole('button').first().click();
+
+        await expect(page.getByText('Loading details...', { exact: true })).toBeVisible();
+        await expect.poll(() => queries.filter(query => query.includes('details')).length).toBe(1);
+
+        await expect(page.getByText('Details for Test 30', { exact: true })).toBeVisible();
+        await expect(page.getByText('Detail note 30', { exact: true })).toBeVisible();
+
+        await page.getByRole('button', { name: 'Collapse', exact: true }).click();
+        await expect(page.getByText('Details for Test 30', { exact: true })).not.toBeVisible();
+
+        await row30.getByRole('button').first().click();
+        await expect(page.getByText('Details for Test 30', { exact: true })).toBeVisible();
+        await expect.poll(() => queries.filter(query => query.includes('details')).length).toBe(1);
+    });
 });

@@ -20,11 +20,11 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import AppliedFilters from './components/AppliedFilterPills';
 import { getAppliedFilterItems } from './components/appliedFilterPills.utils';
-import { fetchData, FetchDataResult } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries } from './framework/data';
 import { buildInitialFormState, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
-import { generateGraphQLQuery } from './framework/graphql';
+import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
@@ -215,7 +215,23 @@ function App({
             selectedView.orderByType,
             selectedView.paginationKey,
             getViewStaticArgs(selectedView),
-            selectedView.rowExpansion?.data
+            selectedView.rowExpansion?.lazy ? undefined : selectedView.rowExpansion?.data
+        );
+    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const memoizedLazyRowExpansionQuery = useMemo(() => {
+        if (!selectedView.rowExpansion?.lazy) {
+            return null;
+        }
+
+        return generateGraphQLQuery(
+            getViewRootFieldName(selectedView),
+            [],
+            selectedView.boolExpType,
+            selectedView.orderByType,
+            selectedView.paginationKey,
+            getViewStaticArgs(selectedView),
+            selectedView.rowExpansion.data
         );
     }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -520,6 +536,37 @@ function App({
         });
     }, [client, selectedView, memoizedQuery, state.appliedFilterState]);
 
+    const loadLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
+        const rowExpansion = selectedView.rowExpansion;
+        if (!rowExpansion?.lazy || !memoizedLazyRowExpansionQuery) {
+            return {};
+        }
+
+        const variables = buildGraphQLQueryVariables(selectedView, state.appliedFilterState, 1, null);
+        const rowKeyCondition = hasuraFilterExpressionToObject(Hasura.condition(selectedView.paginationKey, { _eq: rowKey }));
+        const hasBaseConditions = Object.keys(variables.conditions).length > 0;
+
+        const response = await client.request(memoizedLazyRowExpansionQuery, {
+            ...variables,
+            conditions: hasBaseConditions
+                ? { _and: [variables.conditions, rowKeyCondition] }
+                : rowKeyCondition,
+            paginationCondition: {},
+            rowLimit: 1
+        });
+
+        const responseRoot = typeof response === 'object' && response !== null
+            ? (response as Record<string, unknown>)[getViewRootFieldName(selectedView)]
+            : undefined;
+        const row = Array.isArray(responseRoot) ? responseRoot[0] : undefined;
+
+        if (!row || typeof row !== 'object') {
+            return {};
+        }
+
+        return flattenFieldQueries(row as Record<string, unknown>, rowExpansion.data);
+    }, [client, memoizedLazyRowExpansionQuery, selectedView, state.appliedFilterState]);
+
     // Apply per-view rowsPerPage from user data (when present)
     useEffect(() => {
         const persisted = userDataManager.viewData.rowsPerPage
@@ -794,9 +841,11 @@ function App({
                         ref={tableRef}
                         columns={selectedView.columnDefinitions}
                         hiddenColumnIds={userDataManager.viewData.hiddenColumns}
+                        paginationKey={selectedView.paginationKey}
                         data={state.data.flattenedRows}
                         rawRows={state.data.rows}
                         rowExpansion={selectedView.rowExpansion}
+                        loadLazyRowExpansionData={selectedView.rowExpansion?.lazy ? loadLazyRowExpansionData : undefined}
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
                         filterState={state.filterState}

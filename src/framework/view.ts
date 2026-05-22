@@ -20,6 +20,7 @@ export type RowExpansionRendererProps<
 > = {
     row: Record<string, any>;
     data: Data;
+    state: 'ready' | 'loading' | 'error';
     collapse: () => void;
     toggle: () => void;
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
@@ -56,6 +57,7 @@ export type RowExpansionDefinition<
     render: RowExpansionRenderer<Data>;
     canExpand: RowExpansionPredicate<Data>;
     mode: 'single' | 'multiple';
+    lazy?: boolean;
 };
 
 

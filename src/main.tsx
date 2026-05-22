@@ -79,6 +79,12 @@ if (import.meta.env.DEV) {
                         await import('./views/row-expansion-test-view/runtime')
                     );
                     break;
+                case 'lazy-row-expansion-test-view':
+                    await loadView(
+                        await import('./views/lazy-row-expansion-test-view/view.json?raw'),
+                        await import('./views/lazy-row-expansion-test-view/runtime')
+                    );
+                    break;
                 default:
                     await loadView(
                         await import('./views/payment-requests/view.json?raw'),

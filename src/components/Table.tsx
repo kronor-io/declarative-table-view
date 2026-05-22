@@ -22,13 +22,31 @@ export type RowExpansionApi = {
     expandAll: () => void;
 };
 
+type LazyRowExpansionLoadArgs = {
+    row: Record<string, unknown>;
+    rowKey: string | number;
+};
+
+type LazyRowExpansionState = {
+    status: 'loading' | 'loaded' | 'error';
+    data?: Record<string, unknown>;
+};
+
+const INTERNAL_ROW_INDEX = '__dtvRowIndex';
+
+type TableDataRow = FlattenedDataRow & {
+    [INTERNAL_ROW_INDEX]: number;
+};
+
 type TableProps = {
     viewId: string;
     columns: ColumnDefinition[];
     hiddenColumnIds: string[];
+    paginationKey: string;
     data: FlattenedDataRow[]; // Array of rows, each row keyed by column id
     rawRows: Record<string, unknown>[];
     rowExpansion?: RowExpansionDefinition;
+    loadLazyRowExpansionData?: (args: LazyRowExpansionLoadArgs) => Promise<Record<string, unknown>>;
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
     filterState: FilterState; // Current filter state
@@ -50,9 +68,11 @@ function Table({
     viewId,
     columns,
     hiddenColumnIds,
+    paginationKey,
     data,
     rawRows,
     rowExpansion,
+    loadLazyRowExpansionData,
     noRowsComponent,
     setFilterState,
     filterState,
@@ -116,31 +136,143 @@ function Table({
         : null;
 
     const exportFunction = (event: DataTableExportFunctionEvent<any>) => {
-        const row = event.rowData as FlattenedDataRow;
+        const row = event.rowData as TableDataRow;
         const cell = row[event.field];
         if (!cell || typeof cell !== 'object') return '';
         const firstKey = Object.keys(cell)[0];
         return firstKey ? cell[firstKey] : '';
     }
 
+    const tableData = React.useMemo(() => {
+        return data.map((row, rowIndex) => ({
+            ...row,
+            [INTERNAL_ROW_INDEX]: rowIndex
+        })) as TableDataRow[];
+    }, [data]);
+
+    const rowsMatch = React.useCallback((leftRow: Record<string, unknown>, rightRow: Record<string, unknown>) => {
+        const keys = Array.from(new Set([
+            ...Object.keys(leftRow),
+            ...Object.keys(rightRow)
+        ])).filter(key => key !== INTERNAL_ROW_INDEX);
+
+        return keys.every(key => JSON.stringify(leftRow[key]) === JSON.stringify(rightRow[key]));
+    }, []);
+
+    const getRowIndex = React.useCallback((rowData: TableDataRow) => {
+        const explicitRowIndex = (rowData as Record<string, unknown>)[INTERNAL_ROW_INDEX];
+        if (typeof explicitRowIndex === 'number') {
+            return explicitRowIndex;
+        }
+
+        return tableData.findIndex(candidateRow => rowsMatch(candidateRow, rowData));
+    }, [rowsMatch, tableData]);
+
+    const isSameRow = React.useCallback((leftRow: TableDataRow, rightRow: TableDataRow) => {
+        return getRowIndex(leftRow) === getRowIndex(rightRow);
+    }, [getRowIndex]);
+
     // Internal selection state only relevant if enabled
     const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
-    const [expandedRows, setExpandedRows] = useState<FlattenedDataRow[]>([]);
+    const [expandedRows, setExpandedRows] = useState<TableDataRow[]>([]);
+    const [lazyRowExpansionState, setLazyRowExpansionState] = useState<Record<string, LazyRowExpansionState>>({});
+    const lazyRowExpansionStateRef = React.useRef<Record<string, LazyRowExpansionState>>({});
     const selectionType = rowSelection?.rowSelectionType ?? 'none';
 
-    const getRawRow = React.useCallback((rowData: FlattenedDataRow) => {
-        const rowIndex = data.indexOf(rowData);
+    const getRawRow = React.useCallback((rowData: TableDataRow) => {
+        const rowIndex = getRowIndex(rowData);
         const rawRow = rowIndex >= 0 ? rawRows[rowIndex] : undefined;
         return (rawRow && typeof rawRow === 'object') ? rawRow : {};
-    }, [data, rawRows]);
+    }, [getRowIndex, rawRows]);
 
-    const getRowExpansionData = React.useCallback((rowData: FlattenedDataRow) => {
+    const getValueAtPath = React.useCallback((value: unknown, path: string) => {
+        return path.split('.').reduce<unknown>((currentValue, segment) => {
+            if (!currentValue || typeof currentValue !== 'object') {
+                return undefined;
+            }
+
+            return (currentValue as Record<string, unknown>)[segment];
+        }, value);
+    }, []);
+
+    const getRowExpansionKeyValue = React.useCallback((rowData: TableDataRow) => {
+        const rawRow = getRawRow(rowData);
+        const rowKey = getValueAtPath(rawRow, paginationKey);
+        return typeof rowKey === 'string' || typeof rowKey === 'number' ? rowKey : null;
+    }, [getRawRow, getValueAtPath, paginationKey]);
+
+    const getLazyRowExpansionEntry = React.useCallback((rowData: TableDataRow) => {
+        const rowKey = getRowExpansionKeyValue(rowData);
+        if (rowKey === null) {
+            return undefined;
+        }
+
+        return lazyRowExpansionState[String(rowKey)];
+    }, [getRowExpansionKeyValue, lazyRowExpansionState]);
+
+    const ensureLazyRowExpansionData = React.useCallback((rowData: TableDataRow) => {
+        if (!rowExpansion?.lazy || !loadLazyRowExpansionData) {
+            return;
+        }
+
+        const rowKey = getRowExpansionKeyValue(rowData);
+        if (rowKey === null) {
+            console.error('Lazy row expansion requires a scalar pagination key value on the raw row.');
+            return;
+        }
+
+        const cacheKey = String(rowKey);
+        const rawRow = getRawRow(rowData);
+        const existingEntry = lazyRowExpansionStateRef.current[cacheKey];
+        if (existingEntry?.status === 'loading' || existingEntry?.status === 'loaded') {
+            return;
+        }
+
+        const loadingState = {
+            ...lazyRowExpansionStateRef.current,
+            [cacheKey]: { status: 'loading' as const }
+        };
+        lazyRowExpansionStateRef.current = loadingState;
+        setLazyRowExpansionState(loadingState);
+
+        void loadLazyRowExpansionData({ row: rawRow, rowKey })
+            .then(expansionData => {
+                const loadedState: Record<string, LazyRowExpansionState> = {
+                    ...lazyRowExpansionStateRef.current,
+                    [cacheKey]: {
+                        status: 'loaded',
+                        data: expansionData
+                    }
+                };
+                lazyRowExpansionStateRef.current = loadedState;
+                setLazyRowExpansionState(loadedState);
+            })
+            .catch(error => {
+                console.error('Error loading row expansion data:', error);
+                const errorState: Record<string, LazyRowExpansionState> = {
+                    ...lazyRowExpansionStateRef.current,
+                    [cacheKey]: { status: 'error' }
+                };
+                lazyRowExpansionStateRef.current = errorState;
+                setLazyRowExpansionState(errorState);
+            });
+    }, [getRawRow, getRowExpansionKeyValue, loadLazyRowExpansionData, rowExpansion?.lazy]);
+
+    const getRowExpansionData = React.useCallback((rowData: TableDataRow) => {
         if (!rowExpansion) return {};
+
+        if (rowExpansion.lazy) {
+            const lazyEntry = getLazyRowExpansionEntry(rowData);
+            if (lazyEntry?.status === 'loaded' && lazyEntry.data) {
+                return lazyEntry.data;
+            }
+        }
+
         const rawRow = getRawRow(rowData);
         return flattenFieldQueries(rawRow as Record<string, unknown>, rowExpansion.data);
-    }, [getRawRow, rowExpansion]);
+    }, [getLazyRowExpansionEntry, getRawRow, rowExpansion]);
 
-    const canExpandRow = React.useCallback((rowData: FlattenedDataRow) => {
+    const canExpandRow = React.useCallback((rowData: TableDataRow) => {
         if (!rowExpansion) return false;
         return rowExpansion.canExpand({
             row: simplifyRow(rowData),
@@ -148,18 +280,21 @@ function Table({
         });
     }, [getRowExpansionData, rowExpansion]);
 
-    const toggleExpandedRow = React.useCallback((rowData: FlattenedDataRow) => {
+    const toggleExpandedRow = React.useCallback((rowData: TableDataRow) => {
         setExpandedRows(currentExpandedRows => {
-            const isExpanded = currentExpandedRows.includes(rowData);
+            const isExpanded = currentExpandedRows.some(expandedRow => isSameRow(expandedRow, rowData));
             if (isExpanded) {
-                return currentExpandedRows.filter(expandedRow => expandedRow !== rowData);
+                return currentExpandedRows.filter(expandedRow => !isSameRow(expandedRow, rowData));
             }
+
+            ensureLazyRowExpansionData(rowData);
+
             if (rowExpansion?.mode === 'single') {
                 return [rowData];
             }
             return [...currentExpandedRows, rowData];
         });
-    }, [rowExpansion?.mode]);
+    }, [ensureLazyRowExpansionData, isSameRow, rowExpansion?.mode]);
 
     // Expose row selection reset function (only when enabled)
     useEffect(() => {
@@ -187,6 +322,11 @@ function Table({
     }, [data, rowExpansion]);
 
     useEffect(() => {
+        lazyRowExpansionStateRef.current = {};
+        setLazyRowExpansionState({});
+    }, [rowExpansion, viewId]);
+
+    useEffect(() => {
         if (!rowExpansion) {
             onRowExpansionApiChange?.(null);
             return;
@@ -194,7 +334,8 @@ function Table({
 
         const collapseAll = () => setExpandedRows([]);
         const expandAll = () => {
-            const expandableRows = data.filter(canExpandRow);
+            const expandableRows = tableData.filter(canExpandRow);
+            expandableRows.forEach(ensureLazyRowExpansionData);
             setExpandedRows(rowExpansion.mode === 'single' ? expandableRows.slice(0, 1) : expandableRows);
         };
 
@@ -207,16 +348,26 @@ function Table({
         return () => {
             onRowExpansionApiChange?.(null);
         };
-    }, [canExpandRow, data, onRowExpansionApiChange, rowExpansion]);
+    }, [canExpandRow, ensureLazyRowExpansionData, onRowExpansionApiChange, rowExpansion, tableData]);
 
-    const rowExpansionTemplate = (rowData: FlattenedDataRow) => {
+    const rowExpansionTemplate = (rowData: TableDataRow) => {
         if (!rowExpansion) return null;
+
+        const lazyEntry = rowExpansion.lazy ? getLazyRowExpansionEntry(rowData) : undefined;
+        const renderState = !rowExpansion.lazy
+            ? 'ready'
+            : !lazyEntry || lazyEntry.status === 'loading'
+                ? 'loading'
+                : lazyEntry.status === 'error'
+                    ? 'error'
+                    : 'ready';
 
         return rowExpansion.render({
             row: simplifyRow(rowData),
             data: getRowExpansionData(rowData),
+            state: renderState,
             collapse: () => {
-                setExpandedRows(currentExpandedRows => currentExpandedRows.filter(expandedRow => expandedRow !== rowData));
+                setExpandedRows(currentExpandedRows => currentExpandedRows.filter(expandedRow => !isSameRow(expandedRow, rowData)));
             },
             toggle: () => toggleExpandedRow(rowData),
             ...sharedRendererProps
@@ -226,7 +377,7 @@ function Table({
     return (
         <DataTable
             ref={ref}
-            value={data}
+            value={tableData}
             tableStyle={{ minWidth: '50rem' }}
             showGridlines
             stripedRows
@@ -240,7 +391,10 @@ function Table({
             onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
             expandedRows={rowExpansion ? expandedRows : undefined}
             onRowToggle={rowExpansion ? (e: any) => {
-                const nextExpandedRows = Array.isArray(e.data) ? e.data as FlattenedDataRow[] : [];
+                const nextExpandedRows = Array.isArray(e.data) ? e.data as TableDataRow[] : [];
+                nextExpandedRows
+                    .filter(rowData => !expandedRows.some(expandedRow => isSameRow(expandedRow, rowData)))
+                    .forEach(ensureLazyRowExpansionData);
                 setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
             } : undefined}
             rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
@@ -249,14 +403,14 @@ function Table({
             scrollHeight='flex'
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple" />}
-            {rowExpansion && <Column expander={(rowData: FlattenedDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
+            {rowExpansion && <Column expander={(rowData: TableDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
             {renderableColumns
                 .map(column => (
                     <Column
                         key={column.id}
                         field={column.id}
                         header={column.name}
-                        body={(rowData: FlattenedDataRow) => column.cellRenderer({
+                        body={(rowData: TableDataRow) => column.cellRenderer({
                             data: rowData[column.id],
                             ...sharedRendererProps,
                             columnDefinition: column

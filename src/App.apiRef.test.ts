@@ -1,26 +1,30 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest } from '@jest/globals';
+import { beforeEach, describe, it, expect, jest } from '@jest/globals';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
+function buildFetchDataResult() {
+    const rows = Array.from({ length: 20 }, (_, i) => ({ id: 20 - i }));
+    const flattenedRows = rows.map(r => ({ id: { id: r.id } }));
+    return { rows, flattenedRows } as any;
+}
+
+const graphqlRequestMock = jest.fn(async () => ({}));
+
 // Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App.
 jest.mock('graphql-request', () => {
     return {
         GraphQLClient: jest.fn().mockImplementation(() => ({
-            request: jest.fn(async () => ({}))
+            request: (...args: any[]) => (graphqlRequestMock as any)(...args)
         }))
     };
 }, { virtual: true });
 
-const fetchDataMock = jest.fn(async () => {
-    const rows = Array.from({ length: 20 }, (_, i) => ({ id: 20 - i }));
-    const flattenedRows = rows.map(r => ({ id: { id: r.id } }));
-    return { rows, flattenedRows } as any;
-});
+const fetchDataMock = jest.fn(async () => buildFetchDataResult());
 jest.mock('./framework/data', () => {
     const actual = jest.requireActual<typeof import('./framework/data')>('./framework/data');
     return {
@@ -54,6 +58,13 @@ async function waitFor<T>(getValue: () => T, predicate: (value: T) => boolean, t
 }
 
 describe('App apiRef', () => {
+    beforeEach(() => {
+        fetchDataMock.mockReset();
+        fetchDataMock.mockImplementation(async () => buildFetchDataResult());
+        graphqlRequestMock.mockReset();
+        graphqlRequestMock.mockImplementation(async () => ({}));
+    });
+
     it('exposes fetchData() that triggers fetchData again', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -240,6 +251,99 @@ describe('App apiRef', () => {
             resolvedApi.rowExpansion.collapseAll();
             resolvedApi.rowExpansion.reset();
         });
+
+        await act(async () => {
+            root.unmount();
+        });
+    });
+
+    it('lazy rowExpansion excludes expansion data from the initial table query', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        fetchDataMock.mockImplementation(async (args?: { query?: string }) => {
+            expect(args?.query).not.toContain('details');
+            return {
+                rows: [{ id: 1 }],
+                flattenedRows: [{ id: { id: 1 } }]
+            } as any;
+        });
+
+        const viewsJson = JSON.stringify([
+            {
+                title: 'Test View',
+                id: 'test-view',
+                source: { type: 'collection', collectionName: 'testCollection' },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    {
+                        type: 'tableColumn',
+                        id: 'id',
+                        data: [{ type: 'valueQuery', field: 'id' }],
+                        name: 'ID',
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
+                    }
+                ],
+                rowExpansion: {
+                    runtime: { section: 'rowExpansions', key: 'details' },
+                    mode: 'multiple',
+                    lazy: true,
+                    data: [
+                        {
+                            type: 'objectQuery',
+                            field: 'details',
+                            selectionSet: [{ type: 'valueQuery', field: 'note' }]
+                        }
+                    ]
+                },
+                filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
+            }
+        ]);
+
+        const runtime = {
+            cellRenderers: { text: ({ data }: any) => data.id },
+            queryTransforms: {},
+            noRowsComponents: {},
+            rowExpansions: {
+                details: {
+                    render: ({ data }: any) => data.details?.note ?? 'missing',
+                    canExpand: ({ row }: any) => Boolean(row.id)
+                }
+            },
+            customFilterComponents: {},
+            initialValues: {},
+            suggestionFetchers: {}
+        };
+
+        const root = createRoot(container);
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, {
+                    value: {},
+                    children: React.createElement(App, {
+                        graphqlHost: 'http://example.com/graphql',
+                        graphqlToken: 'token',
+                        geminiApiKey: 'gemini',
+                        showViewsMenu: false,
+                        showViewTitle: false,
+                        viewsJson,
+                        externalRuntime: runtime as any,
+                        syncFilterStateToUrl: false,
+                    })
+                })
+            );
+        });
+
+        await waitFor(
+            () => (fetchDataMock as any).mock.calls.length,
+            (count) => count >= 1
+        );
+
+        const firstCallArg = (fetchDataMock as any).mock.calls[0]?.[0] as { query?: string } | undefined;
+        expect(firstCallArg?.query).toBeDefined();
+        expect(firstCallArg?.query).not.toContain('details');
 
         await act(async () => {
             root.unmount();

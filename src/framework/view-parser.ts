@@ -143,6 +143,7 @@ export type ViewJson = {
         data: FieldQueryJson[];
         runtime: RuntimeReference;
         mode: 'single' | 'multiple';
+        lazy?: boolean;
     };
 };
 
@@ -914,6 +915,10 @@ export function parseViewJson(
             throw new Error('View "rowExpansion.mode" must be "single" or "multiple"');
         }
 
+        if (rowExpansionJson.lazy !== undefined && typeof rowExpansionJson.lazy !== 'boolean') {
+            throw new Error('View "rowExpansion.lazy" must be a boolean when provided');
+        }
+
         if (typeof rowExpansionEntry.canExpand !== 'function') {
             throw new Error('Runtime rowExpansion entry must define a canExpand function');
         }
@@ -922,7 +927,8 @@ export function parseViewJson(
             data: rowExpansionData,
             render: rowExpansionEntry.render,
             canExpand: rowExpansionEntry.canExpand,
-            mode: rowExpansionJson.mode as 'single' | 'multiple'
+            mode: rowExpansionJson.mode as 'single' | 'multiple',
+            lazy: rowExpansionJson.lazy === true
         };
     }
 

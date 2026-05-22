@@ -1,0 +1,240 @@
+{
+    "title": "Lazy Row Expansion Test View",
+    "id": "lazy-row-expansion-test-view",
+    "source": {
+        "type": "collection",
+        "collectionName": "simpleTestDataCollection"
+    },
+    "paginationKey": "id",
+    "boolExpType": "SimpleTestBoolExp",
+    "orderByType": "[SimpleTestOrderBy!]",
+    "columns": [
+        {
+            "type": "virtualColumn",
+            "id": "virtual-email",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "email"
+                }
+            ]
+        },
+        {
+            "type": "tableColumn",
+            "id": "test-field",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "testField"
+                }
+            ],
+            "name": "Test Column Header",
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "text"
+            }
+        },
+        {
+            "type": "tableColumn",
+            "id": "amount",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "amount"
+                }
+            ],
+            "name": "Amount",
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "amountCellRenderer"
+            }
+        },
+        {
+            "type": "tableColumn",
+            "id": "email",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "email"
+                }
+            ],
+            "name": "Email",
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "emailCellRenderer"
+            }
+        },
+        {
+            "type": "tableColumn",
+            "id": "phone",
+            "data": [
+                {
+                    "type": "valueQuery",
+                    "field": "phone"
+                }
+            ],
+            "name": "Phone",
+            "cellRenderer": {
+                "section": "cellRenderers",
+                "key": "text"
+            }
+        }
+    ],
+    "rowExpansion": {
+        "mode": "single",
+        "lazy": true,
+        "runtime": {
+            "section": "rowExpansions",
+            "key": "detailsRowExpansion"
+        },
+        "data": [
+            {
+                "type": "objectQuery",
+                "field": "details",
+                "selectionSet": [
+                    {
+                        "type": "valueQuery",
+                        "field": "note"
+                    },
+                    {
+                        "type": "valueQuery",
+                        "field": "owner"
+                    }
+                ]
+            },
+            {
+                "type": "valueQuery",
+                "field": "email"
+            }
+        ]
+    },
+    "filterSchema": {
+        "groups": [
+            {
+                "name": "default",
+                "label": "Default Filters"
+            },
+            {
+                "name": "extra",
+                "label": "Extra Filters"
+            }
+        ],
+        "filters": [
+            {
+                "id": "amount-gte",
+                "label": "Amount",
+                "expression": {
+                    "type": "greaterThanOrEqual",
+                    "field": "amount",
+                    "value": {
+                        "type": "number"
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "amountOffset"
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "id": "test-field-eq",
+                "label": "Test Field",
+                "expression": {
+                    "type": "equals",
+                    "field": "testField",
+                    "value": {
+                        "type": "text"
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
+            },
+            {
+                "id": "email-eq",
+                "label": "Email",
+                "expression": {
+                    "type": "equals",
+                    "field": "email",
+                    "value": {
+                        "type": "text"
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "id": "phone-eq",
+                "label": "Phone",
+                "expression": {
+                    "type": "equals",
+                    "field": "phone",
+                    "value": {
+                        "type": "custom",
+                        "component": {
+                            "section": "customFilterComponents",
+                            "key": "PhoneNumberFilter"
+                        }
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
+            },
+            {
+                "id": "test-field-kv-transform",
+                "label": "Test Field (Key-Value Transform)",
+                "expression": {
+                    "type": "equals",
+                    "field": "testField",
+                    "value": {
+                        "type": "text"
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "keyValueTransform"
+                    }
+                },
+                "group": "extra",
+                "aiGenerated": false
+            },
+            {
+                "id": "search-multi-fields-or",
+                "label": "Search Multiple Fields (OR)",
+                "expression": {
+                    "type": "iLike",
+                    "field": {
+                        "or": [
+                            "testField",
+                            "email"
+                        ]
+                    },
+                    "value": {
+                        "type": "text",
+                        "placeholder": "Search in test field or email..."
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            },
+            {
+                "id": "match-multi-fields-and",
+                "label": "Match Multiple Fields (AND)",
+                "expression": {
+                    "type": "equals",
+                    "field": {
+                        "and": [
+                            "testField",
+                            "email"
+                        ]
+                    },
+                    "value": {
+                        "type": "text",
+                        "placeholder": "Match both test field and email..."
+                    }
+                },
+                "group": "default",
+                "aiGenerated": false
+            }
+        ]
+    }
+}

@@ -846,6 +846,35 @@ describe('parseViewJson rowExpansion', () => {
         expect(typeof view.rowExpansion?.canExpand).toBe('function');
     });
 
+    it('parses rowExpansion lazy flag', () => {
+        const view = parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                mode: 'single',
+                lazy: true,
+                runtime: { section: 'rowExpansions', key: 'details' },
+                data: [{ type: 'valueQuery', field: 'id' }]
+            }
+        }, runtime);
+
+        expect(view.rowExpansion?.lazy).toBe(true);
+    });
+
     it('requires rowExpansions runtime section for rowExpansion runtime', () => {
         expect(() => parseViewJson({
             title: 'Test View',
@@ -955,6 +984,33 @@ describe('parseViewJson rowExpansion', () => {
                 runtime: { section: 'rowExpansions', key: 'details' }
             }
         }, invalidRuntime)).toThrow('Runtime rowExpansion entry must define a canExpand function');
+    });
+
+    it('requires rowExpansion.lazy to be a boolean when provided', () => {
+        expect(() => parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                mode: 'single',
+                lazy: 'yes',
+                data: [],
+                runtime: { section: 'rowExpansions', key: 'details' }
+            }
+        }, runtime)).toThrow('View "rowExpansion.lazy" must be a boolean when provided');
     });
 });
 
