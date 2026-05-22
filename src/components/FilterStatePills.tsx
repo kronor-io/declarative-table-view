@@ -1,27 +1,34 @@
 import type { MouseEvent } from 'react';
 import { Tag } from 'primereact/tag';
 import type { FilterId } from '../framework/filters';
-import type { AppliedFilterItem } from './appliedFilterPills.utils';
+import type { FilterStatePillItem } from './filterStatePills.utils';
 
-interface AppliedFiltersProps {
-    items: AppliedFilterItem[];
+interface FilterStatePillsProps {
+    items: FilterStatePillItem[];
     onRemove?: (filterId: FilterId) => void;
     className?: string;
+    label?: string;
 }
 
-export default function AppliedFilters({ items, onRemove, className }: AppliedFiltersProps) {
+export default function FilterStatePills({ items, onRemove, className, label }: FilterStatePillsProps) {
     if (items.length === 0) {
         return null;
     }
 
     return (
         <div className={`tw:flex tw:flex-wrap tw:items-center tw:gap-1 ${className ?? ''}`.trim()}>
-            <span className="tw:mr-1 tw:inline-flex tw:items-center tw:text-xs tw:text-gray-500">Applied Filters:</span>
+            {
+                label
+                    ? <span className="tw:mr-1 tw:inline-flex tw:items-center tw:text-xs tw:text-gray-500">{label}</span>
+                    : null
+            }
             {items.map(item => (
                 <Tag
                     key={item.filterId}
                     className="tw:text-xs"
                     style={{
+                        maxWidth: '100%',
+                        display: 'inline',
                         backgroundColor: 'transparent',
                         color: '#6366f1',
                         borderWidth: 1

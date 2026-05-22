@@ -4,8 +4,8 @@ import { SavedFilter } from '../framework/saved-filters';
 import { FilterState } from '../framework/state';
 import { FilterGroups } from '../framework/filters';
 import { getAllFilters } from '../framework/view';
-import AppliedFilters from './AppliedFilterPills';
-import { getAppliedFilterItems } from './appliedFilterPills.utils';
+import FilterStatePills from './FilterStatePills';
+import { getFilterStatePillItems } from './filterStatePills.utils';
 
 interface SavedFilterListProps {
     savedFilters: SavedFilter[];
@@ -51,13 +51,13 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
     const allFilters = getAllFilters(filterGroups);
 
     const renderFilterState = (state: FilterState) => {
-        const items = getAppliedFilterItems(state, allFilters);
-        if (items.length === 0) {
+        const pillItems = getFilterStatePillItems(state, allFilters);
+        if (pillItems.length === 0) {
             return null;
         }
 
         return (
-            <AppliedFilters items={items} className="tw:mt-2" />
+            <FilterStatePills items={pillItems} label="Filters:" className="tw:mt-2" />
         );
     };
 
@@ -71,8 +71,8 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
             ) : (
                 <div className="tw:space-y-3">
                     {savedFilters.map((filter) => (
-                        <div key={filter.id} className="tw:flex tw:items-center tw:justify-between tw:p-3 tw:border tw:border-gray-200 tw:rounded-lg">
-                            <div className="tw:flex-1">
+                        <div key={filter.id} className="tw:flex tw:items-start tw:justify-between tw:gap-3 tw:p-3 tw:border tw:border-gray-200 tw:rounded-lg">
+                            <div className="tw:min-w-0 tw:flex-1">
                                 <div className="tw:flex tw:items-center tw:gap-2 tw:mb-1">
                                     <h4 className="tw:font-medium tw:text-gray-900">{filter.name}</h4>
                                     <span className="tw:text-xs tw:text-gray-500 tw:bg-gray-100 tw:px-2 tw:py-1 tw:rounded">
@@ -81,7 +81,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                                 </div>
                                 {renderFilterState(filter.state)}
                             </div>
-                            <div className="tw:flex tw:gap-2">
+                            <div className="tw:flex tw:self-center tw:flex-none tw:gap-2">
                                 <Button
                                     size="small"
                                     outlined

@@ -18,8 +18,8 @@ import AIAssistantForm from './components/AIAssistantForm';
 import type { ModifyAiFilterPromptFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
-import AppliedFilters from './components/AppliedFilterPills';
-import { getAppliedFilterItems } from './components/appliedFilterPills.utils';
+import FilterStatePills from './components/FilterStatePills';
+import { getFilterStatePillItems } from './components/filterStatePills.utils';
 import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries } from './framework/data';
 import { buildInitialFormState, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
@@ -178,7 +178,7 @@ function App({
     ), [state.filterGroups]);
 
     const appliedFilterItems = useMemo(() => {
-        return getAppliedFilterItems(state.appliedFilterState, getAllFilters(state.filterGroups));
+        return getFilterStatePillItems(state.appliedFilterState, getAllFilters(state.filterGroups));
     }, [state.appliedFilterState, state.filterGroups]);
 
     const userDataManagerOptions = useMemo(() => {
@@ -828,8 +828,9 @@ function App({
                 {
                     !showFilterForm && appliedFilterItems.length > 0 && (
                         <div className="tw:mb-4">
-                            <AppliedFilters
+                            <FilterStatePills
                                 items={appliedFilterItems}
+                                label="Applied Filters:"
                                 onRemove={handleResetAppliedFilter}
                             />
                         </div>

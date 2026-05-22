@@ -36,6 +36,10 @@ describe('App action button disabled while running', () => {
         }
     }
 
+    function getActionButton(container: HTMLElement): HTMLButtonElement | null {
+        return container.querySelector('[data-testid="dtv-action-0"]') as HTMLButtonElement | null;
+    }
+
     it('disables and re-enables async action button', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -84,17 +88,19 @@ describe('App action button disabled while running', () => {
 
         // Allow initial effects / state propagation + async fetchData mock
         await new Promise(r => setTimeout(r, 0));
-        await new Promise(r => setTimeout(r, 20));
+        await waitUntil(() => getActionButton(container) !== null, { timeoutMs: 1000, intervalMs: 10 });
 
-        const button = container.querySelector('[data-testid="dtv-action-0"]') as HTMLButtonElement | null;
+        const button = getActionButton(container);
         if (!button) throw new Error('Async Action button not found');
         expect(button.disabled).toBe(false);
 
         // Click triggers async
         await act(async () => {
             button.click();
-            await new Promise(r => setTimeout(r, 0));
         });
+
+        await waitUntil(() => getActionButton(container)?.disabled === true, { timeoutMs: 1000, intervalMs: 10 });
+
         expect(asyncAction).toHaveBeenCalledTimes(1);
         expect(button.disabled).toBe(true);
         expect(button.textContent).toBe('Async Action...');
@@ -111,7 +117,7 @@ describe('App action button disabled while running', () => {
             await actionPromise;
         });
 
-        await waitUntil(() => button.disabled === false, { timeoutMs: 500, intervalMs: 5 });
+        await waitUntil(() => getActionButton(container)?.disabled === false, { timeoutMs: 1000, intervalMs: 10 });
         expect(button.disabled).toBe(false);
         expect(button.textContent).toBe('Async Action');
         expect(button.className).not.toContain('p-button-loading');

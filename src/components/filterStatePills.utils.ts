@@ -3,7 +3,7 @@ import { FilterState } from '../framework/state';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 import * as FilterValue from '../framework/filterValue';
 
-export interface AppliedFilterItem {
+export interface FilterStatePillItem {
     filterId: FilterId;
     displayText: string;
 }
@@ -185,7 +185,7 @@ function renderExpressionWithState(expr: FilterExpr, node: FilterFormState): str
     });
 }
 
-export function getAppliedFilterItems(filterState: FilterState, filters: FilterSchema[]): AppliedFilterItem[] {
+export function getFilterStatePillItems(filterState: FilterState, filters: FilterSchema[]): FilterStatePillItem[] {
     if (!filterState || filterState.size === 0) {
         return [];
     }
