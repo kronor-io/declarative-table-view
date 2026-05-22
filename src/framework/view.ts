@@ -45,17 +45,17 @@ export type RowExpansionRuntimeEntry<
     Data extends Record<string, any> = Record<string, any>,
 > = {
     render: RowExpansionRenderer<Data>;
-    canExpand?: RowExpansionPredicate<Data>;
+    canExpand: RowExpansionPredicate<Data>;
 };
 
 export type RowExpansionDefinition<
     FieldQueries extends readonly FieldQuery[] = readonly FieldQuery[],
     Data extends Record<string, any> = DataFromFieldQueriesSafe<FieldQueries>,
 > = {
-    data?: FieldQueries;
+    data: FieldQueries;
     render: RowExpansionRenderer<Data>;
-    canExpand?: RowExpansionPredicate<Data>;
-    mode?: 'single' | 'multiple';
+    canExpand: RowExpansionPredicate<Data>;
+    mode: 'single' | 'multiple';
 };
 
 

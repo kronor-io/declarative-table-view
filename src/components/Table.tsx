@@ -135,16 +135,13 @@ function Table({
     }, [data, rawRows]);
 
     const getRowExpansionData = React.useCallback((rowData: FlattenedDataRow) => {
+        if (!rowExpansion) return {};
         const rawRow = getRawRow(rowData);
-        if (!rowExpansion?.data || rowExpansion.data.length === 0) {
-            return rawRow as Record<string, any>;
-        }
         return flattenFieldQueries(rawRow as Record<string, unknown>, rowExpansion.data);
     }, [getRawRow, rowExpansion]);
 
     const canExpandRow = React.useCallback((rowData: FlattenedDataRow) => {
         if (!rowExpansion) return false;
-        if (!rowExpansion.canExpand) return true;
         return rowExpansion.canExpand({
             row: simplifyRow(rowData),
             data: getRowExpansionData(rowData)

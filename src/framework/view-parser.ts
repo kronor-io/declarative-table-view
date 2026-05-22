@@ -140,9 +140,9 @@ export type ViewJson = {
     orderByType: string; // GraphQL order by type for this view
     noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
     rowExpansion?: {
-        data?: FieldQueryJson[];
+        data: FieldQueryJson[];
         runtime: RuntimeReference;
-        mode?: 'single' | 'multiple';
+        mode: 'single' | 'multiple';
     };
 };
 
@@ -890,30 +890,39 @@ export function parseViewJson(
             builtInRuntime
         );
 
-        let rowExpansionData;
-        if (rowExpansionJson.data !== undefined) {
-            if (!Array.isArray(rowExpansionJson.data)) {
-                throw new Error('View "rowExpansion.data" must be an array when provided');
-            }
-
-            rowExpansionData = rowExpansionJson.data.map((item, index) => {
-                try {
-                    return parseFieldQueryJson(item);
-                } catch (error) {
-                    throw new Error(`Invalid rowExpansion.data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
-            });
+        if (rowExpansionJson.data === undefined) {
+            throw new Error('View "rowExpansion.data" is required when rowExpansion is provided');
         }
 
-        if (rowExpansionJson.mode !== undefined && rowExpansionJson.mode !== 'single' && rowExpansionJson.mode !== 'multiple') {
-            throw new Error('View "rowExpansion.mode" must be "single" or "multiple" when provided');
+        if (!Array.isArray(rowExpansionJson.data)) {
+            throw new Error('View "rowExpansion.data" must be an array');
+        }
+
+        const rowExpansionData = rowExpansionJson.data.map((item, index) => {
+            try {
+                return parseFieldQueryJson(item);
+            } catch (error) {
+                throw new Error(`Invalid rowExpansion.data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        });
+
+        if (rowExpansionJson.mode === undefined) {
+            throw new Error('View "rowExpansion.mode" is required when rowExpansion is provided');
+        }
+
+        if (rowExpansionJson.mode !== 'single' && rowExpansionJson.mode !== 'multiple') {
+            throw new Error('View "rowExpansion.mode" must be "single" or "multiple"');
+        }
+
+        if (typeof rowExpansionEntry.canExpand !== 'function') {
+            throw new Error('Runtime rowExpansion entry must define a canExpand function');
         }
 
         rowExpansion = {
             data: rowExpansionData,
             render: rowExpansionEntry.render,
             canExpand: rowExpansionEntry.canExpand,
-            mode: rowExpansionJson.mode as 'single' | 'multiple' | undefined
+            mode: rowExpansionJson.mode as 'single' | 'multiple'
         };
     }
 

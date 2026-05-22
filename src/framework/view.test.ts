@@ -14,7 +14,8 @@ describe('parseColumnDefinitionJson', () => {
         noRowsComponents: {},
         rowExpansions: {
             details: {
-                render: () => 'details'
+                render: () => 'details',
+                canExpand: () => true
             }
         },
         customFilterComponents: {},
@@ -864,9 +865,96 @@ describe('parseViewJson rowExpansion', () => {
             ],
             filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
             rowExpansion: {
+                mode: 'single',
+                data: [],
                 runtime: { section: 'cellRenderers', key: 'text' }
             }
         }, runtime)).toThrow('Invalid rowExpansion.runtime: section must be "rowExpansions"');
+    });
+
+    it('requires rowExpansion.data when rowExpansion is provided', () => {
+        expect(() => parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                mode: 'single',
+                runtime: { section: 'rowExpansions', key: 'details' }
+            }
+        }, runtime)).toThrow('View "rowExpansion.data" is required when rowExpansion is provided');
+    });
+
+    it('requires rowExpansion.mode when rowExpansion is provided', () => {
+        expect(() => parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                data: [],
+                runtime: { section: 'rowExpansions', key: 'details' }
+            }
+        }, runtime)).toThrow('View "rowExpansion.mode" is required when rowExpansion is provided');
+    });
+
+    it('requires runtime rowExpansion entries to define canExpand', () => {
+        const invalidRuntime: Runtime = {
+            ...runtime,
+            rowExpansions: {
+                details: {
+                    render: () => 'details'
+                } as any
+            }
+        };
+
+        expect(() => parseViewJson({
+            title: 'Test View',
+            id: 'test-view',
+            source: { type: 'collection', collectionName: 'tests' },
+            paginationKey: 'id',
+            boolExpType: 'TestBoolExp',
+            orderByType: '[TestOrderBy!]',
+            columns: [
+                {
+                    type: 'tableColumn',
+                    id: 'id',
+                    data: [{ type: 'valueQuery', field: 'id' }],
+                    name: 'ID',
+                    cellRenderer: { section: 'cellRenderers', key: 'text' }
+                }
+            ],
+            filterSchema: { groups: [{ name: 'default', label: null }], filters: [] },
+            rowExpansion: {
+                mode: 'single',
+                data: [],
+                runtime: { section: 'rowExpansions', key: 'details' }
+            }
+        }, invalidRuntime)).toThrow('Runtime rowExpansion entry must define a canExpand function');
     });
 });
 

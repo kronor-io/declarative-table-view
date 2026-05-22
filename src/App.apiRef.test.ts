@@ -22,7 +22,9 @@ const fetchDataMock = jest.fn(async () => {
     return { rows, flattenedRows } as any;
 });
 jest.mock('./framework/data', () => {
+    const actual = jest.requireActual<typeof import('./framework/data')>('./framework/data');
     return {
+        ...actual,
         fetchData: (...args: any[]) => (fetchDataMock as any)(...args)
     };
 });
@@ -197,7 +199,7 @@ describe('App apiRef', () => {
             queryTransforms: {},
             noRowsComponents: {},
             rowExpansions: {
-                details: { render: () => 'details' }
+                details: { render: () => 'details', canExpand: () => true }
             },
             customFilterComponents: {},
             initialValues: {},
