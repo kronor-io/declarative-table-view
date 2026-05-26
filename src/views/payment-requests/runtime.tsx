@@ -4,7 +4,8 @@ import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { Runtime } from "../../framework/runtime";
 import * as FilterValue from "../../framework/filterValue";
 import { TransformResult as TR } from '../../framework/filters';
-import type { TransformResult } from '../../framework/filters';
+import type { QueryTransformContext, TransformResult } from '../../framework/filters';
+import { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from '../../framework/native-runtime';
 
 // Static runtime configuration for payment requests view
 export type PaymentRequestsRuntime = Runtime & {
@@ -19,13 +20,16 @@ export type PaymentRequestsRuntime = Runtime & {
     };
     queryTransforms: {
         reference: {
-            toQuery: (input: unknown) => TransformResult;
+            toQuery: (input: unknown, context: QueryTransformContext) => TransformResult;
         };
         amount: {
-            toQuery: (input: unknown) => TransformResult;
+            toQuery: (input: unknown, context: QueryTransformContext) => TransformResult;
         };
         creditCardNumber: {
-            toQuery: (input: unknown) => TransformResult;
+            toQuery: (input: unknown, context: QueryTransformContext) => TransformResult;
+        };
+        reference2: {
+            toQuery: (input: unknown, context: QueryTransformContext) => TransformResult;
         };
     };
     initialValues: {
@@ -140,21 +144,21 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     queryTransforms: {
         // Transform for Reference filter (starts with functionality)
         reference: {
-            toQuery: (input: unknown) => {
-                if (!input || typeof input !== 'object') {
-                    return TR.empty();
-                }
+            toQuery: (input: unknown, context: QueryTransformContext) => hasuraCustomOperatorTransform.toQuery(
+                mapHasuraCustomOperatorInput(input, (operator, value) =>
+                    operator === '_like' && typeof value === 'string' ? `${value}%` : value
+                ),
+                context
+            )
+        },
 
-                const record = input as { operator?: unknown; value?: unknown };
-                const operator = record.operator;
-                const value = record.value;
-
-                if (operator === '_like' && typeof value === 'string' && value !== '') {
-                    return TR.value({ ...record, operator, value: `${value}%` });
-                }
-
-                return TR.value(input);
-            }
+        reference2: {
+            toQuery: (input: unknown, context: QueryTransformContext) => hasuraCustomOperatorTransform.toQuery(
+                mapHasuraCustomOperatorInput(input, (operator, value) =>
+                    operator === '_like' && typeof value === 'string' ? `${value}%` : value
+                ),
+                context
+            )
         },
 
         // Transform for Amount filter (convert between display and storage format)

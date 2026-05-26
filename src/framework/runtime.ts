@@ -1,7 +1,7 @@
 import React from "react";
 import { CellRenderer } from "./column-definition";
 import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
-import { TransformResult, SuggestionFetcher } from "./filters";
+import { QueryTransformContext, TransformResult, SuggestionFetcher } from "./filters";
 
 // Use SuggestionFetcher alias from filters.ts; runtime suggestionFetchers return string arrays.
 
@@ -9,7 +9,7 @@ import { TransformResult, SuggestionFetcher } from "./filters";
 export type Runtime = {
     cellRenderers: Record<string, CellRenderer>;
     queryTransforms: Record<string, {
-        toQuery: (input: any) => TransformResult;
+        toQuery: (input: any, context: QueryTransformContext) => TransformResult;
     }>;
     noRowsComponents: Record<string, NoRowsComponent>;
     rowExpansions?: Record<string, RowExpansionRuntimeEntry>;

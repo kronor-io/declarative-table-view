@@ -4,6 +4,7 @@ import type { FilterGroups } from './filters';
 import { FilterControl } from '../dsl/filterControl';
 import { FilterExpr } from '../dsl/filterExpr';
 import * as FilterValue from './filterValue';
+import { hasuraCustomOperatorTransform } from './native-runtime';
 
 describe('buildHasuraConditions', () => {
     // Helper function to create a simple filter schema for testing
@@ -253,7 +254,8 @@ describe('buildHasuraConditions', () => {
                 control: FilterControl.customOperator({
                     operators: [{ label: 'Custom Op', value: '_custom_op' }],
                     valueControl: FilterControl.text()
-                })
+                }),
+                transform: hasuraCustomOperatorTransform
             })
         );
 
@@ -276,7 +278,8 @@ describe('buildHasuraConditions', () => {
                 control: FilterControl.customOperator({
                     operators: [{ label: 'iLike', value: '_ilike' }],
                     valueControl: FilterControl.text()
-                })
+                }),
+                transform: hasuraCustomOperatorTransform
             })
         );
 
@@ -289,6 +292,55 @@ describe('buildHasuraConditions', () => {
         expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({
             user: { name: { _ilike: '%test%' } }
         });
+    });
+
+    it('should throw when customOperator is missing a transform', () => {
+        const filterSchema = createFilterSchema(
+            'custom-filter',
+            FilterExpr.equals({
+                field: 'custom_field',
+                control: FilterControl.customOperator({
+                    operators: [{ label: 'Custom Op', value: '_custom_op' }],
+                    valueControl: FilterControl.text()
+                })
+            })
+        );
+
+        const formState: FilterState = new Map([
+            ['custom-filter', {
+                type: 'leaf',
+                value: FilterValue.value({ operator: '_custom_op', value: FilterValue.value('some_value') })
+            }]
+        ]);
+
+        expect(() => buildHasuraConditions(formState, filterSchema))
+            .toThrow('customOperator filters require a query transform');
+    });
+
+    it('should throw when customOperator transform does not return a condition', () => {
+        const filterSchema = createFilterSchema(
+            'custom-filter',
+            FilterExpr.equals({
+                field: 'custom_field',
+                control: FilterControl.customOperator({
+                    operators: [{ label: 'Custom Op', value: '_custom_op' }],
+                    valueControl: FilterControl.text()
+                }),
+                transform: {
+                    toQuery: (input: unknown) => ({ value: FilterValue.value(input) })
+                }
+            })
+        );
+
+        const formState: FilterState = new Map([
+            ['custom-filter', {
+                type: 'leaf',
+                value: FilterValue.value({ operator: '_custom_op', value: FilterValue.value('some_value') })
+            }]
+        ]);
+
+        expect(() => buildHasuraConditions(formState, filterSchema))
+            .toThrow('customOperator query transforms must return a condition');
     });
 
     it('should accept a prebuilt condition expr via transform.toQuery', () => {

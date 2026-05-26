@@ -115,7 +115,7 @@
                         },
                         "transform": {
                             "section": "queryTransforms",
-                            "key": "genericTextFilter"
+                            "key": "emailCustom"
                         }
                     },
                     "group": "default",

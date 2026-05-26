@@ -114,6 +114,7 @@ describe('App collapsed filter panel summary', () => {
 
         await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 1000, intervalMs: 10 });
         expect(container.textContent || '').toContain('email = jane@example.com');
+        expect(container.querySelector('[title="email = jane@example.com"]')).not.toBeNull();
 
         const filterToggleButton = getButtonByText(container, 'Filters');
         expect(filterToggleButton.textContent).toContain('Filters');

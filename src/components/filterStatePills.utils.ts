@@ -115,13 +115,17 @@ function isEmptyLikeDisplayValue(value: unknown): boolean {
 function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): unknown {
     const baseInput = FilterValue.valueOrNull(stateLeaf.value);
 
+    if (schemaLeaf.value.type === 'customOperator') {
+        return baseInput;
+    }
+
     const transform = schemaLeaf.transform?.toQuery;
     if (!transform) {
         return baseInput;
     }
 
     try {
-        const transformed = transform(baseInput);
+        const transformed = transform(baseInput, { field: schemaLeaf.field });
         if ('condition' in transformed) {
             return baseInput;
         }
@@ -146,19 +150,17 @@ function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { t
     const displayValue = getLeafValueForDisplay(schemaLeaf, stateLeaf);
 
     if (schemaLeaf.value.type === 'customOperator') {
-        const baseRaw = stateLeaf.value as any;
-        const baseValueObj = baseRaw?.type === 'value' ? baseRaw.value : baseRaw;
-        const valueObj = (displayValue && typeof displayValue === 'object' && 'operator' in displayValue)
-            ? displayValue as any
-            : baseValueObj;
-
+        const valueObj = displayValue as { operator?: string; value?: FilterValue.FilterValue } | null;
         const operatorValue = valueObj?.operator;
         const operatorLabel = schemaLeaf.value.operators.find(o => o.value === operatorValue)?.label ?? String(operatorValue ?? '');
-        const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, valueObj?.value);
+        const controlValue = valueObj?.value ? FilterValue.valueOrNull(valueObj.value) : null;
+        const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, controlValue);
         return `${field}${operatorLabel} ${valueStr}`.trim();
     }
 
-    const operator = getOperatorDisplay(schemaLeaf.type);
+    const operator = schemaLeaf.type === 'in' && Array.isArray(displayValue) && displayValue.length === 1
+        ? getOperatorDisplay('equals')
+        : getOperatorDisplay(schemaLeaf.type);
     const valueStr = getControlValueDisplay(schemaLeaf.value, displayValue);
     return `${field}${operator} ${valueStr}`.trim();
 }
@@ -171,11 +173,13 @@ function renderExpressionWithState(expr: FilterExpr, node: FilterFormState): str
         and: (_schemaAnd, _stateAnd, childResults) => {
             const parts = childResults.filter(Boolean);
             if (parts.length === 0) return '';
+            if (parts.length === 1) return parts[0];
             return `AND(${parts.join(', ')})`;
         },
         or: (_schemaOr, _stateOr, childResults) => {
             const parts = childResults.filter(Boolean);
             if (parts.length === 0) return '';
+            if (parts.length === 1) return parts[0];
             return `OR(${parts.join(', ')})`;
         },
         not: (_schemaNot, _stateNot, childResult) => {

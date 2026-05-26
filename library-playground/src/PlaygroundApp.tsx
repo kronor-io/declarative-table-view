@@ -1,4 +1,4 @@
-import { App, type DTVAPI } from '@kronor/dtv';
+import { App, type DTVAPI } from '../../src/lib';
 import { installFetchMock } from './mockFetch';
 import views from './views.json';
 import { useRef } from 'react';

@@ -18,7 +18,7 @@ export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FieldQuery } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
-export type { FilterSchema, FilterField, SuggestionFetcher, TransformConditionResult } from '../framework/filters';
+export type { FilterSchema, FilterField, QueryTransformContext, SuggestionFetcher, TransformConditionResult } from '../framework/filters';
 export { TransformResult } from '../framework/filters';
 export * as FilterValue from '../framework/filterValue';
 export { FilterExpr } from '../dsl/filterExpr';
@@ -59,6 +59,7 @@ export {
 export { hasuraDSLforRowType } from '../dsl/hasura';
 export type { HasuraForRow } from '../dsl/hasura';
 export { buildGraphQLQueryVariables } from '../framework/data';
+export { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from '../framework/native-runtime';
 
 export type { Result, Failure, Success } from '../framework/result';
 export { isFailure, isSuccess, failure, success } from '../framework/result';

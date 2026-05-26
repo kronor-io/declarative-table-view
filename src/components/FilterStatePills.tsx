@@ -26,6 +26,7 @@ export default function FilterStatePills({ items, onRemove, className, label }: 
                 <Tag
                     key={item.filterId}
                     className="tw:text-xs"
+                    title={item.displayText}
                     style={{
                         maxWidth: '100%',
                         display: 'inline',

@@ -421,6 +421,10 @@
                         "valueControl": {
                             "type": "text"
                         }
+                    },
+                    "transform": {
+                        "section": "queryTransforms",
+                        "key": "hasuraCustomOperator"
                     }
                 },
                 "group": "default",
@@ -498,7 +502,7 @@
                     },
                     "transform": {
                         "section": "queryTransforms",
-                        "key": "reference"
+                        "key": "reference2"
                     }
                 },
                 "group": "default",

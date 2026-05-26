@@ -1248,6 +1248,34 @@ describe('parseFilterFieldSchemaJson', () => {
             expect((filter.expression as any).value.type).toBe('customOperator');
             expect('transform' in filter.expression).toBe(true);
         });
+
+        it('should reject customOperator filters without a transform', () => {
+            const json = {
+                groups: [{ name: 'default', label: null }],
+                filters: [
+                    {
+                        id: 'search-filter',
+                        label: 'Search',
+                        expression: {
+                            type: 'equals',
+                            field: 'search',
+                            value: {
+                                type: 'customOperator',
+                                operators: [
+                                    { label: 'equals', value: '_eq' }
+                                ],
+                                valueControl: { type: 'text' }
+                            }
+                        },
+                        group: 'default',
+                        aiGenerated: false
+                    }
+                ]
+            };
+
+            expect(() => parseFilterFieldSchemaJson(json, testRuntime, undefined))
+                .toThrow('Invalid customOperator FilterExpr: "transform" is required');
+        });
     });
 
     describe('error handling', () => {

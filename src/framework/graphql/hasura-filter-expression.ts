@@ -122,17 +122,6 @@ export function buildHasuraConditions(
         return Hasura.empty();
     }
 
-    function isNonEmptyCustomOperatorValue(
-        value: unknown
-    ): value is { operator: string; value: FilterValue.FilterValue } {
-        if (typeof value !== 'object' || value === null) return false;
-        if (!('operator' in value) || typeof (value as any).operator !== 'string') return false;
-        if (!('value' in value)) return false;
-
-        const inner = (value as any).value;
-        return FilterValue.isValue(inner);
-    }
-
     function buildConditionsRecursive(
         schemaNode: FilterExpr,
         stateNode: FilterFormState
@@ -148,13 +137,21 @@ export function buildHasuraConditions(
                         value: (filterValue: unknown) => {
                             const transform = schema.transform?.toQuery;
 
+                            if (schema.value.type === 'customOperator' && !transform) {
+                                throw new Error('customOperator filters require a query transform');
+                            }
+
                             const transformResult: TransformResult =
                                 transform
-                                    ? transform(filterValue)
+                                    ? transform(filterValue, { field: schema.field })
                                     : { field: schema.field, value: baseValue };
 
                             if ('condition' in transformResult) {
                                 return transformResult.condition;
+                            }
+
+                            if (schema.value.type === 'customOperator') {
+                                throw new Error('customOperator query transforms must return a condition');
                             }
 
                             const transformedValue = transformResult.value;
@@ -162,22 +159,14 @@ export function buildHasuraConditions(
                             return FilterValue.match({
                                 empty: null,
                                 value: (value: unknown) => {
+                                    const field = transformResult.field ?? schema.field;
+
                                     if (
                                         value === undefined ||
                                         value === '' ||
                                         value === null ||
                                         (Array.isArray(value) && value.length === 0)
                                     ) return null;
-
-                                    const field = transformResult.field ?? schema.field;
-
-                                    if (schema.value.type === 'customOperator') {
-                                        if (!isNonEmptyCustomOperatorValue(value)) return null;
-                                        return FilterValue.match({
-                                            empty: null,
-                                            value: (inner: unknown) => buildNestedKey(field, { [value.operator]: inner })
-                                        }, value.value);
-                                    }
 
                                     const opMap: Record<string, string> = {
                                         equals: '_eq',

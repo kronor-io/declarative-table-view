@@ -39,18 +39,22 @@ export const TransformResult = {
     }),
 } as const;
 
+export type QueryTransformContext = {
+    field: FilterField;
+};
+
 // Alias for the TransformResult variant that yields a full Hasura condition.
 // Useful for helpers that *require* a condition-producing transform.
 export type TransformConditionResult = Extract<TransformResult, { condition: HasuraFilterExpression }>;
 
 
 export type ConditionOnlyTransform = {
-    toQuery: (input: unknown) => TransformConditionResult;
+    toQuery: (input: unknown, context: QueryTransformContext) => TransformConditionResult;
 };
 
 // Transform functions for filter expressions
 export type FilterTransform = {
-    toQuery?: (input: unknown) => TransformResult;
+    toQuery?: (input: unknown, context: QueryTransformContext) => TransformResult;
 };
 
 export type FilterControl =
@@ -89,7 +93,8 @@ export type FilterExpr =
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };
 
-// Predefined list of supported operators for customOperator controls
+// Convenience list of common Hasura operator options for customOperator controls.
+// customOperator values are not restricted to these; query transforms define semantics.
 export const SUPPORTED_OPERATORS = [
     { label: 'equals', value: '_eq' },
     { label: 'not equals', value: '_neq' },

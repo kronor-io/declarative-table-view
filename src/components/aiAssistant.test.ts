@@ -39,7 +39,10 @@ describe('aiAssistant customOperator patching', () => {
                 type: 'value',
                 value: {
                     operator: '_eq',
-                    value: 'test_value'
+                    value: {
+                        type: 'value',
+                        value: 'test_value'
+                    }
                 }
             });
         }
@@ -82,7 +85,10 @@ describe('aiAssistant customOperator patching', () => {
                 type: 'value',
                 value: {
                     operator: '_neq',
-                    value: 'test_value'
+                    value: {
+                        type: 'value',
+                        value: 'test_value'
+                    }
                 }
             });
         }
@@ -149,8 +155,14 @@ describe('aiAssistant customOperator patching', () => {
         expect(result.type).toBe('leaf');
         if (result.type === 'leaf') {
             expect(result.value).toEqual({
-                operator: '_neq',
-                value: 'test_value'
+                type: 'value',
+                value: {
+                    operator: '_neq',
+                    value: {
+                        type: 'value',
+                        value: 'test_value'
+                    }
+                }
             });
         }
     });

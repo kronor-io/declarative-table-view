@@ -576,6 +576,10 @@ export function parseFilterExprJson(
         result.transform = transform;
     }
 
+    if (value.type === 'customOperator' && !result.transform) {
+        throw new Error('Invalid customOperator FilterExpr: "transform" is required');
+    }
+
     return result;
 }
 

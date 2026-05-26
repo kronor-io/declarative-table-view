@@ -168,6 +168,30 @@ function mergeAiStateWithCurrent(currentState: FilterState, aiStateObject: Recor
     return newState;
 }
 
+function normalizeCustomOperatorValue(operator: string | undefined, rawValue: unknown): FilterValue.FilterValue {
+    if (typeof rawValue === 'object' && rawValue !== null && !Array.isArray(rawValue)) {
+        const record = rawValue as { operator?: unknown; value?: unknown };
+        if (typeof record.operator === 'string' && 'value' in record) {
+            return normalizeCustomOperatorValue(record.operator, record.value);
+        }
+    }
+
+    if (!operator) {
+        return FilterValue.empty;
+    }
+
+    if (rawValue === undefined || rawValue === '' || rawValue === null || (Array.isArray(rawValue) && rawValue.length === 0)) {
+        return FilterValue.empty;
+    }
+
+    const innerValue = FilterValue.fromObject(rawValue) ?? FilterValue.value(rawValue);
+    if (FilterValue.isEmpty(innerValue)) {
+        return FilterValue.empty;
+    }
+
+    return FilterValue.value({ operator, value: innerValue });
+}
+
 // Recursively merge AI state into existing FilterFormState using schema-guided traversal
 export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFormState, aiState: any): FilterFormState {
     if (!aiState) return currentState;
@@ -208,9 +232,7 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             );
 
             if (notEqualsOperator) {
-                const value = typeof childValue === 'string' ?
-                    { operator: notEqualsOperator.value, value: childValue } :
-                    childValue;
+                const value = normalizeCustomOperatorValue(notEqualsOperator.value, childValue);
 
                 return {
                     ...currentState,
@@ -235,9 +257,12 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
         }
 
         // Patch customOperator if AI returned a plain string
-        if (control.type === 'customOperator' && typeof value === 'string') {
+        if (control.type === 'customOperator') {
             const defaultOperator = control.operators?.[0]?.value;
-            value = { operator: defaultOperator, value: value };
+            return {
+                ...currentState,
+                value: normalizeCustomOperatorValue(defaultOperator, value)
+            };
         }
 
         // Create Date objects from ISO strings for date fields
