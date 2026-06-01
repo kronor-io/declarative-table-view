@@ -127,4 +127,95 @@ describe('App action button disabled while running', () => {
             root.unmount();
         });
     });
+
+    it('renders custom toast content from an action', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        const actionWithCustomToast = jest.fn((api: { showToast: (opts: unknown) => void }) => {
+            api.showToast({
+                severity: 'info',
+                content: () => React.createElement(
+                    'div',
+                    null,
+                    React.createElement('span', null, 'Open '),
+                    React.createElement('a', { href: '/docs/actions' }, 'action docs')
+                ),
+                life: 3000
+            });
+        });
+
+        const viewsJson = JSON.stringify([
+            {
+                title: 'Test View',
+                id: 'test-view',
+                source: { type: 'collection', collectionName: 'testCollection' },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    { type: 'tableColumn', id: 'id', data: [{ type: 'valueQuery', field: 'id' }], name: 'ID', cellRenderer: { section: 'cellRenderers', key: 'text' } }
+                ],
+                filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
+            }
+        ]);
+
+        const runtime = { cellRenderers: { text: () => 'cell' }, queryTransforms: {}, noRowsComponents: {}, customFilterComponents: {}, initialValues: {} };
+        const appElement = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            graphqlToken: 'token',
+            geminiApiKey: 'gemini',
+            showViewsMenu: false,
+            showViewTitle: false,
+            viewsJson,
+            externalRuntime: runtime as any,
+            syncFilterStateToUrl: false,
+            actions: [{ label: 'Toast Action', onClick: actionWithCustomToast as any }]
+        });
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
+
+        await new Promise(r => setTimeout(r, 0));
+        await waitUntil(() => getActionButton(container) !== null, { timeoutMs: 1000, intervalMs: 10 });
+
+        const button = getActionButton(container);
+        if (!button) throw new Error('Toast Action button not found');
+
+        await act(async () => {
+            button.click();
+            await new Promise(r => setTimeout(r, 0));
+        });
+
+        expect(actionWithCustomToast).toHaveBeenCalledTimes(1);
+
+        const toastLink = await new Promise<HTMLAnchorElement>((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                const link = container.querySelector('.p-toast a') as HTMLAnchorElement | null;
+                if (link) {
+                    resolve(link);
+                    return;
+                }
+                if (Date.now() - start > 1000) {
+                    reject(new Error('Timed out waiting for custom toast link'));
+                    return;
+                }
+                setTimeout(check, 10);
+            };
+            check();
+        });
+
+        expect(toastLink.textContent).toBe('action docs');
+        expect(toastLink.getAttribute('href')).toBe('/docs/actions');
+        expect(container.querySelector('.p-toast')?.textContent).toContain('Open action docs');
+
+        await act(async () => {
+            root.unmount();
+        });
+    });
 });

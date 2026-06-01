@@ -24,7 +24,7 @@ export interface ActionAPI {
     selectedRows: unknown[];
     setFilterState: (next: FilterState) => void; // Replace filter state (resets pagination)
     refetch: () => void; // Trigger a data refetch for current view & filters
-    showToast: ShowToastFn; // Convenience toast helper
+    showToast: ShowToastFn; // Convenience toast helper with support for rich summary/detail nodes and custom content
     /** Current rows-per-page setting for pagination. */
     rowsPerPage: number;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually the current view root field). */

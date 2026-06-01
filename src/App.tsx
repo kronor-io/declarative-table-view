@@ -735,7 +735,7 @@ function App({
                                 selectedRows={selectedRows}
                                 setFilterState={setFilterState}
                                 refetch={triggerRefetch}
-                                showToast={(opts: { severity: 'info' | 'success' | 'warn' | 'error'; summary: string; detail?: string; life?: number }) => toast.current?.show({ ...opts })}
+                                showToast={(opts) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
                                 userData={actionUserData}

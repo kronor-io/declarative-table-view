@@ -1,8 +1,13 @@
+import type { ToastMessage } from 'primereact/toast'
+
 export type ShowToastOptions = {
-    severity: 'info' | 'success' | 'warn' | 'error'
-    summary: string
-    detail?: string
-    life?: number
+    severity: NonNullable<ToastMessage['severity']>
+    summary?: ToastMessage['summary']
+    detail?: ToastMessage['detail']
+    content?: ToastMessage['content']
+    life?: ToastMessage['life']
+    sticky?: ToastMessage['sticky']
+    closable?: ToastMessage['closable']
 }
 
 export type ShowToastFn = (opts: ShowToastOptions) => void
