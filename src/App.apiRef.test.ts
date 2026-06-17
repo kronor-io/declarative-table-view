@@ -51,7 +51,7 @@ async function waitFor<T>(getValue: () => T, predicate: (value: T) => boolean, t
         const value = getValue();
         if (predicate(value)) return value;
         if (Date.now() - start > timeoutMs) {
-            throw new Error('Timed out waiting for condition');
+            throw new Error(`Timed out waiting for condition. Last value: ${JSON.stringify(value)}`);
         }
         await new Promise(r => setTimeout(r, 10));
     }
@@ -59,6 +59,7 @@ async function waitFor<T>(getValue: () => T, predicate: (value: T) => boolean, t
 
 describe('App apiRef', () => {
     beforeEach(() => {
+        localStorage.clear();
         fetchDataMock.mockReset();
         fetchDataMock.mockImplementation(async () => buildFetchDataResult());
         graphqlRequestMock.mockReset();
@@ -128,9 +129,10 @@ describe('App apiRef', () => {
 
         // Initial pagination shows first page.
         const page = () => container.querySelector('[data-testid="pagination-page"]') as HTMLElement | null;
-        const pageEl = await waitFor(page, (el): el is HTMLElement => el !== null);
+        const pageText = () => page()?.textContent ?? null;
+        await waitFor(page, (el): el is HTMLElement => el !== null);
         await waitFor(
-            () => pageEl.textContent,
+            pageText,
             (text) => text === '1-20'
         );
 
@@ -145,7 +147,7 @@ describe('App apiRef', () => {
             (count) => count >= 2
         );
         await waitFor(
-            () => pageEl.textContent,
+            pageText,
             (text) => text === '21-40'
         );
 
@@ -164,7 +166,7 @@ describe('App apiRef', () => {
         if (!lastCallArg) throw new Error('Expected fetchData third call arg');
         expect(lastCallArg.cursor).toBe(null);
         await waitFor(
-            () => pageEl.textContent,
+            pageText,
             (text) => text === '21-40'
         );
 

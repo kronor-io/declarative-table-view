@@ -78,7 +78,7 @@ describe('user-data manager', () => {
             columnOrder: null,
             hiddenColumns: [],
             rowsPerPage: null,
-            syncFilterStateToUserData: false,
+            syncFilterStateToUserData: true,
             persistedFilterState: null,
             savedFilters: []
         });
@@ -100,7 +100,7 @@ describe('user-data manager', () => {
             columnOrder: ['col1', 'col2', 'col3'],
             hiddenColumns: ['col9'],
             rowsPerPage: null,
-            syncFilterStateToUserData: false,
+            syncFilterStateToUserData: true,
             persistedFilterState: null,
             savedFilters: []
         });
@@ -151,7 +151,7 @@ describe('user-data manager', () => {
             columnOrder: null,
             hiddenColumns: [],
             rowsPerPage: null,
-            syncFilterStateToUserData: false,
+            syncFilterStateToUserData: true,
             persistedFilterState: null,
             savedFilters: []
         });
@@ -177,7 +177,7 @@ describe('user-data manager', () => {
             columnOrder: null,
             hiddenColumns: [],
             rowsPerPage: null,
-            syncFilterStateToUserData: false,
+            syncFilterStateToUserData: true,
             persistedFilterState: null,
             savedFilters: []
         });

@@ -1,8 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { mockPaginationGraphQL } from './graphqlMock';
-import { ensurePanelExpanded } from './ui';
+import { clearCurrentUserData, clearUserData, ensurePanelExpanded } from './ui';
 
 test.describe('Simple View Transform Functionality', () => {
+    test.describe.configure({ mode: 'serial' });
+
+    test.beforeEach(async ({ page }) => {
+        await clearUserData(page);
+    });
+
+    test.afterEach(async ({ page }) => {
+        await clearCurrentUserData(page);
+    });
 
     test('should apply transform functions when filtering by amount', async ({ page }) => {
         // Intercept the GraphQL request and mock the response

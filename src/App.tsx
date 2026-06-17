@@ -21,7 +21,7 @@ import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
 import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries } from './framework/data';
-import { buildInitialFormState, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
+import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
@@ -246,6 +246,7 @@ function App({
     const initialSelectedViewId = useRef<View['id'] | undefined>(views[0]?.id)
     const shouldSkipUserDataHydrationForInitialUrl = useRef(Boolean(initialFilterStateFromUrl))
     const previousRefetchTrigger = useRef(refetchTrigger)
+    const lastPersistedFilterState = useRef<FilterState | null>(null)
     const showFilterForm = activePanel === 'filters';
     const showSavedFilterList = activePanel === 'savedFilters';
     const showPreferencesPanel = activePanel === 'preferences';
@@ -416,11 +417,13 @@ function App({
 
         const persistedFilterState = userDataManager.viewData.persistedFilterState
         if (!persistedFilterState) return
+        if (persistedFilterState === lastPersistedFilterState.current) return
+        if (filterStatesEqual(persistedFilterState, state.appliedFilterState)) return
 
         setFilterState(persistedFilterState)
         setAppliedFilterState(persistedFilterState)
         triggerRefetch()
-    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.viewData.persistedFilterState])
+    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, state.appliedFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.viewData.persistedFilterState])
 
     useEffect(() => {
         const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
@@ -428,6 +431,7 @@ function App({
 
         if (!syncFilterStateToUserData) return;
         if (!didApplyFilters) return;
+        lastPersistedFilterState.current = state.appliedFilterState
         void userDataManager.setPersistedFilterState(selectedView.id, state.appliedFilterState)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [syncFilterStateToUserData, refetchTrigger, state.appliedFilterState]);

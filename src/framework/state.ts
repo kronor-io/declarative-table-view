@@ -6,6 +6,7 @@ import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
 import { createFilterDisplayState, FilterDisplayState } from "./filter-display-state";
 import { getAllFilters } from "./view";
+import { valuesEqual } from "./equality";
 
 export type FilterState = Map<FilterId, FilterFormState>;
 
@@ -75,6 +76,34 @@ export function setFilterStateById(state: FilterState, id: FilterId, newFilterSt
     const newState = new Map(state);
     newState.set(id, newFilterState);
     return newState;
+}
+
+function filterFormStatesEqual(left: FilterFormState, right: FilterFormState): boolean {
+    if (left.type !== right.type) return false;
+
+    switch (left.type) {
+        case 'leaf':
+            return right.type === 'leaf' && valuesEqual(left.value, right.value);
+        case 'not':
+            return right.type === 'not' && filterFormStatesEqual(left.child, right.child);
+        case 'and':
+        case 'or':
+            return right.type === left.type
+                && left.children.length === right.children.length
+                && left.children.every((child, index) => filterFormStatesEqual(child, right.children[index]));
+    }
+}
+
+export function filterStatesEqual(left: FilterState, right: FilterState): boolean {
+    if (left.size !== right.size) return false;
+
+    for (const [filterId, leftFilterState] of left) {
+        const rightFilterState = right.get(filterId);
+        if (!rightFilterState) return false;
+        if (!filterFormStatesEqual(leftFilterState, rightFilterState)) return false;
+    }
+
+    return true;
 }
 
 // AppState data structure for app state

@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest } from '@jest/globals';
+import { beforeEach, describe, it, expect, jest } from '@jest/globals';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
@@ -26,6 +26,10 @@ jest.mock('./framework/data', () => {
 import App from './App';
 
 describe('App collapsed filter panel summary', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
     function createView(initialValue = 'jane@example.com'): View {
         return {
             title: 'Provided View',

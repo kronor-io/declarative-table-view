@@ -324,6 +324,26 @@ describe('user-data migrations', () => {
         }
     })
 
+    it('uses the new per-view filter-state persistence default when migrating unset legacy data', async () => {
+        mockLocalStorage['dtvUserData'] = JSON.stringify({
+            preferences: defaultUserPreferences,
+            views: {
+                'view-a': {
+                    columnOrder: ['col-a'],
+                    hiddenColumns: ['col-b'],
+                    rowsPerPage: 50,
+                    savedFilters: []
+                }
+            },
+            revision: 0,
+            formatRevision: REVISION_2026_03_26
+        });
+
+        const { userData } = await loadUserDataManager();
+
+        expect(userData.getViewData('view-a').syncFilterStateToUserData).toBe(true)
+    })
+
     it('user-data-manager falls back to defaults when migration fails (unknown revision)', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
             preferences: defaultUserPreferences,

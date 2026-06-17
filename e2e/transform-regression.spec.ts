@@ -1,7 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { mockPaginationGraphQL } from './graphqlMock';
+import { clearCurrentUserData, clearUserData } from './ui';
 
 test.describe('Transform Regression Tests', () => {
+    test.describe.configure({ mode: 'serial' });
+
+    test.beforeEach(async ({ page }) => {
+        await clearUserData(page);
+    });
+
+    test.afterEach(async ({ page }) => {
+        await clearCurrentUserData(page);
+    });
 
     test('should preserve display value after applying transform', async ({ page }) => {
         // Intercept the GraphQL request and mock the response

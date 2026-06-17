@@ -108,7 +108,7 @@ export function defaultViewData(): ViewData {
         columnOrder: null,
         hiddenColumns: [],
         rowsPerPage: null,
-        syncFilterStateToUserData: false,
+        syncFilterStateToUserData: true,
         persistedFilterState: null,
         savedFilters: []
     }
@@ -153,7 +153,7 @@ export function fromUserDataJson(json: UserDataJson, filterGroupsByViewId: Recor
             return [[viewId, {
                 ...defaultViewData(),
                 ...viewJson,
-                syncFilterStateToUserData: viewJson.syncFilterStateToUserData === true,
+                syncFilterStateToUserData: viewJson.syncFilterStateToUserData !== false,
                 persistedFilterState,
                 savedFilters
             }]]

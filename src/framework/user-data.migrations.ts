@@ -164,7 +164,6 @@ const step_addViewPreference_syncFilterStateToUserData: MigrationStep = {
             Object.entries(userData.views).map(([viewId, viewData]) => [viewId, {
                 ...defaultViewData(),
                 ...viewData,
-                syncFilterStateToUserData: false,
                 persistedFilterState: null
             }])
         )

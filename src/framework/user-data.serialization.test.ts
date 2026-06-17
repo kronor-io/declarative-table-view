@@ -90,4 +90,41 @@ describe('user-data serialization', () => {
             closeFilterPanelOnApply: true
         });
     });
+
+    it('defaults missing per-view filter-state persistence to enabled', () => {
+        const roundtripped = fromUserDataJson({
+            preferences: defaultUserPreferences,
+            views: {
+                'view-a': {
+                    columnOrder: null,
+                    hiddenColumns: [],
+                    rowsPerPage: null,
+                    savedFilters: []
+                }
+            },
+            revision: 0,
+            formatRevision: 'rev-user'
+        }, { 'view-a': basicSchema });
+
+        expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(true);
+    });
+
+    it('preserves explicit opt-out for per-view filter-state persistence', () => {
+        const roundtripped = fromUserDataJson({
+            preferences: defaultUserPreferences,
+            views: {
+                'view-a': {
+                    columnOrder: null,
+                    hiddenColumns: [],
+                    rowsPerPage: null,
+                    syncFilterStateToUserData: false,
+                    savedFilters: []
+                }
+            },
+            revision: 0,
+            formatRevision: 'rev-user'
+        }, { 'view-a': basicSchema });
+
+        expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(false);
+    });
 });
