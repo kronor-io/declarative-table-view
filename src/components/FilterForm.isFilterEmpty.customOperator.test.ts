@@ -39,7 +39,7 @@ describe('isFilterEmpty with customOperator', () => {
         });
         const state = buildInitialFormState(expr, FormStateInitMode.Empty);
         // Simulate user entering a value
-        (state as any).value = FilterValue.value({ operator: '_eq', value: 'abc' });
+        (state as any).value = FilterValue.value({ operator: '_eq', value: FilterValue.value('abc') });
         expect(isFilterEmpty(state, expr)).toBe(false);
     });
 
@@ -66,7 +66,7 @@ describe('isFilterEmpty with customOperator', () => {
         // Under the writer invariant, empty inner values should be represented as FilterValue.empty.
         (state as any).value = FilterValue.empty;
         expect(isFilterEmpty(state, expr)).toBe(true);
-        (state as any).value = FilterValue.value({ operator: '_in', value: ['A'] });
+        (state as any).value = FilterValue.value({ operator: '_in', value: FilterValue.value(['A']) });
         expect(isFilterEmpty(state, expr)).toBe(false);
     });
 });

@@ -181,6 +181,19 @@ function migrateLegacyLeafValue(value: unknown, schemaLeaf: LeafFilterExpr): Fil
     return FilterValue.value(value);
 }
 
+function rehydrateLeafValueForSchema(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): FilterValue.FilterValue {
+    const rawValue = (stateLeaf as unknown as { value?: unknown }).value;
+    const storedValue = FilterValue.fromObject(rawValue);
+
+    if (schemaLeaf.value.type === 'customOperator') {
+        if (!storedValue) return normalizeCustomOperatorLeafValue(rawValue);
+        if (FilterValue.isEmpty(storedValue)) return FilterValue.empty;
+        return normalizeCustomOperatorLeafValue(storedValue.value);
+    }
+
+    return storedValue ?? migrateLegacyLeafValue(rawValue, schemaLeaf);
+}
+
 /**
  * Schema-aware emptiness check for a FilterFormState tree.
  * A leaf is considered empty when its primitive value is '' | null | [] (if array).
@@ -231,8 +244,7 @@ export function serializeFilterFormStateMap(
 function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFormState): FilterFormState {
     return traverseFilterSchemaAndState<FilterFormState>(expression, stored, {
         leaf: (schemaLeaf, stateLeaf) => {
-            const migrated = FilterValue.fromObject(stateLeaf.value)
-                ?? migrateLegacyLeafValue((stateLeaf as unknown as { value?: unknown }).value, schemaLeaf);
+            const migrated = rehydrateLeafValueForSchema(schemaLeaf, stateLeaf);
 
             if (FilterValue.isEmpty(migrated)) {
                 return { type: 'leaf', value: migrated };

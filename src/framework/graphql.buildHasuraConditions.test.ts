@@ -294,6 +294,29 @@ describe('buildHasuraConditions', () => {
         });
     });
 
+    it('should ignore custom operators with an empty nested FilterValue', () => {
+        const filterSchema = createFilterSchema(
+            'custom-filter',
+            FilterExpr.equals({
+                field: 'custom_field',
+                control: FilterControl.customOperator({
+                    operators: [{ label: 'Equals', value: '_eq' }],
+                    valueControl: FilterControl.text()
+                }),
+                transform: hasuraCustomOperatorTransform
+            })
+        );
+
+        const formState: FilterState = new Map([
+            ['custom-filter', {
+                type: 'leaf',
+                value: FilterValue.value({ operator: '_eq', value: FilterValue.empty })
+            }]
+        ]);
+
+        expect(hasuraFilterExpressionToObject(buildHasuraConditions(formState, filterSchema))).toEqual({});
+    });
+
     it('should throw when customOperator is missing a transform', () => {
         const filterSchema = createFilterSchema(
             'custom-filter',

@@ -32,6 +32,15 @@ function isEmptyFilterObject(cond: HasuraFilterObject): boolean {
     return typeof cond === 'object' && cond !== null && Object.keys(cond).length === 0;
 }
 
+function isEmptyQueryValue(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === '' ||
+        value === null ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
 export const Hasura = {
     empty: (): HasuraFilterExpression => ({ kind: 'empty' }),
     and: (...items: HasuraFilterExpression[]): HasuraFilterExpression => ({ kind: 'and', items }),
@@ -161,12 +170,7 @@ export function buildHasuraConditions(
                                 value: (value: unknown) => {
                                     const field = transformResult.field ?? schema.field;
 
-                                    if (
-                                        value === undefined ||
-                                        value === '' ||
-                                        value === null ||
-                                        (Array.isArray(value) && value.length === 0)
-                                    ) return null;
+                                    if (isEmptyQueryValue(value)) return null;
 
                                     const opMap: Record<string, string> = {
                                         equals: '_eq',

@@ -16,7 +16,7 @@ export type NativeRuntime = Runtime & {
 
 type CustomOperatorStateValue = {
     operator: string;
-    value: Extract<FilterValue.FilterValue, { type: 'value' }>;
+    value: FilterValue.FilterValue;
 };
 
 export function mapHasuraCustomOperatorInput(
@@ -61,7 +61,11 @@ function buildHasuraCondition(field: FilterField, operator: HasuraOperator | Has
 export const hasuraCustomOperatorTransform: ConditionOnlyTransform = {
     toQuery: (input: unknown, context: QueryTransformContext) => {
         const { operator, value } = input as CustomOperatorStateValue;
-        return buildHasuraCondition(context.field, { [operator]: value.value });
+
+        return FilterValue.match({
+            empty: TransformResult.condition(Hasura.empty()),
+            value: (queryValue: unknown) => buildHasuraCondition(context.field, { [operator]: queryValue })
+        }, value);
     }
 };
 

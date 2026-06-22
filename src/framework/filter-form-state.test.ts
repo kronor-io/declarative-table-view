@@ -6,6 +6,38 @@ import * as FilterValue from './filterValue';
 import type { FilterGroups } from './filters';
 import { FilterState } from './state';
 
+function expectLeafValue(node: unknown): FilterValue.FilterValue {
+    expect(node).toBeDefined();
+    expect(node).toHaveProperty('type', 'leaf');
+
+    if (!node || typeof node !== 'object' || !('type' in node) || node.type !== 'leaf') {
+        throw new Error('Expected leaf');
+    }
+
+    return (node as { type: 'leaf'; value: FilterValue.FilterValue }).value;
+}
+
+function expectFilterValueValue(value: FilterValue.FilterValue): unknown {
+    expect(value.type).toBe('value');
+
+    if (!FilterValue.isValue(value)) {
+        throw new Error('Expected value');
+    }
+
+    return value.value;
+}
+
+function expectRecord(value: unknown): Record<string, unknown> {
+    expect(typeof value).toBe('object');
+    expect(value).not.toBeNull();
+
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        throw new Error('Expected record');
+    }
+
+    return value as Record<string, unknown>;
+}
+
 describe('filter-form-state', () => {
     const mockFilterSchema: FilterGroups = [
         {
@@ -141,11 +173,9 @@ describe('filter-form-state', () => {
             const emailFilter = parsed.get('email-filter');
             expect(emailFilter).toEqual({ type: 'leaf', value: { type: 'value', value: 'test@example.com' } });
 
-            const dateFilter = parsed.get('date-filter');
-            expect(dateFilter?.type).toBe('leaf');
-            expect((dateFilter as any).value.type).toBe('value');
-            expect((dateFilter as any).value.value).toBeInstanceOf(Date);
-            expect(((dateFilter as any).value.value as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
+            const dateValue = expectFilterValueValue(expectLeafValue(parsed.get('date-filter')));
+            expect(dateValue).toBeInstanceOf(Date);
+            expect((dateValue as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
         });
 
         it('should treat invalid date strings as empty', () => {
@@ -167,12 +197,10 @@ describe('filter-form-state', () => {
             };
 
             const parsed = parseFilterFormState(legacySerialized, mockFilterSchema);
-            const email = parsed.get('email-filter') as any;
-            expect(email.value).toEqual({ type: 'value', value: 'test@example.com' });
+            expect(expectLeafValue(parsed.get('email-filter'))).toEqual({ type: 'value', value: 'test@example.com' });
 
-            const date = parsed.get('date-filter') as any;
-            expect(date.value.type).toBe('value');
-            expect(date.value.value).toBeInstanceOf(Date);
+            const dateValue = expectFilterValueValue(expectLeafValue(parsed.get('date-filter')));
+            expect(dateValue).toBeInstanceOf(Date);
         });
 
         it('should migrate legacy customOperator payload with primitive inner value into canonical nested form', () => {
@@ -187,18 +215,9 @@ describe('filter-form-state', () => {
             };
 
             const parsed = parseFilterFormState(legacySerialized, mockFilterSchema);
-            const node = parsed.get('custom-op-filter');
-            expect(node?.type).toBe('leaf');
-            if (!node || node.type !== 'leaf') throw new Error('Expected leaf');
-
-            expect(node.value.type).toBe('value');
-            if (node.value.type !== 'value') throw new Error('Expected value');
-
-            const payload = node.value.value as unknown;
-            expect(typeof payload).toBe('object');
-            expect(payload).not.toBeNull();
-            expect((payload as any).operator).toBe('_eq');
-            expect((payload as any).value).toBe('hello');
+            const payload = expectRecord(expectFilterValueValue(expectLeafValue(parsed.get('custom-op-filter'))));
+            expect(payload.operator).toBe('_eq');
+            expect(payload.value).toEqual(FilterValue.value('hello'));
         });
 
         it('should treat operator-only legacy customOperator payload as empty', () => {
@@ -215,10 +234,7 @@ describe('filter-form-state', () => {
             const parsed = parseFilterFormState(legacySerialized, mockFilterSchema);
             expect(parsed.get('custom-op-filter')).toEqual({
                 type: 'leaf',
-                value: {
-                    type: 'value',
-                    value: { operator: '_eq', value: '' }
-                }
+                value: FilterValue.empty
             });
         });
     });
@@ -236,10 +252,9 @@ describe('filter-form-state', () => {
             const dateFilter = parsed.get('date-filter');
 
             expect(emailFilter).toEqual({ type: 'leaf', value: { type: 'value', value: 'test@example.com' } });
-            expect(dateFilter?.type).toBe('leaf');
-            expect((dateFilter as any).value.type).toBe('value');
-            expect((dateFilter as any).value.value).toBeInstanceOf(Date);
-            expect(((dateFilter as any).value.value as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
+            const dateValue = expectFilterValueValue(expectLeafValue(dateFilter));
+            expect(dateValue).toBeInstanceOf(Date);
+            expect((dateValue as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
         });
     });
 });

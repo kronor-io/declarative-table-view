@@ -70,6 +70,15 @@ describe('nativeRuntime.queryTransforms.hasuraCustomOperator.toQuery', () => {
             email: { _eq: 'a@example.com' }
         });
     });
+
+    it('maps an empty custom operator value to an empty condition', () => {
+        const result = toQuery(
+            { operator: '_eq', value: FilterValue.empty },
+            { field: 'email' }
+        );
+
+        expect(hasuraFilterExpressionToObject(result.condition)).toEqual({});
+    });
 });
 
 describe('mapHasuraCustomOperatorInput', () => {
