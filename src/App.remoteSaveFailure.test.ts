@@ -56,7 +56,7 @@ describe('Remote save failure shows warning toast and persists locally', () => {
 
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,

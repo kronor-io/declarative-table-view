@@ -69,7 +69,7 @@ describe('App action button disabled while running', () => {
         // Provide children explicitly to satisfy PrimeReactProvider props typing.
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,
@@ -163,7 +163,7 @@ describe('App action button disabled while running', () => {
         const runtime = { cellRenderers: { text: () => 'cell' }, queryTransforms: {}, noRowsComponents: {}, customFilterComponents: {}, initialValues: {} };
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,

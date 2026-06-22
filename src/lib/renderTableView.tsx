@@ -22,7 +22,7 @@ export type RenderTableViewUserDataOptions = {
 
 export type RenderTableViewOptions = {
     graphqlHost: string
-    graphqlToken: string
+    requestHeaders: HeadersInit
     geminiApiKey: string
     showViewsMenu?: boolean
     showViewTitle?: boolean
@@ -71,7 +71,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
             <PrimeReactProvider value={{}}>
                 <App
                     graphqlHost={options.graphqlHost}
-                    graphqlToken={options.graphqlToken}
+                    requestHeaders={options.requestHeaders}
                     geminiApiKey={options.geminiApiKey}
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}

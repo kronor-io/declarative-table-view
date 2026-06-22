@@ -77,7 +77,7 @@ describe('DTVAPI row selection', () => {
 
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,

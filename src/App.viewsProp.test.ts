@@ -6,6 +6,7 @@ import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
+import { GraphQLClient } from 'graphql-request';
 import type { View } from './framework/view';
 
 // Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App.
@@ -74,7 +75,7 @@ describe('App views prop', () => {
 
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,
@@ -90,12 +91,15 @@ describe('App views prop', () => {
 
         await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 500, intervalMs: 5 });
 
+        expect(GraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', {
+            headers: { Authorization: 'Bearer token' }
+        });
         expect(parseViewJson).not.toHaveBeenCalled();
 
         // Basic smoke check: view title is rendered somewhere when showViewTitle is true
         const appElementWithTitle = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: true,

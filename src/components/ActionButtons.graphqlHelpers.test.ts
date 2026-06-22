@@ -98,7 +98,7 @@ describe('ActionAPI GraphQL helpers', () => {
 
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,
@@ -194,7 +194,7 @@ describe('ActionAPI GraphQL helpers', () => {
 
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
-            graphqlToken: 'token',
+            requestHeaders: { Authorization: 'Bearer token' },
             geminiApiKey: 'gemini',
             showViewsMenu: false,
             showViewTitle: false,

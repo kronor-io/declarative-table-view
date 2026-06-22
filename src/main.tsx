@@ -13,6 +13,15 @@ export const dtv = {
     renderTableView
 };
 
+const getRequestHeadersFromEnv = (): HeadersInit => {
+    const rawHeaders = import.meta.env.VITE_REQUEST_HEADERS;
+    if (!rawHeaders) {
+        throw new Error('VITE_REQUEST_HEADERS is required. Use {} when no request headers are needed.');
+    }
+
+    return JSON.parse(rawHeaders) as HeadersInit;
+};
+
 // Expose namespace on window (script-tag consumers)
 // @ts-expect-error Expose dtv namespace globally
 window.dtv = dtv;
@@ -38,7 +47,7 @@ if (import.meta.env.DEV) {
             (window as any).__dtvApiRef = apiRef;
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
-                graphqlToken: import.meta.env.VITE_GRAPHQL_TOKEN,
+                requestHeaders: getRequestHeadersFromEnv(),
                 geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
                 viewsJson: JSON.stringify([viewJson]),
                 showViewsMenu: false,

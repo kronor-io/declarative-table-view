@@ -28,7 +28,7 @@ All required styles are injected automatically via the JS bundle (using `vite-pl
 ### Runtime Options (AppProps)
 Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 
-- `graphqlHost` / `graphqlToken`: GraphQL endpoint + bearer auth token.
+- `graphqlHost` / `requestHeaders`: GraphQL endpoint + HTTP headers. Pass `{}` when no custom headers are needed.
 - `geminiApiKey`: API key used by the AI Filter Assistant.
 - `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
 - `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
@@ -42,7 +42,7 @@ Example:
 ```ts
 dtv.renderTableView('root', {
   graphqlHost: 'https://example/graphql',
-  graphqlToken: 'token',
+  requestHeaders: { Authorization: 'Bearer token' },
   geminiApiKey: 'gemini-key',
   viewsJson: JSON.stringify([myViewJson]),
   showViewTitle: true,
@@ -101,7 +101,7 @@ Create a `.env.development` file in the project root to set environment variable
 Example:
 ```env
 VITE_GRAPHQL_HOST=https://your-graphql-host.example.com
-VITE_GRAPHQL_TOKEN=your-graphql-token-here
+VITE_REQUEST_HEADERS={"Authorization":"Bearer your-token-here"}
 VITE_GEMINI_API_KEY=your-gemini-api-key-here
 ```
 

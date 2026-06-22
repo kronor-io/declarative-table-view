@@ -41,7 +41,7 @@ import type { FilterId, FilterSchema } from './framework/filters'
 
 export interface AppProps {
     graphqlHost: string;
-    graphqlToken: string;
+    requestHeaders: HeadersInit;
     geminiApiKey: string;
     /**
      * Optional already-parsed views.
@@ -112,7 +112,7 @@ const builtInRuntime: Runtime = nativeRuntime
 
 function App({
     graphqlHost,
-    graphqlToken,
+    requestHeaders,
     geminiApiKey,
     showViewsMenu,
     showViewTitle,
@@ -200,11 +200,8 @@ function App({
     }
 
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
-        headers: {
-            contentType: 'application/json',
-            Authorization: `Bearer ${graphqlToken}`
-        },
-    }), [graphqlHost, graphqlToken]);
+        headers: requestHeaders,
+    }), [graphqlHost, requestHeaders]);
 
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
@@ -882,7 +879,7 @@ function App({
                 <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto tw:z-10">
                     <App
                         graphqlHost={graphqlHost}
-                        graphqlToken={graphqlToken}
+                        requestHeaders={requestHeaders}
                         geminiApiKey={geminiApiKey}
                         showViewsMenu={showViewsMenu}
                         showViewTitle={showViewTitle}
