@@ -20,7 +20,8 @@ import App from './App';
 
 jest.mock('./framework/data', () => {
     return {
-        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] }))
+        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
+        getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });
 

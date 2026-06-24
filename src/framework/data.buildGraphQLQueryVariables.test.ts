@@ -1,4 +1,4 @@
-import { buildGraphQLQueryVariables } from './data';
+import { buildGraphQLQueryVariables, getPaginationOrderFieldQueries } from './data';
 import { CollectionView, View } from './view';
 import type { FilterGroups, FilterSchema } from './filters';
 import { FilterControl } from '../dsl/filterControl';
@@ -26,7 +26,7 @@ describe('buildGraphQLQueryVariables', () => {
             staticConditions: [Hasura.condition('status', Hasura.eq('ACTIVE'))]
         };
         const filterState: FilterState = new Map();
-        const vars = buildGraphQLQueryVariables(view, filterState, 25, 50);
+        const vars = buildGraphQLQueryVariables(view, filterState, 25, { id: 50 });
         expect(vars.conditions).toEqual({ status: { _eq: 'ACTIVE' } });
         expect(vars.paginationCondition).toEqual({ id: { _lt: 50 } });
         expect(vars.rowLimit).toBe(25);
@@ -39,19 +39,154 @@ describe('buildGraphQLQueryVariables', () => {
             paginationDirection: 'ASC'
         };
         const filterState: FilterState = new Map();
-        const vars = buildGraphQLQueryVariables(view, filterState, 25, 50);
-        expect(vars.paginationCondition).toEqual({ id: { _gt: 50 } });
+        const vars = buildGraphQLQueryVariables(view, filterState, 25, { id: 50 });
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                { id: { _gt: 50 } },
+                { id: { _isNull: true } }
+            ]
+        });
         expect(vars.orderBy).toEqual([{ id: 'ASC' }]);
     });
 
-    it('builds variables with staticOrdering (without pagination ordering included)', () => {
+    it('builds variables with staticOrdering before the pagination key ordering', () => {
         const view: View = {
             ...baseView,
             staticOrdering: [{ status: 'ASC' }]
         };
         const filterState: FilterState = new Map();
         const vars = buildGraphQLQueryVariables(view, filterState, 10, null);
-        expect(vars.orderBy).toEqual([{ id: 'DESC' }, { status: 'ASC' }]);
+        expect(vars.orderBy).toEqual([{ status: 'ASC' }, { id: 'DESC' }]);
+    });
+
+    it('builds a lexicographic cursor condition for staticOrdering and paginationKey', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }, { createdAt: 'DESC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, {
+            status: 'READY',
+            createdAt: '2026-06-24T12:00:00Z',
+            id: 50
+        });
+
+        expect(vars.orderBy).toEqual([{ status: 'ASC' }, { createdAt: 'DESC' }, { id: 'DESC' }]);
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                {
+                    _or: [
+                        { status: { _gt: 'READY' } },
+                        { status: { _isNull: true } }
+                    ]
+                },
+                {
+                    _and: [
+                        { status: { _eq: 'READY' } },
+                        { createdAt: { _lt: '2026-06-24T12:00:00Z' } }
+                    ]
+                },
+                {
+                    _and: [
+                        { status: { _eq: 'READY' } },
+                        { createdAt: { _eq: '2026-06-24T12:00:00Z' } },
+                        { id: { _lt: 50 } }
+                    ]
+                }
+            ]
+        });
+    });
+
+    it('uses isNull checks for null cursor values in ASC staticOrdering', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { status: null, id: 50 });
+
+        expect(vars.paginationCondition).toEqual({
+            _and: [
+                { status: { _isNull: true } },
+                { id: { _lt: 50 } }
+            ]
+        });
+    });
+
+    it('uses isNull checks for null cursor values in DESC staticOrdering', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'DESC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { status: null, id: 50 });
+
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                { status: { _isNull: false } },
+                {
+                    _and: [
+                        { status: { _isNull: true } },
+                        { id: { _lt: 50 } }
+                    ]
+                }
+            ]
+        });
+    });
+
+    it('does not duplicate paginationKey ordering when staticOrdering already includes it', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }, { id: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { status: 'READY', id: 50 });
+
+        expect(vars.orderBy).toEqual([{ status: 'ASC' }, { id: 'ASC' }]);
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                {
+                    _or: [
+                        { status: { _gt: 'READY' } },
+                        { status: { _isNull: true } }
+                    ]
+                },
+                {
+                    _and: [
+                        { status: { _eq: 'READY' } },
+                        {
+                            _or: [
+                                { id: { _gt: 50 } },
+                                { id: { _isNull: true } }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+    });
+
+    it('throws when a cursor is missing a static ordering field', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+
+        expect(() => buildGraphQLQueryVariables(view, filterState, 10, { id: 50 }))
+            .toThrow('Cannot build pagination cursor: missing value for ordered field "status"');
+    });
+
+    it('returns static ordering fields that must be selected for pagination cursors', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }, { createdAt: 'DESC' }]
+        };
+
+        expect(getPaginationOrderFieldQueries(view)).toEqual([
+            { type: 'valueQuery', field: 'status' },
+            { type: 'valueQuery', field: 'createdAt' }
+        ]);
     });
 
     it('builds variables with a user filter (no staticConditions, no cursor)', () => {

@@ -4,6 +4,7 @@ import * as FilterValue from "./filterValue";
 import { FilterGroups, FilterId, FilterExpr } from "./filters";
 import { View, ViewId } from "./view";
 import { FetchDataResult } from "./data";
+import type { PaginationCursor } from "./data";
 import { createFilterDisplayState, FilterDisplayState } from "./filter-display-state";
 import { getAllFilters } from "./view";
 import { valuesEqual } from "./equality";
@@ -121,7 +122,7 @@ export interface AppState {
 
 export interface PaginationState {
     page: number;
-    cursors: (string | number | null)[];
+    cursors: PaginationCursor[];
     rowsPerPage: number;
 }
 

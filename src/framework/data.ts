@@ -11,6 +11,13 @@ export interface FetchDataResult {
     flattenedRows: FlattenedDataRow[]; // Rows flattened according to column definitions
 }
 
+export type PaginationCursor = Record<string, unknown> | null;
+
+type PaginationOrdering = {
+    field: string;
+    direction: 'ASC' | 'DESC';
+};
+
 function hasKey<K extends string | number | symbol, T extends { [key in K]: unknown[] }>(obj: unknown, key: K): obj is T {
     return typeof obj === 'object' && obj !== null && key in obj && Array.isArray((obj as T)[key]);
 }
@@ -24,12 +31,117 @@ let requestCounter = 0;
 //  - conditions: user filter conditions merged with staticConditions (if any)
 //  - paginationCondition: isolated cursor condition so the cursor value is parameterized separately
 //  - rowLimit: result size cap
-//  - orderBy: ordering on the view.paginationKey (defaults to DESC; can be overridden)
+//  - orderBy: static ordering followed by a unique paginationKey tie-breaker
+function getPaginationOrderings(view: View): PaginationOrdering[] {
+    const staticOrderings = view.staticOrdering ?? [];
+    const orderings = staticOrderings.flatMap(ordering =>
+        Object.entries(ordering).map(([field, direction]) => ({ field, direction }))
+    );
+    const hasPaginationKeyOrdering = orderings.some(ordering => ordering.field === view.paginationKey);
+
+    if (!hasPaginationKeyOrdering) {
+        orderings.push({
+            field: view.paginationKey,
+            direction: view.paginationDirection ?? 'DESC'
+        });
+    }
+
+    return orderings;
+}
+
+function getCursorValue(cursor: PaginationCursor, field: string): unknown {
+    if (cursor === null) return undefined;
+    if (!(field in cursor)) {
+        throw new Error(`Cannot build pagination cursor: missing value for ordered field "${field}"`);
+    }
+    return cursor[field];
+}
+
+function buildCursorEqualityCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
+    const cursorValue = getCursorValue(cursor, ordering.field);
+
+    return cursorValue === null
+        ? Hasura.condition(ordering.field, Hasura.isNull(true))
+        : Hasura.condition(ordering.field, Hasura.eq(cursorValue));
+}
+
+function buildCursorAfterCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
+    const cursorValue = getCursorValue(cursor, ordering.field);
+
+    // Hasura/Postgres comparisons do not support keyset boundaries like _lt/_gt: null.
+    // For plain ASC/DESC ordering, Hasura follows Postgres' default null placement:
+    // ASC puts nulls last, DESC puts nulls first. Encode those page boundaries with
+    // isNull checks instead of comparing against null directly.
+    if (cursorValue === null) {
+        return ordering.direction === 'DESC'
+            ? Hasura.condition(ordering.field, Hasura.isNull(false))
+            : null;
+    }
+
+    if (ordering.direction === 'ASC') {
+        return Hasura.or(
+            Hasura.condition(ordering.field, Hasura.gt(cursorValue)),
+            Hasura.condition(ordering.field, Hasura.isNull(true))
+        );
+    }
+
+    return Hasura.condition(ordering.field, Hasura.lt(cursorValue));
+}
+
+function buildImpossibleCondition(view: View) {
+    return Hasura.and(
+        Hasura.condition(view.paginationKey, Hasura.isNull(true)),
+        Hasura.condition(view.paginationKey, Hasura.isNull(false))
+    );
+}
+
+function buildPaginationCondition(view: View, cursor: PaginationCursor) {
+    if (cursor === null) return Hasura.empty();
+
+    const orderings = getPaginationOrderings(view);
+    const branches = orderings.flatMap((ordering, index) => {
+        const afterCondition = buildCursorAfterCondition(ordering, cursor);
+        // A null ASC cursor is already in the final null segment for this field, so
+        // there is no "after" branch at this level. Later tie-breaker fields may
+        // still produce branches while previous fields stay equal.
+        if (afterCondition === null) return [];
+
+        const equalityConditions = orderings.slice(0, index).map(previousOrdering =>
+            buildCursorEqualityCondition(previousOrdering, cursor)
+        );
+
+        return [Hasura.and(
+            ...equalityConditions,
+            afterCondition
+        )];
+    });
+
+    if (branches.length === 0) {
+        // Returning an empty pagination condition would mean "no cursor" and fetch the
+        // first page again. When the cursor is already at the end of the ordered keyspace,
+        // return a valid boolean expression that cannot match any row instead.
+        return buildImpossibleCondition(view);
+    }
+
+    return Hasura.or(...branches);
+}
+
+function buildOrderBy(view: View): HasuraOrderBy[] {
+    return getPaginationOrderings(view).map(ordering => ({ [ordering.field]: ordering.direction }));
+}
+
+export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {
+    const fields = new Set(getPaginationOrderings(view).map(ordering => ordering.field));
+    fields.delete(view.paginationKey);
+
+    return Array.from(fields).map(field => ({ type: 'valueQuery', field }));
+}
+
 export const buildGraphQLQueryVariables = (
     view: View,
     filterState: FilterState,
     rowLimit: number,
-    cursor: string | number | null
+    cursor: PaginationCursor
 ) => {
     let conditionsExpr = buildHasuraConditions(filterState, view.filterGroups);
 
@@ -37,17 +149,8 @@ export const buildGraphQLQueryVariables = (
         conditionsExpr = Hasura.and(conditionsExpr, ...view.staticConditions);
     }
 
-    const paginationDirection: 'ASC' | 'DESC' = view.paginationDirection ?? 'DESC';
-    const cursorOperator: '_lt' | '_gt' = paginationDirection === 'DESC' ? '_lt' : '_gt';
-
-    const paginationConditionExpr = cursor !== null
-        ? Hasura.condition(view.paginationKey, { [cursorOperator]: cursor })
-        : Hasura.empty();
-
-    const paginationOrdering: HasuraOrderBy = { [view.paginationKey]: paginationDirection };
-    const orderBy: HasuraOrderBy[] = (view.staticOrdering && view.staticOrdering.length > 0)
-        ? [paginationOrdering, ...view.staticOrdering]
-        : [paginationOrdering];
+    const paginationConditionExpr = buildPaginationCondition(view, cursor);
+    const orderBy = buildOrderBy(view);
 
     return {
         conditions: hasuraFilterExpressionToObject(conditionsExpr),
@@ -70,7 +173,7 @@ export const fetchData = async ({
     query: string;
     filterState: FilterState;
     rowLimit: number;
-    cursor: string | number | null;
+    cursor: PaginationCursor;
 }): Promise<FetchDataResult> => {
     // Assign a unique ID to this request for ordering
     const currentRequestId = ++requestCounter;

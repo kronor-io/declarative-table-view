@@ -50,7 +50,7 @@ describe('fetchData staticConditions merging', () => {
     });
 
     it('provides pagination condition via separate variable', async () => {
-        await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rowLimit: 10, cursor: 50 });
+        await fetchData({ client: mockClient, view, query: 'query', filterState: new Map(), rowLimit: 10, cursor: { id: 50 } });
         // The base conditions should only include user + static conditions (no pagination)
         expect(capturedVariables.conditions._and.length).toBe(2); // two static
         // Pagination condition is isolated in its own variable

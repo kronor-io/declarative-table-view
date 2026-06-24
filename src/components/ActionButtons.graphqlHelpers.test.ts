@@ -23,7 +23,8 @@ jest.mock('../framework/data', () => {
             paginationCondition: cursor !== null ? { [view.paginationKey]: { _lt: cursor } } : {},
             rowLimit,
             orderBy: [{ [view.paginationKey]: 'DESC' }]
-        }))
+        })),
+        getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });
 

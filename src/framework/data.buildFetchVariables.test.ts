@@ -27,7 +27,7 @@ describe('buildGraphQLQueryVariables (legacy file name)', () => {
             staticConditions: [Hasura.condition('status', Hasura.eq('ACTIVE'))]
         };
         const filterState: FilterState = new Map();
-        const vars = buildGraphQLQueryVariables(view, filterState, 25, 50);
+        const vars = buildGraphQLQueryVariables(view, filterState, 25, { id: 50 });
         expect(vars.conditions).toEqual({ status: { _eq: 'ACTIVE' } });
         expect(vars.paginationCondition).toEqual({ id: { _lt: 50 } });
         expect(vars.rowLimit).toBe(25);
