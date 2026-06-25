@@ -47,4 +47,30 @@ describe('generateGraphQLQuery paginationKey inclusion', () => {
         expect(query).toContain('details');
         expect(query).toContain('status');
     });
+
+    it('includes nested paginationKey fields as a selection path', () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'name', name: 'Name', data: [valueQuery({ field: 'name' })], cellRenderer: () => null }
+        ];
+
+        const query = generateGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'customer.id');
+
+        expect(query).toContain('customer');
+        expect(query).toContain('id');
+        expect(query).toContain('customer {');
+    });
+
+    it('does not duplicate nested paginationKey fields when selected by columns', () => {
+        const columns: ColumnDefinition[] = [
+            {
+                type: 'virtualColumn',
+                id: 'customer',
+                data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'id' })] })]
+            }
+        ];
+
+        const query = generateGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'customer.id');
+
+        expect((query.match(/customer \{/g) || []).length).toBe(1);
+    });
 });

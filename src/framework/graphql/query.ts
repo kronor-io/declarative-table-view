@@ -72,11 +72,19 @@ function generateSelectionSetFromColumnsInternal(
     };
 
     const toHasuraOrderBy = (orderBy: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
+        const buildOrderByObject = (key: string, direction: 'ASC' | 'DESC'): HasuraOrderBy => {
+            return key
+                .split('.')
+                .filter(Boolean)
+                .reverse()
+                .reduce<HasuraOrderBy | 'ASC' | 'DESC'>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
+        };
+
         if (Array.isArray(orderBy)) {
-            return orderBy.map(item => ({ [item.key]: item.direction.toUpperCase() as 'ASC' | 'DESC' }));
+            return orderBy.map(item => buildOrderByObject(item.key, item.direction.toUpperCase() as 'ASC' | 'DESC'));
         }
 
-        return { [orderBy.key]: orderBy.direction.toUpperCase() as 'ASC' | 'DESC' };
+        return buildOrderByObject(orderBy.key, orderBy.direction.toUpperCase() as 'ASC' | 'DESC');
     };
 
     const processSelectionSet = (selectionSet: readonly Query[]): GraphQLSelectionSet | undefined => {
@@ -231,8 +239,17 @@ function ensurePaginationKeyInSelectionSet(
     paginationKey: string,
 ): GraphQLSelectionSet {
     const nextSelectionSet = [...selectionSet];
+    const path = paginationKey.split('.').filter(Boolean);
 
-    const hasPaginationKey = nextSelectionSet.some(sel => sel.field === paginationKey || sel.alias === paginationKey);
+    const hasSelectionPath = (set: GraphQLSelectionSet, remainingPath: string[]): boolean => {
+        const [head, ...tail] = remainingPath;
+        const selection = set.find(sel => sel.field === head || sel.alias === head);
+        if (!selection) return false;
+        if (tail.length === 0) return true;
+        return selection.selections ? hasSelectionPath(selection.selections, tail) : false;
+    };
+
+    const hasPaginationKey = hasSelectionPath(nextSelectionSet, path);
     if (!hasPaginationKey) {
         const buildNested = (path: string): GraphQLSelectionSetItem => {
             const parts = path.split('.');
@@ -382,7 +399,11 @@ export type GraphQLFieldNode = {
     args?: GraphQLArgument[];
 };
 
-export type HasuraOrderBy = Record<string, 'ASC' | 'DESC'>;
+export type HasuraOrderDirection = 'ASC' | 'DESC';
+
+export type HasuraOrderBy = {
+    [key: string]: HasuraOrderDirection | HasuraOrderBy;
+};
 
 export type GraphQLSelectionSetItem = {
     field: string;
@@ -525,12 +546,12 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             args.push(`distinctOn: [${cols}]`);
         }
         if (item.order_by) {
-            const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | undefined): string => {
+            const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | HasuraOrderDirection | undefined): string => {
                 if (Array.isArray(orderBy)) {
                     return '[' + orderBy.map(renderOrderBy).join(', ') + ']';
                 } else if (typeof orderBy === 'object' && orderBy !== undefined) {
                     return '{' + Object.entries(orderBy)
-                        .map(([k, v]) => `${k}: ${String(v).toUpperCase()}`)
+                        .map(([k, v]) => `${k}: ${renderOrderBy(v)}`)
                         .join(', ') + '}';
                 }
                 return String(orderBy).toUpperCase();

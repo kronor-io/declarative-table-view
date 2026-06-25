@@ -1,7 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
 import { getViewRootFieldName, View } from '../framework/view';
-import type { ColumnDefinition, ColumnId, FieldQuery } from '../framework/column-definition';
+import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework/column-definition';
 import { FilterState } from './state';
 
 export type FlattenedDataRow = Record<ColumnId, Record<string, unknown>>;
@@ -17,6 +17,62 @@ type PaginationOrdering = {
     field: string;
     direction: 'ASC' | 'DESC';
 };
+
+function splitFieldPath(field: string): string[] {
+    return field.split('.').filter(Boolean);
+}
+
+function isOrderDirection(value: unknown): value is PaginationOrdering['direction'] {
+    return value === 'ASC' || value === 'DESC';
+}
+
+function flattenOrderBy(orderBy: HasuraOrderBy, path: string[] = []): PaginationOrdering[] {
+    return Object.entries(orderBy).flatMap(([field, value]) => {
+        const nextPath = [...path, field];
+
+        if (isOrderDirection(value)) {
+            return [{ field: nextPath.join('.'), direction: value }];
+        }
+
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+            throw new Error(`Invalid staticOrdering direction for field "${nextPath.join('.')}"`);
+        }
+
+        return flattenOrderBy(value, nextPath);
+    });
+}
+
+function buildNestedOrderBy(field: string, direction: PaginationOrdering['direction']): HasuraOrderBy {
+    return splitFieldPath(field)
+        .reverse()
+        .reduce<HasuraOrderBy | PaginationOrdering['direction']>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
+}
+
+function fieldPathToFieldQuery(field: string): FieldQuery {
+    const [head, ...tail] = splitFieldPath(field);
+
+    if (!head) {
+        return { type: 'valueQuery', field };
+    }
+
+    if (tail.length === 0) {
+        return { type: 'valueQuery', field: head };
+    }
+
+    const buildNestedFieldQuery = (fieldName: string, remainingPath: string[]): Query => {
+        const [nextField, ...nextTail] = remainingPath;
+
+        return {
+            type: 'objectQuery',
+            field: fieldName,
+            selectionSet: nextTail.length === 0
+                ? [{ type: 'valueQuery', field: nextField }]
+                : [buildNestedFieldQuery(nextField, nextTail)]
+        };
+    };
+
+    return buildNestedFieldQuery(head, tail);
+}
 
 function hasKey<K extends string | number | symbol, T extends { [key in K]: unknown[] }>(obj: unknown, key: K): obj is T {
     return typeof obj === 'object' && obj !== null && key in obj && Array.isArray((obj as T)[key]);
@@ -34,9 +90,7 @@ let requestCounter = 0;
 //  - orderBy: static ordering followed by a unique paginationKey tie-breaker
 function getPaginationOrderings(view: View): PaginationOrdering[] {
     const staticOrderings = view.staticOrdering ?? [];
-    const orderings = staticOrderings.flatMap(ordering =>
-        Object.entries(ordering).map(([field, direction]) => ({ field, direction }))
-    );
+    const orderings = staticOrderings.flatMap(ordering => flattenOrderBy(ordering));
     const hasPaginationKeyOrdering = orderings.some(ordering => ordering.field === view.paginationKey);
 
     if (!hasPaginationKeyOrdering) {
@@ -49,16 +103,23 @@ function getPaginationOrderings(view: View): PaginationOrdering[] {
     return orderings;
 }
 
-function getCursorValue(cursor: PaginationCursor, field: string): unknown {
+export function getPaginationCursorValue(cursor: PaginationCursor, field: string): unknown {
     if (cursor === null) return undefined;
-    if (!(field in cursor)) {
-        throw new Error(`Cannot build pagination cursor: missing value for ordered field "${field}"`);
+
+    let currentValue: unknown = cursor;
+    for (const pathPart of splitFieldPath(field)) {
+        if (currentValue === null) return null;
+        if (typeof currentValue !== 'object' || !(pathPart in currentValue)) {
+            throw new Error(`Cannot build pagination cursor: missing value for ordered field "${field}"`);
+        }
+        currentValue = (currentValue as Record<string, unknown>)[pathPart];
     }
-    return cursor[field];
+
+    return currentValue;
 }
 
 function buildCursorEqualityCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
-    const cursorValue = getCursorValue(cursor, ordering.field);
+    const cursorValue = getPaginationCursorValue(cursor, ordering.field);
 
     return cursorValue === null
         ? Hasura.condition(ordering.field, Hasura.isNull(true))
@@ -66,7 +127,7 @@ function buildCursorEqualityCondition(ordering: PaginationOrdering, cursor: Pagi
 }
 
 function buildCursorAfterCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
-    const cursorValue = getCursorValue(cursor, ordering.field);
+    const cursorValue = getPaginationCursorValue(cursor, ordering.field);
 
     // Hasura/Postgres comparisons do not support keyset boundaries like _lt/_gt: null.
     // For plain ASC/DESC ordering, Hasura follows Postgres' default null placement:
@@ -127,14 +188,14 @@ function buildPaginationCondition(view: View, cursor: PaginationCursor) {
 }
 
 function buildOrderBy(view: View): HasuraOrderBy[] {
-    return getPaginationOrderings(view).map(ordering => ({ [ordering.field]: ordering.direction }));
+    return getPaginationOrderings(view).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
 }
 
 export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {
     const fields = new Set(getPaginationOrderings(view).map(ordering => ordering.field));
     fields.delete(view.paginationKey);
 
-    return Array.from(fields).map(field => ({ type: 'valueQuery', field }));
+    return Array.from(fields).map(field => fieldPathToFieldQuery(field));
 }
 
 export const buildGraphQLQueryVariables = (

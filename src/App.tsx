@@ -20,7 +20,7 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationOrderFieldQueries, type PaginationCursor } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, type PaginationCursor } from './framework/data';
 import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
@@ -607,7 +607,13 @@ function App({
     // Next page handler
     const handleNextPage = async () => {
         const cursor = state.data.rows.length > 0 ? state.data.rows[state.data.rows.length - 1] : null
-        const paginationKeyValue = cursor?.[selectedView.paginationKey];
+        let paginationKeyValue: unknown;
+        try {
+            paginationKeyValue = getPaginationCursorValue(cursor, selectedView.paginationKey);
+        } catch (error) {
+            console.error('Invalid cursor type:', cursor, error);
+            return;
+        }
         if (cursor !== null && typeof paginationKeyValue !== 'string' && typeof paginationKeyValue !== 'number') {
             console.error('Invalid cursor type:', cursor);
             return;

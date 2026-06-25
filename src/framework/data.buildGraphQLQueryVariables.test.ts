@@ -59,6 +59,57 @@ describe('buildGraphQLQueryVariables', () => {
         expect(vars.orderBy).toEqual([{ status: 'ASC' }, { id: 'DESC' }]);
     });
 
+    it('builds nested orderBy objects for dotted staticOrdering fields and paginationKey', () => {
+        const view: View = {
+            ...baseView,
+            paginationKey: 'customer.id',
+            staticOrdering: [{ 'customer.profile.status': 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, null);
+
+        expect(vars.orderBy).toEqual([
+            { customer: { profile: { status: 'ASC' } } },
+            { customer: { id: 'DESC' } }
+        ]);
+    });
+
+    it('accepts native nested staticOrdering objects', () => {
+        const view: View = {
+            ...baseView,
+            paginationKey: 'customer.id',
+            staticOrdering: [{ customer: { profile: { status: 'ASC' } } }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, {
+            customer: {
+                profile: { status: 'READY' },
+                id: 50
+            }
+        });
+
+        expect(vars.orderBy).toEqual([
+            { customer: { profile: { status: 'ASC' } } },
+            { customer: { id: 'DESC' } }
+        ]);
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                {
+                    _or: [
+                        { customer: { profile: { status: { _gt: 'READY' } } } },
+                        { customer: { profile: { status: { _isNull: true } } } }
+                    ]
+                },
+                {
+                    _and: [
+                        { customer: { profile: { status: { _eq: 'READY' } } } },
+                        { customer: { id: { _lt: 50 } } }
+                    ]
+                }
+            ]
+        });
+    });
+
     it('builds a lexicographic cursor condition for staticOrdering and paginationKey', () => {
         const view: View = {
             ...baseView,
@@ -177,6 +228,17 @@ describe('buildGraphQLQueryVariables', () => {
             .toThrow('Cannot build pagination cursor: missing value for ordered field "status"');
     });
 
+    it('throws clearly for invalid nested staticOrdering directions', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ customer: { profile: { status: 'UP' } } } as any]
+        };
+        const filterState: FilterState = new Map();
+
+        expect(() => buildGraphQLQueryVariables(view, filterState, 10, null))
+            .toThrow('Invalid staticOrdering direction for field "customer.profile.status"');
+    });
+
     it('returns static ordering fields that must be selected for pagination cursors', () => {
         const view: View = {
             ...baseView,
@@ -185,6 +247,29 @@ describe('buildGraphQLQueryVariables', () => {
 
         expect(getPaginationOrderFieldQueries(view)).toEqual([
             { type: 'valueQuery', field: 'status' },
+            { type: 'valueQuery', field: 'createdAt' }
+        ]);
+    });
+
+    it('returns nested static ordering field queries that must be selected for pagination cursors', () => {
+        const view: View = {
+            ...baseView,
+            paginationKey: 'customer.id',
+            staticOrdering: [{ 'customer.profile.status': 'ASC' }, { createdAt: 'DESC' }]
+        };
+
+        expect(getPaginationOrderFieldQueries(view)).toEqual([
+            {
+                type: 'objectQuery',
+                field: 'customer',
+                selectionSet: [
+                    {
+                        type: 'objectQuery',
+                        field: 'profile',
+                        selectionSet: [{ type: 'valueQuery', field: 'status' }]
+                    }
+                ]
+            },
             { type: 'valueQuery', field: 'createdAt' }
         ]);
     });

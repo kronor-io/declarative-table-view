@@ -5,6 +5,7 @@ import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './c
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
+import type { HasuraFilterExpression, HasuraOrderBy } from './graphql';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
@@ -138,6 +139,8 @@ export type ViewJson = {
     defaultAIFilterPrompt?: string;
     boolExpType: string; // GraphQL boolean expression type for this view
     orderByType: string; // GraphQL order by type for this view
+    staticConditions?: HasuraFilterExpression[];
+    staticOrdering?: HasuraOrderBy[];
     noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
     rowExpansion?: {
         data: FieldQueryJson[];
