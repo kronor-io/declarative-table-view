@@ -10,6 +10,7 @@ import { majorToMinor, minorToMajor } from "./currency";
 import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from "primereact/tag";
+import type { ColumnProps } from "primereact/column";
 import type { FilterState } from "./state";
 import type { FilterFormState } from "./filter-form-state";
 import type { FilterId } from "./filters";
@@ -54,6 +55,8 @@ export type CellRenderer<
 > = {
     bivarianceHack(props: CellRendererProps<Data>): ReactNode;
 }["bivarianceHack"];
+
+export type TableColumnDefinitionFooter = ColumnProps["footer"];
 
 export type ColumnId = string;
 
@@ -500,6 +503,7 @@ export type TableColumnDefinition<
     id: ColumnId;
     data: FieldQueries;
     name: string; // column display name
+    footer?: TableColumnDefinitionFooter;
     orderBy?: OrderableFieldPath<FieldQueries>; // GraphQL field to order by when the header is sorted
     cellRenderer: CellRenderer<CellData>;
 };

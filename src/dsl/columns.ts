@@ -16,6 +16,7 @@ import {
     type OrderableFieldPath,
     type Query,
     type OrderByConfig,
+    type TableColumnDefinitionFooter,
     type ValueQuery,
     type ObjectQuery,
     type ArrayQuery,
@@ -51,6 +52,7 @@ export function column<Row, const FieldQueries extends readonly FieldQuery[]>(ar
     id: string;
     name: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
+    footer?: TableColumnDefinitionFooter;
     orderBy?: OrderableFieldPath<FieldQueries>;
     cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 }): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
@@ -59,6 +61,7 @@ export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
     id: string;
     name: string;
     data: FieldQueries;
+    footer?: TableColumnDefinitionFooter;
     orderBy?: OrderableFieldPath<FieldQueries>;
     cellRenderer: CellRenderer<DataFromFieldQueriesSafe<FieldQueries>>;
 }): TableColumnDefinition<FieldQueries>;
@@ -67,6 +70,7 @@ export function column(args: {
     id: string;
     name: string;
     data: readonly FieldQuery[];
+    footer?: TableColumnDefinitionFooter;
     orderBy?: string;
     cellRenderer: CellRenderer<Record<string, any>>;
 }): TableColumnDefinition {
@@ -81,6 +85,7 @@ export function column(args: {
         id: rest.id,
         name: rest.name,
         data: rest.data,
+        ...(rest.footer !== undefined ? { footer: rest.footer } : {}),
         ...(rest.orderBy !== undefined ? { orderBy: rest.orderBy } : {}),
         cellRenderer: rest.cellRenderer,
     };

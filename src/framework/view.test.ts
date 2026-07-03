@@ -18,6 +18,9 @@ describe('parseColumnDefinitionJson', () => {
                 canExpand: () => true
             }
         },
+        columnFooters: {
+            total: () => 'total'
+        },
         customFilterComponents: {},
         initialValues: {},
         suggestionFetchers: {}
@@ -89,6 +92,28 @@ describe('parseColumnDefinitionJson', () => {
                 name: 'Name',
                 orderBy: 'sortValue',
                 cellRenderer: { section: 'cellRenderers', key: 'name' }
+            });
+        });
+
+        it('should parse a column footer runtime reference', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'amount' }],
+                name: 'Amount',
+                footer: { section: 'columnFooters', key: 'total' },
+                cellRenderer: { section: 'cellRenderers', key: 'amount' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+
+            expect(result).toEqual({
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'amount' }],
+                name: 'Amount',
+                footer: { section: 'columnFooters', key: 'total' },
+                cellRenderer: { section: 'cellRenderers', key: 'amount' }
             });
         });
 
@@ -1710,6 +1735,7 @@ describe('parseFilterFieldSchemaJson', () => {
 
 describe('parseViewJson', () => {
     const mockNoRowsComponent = () => null;
+    const mockColumnFooter = () => 'total';
 
     const viewTestRuntime = {
         cellRenderers: {
@@ -1730,6 +1756,9 @@ describe('parseViewJson', () => {
         },
         noRowsComponents: {
             noRowsExtendDateRange: mockNoRowsComponent
+        },
+        columnFooters: {
+            total: mockColumnFooter
         },
         customFilterComponents: {},
         initialValues: {},
@@ -1889,6 +1918,42 @@ describe('parseViewJson', () => {
             const result = parseViewJson(validJson, viewTestRuntime);
 
             expect(result.noRowsComponent).toBe(mockNoRowsComponent);
+        });
+
+        it('should resolve table column footers from runtime references', () => {
+            const validJson = {
+                title: 'Test View',
+                id: 'test-view',
+                source: {
+                    type: 'collection',
+                    collectionName: 'testCollection'
+                },
+                paginationKey: 'createdAt',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    {
+                        type: 'tableColumn',
+                        id: 'amount',
+                        data: [{ type: 'valueQuery', field: 'amount' }],
+                        name: 'Amount',
+                        footer: { section: 'columnFooters', key: 'total' },
+                        cellRenderer: { section: 'cellRenderers', key: 'number' }
+                    }
+                ],
+                filterSchema: {
+                    groups: [{ name: 'default', label: null }],
+                    filters: []
+                }
+            };
+
+            const result = parseViewJson(validJson, viewTestRuntime);
+            const amountColumn = result.columnDefinitions[0];
+
+            expect(amountColumn.type).toBe('tableColumn');
+            if (amountColumn.type === 'tableColumn') {
+                expect(amountColumn.footer).toBe(mockColumnFooter);
+            }
         });
 
         it('should parse ViewJson with multiple columns and complex filters', () => {

@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import { orderByIsSelectedField, type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer } from './column-definition';
+import { orderByIsSelectedField, type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type TableColumnDefinitionFooter } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
@@ -10,7 +10,7 @@ import { isOrderDirection, type OrderDirection } from './order-direction';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
     key: string;
 };
 
@@ -103,6 +103,7 @@ export type TableColumnDefinitionJson = {
     id: string;
     data: FieldQueryJson[];
     name: string;
+    footer?: RuntimeReference;
     orderBy?: string;
     cellRenderer: RuntimeReference;
 };
@@ -168,7 +169,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -319,6 +320,19 @@ export function parseColumnDefinitionJson(
             if (obj.orderBy !== undefined && typeof obj.orderBy !== 'string') {
                 throw new Error('Invalid JSON: "orderBy" field must be a string for tableColumn when provided');
             }
+            let footer: RuntimeReference | undefined;
+            if (obj.footer !== undefined) {
+                footer = parseRuntimeReference(obj.footer);
+                if (footer.section !== 'columnFooters') {
+                    throw new Error('Invalid footer: section must be "columnFooters"');
+                }
+                const externalFooterKeys = externalRuntime ? Object.keys(externalRuntime.columnFooters || {}) : [];
+                const builtInFooterKeys = Object.keys(builtInRuntime.columnFooters || {});
+                const allFooterKeys = [...new Set([...externalFooterKeys, ...builtInFooterKeys])];
+                if (!allFooterKeys.includes(footer.key)) {
+                    throw new Error(`Invalid footer reference: "${footer.key}". Valid keys are: ${allFooterKeys.join(', ')}`);
+                }
+            }
             const cellRenderer = parseRuntimeReference(obj.cellRenderer);
             if (cellRenderer.section !== 'cellRenderers') {
                 throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
@@ -347,6 +361,7 @@ export function parseColumnDefinitionJson(
                 id: obj.id,
                 data: parsedData,
                 name: obj.name,
+                ...(footer !== undefined ? { footer } : {}),
                 ...(obj.orderBy !== undefined ? { orderBy: obj.orderBy } : {}),
                 cellRenderer
             };
@@ -850,11 +865,19 @@ export function parseViewJson(
                     externalRuntime,
                     builtInRuntime
                 );
+                const footer = columnJson.footer !== undefined
+                    ? resolveRuntimeReference<TableColumnDefinitionFooter>(
+                        columnJson.footer,
+                        externalRuntime,
+                        builtInRuntime
+                    )
+                    : undefined;
                 return {
                     type: 'tableColumn',
                     id: columnJson.id,
                     data: columnJson.data,
                     name: columnJson.name,
+                    ...(footer !== undefined ? { footer } : {}),
                     ...(columnJson.orderBy !== undefined ? { orderBy: columnJson.orderBy } : {}),
                     cellRenderer
                 };

@@ -41,6 +41,19 @@ describe('dsl/view', () => {
         expect(view(input)).toBe(input);
     });
 
+    it('preserves column footers', () => {
+        const footer = 'Total';
+        const definition = column({
+            id: 'amount',
+            name: 'Amount',
+            data: [valueQuery({ field: 'amount' })],
+            footer,
+            cellRenderer: () => null
+        });
+
+        expect(definition.footer).toBe(footer);
+    });
+
     it('throws when columnDefinitions has duplicate ids', () => {
         const input: View = {
             title: 'My View',

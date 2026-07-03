@@ -1,5 +1,5 @@
 import React from "react";
-import { CellRenderer } from "./column-definition";
+import { CellRenderer, TableColumnDefinitionFooter } from "./column-definition";
 import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
 import { QueryTransformContext, TransformResult, SuggestionFetcher } from "./filters";
 
@@ -13,6 +13,7 @@ export type Runtime = {
     }>;
     noRowsComponents: Record<string, NoRowsComponent>;
     rowExpansions?: Record<string, RowExpansionRuntimeEntry>;
+    columnFooters?: Record<string, TableColumnDefinitionFooter>;
     customFilterComponents: Record<string, React.ComponentType<any>>;
     initialValues: Record<string, any>;
     // New runtime section for dynamic suggestion fetchers used by autocomplete filter controls

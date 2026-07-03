@@ -436,6 +436,7 @@ function Table({
                             key={column.id}
                             field={column.id}
                             header={column.name}
+                            footer={column.footer}
                             sortable={orderBy !== undefined}
                             sortField={orderBy}
                             body={(rowData: TableDataRow) => column.cellRenderer({
