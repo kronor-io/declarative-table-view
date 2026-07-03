@@ -274,6 +274,61 @@ describe('buildGraphQLQueryVariables', () => {
         ]);
     });
 
+    it('uses active ordering instead of staticOrdering when provided', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { amount: 100, id: 50 }, { field: 'amount', direction: 'ASC' });
+
+        expect(vars.orderBy).toEqual([{ amount: 'ASC' }, { id: 'DESC' }]);
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                {
+                    _or: [
+                        { amount: { _gt: 100 } },
+                        { amount: { _isNull: true } }
+                    ]
+                },
+                {
+                    _and: [
+                        { amount: { _eq: 100 } },
+                        { id: { _lt: 50 } }
+                    ]
+                }
+            ]
+        });
+    });
+
+    it('uses only the pagination key when ordering is explicitly disabled', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { id: 50 }, null);
+
+        expect(vars.orderBy).toEqual([{ id: 'DESC' }]);
+        expect(vars.paginationCondition).toEqual({ id: { _lt: 50 } });
+    });
+
+    it('builds nested orderBy for dotted active ordering fields', () => {
+        const view: View = {
+            ...baseView,
+            paginationKey: 'id',
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const ordering = { field: 'customer.profile.status', direction: 'ASC' } as const;
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, null, ordering);
+
+        expect(vars.orderBy).toEqual([
+            { customer: { profile: { status: 'ASC' } } },
+            { id: 'DESC' }
+        ]);
+    });
+
     it('builds variables with a user filter (no staticConditions, no cursor)', () => {
         const userFilter: FilterSchema = {
             id: 'f1',

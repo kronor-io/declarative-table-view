@@ -9,6 +9,7 @@ This folder contains detailed API documentation for the runtime extension points
 - Query Transforms (`queryTransforms`)
 - Initial Values (`initialValues`)
 - Static Conditions (`staticConditions` on a View)
+- Optional column `orderBy` fields for sortable headers
 
 Each extension point is referenced from JSON view definitions using a Runtime Reference object:
 
@@ -40,3 +41,33 @@ Resolution precedence: External (per-app) runtime overrides Built-in runtime. If
 - `no-rows-component.md` — Authoring components shown when a view returns zero rows.
 
 Add additional docs here for transforms, custom filters, etc. as needed.
+
+## Column Ordering
+- Table column headers are sortable when DTV can map the column to a GraphQL order field.
+- A table column with exactly one simple `valueQuery` automatically orders by that field.
+- For rendered or composite columns, set `orderBy` on the table column JSON to one of the scalar GraphQL fields selected by `data` to enable sorting.
+- `orderBy` may be a dot-separated path for nested order fields, such as `customer.profile.status`.
+- Users can order by one sortable header at a time. Clicking a sorted header a third time removes the header ordering.
+
+```jsonc
+{
+    "type": "tableColumn",
+    "id": "customerName",
+    "data": [
+        {
+            "type": "objectQuery",
+            "field": "customer",
+            "selectionSet": [
+                {
+                    "type": "objectQuery",
+                    "field": "profile",
+                    "selectionSet": [{ "type": "valueQuery", "field": "lastName" }]
+                }
+            ]
+        }
+    ],
+    "name": "Customer",
+    "orderBy": "customer.profile.lastName",
+    "cellRenderer": { "section": "cellRenderers", "key": "text" }
+}
+```

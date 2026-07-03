@@ -46,6 +46,8 @@ export type {
     GraphQLSelectionSet,
     GraphQLQueryAST,
 } from '../framework/graphql';
+export type { DataOrdering } from '../framework/data-ordering';
+export type { OrderDirection } from '../framework/order-direction';
 export {
     hasuraFilterExpressionToObject,
     hasuraFilterExpressionsAreEqual,

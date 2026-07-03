@@ -5,7 +5,7 @@ import { describe, it, expect } from '@jest/globals';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, filterStatesEqual, FilterState } from './state';
+import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, setOrdering, filterStatesEqual, FilterState } from './state';
 import { buildInitialFormState, useAppState } from './state';
 import { View } from './view';
 import * as FilterValue from './filterValue';
@@ -112,6 +112,7 @@ describe('AppState', () => {
             new Map(mockViews[0].filterGroups[0].filters.map(f => [f.id, buildInitialFormState(f.expression)]))
         );
         expect(state.data).toEqual({ rows: [], flattenedRows: [] });
+        expect(state.orderingByViewId).toEqual({});
     });
 
     it('setSelectedViewId updates selectedViewIndex, filterSchema, and filterState', () => {
@@ -134,6 +135,16 @@ describe('AppState', () => {
         state = setDataRows(state, data, pagination);
         expect(state.data).toBe(data);
         expect(state.pagination).toEqual(pagination);
+    });
+
+    it('setOrdering stores ordering per view and resets pagination', () => {
+        let state = createDefaultAppState(mockViews, []);
+        const data = { rows: [{ id: 1 }, { id: 2 }], flattenedRows: [{ id: { id: 1 } }, { id: { id: 2 } }] };
+        state = setDataRows(state, data, { page: 2, cursors: [{ id: 'a' }, { id: 'b' }], rowsPerPage: 50 });
+        state = setOrdering(state, 'foo', { field: 'email', direction: 'ASC' });
+
+        expect(state.orderingByViewId.foo).toEqual({ field: 'email', direction: 'ASC' });
+        expect(state.pagination).toEqual({ page: 0, cursors: [], rowsPerPage: 50 });
     });
 
     it('setFilterGroups updates filterGroups', () => {

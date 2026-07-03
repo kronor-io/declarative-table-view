@@ -8,6 +8,7 @@ import type { PaginationCursor } from "./data";
 import { createFilterDisplayState, FilterDisplayState } from "./filter-display-state";
 import { getAllFilters } from "./view";
 import { valuesEqual } from "./equality";
+import type { DataOrdering } from "./data-ordering";
 
 export type FilterState = Map<FilterId, FilterFormState>;
 
@@ -118,6 +119,7 @@ export interface AppState {
     filterState: FilterState
     appliedFilterState: FilterState
     pagination: PaginationState
+    orderingByViewId: Record<ViewId, DataOrdering | null>
 }
 
 export interface PaginationState {
@@ -158,7 +160,8 @@ export function createDefaultAppState(views: View[], rowsPerPageOptions: number[
         data: { flattenedRows: [], rows: [] },
         filterState: initialFilterState,
         appliedFilterState: initialFilterState,
-        pagination: createPaginationState(initialRowsPerPage)
+        pagination: createPaginationState(initialRowsPerPage),
+        orderingByViewId: {}
     };
 }
 
@@ -269,6 +272,17 @@ function setRowsPerPage(state: AppState, newRowsPerPage: number): AppState {
     };
 }
 
+function setOrdering(state: AppState, viewId: ViewId, ordering: DataOrdering | null): AppState {
+    return {
+        ...state,
+        orderingByViewId: {
+            ...state.orderingByViewId,
+            [viewId]: ordering
+        },
+        pagination: createPaginationState(state.pagination.rowsPerPage)
+    };
+}
+
 export const useAppState = (views: View[], rowsPerPageOptions: number[], initialFilterStateOverride?: FilterState) => {
     const [appState, setAppState] = useState<AppState>(() => {
         const base = createDefaultAppState(views, rowsPerPageOptions);
@@ -314,6 +328,10 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         setAppState(prev => setRowsPerPage(prev, value));
     }, []);
 
+    const updateOrdering = useCallback((viewId: ViewId, ordering: DataOrdering | null) => {
+        setAppState(prev => setOrdering(prev, viewId, ordering));
+    }, []);
+
     return {
         state: appState,
         selectedView: getSelectedView(appState),
@@ -324,8 +342,9 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         setAppliedFilterState: updateAppliedFilterState,
         setSearchQuery: updateSearchQuery,
         setFilterGroupExpanded: updateFilterGroupExpanded,
-        setRowsPerPage: updateRowsPerPage
+        setRowsPerPage: updateRowsPerPage,
+        setOrdering: updateOrdering
     };
 }
 
-export { setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage };
+export { setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage, setOrdering };

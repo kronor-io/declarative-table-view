@@ -5,6 +5,7 @@ import { FilterGroups, FilterSchema } from "./filters";
 import { FilterState } from "./state";
 import { FilterFormState } from "./filter-form-state";
 import { HasuraFilterExpression, HasuraOrderBy } from "./graphql";
+import type { OrderDirection } from "./order-direction";
 
 export type NoRowsComponentProps = {
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
@@ -92,7 +93,7 @@ type ViewBase = {
      * Optional direction for cursor-based pagination ordering on paginationKey.
      * Defaults to 'DESC' for backwards compatibility.
      */
-    paginationDirection?: 'ASC' | 'DESC';
+    paginationDirection?: OrderDirection;
     noRowsComponent?: NoRowsComponent;
     // Optional static GraphQL conditions (Hasura boolean expressions) always applied in addition to user filters
     staticConditions?: HasuraFilterExpression[];

@@ -14,6 +14,7 @@ import type { FilterState } from "./state";
 import type { FilterFormState } from "./filter-form-state";
 import type { FilterId } from "./filters";
 import type { EmptyObject, Simplify, UnionToIntersection } from "./typelevel";
+import type { OrderDirection } from "./order-direction";
 
 export type CellRendererProps<
     Data extends Record<string, any> = Record<string, any>,
@@ -58,7 +59,7 @@ export type ColumnId = string;
 
 export type OrderByConfig = {
     key: string; // data key to order by
-    direction: "ASC" | "DESC";
+    direction: OrderDirection;
 };
 
 export type FieldAlias = {
@@ -389,6 +390,36 @@ type SelectionSetOfQuery<Q extends Query> = Q extends { selectionSet: infer Sele
     ? SelectionSet
     : never;
 
+type PrefixPath<Prefix extends string, Path extends string> = `${Prefix}.${Path}`;
+
+type OrderablePathFromQuery<Q extends Query> = Q extends { path: string }
+    ? never
+    : Q extends { type: "valueQuery" }
+    ? FieldOfQuery<Q> & string
+    : Q extends { type: "objectQuery" }
+    ? PrefixPath<FieldOfQuery<Q> & string, OrderablePathFromSelectionSet<SelectionSetOfQuery<Q>>>
+    : never;
+
+type OrderablePathFromFieldQuery<FQ extends FieldQuery> = FQ extends FieldAlias
+    ? OrderablePathFromFieldQuery<FQ["field"]>
+    : FQ extends Query
+    ? OrderablePathFromQuery<FQ>
+    : never;
+
+type OrderablePathFromSelectionSet<SelectionSet extends readonly Query[]> = SelectionSet[number] extends infer SelectionItem
+    ? SelectionItem extends Query
+    ? OrderablePathFromQuery<SelectionItem>
+    : never
+    : never;
+
+export type OrderableFieldPath<FieldQueries extends readonly FieldQuery[]> = string extends ExtractTopLevelKey<FieldQueries[number]>
+    ? string
+    : FieldQueries[number] extends infer FieldQueryItem
+    ? FieldQueryItem extends FieldQuery
+    ? OrderablePathFromFieldQuery<FieldQueryItem>
+    : never
+    : never;
+
 type ValidateQueryForRow<Row, Q extends Query> = Q extends { type: "valueQuery" }
     ? FieldOfQuery<Q> extends StringKeyOf<Row>
     ? Q
@@ -469,6 +500,7 @@ export type TableColumnDefinition<
     id: ColumnId;
     data: FieldQueries;
     name: string; // column display name
+    orderBy?: OrderableFieldPath<FieldQueries>; // GraphQL field to order by when the header is sorted
     cellRenderer: CellRenderer<CellData>;
 };
 
@@ -482,3 +514,69 @@ export type VirtualColumnDefinition<
 };
 
 export type ColumnDefinition = TableColumnDefinition | VirtualColumnDefinition;
+
+function collectOrderableFieldPathsFromQuery(query: Query, prefix: readonly string[] = []): string[] {
+    if (query.path !== undefined) {
+        return [];
+    }
+
+    const fieldPath = [...prefix, query.field];
+
+    if (query.type === "valueQuery") {
+        return [fieldPath.join(".")];
+    }
+
+    if (query.type === "objectQuery") {
+        return query.selectionSet.flatMap(selection => collectOrderableFieldPathsFromQuery(selection, fieldPath));
+    }
+
+    return [];
+}
+
+function collectOrderableFieldPathsFromFieldQuery(fieldQuery: FieldQuery): string[] {
+    if (fieldQuery.type === "fieldAlias") {
+        return collectOrderableFieldPathsFromFieldQuery(fieldQuery.field);
+    }
+
+    return collectOrderableFieldPathsFromQuery(fieldQuery);
+}
+
+export function getOrderableFieldPaths(fieldQueries: readonly FieldQuery[]): string[] {
+    return [...new Set(fieldQueries.flatMap(collectOrderableFieldPathsFromFieldQuery))];
+}
+
+export function orderByIsSelectedField(fieldQueries: readonly FieldQuery[], orderBy: string): boolean {
+    return getOrderableFieldPaths(fieldQueries).includes(orderBy);
+}
+
+function getSingleFieldQueryOrderBy(fieldQuery: FieldQuery): string | undefined {
+    if (fieldQuery.type === "fieldAlias") {
+        return getSingleFieldQueryOrderBy(fieldQuery.field);
+    }
+
+    if (fieldQuery.type === "valueQuery" && fieldQuery.path === undefined) {
+        return fieldQuery.field;
+    }
+
+    return undefined;
+}
+
+function getFieldQueriesOrderBy(fieldQueries: readonly FieldQuery[]): string | undefined {
+    if (fieldQueries.length !== 1) {
+        return undefined;
+    }
+
+    return getSingleFieldQueryOrderBy(fieldQueries[0]);
+}
+
+export function getColumnOrderBy(column: TableColumnDefinition): string | undefined {
+    if (column.orderBy !== undefined) {
+        if (!orderByIsSelectedField(column.data, column.orderBy)) {
+            throw new Error(`Column "${column.id}" orderBy "${column.orderBy}" must reference a scalar field selected by the column data`);
+        }
+
+        return column.orderBy;
+    }
+
+    return getFieldQueriesOrderBy(column.data);
+}

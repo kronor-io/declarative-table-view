@@ -205,6 +205,81 @@ describe('dsl/columns row-aware typing', () => {
         expect(true).toBe(true);
     });
 
+    it('type-checks orderBy against selected scalar fields', () => {
+        column({
+            rowType: rowType<ExampleRow>(),
+            id: 'amount',
+            name: 'Amount',
+            data: [valueQuery({ field: 'amount' })],
+            orderBy: 'amount',
+            cellRenderer: () => null
+        });
+
+        column({
+            rowType: rowType<ExampleRow>(),
+            id: 'customerEmail',
+            name: 'Customer Email',
+            data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'email' })] })],
+            orderBy: 'customer.email',
+            cellRenderer: () => null
+        });
+
+        function invalidOrderByCases() {
+            column({
+                rowType: rowType<ExampleRow>(),
+                id: 'customer',
+                name: 'Customer',
+                data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'email' })] })],
+                // @ts-expect-error orderBy must reference a selected scalar leaf
+                orderBy: 'customer',
+                cellRenderer: () => null
+            });
+
+            column({
+                rowType: rowType<ExampleRow>(),
+                id: 'customerName',
+                name: 'Customer Name',
+                data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'email' })] })],
+                // @ts-expect-error customer.name is not selected by the column data
+                orderBy: 'customer.name',
+                cellRenderer: () => null
+            });
+
+            column({
+                rowType: rowType<ExampleRow>(),
+                id: 'lineSku',
+                name: 'Line SKU',
+                data: [arrayQuery({ field: 'lines', selectionSet: [valueQuery({ field: 'sku' })] })],
+                // @ts-expect-error array selections are not valid row orderBy paths
+                orderBy: 'lines.sku',
+                cellRenderer: () => null
+            });
+
+            column({
+                rowType: rowType<ExampleRow>(),
+                id: 'jsonAmount',
+                name: 'JSON Amount',
+                data: [valueQuery({ field: 'amount', path: 'nested.amount' })],
+                // @ts-expect-error JSON column paths are not row orderBy paths
+                orderBy: 'amount',
+                cellRenderer: () => null
+            });
+
+            column({
+                rowType: rowType<ExampleRow>(),
+                id: 'jsonCustomer',
+                name: 'JSON Customer',
+                data: [objectQuery({ field: 'customer', path: 'nested.customer', selectionSet: [valueQuery({ field: 'email' })] })],
+                // @ts-expect-error object queries with JSON paths are not row orderBy paths
+                orderBy: 'customer.email',
+                cellRenderer: () => null
+            });
+        }
+        void invalidOrderByCases;
+
+        expect(true).toBe(true);
+    });
+
     it('infers scalar types for valueQuery', () => {
         column({
             rowType: rowType<ExampleRow>(),

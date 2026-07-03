@@ -21,6 +21,7 @@ import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
 import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, type PaginationCursor } from './framework/data';
+import { dataOrderingsEqual, type DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
@@ -170,7 +171,8 @@ function App({
         setSearchQuery,
         setFilterGroupExpanded,
         setDataRows,
-        setRowsPerPage
+        setRowsPerPage,
+        setOrdering
     } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
 
     const filterSchemaById = useMemo(() => new Map<FilterId, FilterSchema>(
@@ -202,6 +204,10 @@ function App({
     const client = useMemo(() => new GraphQLClient(graphqlHost, {
         headers: requestHeaders,
     }), [graphqlHost, requestHeaders]);
+
+    const activeOrdering = state.orderingByViewId[selectedView.id] ?? null;
+    const activeOrderingField = activeOrdering?.field ?? null;
+    const activeOrderingDirection = activeOrdering?.direction ?? null;
 
     // Memoized GraphQL query generation for the selected view
     const memoizedQuery = useMemo(() => {
@@ -383,6 +389,13 @@ function App({
     const hasNextPage = state.data.rows.length === rowsPerPage;
     const hasPrevPage = state.pagination.page > 0;
 
+    const handleOrderingChange = useCallback((nextOrdering: DataOrdering | null) => {
+        if (dataOrderingsEqual(activeOrdering, nextOrdering)) return;
+
+        setOrdering(selectedView.id, nextOrdering);
+        triggerRefetch();
+    }, [activeOrdering, selectedView.id, setOrdering, triggerRefetch]);
+
     // If we consumed a URL param and state syncing is off, clear it (once)
     const didHandleInitialUrlParam = useRef(false)
     useEffect(() => {
@@ -538,9 +551,10 @@ function App({
             query: memoizedQuery,
             filterState: state.appliedFilterState,
             rowLimit,
-            cursor
+            cursor,
+            ordering: activeOrdering
         });
-    }, [client, selectedView, memoizedQuery, state.appliedFilterState]);
+    }, [activeOrdering, client, selectedView, memoizedQuery, state.appliedFilterState]);
 
     const loadLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
         const rowExpansion = selectedView.rowExpansion;
@@ -548,7 +562,7 @@ function App({
             return {};
         }
 
-        const variables = buildGraphQLQueryVariables(selectedView, state.appliedFilterState, 1, null);
+        const variables = buildGraphQLQueryVariables(selectedView, state.appliedFilterState, 1, null, activeOrdering);
         const rowKeyCondition = hasuraFilterExpressionToObject(Hasura.condition(selectedView.paginationKey, { _eq: rowKey }));
         const hasBaseConditions = Object.keys(variables.conditions).length > 0;
 
@@ -571,7 +585,7 @@ function App({
         }
 
         return flattenFieldQueries(row as Record<string, unknown>, rowExpansion.data);
-    }, [client, memoizedLazyRowExpansionQuery, selectedView, state.appliedFilterState]);
+    }, [activeOrdering, client, memoizedLazyRowExpansionQuery, selectedView, state.appliedFilterState]);
 
     // Apply per-view rowsPerPage from user data (when present)
     useEffect(() => {
@@ -595,7 +609,7 @@ function App({
             })
             .finally(() => setIsLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedViewId, refetchTrigger, rowsPerPage]);
+    }, [state.selectedViewId, refetchTrigger, rowsPerPage, activeOrderingField, activeOrderingDirection]);
 
     // When filter is loaded, set filter state
     const handleFilterLoad = (filterState: FilterState) => {
@@ -868,6 +882,8 @@ function App({
                         rowClassFunction={rowClassFunction}
                         onRowSelectionResetChange={handleRowSelectionResetChange}
                         onRowExpansionApiChange={handleRowExpansionApiChange}
+                        ordering={activeOrdering}
+                        onOrderingChange={handleOrderingChange}
                     />
                 </div>
                 {

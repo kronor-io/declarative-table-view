@@ -1,11 +1,12 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import type { FieldQuery, FieldAlias, ColumnDefinition, CellRenderer } from './column-definition';
+import { orderByIsSelectedField, type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer } from './column-definition';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
 import type { HasuraFilterExpression, HasuraOrderBy } from './graphql';
+import { isOrderDirection, type OrderDirection } from './order-direction';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
@@ -102,6 +103,7 @@ export type TableColumnDefinitionJson = {
     id: string;
     data: FieldQueryJson[];
     name: string;
+    orderBy?: string;
     cellRenderer: RuntimeReference;
 };
 
@@ -132,7 +134,7 @@ export type ViewJson = {
     source: ViewSourceJson;
     paginationKey: string;
     /** Optional direction for cursor-based pagination ordering on paginationKey. Defaults to 'DESC'. */
-    paginationDirection?: 'ASC' | 'DESC';
+    paginationDirection?: OrderDirection;
     columns: ColumnDefinitionJson[];
     filterSchema: FilterFieldSchemaJson;
     /** Optional default prompt shown in the AI Filter Assistant for this view. */
@@ -178,7 +180,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
 }
 
 // Parser functions for FieldQuery structures
-function parseOrderByConfig(obj: unknown): { key: string; direction: 'ASC' | 'DESC' } {
+function parseOrderByConfig(obj: unknown): { key: string; direction: OrderDirection } {
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
         throw new Error('Invalid orderBy: Expected an object');
     }
@@ -189,13 +191,13 @@ function parseOrderByConfig(obj: unknown): { key: string; direction: 'ASC' | 'DE
         throw new Error('Invalid orderBy: "key" field must be a string');
     }
 
-    if (orderBy.direction !== 'ASC' && orderBy.direction !== 'DESC') {
+    if (!isOrderDirection(orderBy.direction)) {
         throw new Error('Invalid orderBy: "direction" field must be "ASC" or "DESC"');
     }
 
     return {
         key: orderBy.key,
-        direction: orderBy.direction as 'ASC' | 'DESC'
+        direction: orderBy.direction
     };
 }
 
@@ -314,6 +316,9 @@ export function parseColumnDefinitionJson(
             if (!obj.cellRenderer) {
                 throw new Error('Invalid JSON: "cellRenderer" field is required for tableColumn');
             }
+            if (obj.orderBy !== undefined && typeof obj.orderBy !== 'string') {
+                throw new Error('Invalid JSON: "orderBy" field must be a string for tableColumn when provided');
+            }
             const cellRenderer = parseRuntimeReference(obj.cellRenderer);
             if (cellRenderer.section !== 'cellRenderers') {
                 throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
@@ -334,11 +339,15 @@ export function parseColumnDefinitionJson(
                     throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
             });
+            if (typeof obj.orderBy === 'string' && !orderByIsSelectedField(parsedData, obj.orderBy)) {
+                throw new Error(`Invalid JSON: "orderBy" field must reference a scalar field selected by "data" for tableColumn`);
+            }
             return {
                 type: 'tableColumn',
                 id: obj.id,
                 data: parsedData,
                 name: obj.name,
+                ...(obj.orderBy !== undefined ? { orderBy: obj.orderBy } : {}),
                 cellRenderer
             };
         }
@@ -785,12 +794,12 @@ export function parseViewJson(
     }
 
     // Optional paginationDirection
-    let paginationDirection: 'ASC' | 'DESC' | undefined;
+    let paginationDirection: OrderDirection | undefined;
     if (view.paginationDirection !== undefined) {
-        if (view.paginationDirection !== 'ASC' && view.paginationDirection !== 'DESC') {
+        if (!isOrderDirection(view.paginationDirection)) {
             throw new Error('View "paginationDirection" must be "ASC" or "DESC" when provided');
         }
-        paginationDirection = view.paginationDirection as 'ASC' | 'DESC';
+        paginationDirection = view.paginationDirection;
     }
 
     if (typeof view.boolExpType !== 'string') {
@@ -846,6 +855,7 @@ export function parseViewJson(
                     id: columnJson.id,
                     data: columnJson.data,
                     name: columnJson.name,
+                    ...(columnJson.orderBy !== undefined ? { orderBy: columnJson.orderBy } : {}),
                     cellRenderer
                 };
             }

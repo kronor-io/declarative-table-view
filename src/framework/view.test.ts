@@ -70,6 +70,43 @@ describe('parseColumnDefinitionJson', () => {
             });
         });
 
+        it('should parse explicit column orderBy', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'sortValue' }],
+                name: 'Name',
+                orderBy: 'sortValue',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+
+            expect(result).toEqual({
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'sortValue' }],
+                name: 'Name',
+                orderBy: 'sortValue',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            });
+        });
+
+        it('should throw error when column orderBy is not selected by data', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'displayValue' }],
+                name: 'Name',
+                orderBy: 'sortValue',
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid JSON: "orderBy" field must reference a scalar field selected by "data" for tableColumn');
+        });
+
         it('should parse valid JSON with different cell renderer keys', () => {
             const testCases = [
                 { cellRenderer: { section: 'cellRenderers', key: 'email' }, expected: 'email' },
@@ -741,6 +778,21 @@ describe('parseColumnDefinitionJson', () => {
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
             }).toThrow('Invalid cellRenderer reference: "NAME". Valid keys are: name, email, status, amount');
+        });
+
+        it('should throw error for invalid column orderBy', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'field' }],
+                name: 'Name',
+                orderBy: 123,
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid JSON: "orderBy" field must be a string for tableColumn when provided');
         });
     });
 

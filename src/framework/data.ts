@@ -3,6 +3,8 @@ import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOr
 import { getViewRootFieldName, View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework/column-definition';
 import { FilterState } from './state';
+import { isOrderDirection, type OrderDirection } from './order-direction';
+import type { DataOrdering } from './data-ordering';
 
 export type FlattenedDataRow = Record<ColumnId, Record<string, unknown>>;
 
@@ -13,20 +15,12 @@ export interface FetchDataResult {
 
 export type PaginationCursor = Record<string, unknown> | null;
 
-type PaginationOrdering = {
-    field: string;
-    direction: 'ASC' | 'DESC';
-};
 
 function splitFieldPath(field: string): string[] {
     return field.split('.').filter(Boolean);
 }
 
-function isOrderDirection(value: unknown): value is PaginationOrdering['direction'] {
-    return value === 'ASC' || value === 'DESC';
-}
-
-function flattenOrderBy(orderBy: HasuraOrderBy, path: string[] = []): PaginationOrdering[] {
+function flattenOrderBy(orderBy: HasuraOrderBy, path: string[] = []): DataOrdering[] {
     return Object.entries(orderBy).flatMap(([field, value]) => {
         const nextPath = [...path, field];
 
@@ -42,10 +36,10 @@ function flattenOrderBy(orderBy: HasuraOrderBy, path: string[] = []): Pagination
     });
 }
 
-function buildNestedOrderBy(field: string, direction: PaginationOrdering['direction']): HasuraOrderBy {
+function buildNestedOrderBy(field: string, direction: OrderDirection): HasuraOrderBy {
     return splitFieldPath(field)
         .reverse()
-        .reduce<HasuraOrderBy | PaginationOrdering['direction']>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
+        .reduce<HasuraOrderBy | OrderDirection>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
 }
 
 function fieldPathToFieldQuery(field: string): FieldQuery {
@@ -87,10 +81,13 @@ let requestCounter = 0;
 //  - conditions: user filter conditions merged with staticConditions (if any)
 //  - paginationCondition: isolated cursor condition so the cursor value is parameterized separately
 //  - rowLimit: result size cap
-//  - orderBy: static ordering followed by a unique paginationKey tie-breaker
-function getPaginationOrderings(view: View): PaginationOrdering[] {
-    const staticOrderings = view.staticOrdering ?? [];
-    const orderings = staticOrderings.flatMap(ordering => flattenOrderBy(ordering));
+//  - orderBy: static ordering (unless overridden) followed by a unique paginationKey tie-breaker
+function getPaginationOrderings(view: View, orderingOverride?: DataOrdering | null): DataOrdering[] {
+    const orderings = orderingOverride === undefined
+        ? (view.staticOrdering ?? []).flatMap(ordering => flattenOrderBy(ordering))
+        : orderingOverride === null
+            ? []
+            : [orderingOverride];
     const hasPaginationKeyOrdering = orderings.some(ordering => ordering.field === view.paginationKey);
 
     if (!hasPaginationKeyOrdering) {
@@ -118,7 +115,7 @@ export function getPaginationCursorValue(cursor: PaginationCursor, field: string
     return currentValue;
 }
 
-function buildCursorEqualityCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
+function buildCursorEqualityCondition(ordering: DataOrdering, cursor: PaginationCursor) {
     const cursorValue = getPaginationCursorValue(cursor, ordering.field);
 
     return cursorValue === null
@@ -126,7 +123,7 @@ function buildCursorEqualityCondition(ordering: PaginationOrdering, cursor: Pagi
         : Hasura.condition(ordering.field, Hasura.eq(cursorValue));
 }
 
-function buildCursorAfterCondition(ordering: PaginationOrdering, cursor: PaginationCursor) {
+function buildCursorAfterCondition(ordering: DataOrdering, cursor: PaginationCursor) {
     const cursorValue = getPaginationCursorValue(cursor, ordering.field);
 
     // Hasura/Postgres comparisons do not support keyset boundaries like _lt/_gt: null.
@@ -156,10 +153,10 @@ function buildImpossibleCondition(view: View) {
     );
 }
 
-function buildPaginationCondition(view: View, cursor: PaginationCursor) {
+function buildPaginationCondition(view: View, cursor: PaginationCursor, orderingOverride?: DataOrdering | null) {
     if (cursor === null) return Hasura.empty();
 
-    const orderings = getPaginationOrderings(view);
+    const orderings = getPaginationOrderings(view, orderingOverride);
     const branches = orderings.flatMap((ordering, index) => {
         const afterCondition = buildCursorAfterCondition(ordering, cursor);
         // A null ASC cursor is already in the final null segment for this field, so
@@ -187,8 +184,8 @@ function buildPaginationCondition(view: View, cursor: PaginationCursor) {
     return Hasura.or(...branches);
 }
 
-function buildOrderBy(view: View): HasuraOrderBy[] {
-    return getPaginationOrderings(view).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
+function buildOrderBy(view: View, orderingOverride?: DataOrdering | null): HasuraOrderBy[] {
+    return getPaginationOrderings(view, orderingOverride).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
 }
 
 export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {
@@ -202,7 +199,8 @@ export const buildGraphQLQueryVariables = (
     view: View,
     filterState: FilterState,
     rowLimit: number,
-    cursor: PaginationCursor
+    cursor: PaginationCursor,
+    ordering?: DataOrdering | null
 ) => {
     let conditionsExpr = buildHasuraConditions(filterState, view.filterGroups);
 
@@ -210,8 +208,8 @@ export const buildGraphQLQueryVariables = (
         conditionsExpr = Hasura.and(conditionsExpr, ...view.staticConditions);
     }
 
-    const paginationConditionExpr = buildPaginationCondition(view, cursor);
-    const orderBy = buildOrderBy(view);
+    const paginationConditionExpr = buildPaginationCondition(view, cursor, ordering);
+    const orderBy = buildOrderBy(view, ordering);
 
     return {
         conditions: hasuraFilterExpressionToObject(conditionsExpr),
@@ -227,7 +225,8 @@ export const fetchData = async ({
     query,
     filterState,
     rowLimit,
-    cursor
+    cursor,
+    ordering
 }: {
     client: GraphQLClient;
     view: View;
@@ -235,12 +234,13 @@ export const fetchData = async ({
     filterState: FilterState;
     rowLimit: number;
     cursor: PaginationCursor;
+    ordering?: DataOrdering | null;
 }): Promise<FetchDataResult> => {
     // Assign a unique ID to this request for ordering
     const currentRequestId = ++requestCounter;
 
     try {
-        const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor);
+        const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor, ordering);
 
         const response = await client.request(query, variables);
 

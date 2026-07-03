@@ -1,4 +1,5 @@
 import { ColumnDefinition, FieldQuery, OrderByConfig, Query } from '../column-definition';
+import type { OrderDirection } from '../order-direction';
 import {
     hasuraFilterExpressionToObject,
     HasuraFilterExpression,
@@ -72,19 +73,19 @@ function generateSelectionSetFromColumnsInternal(
     };
 
     const toHasuraOrderBy = (orderBy: OrderByConfig | OrderByConfig[]): HasuraOrderBy | HasuraOrderBy[] => {
-        const buildOrderByObject = (key: string, direction: 'ASC' | 'DESC'): HasuraOrderBy => {
+        const buildOrderByObject = (key: string, direction: OrderDirection): HasuraOrderBy => {
             return key
                 .split('.')
                 .filter(Boolean)
                 .reverse()
-                .reduce<HasuraOrderBy | 'ASC' | 'DESC'>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
+                .reduce<HasuraOrderBy | OrderDirection>((acc, pathPart) => ({ [pathPart]: acc }), direction) as HasuraOrderBy;
         };
 
         if (Array.isArray(orderBy)) {
-            return orderBy.map(item => buildOrderByObject(item.key, item.direction.toUpperCase() as 'ASC' | 'DESC'));
+            return orderBy.map(item => buildOrderByObject(item.key, item.direction.toUpperCase() as OrderDirection));
         }
 
-        return buildOrderByObject(orderBy.key, orderBy.direction.toUpperCase() as 'ASC' | 'DESC');
+        return buildOrderByObject(orderBy.key, orderBy.direction.toUpperCase() as OrderDirection);
     };
 
     const processSelectionSet = (selectionSet: readonly Query[]): GraphQLSelectionSet | undefined => {
@@ -399,7 +400,7 @@ export type GraphQLFieldNode = {
     args?: GraphQLArgument[];
 };
 
-export type HasuraOrderDirection = 'ASC' | 'DESC';
+export type HasuraOrderDirection = OrderDirection;
 
 export type HasuraOrderBy = {
     [key: string]: HasuraOrderDirection | HasuraOrderBy;

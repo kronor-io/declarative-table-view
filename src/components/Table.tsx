@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
-import type { ColumnDefinition, TableColumnDefinition } from '../framework/column-definition';
+import { getColumnOrderBy, type ColumnDefinition, type TableColumnDefinition } from '../framework/column-definition';
 import { NoRowsComponent, RowExpansionDefinition } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
@@ -14,6 +14,7 @@ import { FilterState, getFilterStateById, setFilterStateById } from '../framewor
 import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
 import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
+import type { DataOrdering } from '../framework/data-ordering';
 
 export type RowSelectionResetFn = () => void;
 export type RowExpansionApi = {
@@ -62,6 +63,8 @@ type TableProps = {
     onRowExpansionApiChange?: (api: RowExpansionApi | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+    ordering?: DataOrdering | null;
+    onOrderingChange?: (ordering: DataOrdering | null) => void;
 };
 
 function Table({
@@ -81,7 +84,9 @@ function Table({
     rowSelection,
     rowClassFunction,
     onRowSelectionResetChange,
-    onRowExpansionApiChange
+    onRowExpansionApiChange,
+    ordering = null,
+    onOrderingChange
 }: TableProps) {
     const hiddenSet = new Set(hiddenColumnIds);
     const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
@@ -142,6 +147,18 @@ function Table({
         const firstKey = Object.keys(cell)[0];
         return firstKey ? cell[firstKey] : '';
     }
+
+    const handleSortChange = (event: { sortField?: string | null; sortOrder?: 1 | 0 | -1 | null }) => {
+        if (!event.sortField || (event.sortOrder !== 1 && event.sortOrder !== -1)) {
+            onOrderingChange?.(null);
+            return;
+        }
+
+        onOrderingChange?.({
+            field: event.sortField,
+            direction: event.sortOrder === 1 ? 'ASC' : 'DESC'
+        });
+    };
 
     const tableData = React.useMemo(() => {
         return data.map((row, rowIndex) => ({
@@ -379,6 +396,7 @@ function Table({
             ref={ref}
             value={tableData}
             tableStyle={{ minWidth: '50rem' }}
+            lazy
             showGridlines
             stripedRows
             size='small'
@@ -399,24 +417,35 @@ function Table({
             } : undefined}
             rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
             rowClassName={rowClassFunction ? (row: any) => rowClassFunction(simplifyRow(row)) : undefined}
+            sortMode="single"
+            removableSort
+            sortField={ordering?.field ?? undefined}
+            sortOrder={ordering?.direction === 'ASC' ? 1 : ordering?.direction === 'DESC' ? -1 : null}
+            onSort={handleSortChange}
             scrollable
             scrollHeight='flex'
         >
             {selectionType === 'multiple' && <Column selectionMode="multiple" />}
             {rowExpansion && <Column expander={(rowData: TableDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
             {renderableColumns
-                .map(column => (
-                    <Column
-                        key={column.id}
-                        field={column.id}
-                        header={column.name}
-                        body={(rowData: TableDataRow) => column.cellRenderer({
-                            data: rowData[column.id],
-                            ...sharedRendererProps,
-                            columnDefinition: column
-                        })}
-                    />
-                ))}
+                .map(column => {
+                    const orderBy = getColumnOrderBy(column);
+
+                    return (
+                        <Column
+                            key={column.id}
+                            field={column.id}
+                            header={column.name}
+                            sortable={orderBy !== undefined}
+                            sortField={orderBy}
+                            body={(rowData: TableDataRow) => column.cellRenderer({
+                                data: rowData[column.id],
+                                ...sharedRendererProps,
+                                columnDefinition: column
+                            })}
+                        />
+                    );
+                })}
         </DataTable>
     );
 }

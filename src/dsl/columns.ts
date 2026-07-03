@@ -13,13 +13,19 @@ import {
     type TableColumnDefinition,
     type VirtualColumnDefinition,
     type CellRenderer,
+    type OrderableFieldPath,
     type Query,
     type OrderByConfig,
     type ValueQuery,
     type ObjectQuery,
     type ArrayQuery,
+    orderByIsSelectedField,
 } from "../framework/column-definition";
 import type { HasuraFilterExpression } from '../framework/graphql';
+
+type WithOptionalPath<Path extends string | undefined> = Path extends string
+    ? { path: Path }
+    : { path?: undefined };
 
 /**
  * Produces a phantom value used for type inference.
@@ -45,6 +51,7 @@ export function column<Row, const FieldQueries extends readonly FieldQuery[]>(ar
     id: string;
     name: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
+    orderBy?: OrderableFieldPath<FieldQueries>;
     cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 }): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
@@ -52,6 +59,7 @@ export function column<const FieldQueries extends readonly FieldQuery[]>(args: {
     id: string;
     name: string;
     data: FieldQueries;
+    orderBy?: OrderableFieldPath<FieldQueries>;
     cellRenderer: CellRenderer<DataFromFieldQueriesSafe<FieldQueries>>;
 }): TableColumnDefinition<FieldQueries>;
 export function column(args: {
@@ -59,15 +67,21 @@ export function column(args: {
     id: string;
     name: string;
     data: readonly FieldQuery[];
+    orderBy?: string;
     cellRenderer: CellRenderer<Record<string, any>>;
 }): TableColumnDefinition {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { rowType, ...rest } = args;
+    if (rest.orderBy !== undefined && !orderByIsSelectedField(rest.data, rest.orderBy)) {
+        throw new Error(`Column "${rest.id}" orderBy "${rest.orderBy}" must reference a scalar field selected by the column data`);
+    }
+
     return {
         type: 'tableColumn',
         id: rest.id,
         name: rest.name,
         data: rest.data,
+        ...(rest.orderBy !== undefined ? { orderBy: rest.orderBy } : {}),
         cellRenderer: rest.cellRenderer,
     };
 }
@@ -87,43 +101,43 @@ export function virtualColumn<const FieldQueries extends readonly FieldQuery[]>(
 /**
  * Creates a ValueQuery (scalar field) definition.
  */
-export function valueQuery<const Field extends string>(args: { field: Field; path?: string }): ValueQuery & { field: Field } {
+export function valueQuery<const Field extends string, const Path extends string | undefined = undefined>(args: { field: Field; path?: Path }): ValueQuery & { field: Field } & WithOptionalPath<Path> {
     return {
         type: 'valueQuery',
         field: args.field,
         ...(args.path !== undefined ? { path: args.path } : {}),
-    } as ValueQuery & { field: Field };
+    } as unknown as ValueQuery & { field: Field } & WithOptionalPath<Path>;
 }
 
 /**
  * Creates an ObjectQuery (nested object) with a selection set.
  * selectionSet must contain only Query variants (value/object/array queries).
  */
-export function objectQuery<const Field extends string, const SelectionSet extends readonly Query[]>(args: {
+export function objectQuery<const Field extends string, const SelectionSet extends readonly Query[], const Path extends string | undefined = undefined>(args: {
     field: Field;
     selectionSet: SelectionSet;
-    path?: string;
-}): ObjectQuery & { field: Field; selectionSet: SelectionSet } {
+    path?: Path;
+}): ObjectQuery & { field: Field; selectionSet: SelectionSet } & WithOptionalPath<Path> {
     return {
         type: 'objectQuery',
         field: args.field,
         selectionSet: args.selectionSet,
         ...(args.path !== undefined ? { path: args.path } : {}),
-    } as ObjectQuery & { field: Field; selectionSet: SelectionSet };
+    } as unknown as ObjectQuery & { field: Field; selectionSet: SelectionSet } & WithOptionalPath<Path>;
 }
 
 /**
  * Creates an ArrayQuery (list) with a selection set and optional ordering/limit.
  */
-export function arrayQuery<const Field extends string, const SelectionSet extends readonly Query[]>(args: {
+export function arrayQuery<const Field extends string, const SelectionSet extends readonly Query[], const Path extends string | undefined = undefined>(args: {
     field: Field;
     selectionSet: SelectionSet;
-    path?: string;
+    path?: Path;
     orderBy?: OrderByConfig | OrderByConfig[];
     distinctOn?: string[];
     limit?: number;
     where?: HasuraFilterExpression;
-}): ArrayQuery & { field: Field; selectionSet: SelectionSet };
+}): ArrayQuery & { field: Field; selectionSet: SelectionSet } & WithOptionalPath<Path>;
 
 export function arrayQuery(args: {
     field: string;
