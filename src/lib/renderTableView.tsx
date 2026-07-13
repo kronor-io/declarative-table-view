@@ -11,6 +11,7 @@ import type { Result } from '../framework/result'
 import { ModifyAiFilterPromptFn } from '../components/aiAssistant'
 import type { View } from '../framework/view'
 import type { DTVAPI } from '../App'
+import type { RequestHeaders } from '../framework/data'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
@@ -22,7 +23,14 @@ export type RenderTableViewUserDataOptions = {
 
 export type RenderTableViewOptions = {
     graphqlHost: string
-    requestHeaders: HeadersInit
+    /**
+     * Headers sent with every GraphQL request. Pass a function (which may be
+     * async) to have it resolved and awaited before each request — e.g. to
+     * return a short-lived bearer token, refreshing it proactively against an
+     * endpoint when it is near expiry. See `resolveHeadersMiddleware` in
+     * framework/data.ts.
+     */
+    requestHeaders: RequestHeaders
     geminiApiKey: string
     showViewsMenu?: boolean
     showViewTitle?: boolean

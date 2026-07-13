@@ -1,4 +1,4 @@
-import { GraphQLClient } from 'graphql-request';
+import { GraphQLClient, type RequestMiddleware } from 'graphql-request';
 import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
 import { getViewRootFieldName, View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework/column-definition';
@@ -14,6 +14,41 @@ export interface FetchDataResult {
 }
 
 export type PaginationCursor = Record<string, unknown> | null;
+
+// Headers sent with every GraphQL request. A function is re-evaluated (and
+// awaited) before each request, so a host can hand back a freshly-refreshed
+// short-lived token — synchronously from a cache, or asynchronously by calling
+// a refresh endpoint (see resolveHeadersMiddleware).
+export type RequestHeaders = HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+
+async function resolveRequestHeaders(requestHeaders: RequestHeaders): Promise<HeadersInit> {
+    return typeof requestHeaders === 'function' ? requestHeaders() : requestHeaders;
+}
+
+// A request middleware that resolves `requestHeaders` (awaiting it when it is an
+// async function) and merges the result onto the outgoing request.
+//
+// It is installed on the GraphQLClient itself rather than at individual call
+// sites, so it covers EVERY request the client makes uniformly — table fetches,
+// lazy row expansion, and the filter suggestion/autocomplete fetchers that call
+// `client.request` directly — each with a freshly-resolved token. That is what
+// lets a host keep a short-lived token fresh proactively: it resolves (and, if
+// needed, refreshes) the token immediately before each request. A token
+// refreshed ahead of expiry never produces an auth error, so there is
+// deliberately no reactive retry; a genuinely dead session surfaces as a normal
+// GraphQL error for the host to handle (e.g. reload to login).
+export function resolveHeadersMiddleware(requestHeaders?: RequestHeaders): RequestMiddleware {
+    return async (request) => {
+        if (requestHeaders === undefined) {
+            return request;
+        }
+        const merged = new Headers(request.headers);
+        new Headers(await resolveRequestHeaders(requestHeaders)).forEach((value, key) => {
+            merged.set(key, value);
+        });
+        return { ...request, headers: Object.fromEntries(merged.entries()) };
+    };
+}
 
 
 function splitFieldPath(field: string): string[] {
@@ -242,6 +277,7 @@ export const fetchData = async ({
     try {
         const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor, ordering);
 
+        // Auth headers are applied by the client's resolveHeadersMiddleware.
         const response = await client.request(query, variables);
 
         // Check if this is still the most recent request

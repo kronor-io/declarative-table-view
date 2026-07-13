@@ -21,6 +21,7 @@ jest.mock('graphql-request', () => {
 jest.mock('./framework/data', () => {
     return {
         fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
+        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });
@@ -93,7 +94,7 @@ describe('App views prop', () => {
         await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 500, intervalMs: 5 });
 
         expect(GraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', {
-            headers: { Authorization: 'Bearer token' }
+            requestMiddleware: expect.any(Function)
         });
         expect(parseViewJson).not.toHaveBeenCalled();
 
