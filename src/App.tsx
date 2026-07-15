@@ -268,6 +268,7 @@ function App({
     const shouldSkipUserDataHydrationForInitialUrl = useRef(Boolean(initialFilterStateFromUrl))
     const previousRefetchTrigger = useRef(refetchTrigger)
     const lastPersistedFilterState = useRef<FilterState | null>(null)
+    const filterStateHydratedForViewId = useRef<View['id'] | null>(null)
     const showFilterForm = activePanel === 'filters';
     const showSavedFilterList = activePanel === 'savedFilters';
     const showPreferencesPanel = activePanel === 'preferences';
@@ -435,16 +436,35 @@ function App({
         clearFilterFromUrl();
     }, [syncFilterStateToUrlWithOverride]);
 
+    // Restore persisted filter state at most once per view selection. Background
+    // user-data updates (manager re-creation on a new `views` reference, the async
+    // remote load resolving, or a cross-tab storage event) all push a fresh
+    // `viewData.persistedFilterState` through this effect. Re-applying it every
+    // time races with a filter the user is actively working with: an in-flight
+    // remote reload returning a stale snapshot would clobber the just-applied
+    // filter and fire extra GraphQL requests (the reported "filter → empty →
+    // filter" flicker). Settling once per view removes that race.
     useEffect(() => {
         if (!syncFilterStateToUserData) return
 
         if (shouldSkipUserDataHydrationForInitialUrl.current && selectedView.id === initialSelectedViewId.current) {
             shouldSkipUserDataHydrationForInitialUrl.current = false
+            filterStateHydratedForViewId.current = selectedView.id
             return
         }
 
+        // Already settled for this view — either restored below on an earlier run,
+        // or the user applied a filter (see the persistence effect). Never
+        // overwrite the live filter state from a background user-data update.
+        if (filterStateHydratedForViewId.current === selectedView.id) return
+
         const persistedFilterState = userDataManager.viewData.persistedFilterState
+        // Nothing to restore yet (e.g. the async remote load is still pending).
+        // Stay unsettled so we can restore once it arrives.
         if (!persistedFilterState) return
+
+        filterStateHydratedForViewId.current = selectedView.id
+
         if (persistedFilterState === lastPersistedFilterState.current) return
         if (filterStatesEqual(persistedFilterState, state.appliedFilterState)) return
 
@@ -459,6 +479,10 @@ function App({
 
         if (!syncFilterStateToUserData) return;
         if (!didApplyFilters) return;
+        // The user has established filter state for this view; a background
+        // user-data reload (e.g. the async remote load resolving just after)
+        // must not restore a stale snapshot over it.
+        filterStateHydratedForViewId.current = selectedView.id
         lastPersistedFilterState.current = state.appliedFilterState
         void userDataManager.setPersistedFilterState(selectedView.id, state.appliedFilterState)
         // eslint-disable-next-line react-hooks/exhaustive-deps
