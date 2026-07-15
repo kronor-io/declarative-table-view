@@ -49,8 +49,8 @@
   "dependencies": {
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
-    "graphql": "^16.11.0",
-    "graphql-request": "^7.1.2",
+    "graphql": "^16.14.2",
+    "graphql-request": "^7.4.0",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.7",
     "react": "^19.0.0",
