@@ -20,7 +20,7 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, type PaginationCursor } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type PaginationCursor, type RequestHeaders } from './framework/data';
 import { dataOrderingsEqual, type DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
@@ -42,7 +42,15 @@ import type { FilterId, FilterSchema } from './framework/filters'
 
 export interface AppProps {
     graphqlHost: string;
-    requestHeaders: HeadersInit;
+    /**
+     * Headers sent with every GraphQL request. Pass a function to have it
+     * resolved (and awaited) before each request — useful for a short-lived
+     * bearer token. The function may be async, so a host that tracks its
+     * token's expiry can refresh it proactively (e.g. against an endpoint)
+     * before the request is sent. See `resolveHeadersMiddleware` in
+     * framework/data.ts.
+     */
+    requestHeaders: RequestHeaders;
     geminiApiKey: string;
     /**
      * Optional already-parsed views.
@@ -201,9 +209,14 @@ function App({
         viewData: userDataManager.viewData
     }
 
-    const client = useMemo(() => new GraphQLClient(graphqlHost, {
-        headers: requestHeaders,
-    }), [graphqlHost, requestHeaders]);
+    // Resolve `requestHeaders` (which may be an async function) before every
+    // request via a client-level middleware, so it covers all requests — table
+    // fetches, lazy row expansion, and suggestion fetchers that use this client
+    // directly. See resolveHeadersMiddleware.
+    const client = useMemo(
+        () => new GraphQLClient(graphqlHost, { requestMiddleware: resolveHeadersMiddleware(requestHeaders) }),
+        [graphqlHost, requestHeaders]
+    );
 
     const activeOrdering = state.orderingByViewId[selectedView.id] ?? null;
     const activeOrderingField = activeOrdering?.field ?? null;

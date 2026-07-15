@@ -20,6 +20,7 @@ const fetchDataMock = jest.fn(async () => ({ rows: [] as Record<string, unknown>
 jest.mock('./framework/data', () => {
     return {
         fetchData: fetchDataMock,
+        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });
