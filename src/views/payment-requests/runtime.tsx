@@ -5,7 +5,7 @@ import { Runtime } from "../../framework/runtime";
 import * as FilterValue from "../../framework/filterValue";
 import { TransformResult as TR } from '../../framework/filters';
 import type { QueryTransformContext, TransformResult } from '../../framework/filters';
-import { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from '../../framework/native-runtime';
+import { mapHasuraCustomOperatorInput } from '../../framework/native-runtime';
 
 // Static runtime configuration for payment requests view
 export type PaymentRequestsRuntime = Runtime & {
@@ -144,7 +144,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     queryTransforms: {
         // Transform for Reference filter (starts with functionality)
         reference: {
-            toQuery: (input: unknown, context: QueryTransformContext) => hasuraCustomOperatorTransform.toQuery(
+            toQuery: (input: unknown, context: QueryTransformContext) => context.transform.hasuraCustomOperator.toQuery(
                 mapHasuraCustomOperatorInput(input, (operator, value) =>
                     operator === '_like' && typeof value === 'string' ? `${value}%` : value
                 ),
@@ -153,7 +153,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
         },
 
         reference2: {
-            toQuery: (input: unknown, context: QueryTransformContext) => hasuraCustomOperatorTransform.toQuery(
+            toQuery: (input: unknown, context: QueryTransformContext) => context.transform.hasuraCustomOperator.toQuery(
                 mapHasuraCustomOperatorInput(input, (operator, value) =>
                     operator === '_like' && typeof value === 'string' ? `${value}%` : value
                 ),

@@ -1,4 +1,4 @@
-import type { FilterField, FilterGroups, FilterExpr, TransformResult } from '../filters';
+import type { FilterField, FilterGroups, FilterExpr, TransformResult, TransformConditionResult, ConditionOnlyTransform, QueryTransformContext } from '../filters';
 import { FilterFormState, traverseFilterSchemaAndState } from '../filter-form-state';
 import { FilterState } from '../state';
 import { getAllFilters } from '../view';
@@ -13,6 +13,37 @@ export type HasuraFilterExpression =
     | { kind: 'not'; item: HasuraFilterExpression }
     | { kind: 'where'; path: string[]; operator: HasuraOperator | HasuraOperator[] }
     | { kind: 'scope'; path: string[]; expr: HasuraFilterExpression };
+
+type CustomOperatorStateValue = {
+    operator: string;
+    value: FilterValue.FilterValue;
+};
+
+function buildHasuraCondition(field: FilterField, operator: HasuraOperator | HasuraOperator[]): TransformConditionResult {
+    if (typeof field === 'object') {
+        if ('and' in field) {
+            return { condition: Hasura.and(...field.and.map(fieldName => Hasura.condition(fieldName, operator))) };
+        }
+        if ('or' in field) {
+            return { condition: Hasura.or(...field.or.map(fieldName => Hasura.condition(fieldName, operator))) };
+        }
+    }
+
+    return typeof field === 'string'
+        ? { condition: Hasura.condition(field, operator) }
+        : { condition: Hasura.empty() };
+}
+
+export const hasuraCustomOperatorTransform: ConditionOnlyTransform = {
+    toQuery: (input: unknown, context: QueryTransformContext) => {
+        const { operator, value } = input as CustomOperatorStateValue;
+
+        return FilterValue.match({
+            empty: { condition: Hasura.empty() },
+            value: (queryValue: unknown) => buildHasuraCondition(context.field, { [operator]: queryValue })
+        }, value);
+    }
+};
 
 function toPath(path: string | string[]): string[] {
     if (Array.isArray(path)) return path;
@@ -150,9 +181,15 @@ export function buildHasuraConditions(
                                 throw new Error('customOperator filters require a query transform');
                             }
 
+                            const transformContext: QueryTransformContext = {
+                                field: schema.field,
+                                FilterValue,
+                                transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
+                            };
+
                             const transformResult: TransformResult =
                                 transform
-                                    ? transform(filterValue, { field: schema.field })
+                                    ? transform(filterValue, transformContext)
                                     : { field: schema.field, value: baseValue };
 
                             if ('condition' in transformResult) {

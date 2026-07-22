@@ -8,7 +8,7 @@ export type {
     GraphQLQueryAST,
 } from './query';
 
-export { Hasura, hasuraFilterExpressionToObject, hasuraFilterExpressionsAreEqual, buildHasuraConditions } from './hasura-filter-expression';
+export { Hasura, hasuraFilterExpressionToObject, hasuraFilterExpressionsAreEqual, buildHasuraConditions, hasuraCustomOperatorTransform } from './hasura-filter-expression';
 export { hasuraOperatorsAreEqual } from './hasura-filter-object';
 export {
     generateSelectionSetFromColumns,

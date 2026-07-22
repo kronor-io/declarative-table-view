@@ -2,21 +2,17 @@ import { PhoneNumberFilter } from '../../components/PhoneNumberFilter';
 import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRowsExtendDateRange';
 import { Runtime } from '../runtime';
 import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
-import { ConditionOnlyTransform, FilterField, FilterTransform, QueryTransformContext, TransformConditionResult, TransformResult } from '../filters';
+import { FilterTransform, TransformResult } from '../filters';
 import * as FilterValue from '../filterValue';
-import { Hasura } from '../graphql';
-import type { HasuraOperator } from '../graphql';
+import { hasuraCustomOperatorTransform } from '../graphql';
+
+export { hasuraCustomOperatorTransform };
 
 export type NativeRuntime = Runtime & {
     cellRenderers: {
         text: (props: { data: unknown; columnDefinition: TableColumnDefinition }) => string;
         json: (props: { data: unknown }) => string;
     };
-};
-
-type CustomOperatorStateValue = {
-    operator: string;
-    value: FilterValue.FilterValue;
 };
 
 export function mapHasuraCustomOperatorInput(
@@ -42,32 +38,6 @@ export function mapHasuraCustomOperatorInput(
         })
     }, record.value as FilterValue.FilterValue);
 }
-
-function buildHasuraCondition(field: FilterField, operator: HasuraOperator | HasuraOperator[]): TransformConditionResult {
-    if (typeof field === 'object') {
-        if ('and' in field) {
-            return TransformResult.condition(Hasura.and(...field.and.map(fieldName => Hasura.condition(fieldName, operator))));
-        }
-        if ('or' in field) {
-            return TransformResult.condition(Hasura.or(...field.or.map(fieldName => Hasura.condition(fieldName, operator))));
-        }
-    }
-
-    return typeof field === 'string'
-        ? TransformResult.condition(Hasura.condition(field, operator))
-        : TransformResult.condition(Hasura.empty());
-}
-
-export const hasuraCustomOperatorTransform: ConditionOnlyTransform = {
-    toQuery: (input: unknown, context: QueryTransformContext) => {
-        const { operator, value } = input as CustomOperatorStateValue;
-
-        return FilterValue.match({
-            empty: TransformResult.condition(Hasura.empty()),
-            value: (queryValue: unknown) => buildHasuraCondition(context.field, { [operator]: queryValue })
-        }, value);
-    }
-};
 
 function traverseFieldQuery(queryNode: FieldQuery, dataNode: any): string {
     switch (queryNode.type) {

@@ -2,35 +2,42 @@ import { nativeRuntime } from './index';
 import * as FilterValue from '../filterValue';
 import { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from './index';
 import { hasuraFilterExpressionToObject } from '../graphql';
+import type { FilterField, QueryTransformContext } from '../filters';
+
+const context = (field: FilterField): QueryTransformContext => ({
+    field,
+    FilterValue,
+    transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
+});
 
 describe('nativeRuntime.queryTransforms.autocomplete.toQuery', () => {
     const { toQuery } = nativeRuntime.queryTransforms.autocomplete;
-    const context = { field: 'ignored' };
+    const ctx = context('ignored');
 
     it('extracts value from object with value property', () => {
         const input = { value: 'ABC', label: 'Something Else' };
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.value('ABC') });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.value('ABC') });
     });
 
     it('returns value as-is when input is empty string', () => {
         const input = '';
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.empty });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is null', () => {
         const input = null;
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.empty });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is undefined', () => {
         const input = undefined;
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.empty });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.empty });
     });
 });
 
 describe('nativeRuntime.queryTransforms.autocompleteMultiple.toQuery', () => {
     const { toQuery } = nativeRuntime.queryTransforms.autocompleteMultiple;
-    const context = { field: 'ignored' };
+    const ctx = context('ignored');
 
     it('maps array of objects to array of their values', () => {
         const input = [
@@ -38,22 +45,22 @@ describe('nativeRuntime.queryTransforms.autocompleteMultiple.toQuery', () => {
             { value: 'B', label: 'B Label' },
             { value: 123, label: 'Number Label' }
         ];
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.value(['A', 'B', 123]) });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.value(['A', 'B', 123]) });
     });
 
     it('handles empty array', () => {
         const input: any[] = [];
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.value([]) });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.value([]) });
     });
 
     it('returns value as-is when input is null', () => {
         const input = null;
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.empty });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.empty });
     });
 
     it('returns value as-is when input is undefined', () => {
         const input = undefined;
-        expect(toQuery(input, context)).toEqual({ value: FilterValue.empty });
+        expect(toQuery(input, ctx)).toEqual({ value: FilterValue.empty });
     });
 });
 
@@ -63,7 +70,7 @@ describe('nativeRuntime.queryTransforms.hasuraCustomOperator.toQuery', () => {
     it('maps a custom operator payload to a Hasura condition using the provided field', () => {
         const result = toQuery(
             { operator: '_eq', value: FilterValue.value('a@example.com') },
-            { field: 'email' }
+            context('email')
         );
 
         expect(hasuraFilterExpressionToObject(result.condition)).toEqual({
@@ -74,7 +81,7 @@ describe('nativeRuntime.queryTransforms.hasuraCustomOperator.toQuery', () => {
     it('maps an empty custom operator value to an empty condition', () => {
         const result = toQuery(
             { operator: '_eq', value: FilterValue.empty },
-            { field: 'email' }
+            context('email')
         );
 
         expect(hasuraFilterExpressionToObject(result.condition)).toEqual({});

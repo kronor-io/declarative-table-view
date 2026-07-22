@@ -39,10 +39,6 @@ export const TransformResult = {
     }),
 } as const;
 
-export type QueryTransformContext = {
-    field: FilterField;
-};
-
 // Alias for the TransformResult variant that yields a full Hasura condition.
 // Useful for helpers that *require* a condition-producing transform.
 export type TransformConditionResult = Extract<TransformResult, { condition: HasuraFilterExpression }>;
@@ -50,6 +46,17 @@ export type TransformConditionResult = Extract<TransformResult, { condition: Has
 
 export type ConditionOnlyTransform = {
     toQuery: (input: unknown, context: QueryTransformContext) => TransformConditionResult;
+};
+
+export type QueryTransformContext = {
+    field: FilterField;
+    // The FilterValue namespace, exposed so transform authors can build/inspect
+    // filter values without importing the module directly.
+    FilterValue: typeof FilterValue;
+    // Built-in transforms available for composition inside custom transforms.
+    transform: {
+        hasuraCustomOperator: ConditionOnlyTransform;
+    };
 };
 
 // Transform functions for filter expressions

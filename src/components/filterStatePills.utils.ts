@@ -2,6 +2,7 @@ import type { FilterExpr, FilterField, FilterControl, FilterSchema, FilterId } f
 import { FilterState } from '../framework/state';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 import * as FilterValue from '../framework/filterValue';
+import { hasuraCustomOperatorTransform } from '../framework/graphql';
 
 export interface FilterStatePillItem {
     filterId: FilterId;
@@ -125,7 +126,11 @@ function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFor
     }
 
     try {
-        const transformed = transform(baseInput, { field: schemaLeaf.field });
+        const transformed = transform(baseInput, {
+            field: schemaLeaf.field,
+            FilterValue,
+            transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
+        });
         if ('condition' in transformed) {
             return baseInput;
         }
