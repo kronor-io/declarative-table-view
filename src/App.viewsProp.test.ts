@@ -78,7 +78,7 @@ describe('App views prop', () => {
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
             requestHeaders: { Authorization: 'Bearer token' },
-            geminiApiKey: 'gemini',
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
             showViewsMenu: false,
             showViewTitle: false,
             views,
@@ -102,7 +102,7 @@ describe('App views prop', () => {
         const appElementWithTitle = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
             requestHeaders: { Authorization: 'Bearer token' },
-            geminiApiKey: 'gemini',
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
             showViewsMenu: false,
             showViewTitle: true,
             views,

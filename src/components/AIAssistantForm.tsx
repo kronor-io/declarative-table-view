@@ -3,33 +3,30 @@ import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
 import { View } from '../framework/view';
-import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn, type RequestAiFilterFn } from './aiAssistant';
+import { generateFilterWithAI, GeminiApi, type AIIntegration, type ModifyAiFilterPromptFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
     filterState: FilterState;
     setFilterState: (state: FilterState) => void;
     selectedView: View;
-    geminiApiKey?: string;
+    /** AI provider: the built-in Gemini integration or a custom request function. */
+    aiIntegration: AIIntegration;
     toast: RefObject<Toast | null>;
     // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
     setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
 
     /** Optional hook to modify the AI prompt template before it is sent to the AI provider. */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
-
-    /** Optional custom AI provider request function; replaces the built-in Gemini request. */
-    requestAiFilter?: RequestAiFilterFn;
 }
 
 export default function AIAssistantForm({
     setFilterState,
     selectedView,
-    geminiApiKey,
+    aiIntegration,
     toast,
     setShowFilterForm,
-    modifyAiFilterPrompt,
-    requestAiFilter
+    modifyAiFilterPrompt
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState(selectedView.defaultAIFilterPrompt ?? '');
     // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
@@ -58,9 +55,9 @@ export default function AIAssistantForm({
                                 aiPrompt,
                                 setFilterState,
                                 GeminiApi,
-                                geminiApiKey,
+                                aiIntegration,
                                 toast,
-                                { modifyAiFilterPrompt, requestAiFilter }
+                                { modifyAiFilterPrompt }
                             );
                             // Reveal filter form so user sees applied changes
                             setShowFilterForm(true);

@@ -15,7 +15,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
-import type { ModifyAiFilterPromptFn, RequestAiFilterFn } from './components/aiAssistant';
+import type { AIIntegration, ModifyAiFilterPromptFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
@@ -51,8 +51,14 @@ export interface AppProps {
      * framework/data.ts.
      */
     requestHeaders: RequestHeaders;
-    /** API key for the built-in Gemini AI Filter Assistant. Optional when `requestAiFilter` is provided. */
-    geminiApiKey?: string;
+    /**
+     * AI provider for the AI Filter Assistant: either the built-in Gemini
+     * integration (`{ type: 'builtInGemini', geminiApiKey }`) or a custom
+     * request function (`{ type: 'custom', requestAiFilter }`) that receives
+     * the fully-built prompt and returns the model response (raw text or the
+     * parsed filter-state object).
+     */
+    aiIntegration: AIIntegration;
     /**
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
@@ -89,14 +95,6 @@ export interface AppProps {
      */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
 
-    /**
-     * Optional custom AI provider request function for the AI Filter Assistant.
-     * Receives the fully-built prompt and returns the model response (raw text
-     * or the parsed filter-state object). When set, it replaces the built-in
-     * Gemini request and `geminiApiKey` is not required.
-     */
-    requestAiFilter?: RequestAiFilterFn;
-
     /** Optional user data integration hooks. */
     userData?: {
         /** Optional async loader invoked when the user-data manager is created. */
@@ -131,7 +129,7 @@ const builtInRuntime: Runtime = nativeRuntime
 function App({
     graphqlHost,
     requestHeaders,
-    geminiApiKey,
+    aiIntegration,
     showViewsMenu,
     showViewTitle,
     showCsvExportButton = false,
@@ -148,7 +146,6 @@ function App({
     rowsPerPageOptions = [20, 50, 100, 200],
     userData,
     modifyAiFilterPrompt,
-    requestAiFilter,
     apiRef
 }: AppProps) {
     const views = useMemo(() => {
@@ -845,11 +842,10 @@ function App({
                                 filterState={state.filterState}
                                 setFilterState={setFilterState}
                                 selectedView={selectedView}
-                                geminiApiKey={geminiApiKey}
+                                aiIntegration={aiIntegration}
                                 toast={toast}
                                 setShowFilterForm={setFilterFormVisible}
                                 modifyAiFilterPrompt={modifyAiFilterPrompt}
-                                requestAiFilter={requestAiFilter}
                             />
                         </div>
                     )
@@ -956,7 +952,7 @@ function App({
                     <App
                         graphqlHost={graphqlHost}
                         requestHeaders={requestHeaders}
-                        geminiApiKey={geminiApiKey}
+                        aiIntegration={aiIntegration}
                         showViewsMenu={showViewsMenu}
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
@@ -971,7 +967,6 @@ function App({
                         rowClassFunction={rowClassFunction}
                         rowsPerPageOptions={rowsPerPageOptions}
                         modifyAiFilterPrompt={modifyAiFilterPrompt}
-                        requestAiFilter={requestAiFilter}
                     />
                 </div>,
                 document.body

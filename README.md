@@ -29,8 +29,7 @@ All required styles are injected automatically via the JS bundle (using `vite-pl
 Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 
 - `graphqlHost` / `requestHeaders`: GraphQL endpoint + HTTP headers. Pass `{}` when no custom headers are needed.
-- `geminiApiKey`: API key used by the built-in Gemini AI Filter Assistant. Optional when `requestAiFilter` is provided.
-- `requestAiFilter`: Optional function to use a custom AI provider (e.g. AWS Bedrock) for the AI Filter Assistant instead of Gemini. It receives `{ prompt, filterGroups, userPrompt }` — where `prompt` is the fully-built prompt — and must return the model response: either the raw text containing a JSON object mapping filter IDs to `FilterFormState`, or that object already parsed.
+- `aiIntegration`: AI provider used by the AI Filter Assistant. Either the built-in Gemini integration, `{ type: 'builtInGemini', geminiApiKey }`, or a custom provider (e.g. AWS Bedrock), `{ type: 'custom', requestAiFilter }`. The `requestAiFilter` function receives `{ prompt, filterGroups, userPrompt }` — where `prompt` is the fully-built prompt — and must return the model response: either the raw text containing a JSON object mapping filter IDs to `FilterFormState`, or that object already parsed.
 - `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
 - `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
 - `showViewTitle`: Toggle the view title heading (default: `false`).
@@ -44,7 +43,7 @@ Example:
 dtv.renderTableView('root', {
   graphqlHost: 'https://example/graphql',
   requestHeaders: { Authorization: 'Bearer token' },
-  geminiApiKey: 'gemini-key',
+  aiIntegration: { type: 'builtInGemini', geminiApiKey: 'gemini-key' },
   viewsJson: JSON.stringify([myViewJson]),
   showViewTitle: true,
   showCsvExportButton: true,

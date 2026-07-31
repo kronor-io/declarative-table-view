@@ -35,9 +35,7 @@ describe('aiAssistant requestAiFilter', () => {
             filterGroups,
             'Find orders from Alice',
             setFormState,
-            undefined,
-            undefined,
-            { requestAiFilter }
+            { type: 'custom', requestAiFilter }
         );
 
         expect((globalThis as any).fetch).not.toHaveBeenCalled();
@@ -66,9 +64,7 @@ describe('aiAssistant requestAiFilter', () => {
             filterGroups,
             'Find orders from Bob',
             setFormState,
-            undefined,
-            undefined,
-            { requestAiFilter }
+            { type: 'custom', requestAiFilter }
         );
 
         expect(setFormState).toHaveBeenCalledTimes(1);
@@ -83,10 +79,9 @@ describe('aiAssistant requestAiFilter', () => {
             filterGroups,
             'Find orders',
             jest.fn(),
-            undefined,
+            { type: 'custom', requestAiFilter },
             undefined,
             {
-                requestAiFilter,
                 modifyAiFilterPrompt: (template) => `${template}\n\n[EXTRA INSTRUCTION]`
             }
         );

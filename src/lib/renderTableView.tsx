@@ -8,7 +8,7 @@ import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
-import { ModifyAiFilterPromptFn, RequestAiFilterFn } from '../components/aiAssistant'
+import { AIIntegration, ModifyAiFilterPromptFn } from '../components/aiAssistant'
 import type { View } from '../framework/view'
 import type { DTVAPI } from '../App'
 import type { RequestHeaders } from '../framework/data'
@@ -31,8 +31,14 @@ export type RenderTableViewOptions = {
      * framework/data.ts.
      */
     requestHeaders: RequestHeaders
-    /** API key for the built-in Gemini AI Filter Assistant. Optional when `requestAiFilter` is provided. */
-    geminiApiKey?: string
+    /**
+     * AI provider for the AI Filter Assistant: either the built-in Gemini
+     * integration (`{ type: 'builtInGemini', geminiApiKey }`) or a custom
+     * request function (`{ type: 'custom', requestAiFilter }`) that receives
+     * the fully-built prompt and returns the model response (raw text or the
+     * parsed filter-state object).
+     */
+    aiIntegration: AIIntegration
     showViewsMenu?: boolean
     showViewTitle?: boolean
     showCsvExportButton?: boolean
@@ -51,14 +57,6 @@ export type RenderTableViewOptions = {
     apiRef?: React.RefObject<DTVAPI | null>
 
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn
-
-    /**
-     * Optional custom AI provider request function for the AI Filter Assistant.
-     * Receives the fully-built prompt and returns the model response (raw text
-     * or the parsed filter-state object). When set, it replaces the built-in
-     * Gemini request and `geminiApiKey` is not required.
-     */
-    requestAiFilter?: RequestAiFilterFn
 
     /** Optional user data integration hooks. */
     userData?: RenderTableViewUserDataOptions
@@ -89,7 +87,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                 <App
                     graphqlHost={options.graphqlHost}
                     requestHeaders={options.requestHeaders}
-                    geminiApiKey={options.geminiApiKey}
+                    aiIntegration={options.aiIntegration}
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
                     showCsvExportButton={options.showCsvExportButton ?? false}
@@ -103,7 +101,6 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                     rowsPerPageOptions={options.rowsPerPageOptions}
                     userData={options.userData}
                     modifyAiFilterPrompt={options.modifyAiFilterPrompt}
-                    requestAiFilter={options.requestAiFilter}
                     apiRef={options.apiRef}
                 />
             </PrimeReactProvider>

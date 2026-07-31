@@ -26,7 +26,7 @@ export function PlaygroundApp() {
             <App
                 graphqlHost={ABSOLUTE_GRAPHQL_HOST}
                 requestHeaders={{ Authorization: 'Bearer PLAYGROUND_TOKEN' }}
-                geminiApiKey=""
+                aiIntegration={{ type: 'builtInGemini', geminiApiKey: '' }}
                 showViewsMenu={false}
                 showViewTitle={true}
                 viewsJson={JSON.stringify(views)}
