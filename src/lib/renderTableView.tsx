@@ -8,7 +8,7 @@ import type { ActionDefinition } from '../framework/actions'
 import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
-import { ModifyAiFilterPromptFn } from '../components/aiAssistant'
+import { AIIntegration, ModifyAiFilterPromptFn } from '../components/aiAssistant'
 import type { View } from '../framework/view'
 import type { DTVAPI } from '../App'
 import type { RequestHeaders } from '../framework/data'
@@ -31,7 +31,14 @@ export type RenderTableViewOptions = {
      * framework/data.ts.
      */
     requestHeaders: RequestHeaders
-    geminiApiKey: string
+    /**
+     * AI provider for the AI Filter Assistant: either the built-in Gemini
+     * integration (`{ type: 'builtInGemini', geminiApiKey }`) or a custom
+     * request function (`{ type: 'custom', requestAiFilter }`) that receives
+     * the fully-built prompt and returns the model response (raw text or the
+     * parsed filter-state object).
+     */
+    aiIntegration: AIIntegration
     showViewsMenu?: boolean
     showViewTitle?: boolean
     showCsvExportButton?: boolean
@@ -80,7 +87,7 @@ export function renderTableView(target: HTMLElement | string, options: RenderTab
                 <App
                     graphqlHost={options.graphqlHost}
                     requestHeaders={options.requestHeaders}
-                    geminiApiKey={options.geminiApiKey}
+                    aiIntegration={options.aiIntegration}
                     showViewsMenu={options.showViewsMenu ?? false}
                     showViewTitle={options.showViewTitle ?? false}
                     showCsvExportButton={options.showCsvExportButton ?? false}

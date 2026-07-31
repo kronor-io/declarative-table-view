@@ -3,14 +3,15 @@ import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
 import { View } from '../framework/view';
-import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn } from './aiAssistant';
+import { generateFilterWithAI, GeminiApi, type AIIntegration, type ModifyAiFilterPromptFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
     filterState: FilterState;
     setFilterState: (state: FilterState) => void;
     selectedView: View;
-    geminiApiKey: string;
+    /** AI provider: the built-in Gemini integration or a custom request function. */
+    aiIntegration: AIIntegration;
     toast: RefObject<Toast | null>;
     // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
     setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
@@ -22,7 +23,7 @@ interface AIAssistantFormProps {
 export default function AIAssistantForm({
     setFilterState,
     selectedView,
-    geminiApiKey,
+    aiIntegration,
     toast,
     setShowFilterForm,
     modifyAiFilterPrompt
@@ -54,7 +55,7 @@ export default function AIAssistantForm({
                                 aiPrompt,
                                 setFilterState,
                                 GeminiApi,
-                                geminiApiKey,
+                                aiIntegration,
                                 toast,
                                 { modifyAiFilterPrompt }
                             );

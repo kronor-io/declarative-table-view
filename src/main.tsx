@@ -48,7 +48,7 @@ if (import.meta.env.DEV) {
             renderTableView(rootEl, {
                 graphqlHost: import.meta.env.VITE_GRAPHQL_HOST,
                 requestHeaders: getRequestHeadersFromEnv(),
-                geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY,
+                aiIntegration: { type: 'builtInGemini', geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY },
                 viewsJson: JSON.stringify([viewJson]),
                 showViewsMenu: false,
                 externalRuntime: runtime,

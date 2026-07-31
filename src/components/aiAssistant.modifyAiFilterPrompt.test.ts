@@ -26,7 +26,7 @@ describe('aiAssistant modifyAiFilterPrompt', () => {
             filterGroups,
             'Find orders from yesterday',
             setFormState,
-            'TEST_KEY',
+            { type: 'builtInGemini', geminiApiKey: 'TEST_KEY' },
             undefined,
             { modifyAiFilterPrompt }
         );

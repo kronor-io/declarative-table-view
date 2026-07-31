@@ -72,7 +72,7 @@ describe('App action button disabled while running', () => {
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
             requestHeaders: { Authorization: 'Bearer token' },
-            geminiApiKey: 'gemini',
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
             showViewsMenu: false,
             showViewTitle: false,
             viewsJson,
@@ -166,7 +166,7 @@ describe('App action button disabled while running', () => {
         const appElement = React.createElement(App, {
             graphqlHost: 'http://example.com/graphql',
             requestHeaders: { Authorization: 'Bearer token' },
-            geminiApiKey: 'gemini',
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
             showViewsMenu: false,
             showViewTitle: false,
             viewsJson,

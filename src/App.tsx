@@ -15,7 +15,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
-import type { ModifyAiFilterPromptFn } from './components/aiAssistant';
+import type { AIIntegration, ModifyAiFilterPromptFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
@@ -51,7 +51,14 @@ export interface AppProps {
      * framework/data.ts.
      */
     requestHeaders: RequestHeaders;
-    geminiApiKey: string;
+    /**
+     * AI provider for the AI Filter Assistant: either the built-in Gemini
+     * integration (`{ type: 'builtInGemini', geminiApiKey }`) or a custom
+     * request function (`{ type: 'custom', requestAiFilter }`) that receives
+     * the fully-built prompt and returns the model response (raw text or the
+     * parsed filter-state object).
+     */
+    aiIntegration: AIIntegration;
     /**
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
@@ -122,7 +129,7 @@ const builtInRuntime: Runtime = nativeRuntime
 function App({
     graphqlHost,
     requestHeaders,
-    geminiApiKey,
+    aiIntegration,
     showViewsMenu,
     showViewTitle,
     showCsvExportButton = false,
@@ -835,7 +842,7 @@ function App({
                                 filterState={state.filterState}
                                 setFilterState={setFilterState}
                                 selectedView={selectedView}
-                                geminiApiKey={geminiApiKey}
+                                aiIntegration={aiIntegration}
                                 toast={toast}
                                 setShowFilterForm={setFilterFormVisible}
                                 modifyAiFilterPrompt={modifyAiFilterPrompt}
@@ -945,7 +952,7 @@ function App({
                     <App
                         graphqlHost={graphqlHost}
                         requestHeaders={requestHeaders}
-                        geminiApiKey={geminiApiKey}
+                        aiIntegration={aiIntegration}
                         showViewsMenu={showViewsMenu}
                         showViewTitle={showViewTitle}
                         showCsvExportButton={showCsvExportButton}
