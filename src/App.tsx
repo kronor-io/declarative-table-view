@@ -15,7 +15,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import TablePagination from './components/TablePagination';
 import LoadingOverlay from './components/LoadingOverlay';
 import AIAssistantForm from './components/AIAssistantForm';
-import type { ModifyAiFilterPromptFn } from './components/aiAssistant';
+import type { ModifyAiFilterPromptFn, RequestAiFilterFn } from './components/aiAssistant';
 import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
@@ -51,7 +51,8 @@ export interface AppProps {
      * framework/data.ts.
      */
     requestHeaders: RequestHeaders;
-    geminiApiKey: string;
+    /** API key for the built-in Gemini AI Filter Assistant. Optional when `requestAiFilter` is provided. */
+    geminiApiKey?: string;
     /**
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
@@ -87,6 +88,14 @@ export interface AppProps {
         * before it is sent to the AI provider.
      */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
+
+    /**
+     * Optional custom AI provider request function for the AI Filter Assistant.
+     * Receives the fully-built prompt and returns the model response (raw text
+     * or the parsed filter-state object). When set, it replaces the built-in
+     * Gemini request and `geminiApiKey` is not required.
+     */
+    requestAiFilter?: RequestAiFilterFn;
 
     /** Optional user data integration hooks. */
     userData?: {
@@ -139,6 +148,7 @@ function App({
     rowsPerPageOptions = [20, 50, 100, 200],
     userData,
     modifyAiFilterPrompt,
+    requestAiFilter,
     apiRef
 }: AppProps) {
     const views = useMemo(() => {
@@ -839,6 +849,7 @@ function App({
                                 toast={toast}
                                 setShowFilterForm={setFilterFormVisible}
                                 modifyAiFilterPrompt={modifyAiFilterPrompt}
+                                requestAiFilter={requestAiFilter}
                             />
                         </div>
                     )
@@ -960,6 +971,7 @@ function App({
                         rowClassFunction={rowClassFunction}
                         rowsPerPageOptions={rowsPerPageOptions}
                         modifyAiFilterPrompt={modifyAiFilterPrompt}
+                        requestAiFilter={requestAiFilter}
                     />
                 </div>,
                 document.body

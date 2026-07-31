@@ -5,6 +5,8 @@ import '../index.css';
 export { default as App } from '../App';
 export type { AppProps, DTVAPI } from '../App';
 
+export type { ModifyAiFilterPromptFn, RequestAiFilterFn } from '../components/aiAssistant';
+
 // Re-export selected framework types that are useful to consumers.
 export type { View } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';

@@ -29,7 +29,8 @@ All required styles are injected automatically via the JS bundle (using `vite-pl
 Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 
 - `graphqlHost` / `requestHeaders`: GraphQL endpoint + HTTP headers. Pass `{}` when no custom headers are needed.
-- `geminiApiKey`: API key used by the AI Filter Assistant.
+- `geminiApiKey`: API key used by the built-in Gemini AI Filter Assistant. Optional when `requestAiFilter` is provided.
+- `requestAiFilter`: Optional function to use a custom AI provider (e.g. AWS Bedrock) for the AI Filter Assistant instead of Gemini. It receives `{ prompt, filterGroups, userPrompt }` — where `prompt` is the fully-built prompt — and must return the model response: either the raw text containing a JSON object mapping filter IDs to `FilterFormState`, or that object already parsed.
 - `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
 - `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
 - `showViewTitle`: Toggle the view title heading (default: `false`).

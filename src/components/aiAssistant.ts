@@ -13,10 +13,11 @@ export interface AIApi {
         filterGroups: FilterGroups,
         userPrompt: string,
         setFormState: (state: FilterState) => void,
-        apiKey: string,
+        apiKey?: string,
         toast?: RefObject<Toast | null>,
         options?: {
             modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+            requestAiFilter?: RequestAiFilterFn
         }
     ): Promise<void>;
 }
@@ -25,6 +26,19 @@ export type ModifyAiFilterPromptFn = (
     promptTemplate: string,
     args: { filterGroups: FilterGroups; userPrompt: string }
 ) => string;
+
+/**
+ * Custom AI provider hook. Receives the fully-built prompt (after
+ * `modifyAiFilterPrompt`, if any) and must return either the raw model text
+ * containing a JSON object mapping filter IDs to FilterFormState, or that
+ * object already parsed. When set, it replaces the built-in Gemini request
+ * and no Gemini API key is needed.
+ */
+export type RequestAiFilterFn = (args: {
+    prompt: string;
+    filterGroups: FilterGroups;
+    userPrompt: string;
+}) => Promise<string | Record<string, unknown>>;
 
 // export const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash-lite';
 export const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash-lite-preview-09-2025';
@@ -326,30 +340,46 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
     return currentState;
 }
 
-// --- Gemini Flash-Lite implementation ---
+// --- Gemini Flash-Lite implementation (default), with custom-provider override ---
 export const GeminiApi: AIApi = {
     async sendPrompt(filterGroups, userPrompt, setFormState, geminiApiKey, toast, options) {
         try {
-            const { aiText } = await requestGeminiGenerateContent({
-                filterGroups,
-                userPrompt,
-                geminiApiKey,
-                modifyAiFilterPrompt: options?.modifyAiFilterPrompt,
-            });
+            let aiResult: string | Record<string, unknown>;
+            if (options?.requestAiFilter) {
+                const prompt = buildAiPrompt(filterGroups, userPrompt, options?.modifyAiFilterPrompt);
+                aiResult = await options.requestAiFilter({ prompt, filterGroups, userPrompt });
+            } else {
+                if (!geminiApiKey) {
+                    throw new Error('No Gemini API key provided and no custom requestAiFilter function set.');
+                }
+                const { aiText } = await requestGeminiGenerateContent({
+                    filterGroups,
+                    userPrompt,
+                    geminiApiKey,
+                    modifyAiFilterPrompt: options?.modifyAiFilterPrompt,
+                });
+                aiResult = aiText;
+            }
 
-            const aiContent = aiText;
-            // Use [\s\S] instead of dot-all flag for compatibility
-            const match = aiContent.match(/\{[\s\S]*\}/);
-            if (match) {
-                const parsed = JSON.parse(match[0]);
+            let parsed: Record<string, unknown> | null = null;
+            if (typeof aiResult === 'string') {
+                // Use [\s\S] instead of dot-all flag for compatibility
+                const match = aiResult.match(/\{[\s\S]*\}/);
+                if (match) {
+                    parsed = JSON.parse(match[0]);
+                }
+            } else {
+                parsed = aiResult;
+            }
 
+            if (parsed) {
                 // Make an empty state and merge with AI response
                 const currentState = createDefaultFilterState(filterGroups, FormStateInitMode.Empty);
                 const mergedState = mergeAiStateWithCurrent(currentState, parsed, filterGroups);
 
                 setFormState(mergedState);
             } else {
-                const errorMessage = 'Could not parse FilterFormState from Gemini response. Check the console.';
+                const errorMessage = 'Could not parse FilterFormState from AI response. Check the console.';
                 if (toast?.current) {
                     toast.current.show({
                         severity: 'warn',
@@ -363,7 +393,7 @@ export const GeminiApi: AIApi = {
             }
         } catch (err) {
             console.error(err);
-            const errorMessage = 'Failed to get response from Gemini API.';
+            const errorMessage = 'Failed to get response from the AI provider.';
             if (toast?.current) {
                 toast.current.show({
                     severity: 'error',
@@ -383,10 +413,11 @@ export function generateFilterWithAI(
     userPrompt: string,
     setFormState: (state: FilterState) => void,
     apiImpl: AIApi,
-    geminiApiKey: string,
+    geminiApiKey?: string,
     toast?: RefObject<Toast | null>,
     options?: {
         modifyAiFilterPrompt?: ModifyAiFilterPromptFn
+        requestAiFilter?: RequestAiFilterFn
     }
 ): Promise<void> {
     return apiImpl.sendPrompt(filterGroups, userPrompt, setFormState, geminiApiKey, toast, options);

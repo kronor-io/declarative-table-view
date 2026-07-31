@@ -3,20 +3,23 @@ import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
 import { View } from '../framework/view';
-import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn } from './aiAssistant';
+import { generateFilterWithAI, GeminiApi, type ModifyAiFilterPromptFn, type RequestAiFilterFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
 
 interface AIAssistantFormProps {
     filterState: FilterState;
     setFilterState: (state: FilterState) => void;
     selectedView: View;
-    geminiApiKey: string;
+    geminiApiKey?: string;
     toast: RefObject<Toast | null>;
     // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
     setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
 
     /** Optional hook to modify the AI prompt template before it is sent to the AI provider. */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
+
+    /** Optional custom AI provider request function; replaces the built-in Gemini request. */
+    requestAiFilter?: RequestAiFilterFn;
 }
 
 export default function AIAssistantForm({
@@ -25,7 +28,8 @@ export default function AIAssistantForm({
     geminiApiKey,
     toast,
     setShowFilterForm,
-    modifyAiFilterPrompt
+    modifyAiFilterPrompt,
+    requestAiFilter
 }: AIAssistantFormProps) {
     const [aiPrompt, setAiPrompt] = useState(selectedView.defaultAIFilterPrompt ?? '');
     // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
@@ -56,7 +60,7 @@ export default function AIAssistantForm({
                                 GeminiApi,
                                 geminiApiKey,
                                 toast,
-                                { modifyAiFilterPrompt }
+                                { modifyAiFilterPrompt, requestAiFilter }
                             );
                             // Reveal filter form so user sees applied changes
                             setShowFilterForm(true);
