@@ -213,4 +213,58 @@ describe('aiAssistant customOperator patching', () => {
             expect(result.value).toEqual({ type: 'value', value: ['NEW', 'ARCHIVED'] });
         }
     });
+
+    // Models emit 'and' for the same request that produced 'or' on the previous
+    // run ("in euro or Danish krona"). Both mean the same IN list here.
+    it('should collapse AND children into array for in filter', () => {
+        const expression = {
+            type: 'in',
+            field: 'currency',
+            value: { type: 'text' }
+        } satisfies FilterExpr;
+
+        const emptyState = buildInitialFormState(expression);
+        const aiState = {
+            type: 'and',
+            children: [
+                { type: 'leaf', field: 'currency', value: 'EUR' },
+                { type: 'leaf', field: 'currency', value: 'DKK' }
+            ]
+        };
+
+        const result = mergeFilterFormState(expression, emptyState, aiState);
+        expect(result.type).toBe('leaf');
+        if (result.type === 'leaf') {
+            expect(result.value).toEqual({ type: 'value', value: ['EUR', 'DKK'] });
+        }
+    });
+
+    it('should collapse nested and/or children into a flat array for in filter', () => {
+        const expression = {
+            type: 'in',
+            field: 'currency',
+            value: { type: 'text' }
+        } satisfies FilterExpr;
+
+        const emptyState = buildInitialFormState(expression);
+        const aiState = {
+            type: 'and',
+            children: [
+                { type: 'leaf', field: 'currency', value: 'EUR' },
+                {
+                    type: 'or',
+                    children: [
+                        { type: 'leaf', field: 'currency', value: 'DKK' },
+                        { type: 'leaf', field: 'currency', value: 'NOK' }
+                    ]
+                }
+            ]
+        };
+
+        const result = mergeFilterFormState(expression, emptyState, aiState);
+        expect(result.type).toBe('leaf');
+        if (result.type === 'leaf') {
+            expect(result.value).toEqual({ type: 'value', value: ['EUR', 'DKK', 'NOK'] });
+        }
+    });
 });

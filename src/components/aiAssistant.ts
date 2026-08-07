@@ -213,10 +213,19 @@ function normalizeCustomOperatorValue(operator: string | undefined, rawValue: un
 export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFormState, aiState: any): FilterFormState {
     if (!aiState) return currentState;
 
-    // Patch: If schema expects an 'in' or 'notIn' array but AI produced an OR list of single values, collapse to array
+    // Patch: If schema expects an 'in' or 'notIn' array but AI produced a
+    // boolean tree of single values, collapse to array.
     // Example AI output (FilterFormState shape): { type: 'or', children: [ { type: 'leaf', value: 'a' }, { type: 'leaf', value: 'b' } ] }
     // We convert it to a single leaf with value ['a','b'] so downstream logic treats it as an IN list.
-    if ((schema.type === 'in' || schema.type === 'notIn') && aiState.type === 'or' && Array.isArray(aiState.children)) {
+    //
+    // 'and' is accepted alongside 'or' because models emit it for the same
+    // request from one run to the next — "payments in euro or Danish krona"
+    // came back as an 'or' tree once and an 'and' tree the next time. An IN
+    // list is the only thing the control can express either way, and the
+    // alternative is what used to happen: no branch matched, the filter was
+    // silently dropped, and the user got an unfiltered column with no error.
+    const isValueTree = aiState.type === 'or' || aiState.type === 'and';
+    if ((schema.type === 'in' || schema.type === 'notIn') && isValueTree && Array.isArray(aiState.children)) {
         const collectValues = (node: any, acc: any[]) => {
             if (!node) return acc;
             if (node.type === 'leaf') {
@@ -224,7 +233,7 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
                 if (v !== undefined && v !== '' && v !== null) {
                     acc.push(v);
                 }
-            } else if (node.type === 'or' && Array.isArray(node.children)) {
+            } else if ((node.type === 'or' || node.type === 'and') && Array.isArray(node.children)) {
                 node.children.forEach((c: any) => collectValues(c, acc));
             }
             return acc;
