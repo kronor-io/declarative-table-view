@@ -126,7 +126,7 @@ describe('App applyFilters', () => {
                     <App
                         graphqlHost="http://example.com/graphql"
                         requestHeaders={{ Authorization: 'Bearer token' }}
-                        geminiApiKey="gemini"
+                        aiIntegration={{ type: 'builtInGemini', geminiApiKey: 'gemini' }}
                         showViewsMenu={false}
                         showViewTitle={false}
                         views={[createView(initialValue)]}

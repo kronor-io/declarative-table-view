@@ -55,13 +55,21 @@ test.describe('Row expansion', () => {
     test('lazy row expansion fetches on demand, shows a spinner, and reuses cached data', async ({ page }) => {
         const queries: string[] = [];
 
+        // Hold the expansion request open until the test has observed the
+        // spinner, instead of racing a fixed delay: under parallel workers the
+        // spinner could come and go before the assertion first polled.
+        let releaseExpansionResponse = () => { };
+        const expansionResponseGate = new Promise<void>(resolve => {
+            releaseExpansionResponse = resolve;
+        });
+
         await page.route('**/v1/graphql', async route => {
             const postData = route.request().postDataJSON?.();
             const query = typeof postData?.query === 'string' ? postData.query : '';
             queries.push(query);
 
             if (query.includes('details')) {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await expansionResponseGate;
             }
 
             await mockPaginationGraphQL(route);
@@ -79,6 +87,7 @@ test.describe('Row expansion', () => {
 
         await expect(page.getByText('Loading details...', { exact: true })).toBeVisible();
         await expect.poll(() => queries.filter(query => query.includes('details')).length).toBe(1);
+        releaseExpansionResponse();
 
         await expect(page.getByText('Details for Test 30', { exact: true })).toBeVisible();
         await expect(page.getByText('Detail note 30', { exact: true })).toBeVisible();
