@@ -183,6 +183,7 @@ function App({
         setSelectedViewId,
         setFilterState,
         setAppliedFilterState,
+        commitFilterState,
         setSearchQuery,
         setFilterGroupExpanded,
         setDataRows,
@@ -305,6 +306,24 @@ function App({
         setAppliedFilterState(filterState);
         triggerRefetch();
     }, [setAppliedFilterState, triggerRefetch]);
+
+    // The `applyFilters` handed to cell renderers, noRowsComponents, row
+    // expansion renderers and actions. Runtime code sets a value with
+    // `updateFilterById`/`setFilterState` (which only touch the draft filter
+    // state) and then calls `applyFilters`, so this must both promote the draft
+    // to the applied state — reading the latest draft, hence the reducer in
+    // `commitFilterState` rather than a captured `state.filterState` — and
+    // refetch. A bare refetch would re-run the query against the previously
+    // applied filters, leaving the new value populated in the form but not
+    // applied.
+    //
+    // Order matters: the fetch effect keys off `refetchTrigger` and reads
+    // `state.appliedFilterState` through `fetchDataWrapper`'s closure, so the
+    // commit has to be queued before the trigger bump.
+    const applyFilters = useCallback(() => {
+        commitFilterState();
+        triggerRefetch();
+    }, [commitFilterState, triggerRefetch]);
 
     const dtvApi = useRef<DTVAPI>({
         fetchData: triggerRefetch,
@@ -806,6 +825,7 @@ function App({
                                 selectedRows={selectedRows}
                                 setFilterState={setFilterState}
                                 refetch={triggerRefetch}
+                                applyFilters={applyFilters}
                                 showToast={(opts) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
@@ -886,8 +906,12 @@ function App({
                             onFilterGroupExpandedChange={(groupName, expanded) => {
                                 setFilterGroupExpanded(groupName, expanded);
                             }}
-                            onSubmit={(submittedFilterState) => {
-                                applyFilterState(submittedFilterState);
+                            onSubmit={() => {
+                                // `FilterForm` is fully controlled by
+                                // `state.filterState`, so submitting is exactly
+                                // the draft-to-applied promotion `applyFilters`
+                                // performs.
+                                applyFilters();
                                 if (closeFilterPanelOnApply) {
                                     setFilterFormVisible(false);
                                 }
@@ -921,7 +945,7 @@ function App({
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
                         filterState={state.filterState}
-                        triggerRefetch={triggerRefetch}
+                        applyFilters={applyFilters}
                         rowSelection={rowSelectionWithInternalHandler}
                         rowClassFunction={rowClassFunction}
                         onRowSelectionResetChange={handleRowSelectionResetChange}

@@ -3,8 +3,13 @@ import { mockPaginationGraphQL } from './graphqlMock';
 
 test.describe('Simple View Email Filter', () => {
     test('should set email filter when clicking on email', async ({ page }) => {
-        // Intercept the GraphQL request and mock the response
-        await page.route('**/v1/graphql', mockPaginationGraphQL);
+        // Record the conditions of every query so we can assert the click
+        // actually *applied* the filter, not just populated the form.
+        const requestedConditions: unknown[] = [];
+        await page.route('**/v1/graphql', async route => {
+            requestedConditions.push(route.request().postDataJSON()?.variables?.conditions);
+            await mockPaginationGraphQL(route);
+        });
 
         // Navigate to the simple test view
         await page.goto('/?test-view=simple-test-view');
@@ -39,6 +44,15 @@ test.describe('Simple View Email Filter', () => {
         // Verify that the Email filter is now populated with the clicked email
         const emailFilterInput = page.getByText('Email', { exact: true }).locator('..').locator('~ div input');
         await expect(emailFilterInput).toHaveValue(emailText!);
+
+        // Verify that the refetch triggered by `applyFilters` actually carried the
+        // new filter value. `updateFilterById` writes the draft filter state while
+        // the fetch reads the applied one, so a refetch that does not promote the
+        // draft first would query with the previous (empty) conditions.
+        await expect(async () => {
+            const carriedEmail = requestedConditions.some(conditions => JSON.stringify(conditions).includes(emailText!));
+            expect(carriedEmail).toBe(true);
+        }).toPass();
 
         // Verify that the table now shows only rows with that email (should be just 1 row)
         const emailButtons = table.locator('td button').filter({ hasText: emailText! });

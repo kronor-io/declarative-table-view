@@ -15,13 +15,14 @@ export interface ActionButtonsProps {
     selectedRows: unknown[];
     setFilterState: (next: FilterState) => void;
     refetch: () => void;
+    applyFilters: () => void;
     showToast: ShowToastFn;
     paginationState: PaginationState;
     rowsPerPage: number;
     userData: ActionUserDataAPI;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, showToast, paginationState, rowsPerPage, userData }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, paginationState, rowsPerPage, userData }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     return (
         <>
@@ -36,6 +37,7 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         selectedRows,
                         setFilterState,
                         refetch,
+                        applyFilters,
                         showToast,
                         generateGraphQLQueryAST,
                         generateColumnAliasedGraphQLQueryAST,

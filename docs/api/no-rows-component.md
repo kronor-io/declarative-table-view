@@ -15,6 +15,14 @@ export type NoRowsComponentProps = {
 export type NoRowsComponent = (props: NoRowsComponentProps) => React.ReactNode;
 ```
 
+`setFilterState` and `updateFilterById` write the *draft* filter state (what the
+filter form edits); `applyFilters()` promotes that draft to the applied state and
+refetches. A draft change does not reach the query until it is applied, so the
+`updateFilterById(...)` + `applyFilters()` pairing below is required — calling
+only `updateFilterById` populates the form without filtering. `applyFilters`
+applies the whole draft, including edits the user has typed into an open filter
+panel but not yet applied.
+
 In a runtime, entries live under `runtime.noRowsComponents`:
 ```ts
 noRowsComponents: {

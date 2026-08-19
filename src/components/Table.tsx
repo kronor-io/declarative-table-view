@@ -51,7 +51,7 @@ type TableProps = {
     noRowsComponent?: NoRowsComponent; // The noRowsComponent function
     setFilterState: (filterState: FilterState) => void; // Function to update filter state
     filterState: FilterState; // Current filter state
-    triggerRefetch: () => void; // Function to trigger data refetch
+    applyFilters: () => void; // Applies the current (draft) filter state and refetches
     ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
@@ -79,7 +79,7 @@ function Table({
     noRowsComponent,
     setFilterState,
     filterState,
-    triggerRefetch,
+    applyFilters,
     ref,
     rowSelection,
     rowClassFunction,
@@ -115,7 +115,7 @@ function Table({
 
     const sharedRendererProps = {
         setFilterState: wrappedSetFilterState,
-        applyFilters: triggerRefetch,
+        applyFilters,
         updateFilterById,
         createElement: React.createElement,
         components: {
@@ -135,7 +135,7 @@ function Table({
         ? noRowsComponent({
             filterState,
             setFilterState: wrappedSetFilterState,
-            applyFilters: triggerRefetch,
+            applyFilters,
             updateFilterById
         })
         : null;

@@ -19,11 +19,28 @@ export interface ActionUserDataAPI {
 // API object passed to each action handler giving controlled access to App internals.
 export interface ActionAPI {
     view: View; // Currently selected view
-    filterState: FilterState; // Current filter state map
+    filterState: FilterState; // Current *draft* filter state map (what the filter form edits)
     /** Current selected rows (simplified/flattened), empty when none selected or selection disabled. */
     selectedRows: unknown[];
-    setFilterState: (next: FilterState) => void; // Replace filter state (resets pagination)
-    refetch: () => void; // Trigger a data refetch for current view & filters
+    /**
+     * Replace the *draft* filter state (resets pagination). This is what the
+     * filter form edits; it does not affect the query until applied. Follow it
+     * with `applyFilters` to make the new value take effect.
+     */
+    setFilterState: (next: FilterState) => void;
+    /**
+     * Refetch the current view using the *applied* filters. Any pending draft
+     * changes made via `setFilterState` are ignored — use `applyFilters` for
+     * those.
+     */
+    refetch: () => void;
+    /**
+     * Promote the current draft filter state to the applied state and refetch.
+     * Use this after `setFilterState` to filter programmatically. Note that it
+     * applies the whole draft, including edits the user has typed into an open
+     * filter panel but not yet applied.
+     */
+    applyFilters: () => void;
     showToast: ShowToastFn; // Convenience toast helper with support for rich summary/detail nodes and custom content
     /** Current rows-per-page setting for pagination. */
     rowsPerPage: number;

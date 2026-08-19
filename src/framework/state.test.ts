@@ -5,7 +5,7 @@ import { describe, it, expect } from '@jest/globals';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, setOrdering, filterStatesEqual, FilterState } from './state';
+import { createDefaultAppState, setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, commitFilterState, setSearchQuery, setFilterGroupExpanded, setOrdering, filterStatesEqual, FilterState } from './state';
 import { buildInitialFormState, useAppState } from './state';
 import { View } from './view';
 import * as FilterValue from './filterValue';
@@ -175,6 +175,33 @@ describe('AppState', () => {
         const newAppliedFilterState: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
         state = setAppliedFilterState(state, newAppliedFilterState);
         expect(state.appliedFilterState).toBe(newAppliedFilterState);
+    });
+
+    it('commitFilterState promotes the draft filter state to the applied one', () => {
+        let state = createDefaultAppState(mockViews, []);
+        const draft: FilterState = new Map([['filter1', { key: 'x', value: 42 } as any]]);
+
+        state = setFilterState(state, draft);
+        expect(state.appliedFilterState).not.toBe(draft);
+
+        state = commitFilterState(state);
+        expect(state.appliedFilterState).toBe(draft);
+        expect(state.filterState).toBe(draft);
+    });
+
+    it('commitFilterState reads the latest draft, not a caller-captured one', () => {
+        // `applyFilters` runs as a reducer precisely so that a draft written in
+        // the same event (e.g. `updateFilterById` in a cell renderer) is the one
+        // that gets applied.
+        let state = createDefaultAppState(mockViews, []);
+        const firstDraft: FilterState = new Map([['filter1', { key: 'x', value: 1 } as any]]);
+        const latestDraft: FilterState = new Map([['filter1', { key: 'x', value: 2 } as any]]);
+
+        state = setFilterState(state, firstDraft);
+        state = setFilterState(state, latestDraft);
+        state = commitFilterState(state);
+
+        expect(state.appliedFilterState).toBe(latestDraft);
     });
 
     it('setSearchQuery computes searchResults display state and expands matching groups', () => {

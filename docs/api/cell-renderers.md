@@ -32,7 +32,7 @@ export type CellRendererProps = {
 ### Provided Props
 - `data`: Object containing the resolved data fields for this column. Its structure is derived from the column's `data` field array in the JSON definition. For nested/query configs additional keys may be present (e.g. `attempts.cardType`).
 - `setFilterState(updater)`: Low-level state setter for the full filter map. Prefer `updateFilterById` for targeted updates.
-- `applyFilters()`: Triggers a new data fetch after mutating filter state programmatically.
+- `applyFilters()`: Promotes the current draft filter state to the applied state and triggers a new data fetch. Call it after `updateFilterById` / `setFilterState`, which only write the draft the filter form edits — a value written to the draft does not reach the query until it is applied. Note that it applies the *whole* draft, including edits the user has typed into an open filter panel but not yet applied (the same thing the panel's Apply button does).
 - `updateFilterById(filterId, updater)`: Focused helper to update the internal form state of a single filter (tree structure) in-place.
 - `createElement`: Re-exported `React.createElement` for advanced dynamic element factories (rarely needed).
 - `components`: Convenience bundle of commonly used primitives:

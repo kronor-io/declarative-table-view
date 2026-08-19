@@ -264,6 +264,16 @@ function setAppliedFilterState(state: AppState, newAppliedFilterState: FilterSta
     };
 }
 
+// Promote the draft filter state (what the filter form, cell renderers and
+// actions write to) to the applied filter state (what the data fetch reads).
+// Used by `applyFilters`, which runtime code calls right after
+// `updateFilterById`/`setFilterState` — it must read the *latest* draft, so
+// this is a reducer over `prev` rather than a setter taking a caller-captured
+// FilterState.
+function commitFilterState(state: AppState): AppState {
+    return setAppliedFilterState(state, state.filterState);
+}
+
 function setRowsPerPage(state: AppState, newRowsPerPage: number): AppState {
     if (state.pagination.rowsPerPage === newRowsPerPage) return state; // no change
     return {
@@ -316,6 +326,10 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         setAppState(prev => setAppliedFilterState(prev, filterState));
     }, []);
 
+    const commitCurrentFilterState = useCallback(() => {
+        setAppState(prev => commitFilterState(prev));
+    }, []);
+
     const updateSearchQuery = useCallback((searchQuery: string) => {
         setAppState(prev => setSearchQuery(prev, searchQuery));
     }, []);
@@ -340,6 +354,7 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
         setFilterGroups: updateFilterGroups,
         setFilterState: updateFilterState,
         setAppliedFilterState: updateAppliedFilterState,
+        commitFilterState: commitCurrentFilterState,
         setSearchQuery: updateSearchQuery,
         setFilterGroupExpanded: updateFilterGroupExpanded,
         setRowsPerPage: updateRowsPerPage,
@@ -347,4 +362,4 @@ export const useAppState = (views: View[], rowsPerPageOptions: number[], initial
     };
 }
 
-export { setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage, setOrdering };
+export { setSelectedViewId, setDataRows, setFilterGroups, setFilterState, setAppliedFilterState, commitFilterState, setSearchQuery, setFilterGroupExpanded, setRowsPerPage, setOrdering };
