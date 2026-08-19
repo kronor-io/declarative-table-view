@@ -2,7 +2,7 @@
     "extends": "./tsconfig.app.json",
     "compilerOptions": {
         "declaration": true,
-        "declarationMap": true,
+        "declarationMap": false,
         "emitDeclarationOnly": true,
         "rootDir": "src",
         "outDir": "dist/types",
@@ -10,8 +10,9 @@
         "stripInternal": true
     },
     "include": [
-        "src/**/*.ts",
-        "src/**/*.tsx"
+        "src/vite-env.d.ts",
+        "src/lib/index.ts",
+        "src/typegen/index.ts"
     ],
     "exclude": [
         "src/**/*.test.ts",
