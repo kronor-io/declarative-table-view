@@ -7,6 +7,7 @@ import { buildGraphQLQueryVariables } from '../framework/data';
 import { View } from '../framework/view';
 import type { ShowToastFn } from '../framework/toast'
 import { FilterState, PaginationState } from '../framework/state';
+import type { DataOrdering } from '../framework/data-ordering';
 
 export interface ActionButtonsProps {
     actions: ActionDefinition[];
@@ -19,10 +20,11 @@ export interface ActionButtonsProps {
     showToast: ShowToastFn;
     paginationState: PaginationState;
     rowsPerPage: number;
+    ordering: DataOrdering | null;
     userData: ActionUserDataAPI;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, paginationState, rowsPerPage, userData }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, paginationState, rowsPerPage, ordering, userData }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     return (
         <>
@@ -45,6 +47,7 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         buildGraphQLQueryVariables,
                         getPaginationState: () => paginationState,
                         rowsPerPage,
+                        ordering,
                         userData
                     };
                     try {

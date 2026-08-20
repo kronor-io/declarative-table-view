@@ -847,6 +847,7 @@ function App({
                                 showToast={(opts) => toast.current?.show({ ...opts })}
                                 paginationState={state.pagination}
                                 rowsPerPage={rowsPerPage}
+                                ordering={activeOrdering}
                                 userData={actionUserData}
                             />
                         </div>

@@ -3,6 +3,7 @@
 // the current view, filters, and trigger data refetches.
 import type { View } from './view';
 import type { FilterState } from './state';
+import type { DataOrdering } from './data-ordering';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from './graphql';
 import { generateColumnAliasedGraphQLQueryAST } from './graphql/query';
 import { buildGraphQLQueryVariables } from './data';
@@ -45,6 +46,19 @@ export interface ActionAPI {
     showToast: ShowToastFn; // Convenience toast helper with support for rich summary/detail nodes and custom content
     /** Current rows-per-page setting for pagination. */
     rowsPerPage: number;
+    /**
+     * The ordering the table is currently showing: the ordering the user picked by
+     * sorting a column, or `null` when they have not sorted anything. `field` is the
+     * GraphQL field path the column sorts by — dotted for nested columns, e.g.
+     * `customer.profile.status` — not the column id.
+     *
+     * Always pass this value to `buildGraphQLQueryVariables` as its `ordering`
+     * argument, `null` included, to build variables that order and paginate exactly
+     * like the table on screen (`null` means "pagination key only", which is what an
+     * unsorted table queries). Omitting the argument is not the same thing: it
+     * selects the view's `staticOrdering`, which the table never queries by.
+     */
+    ordering: DataOrdering | null;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually the current view root field). */
     generateGraphQLQueryAST: typeof generateGraphQLQueryAST;
     /** Build a GraphQLQueryAST with top-level selections aliased to column ids. */
