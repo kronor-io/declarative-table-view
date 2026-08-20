@@ -29,9 +29,10 @@ export interface ActionAPI {
      */
     setFilterState: (next: FilterState) => void;
     /**
-     * Refetch the current view using the *applied* filters. Any pending draft
-     * changes made via `setFilterState` are ignored — use `applyFilters` for
-     * those.
+     * Refetch the current view using the *applied* filters, staying on the page
+     * the user is on. Any pending draft changes made via `setFilterState` are
+     * ignored — use `applyFilters` for those (which also returns to page one,
+     * since a new filter invalidates the cursor history).
      */
     refetch: () => void;
     /**

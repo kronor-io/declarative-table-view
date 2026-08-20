@@ -106,7 +106,11 @@ export interface AppProps {
 }
 
 export type DTVAPI = {
-    /** Forces the table to fetch data for the current view + filters. */
+    /**
+     * Forces the table to fetch data for the current view + filters, staying on
+     * the page the user is on. Intended for refreshing after an out-of-band
+     * mutation such as a mass action.
+     */
     fetchData: () => void;
 
     rowSelection: {
@@ -659,10 +663,24 @@ function App({
         setRowsPerPage(persisted)
     }, [rowsPerPage, rowsPerPageOptions, setRowsPerPage, userDataManager.viewData.rowsPerPage])
 
-    // Fetch data when view changes, rowsPerPage changes, or refetch is triggered
+    // Fetch data when view changes, rowsPerPage changes, or refetch is triggered.
+    //
+    // Refetches the *current* page rather than jumping back to the first one:
+    // `DTVAPI.fetchData` is called after out-of-band mutations (mass actions and
+    // the like) and the user expects to stay where they are. The cursor that
+    // produced the current page is the last entry of `pagination.cursors`
+    // (empty on page 0), mirroring how `handlePrevPage` recovers its cursor.
+    //
+    // Every other trigger of this effect — view change, filter apply, ordering
+    // change, rowsPerPage change — resets pagination in its own reducer before
+    // bumping `refetchTrigger`, so the cursor read here is already null and
+    // those paths still land on page 0. Because we refetch the page we are on,
+    // leaving `setDataRows`'s pagination argument off correctly keeps the
+    // existing page number and cursor history.
     useEffect(() => {
         setIsLoading(true);
-        fetchDataWrapper(null, rowsPerPage)
+        const currentPageCursor = state.pagination.cursors[state.pagination.cursors.length - 1] ?? null;
+        fetchDataWrapper(currentPageCursor, rowsPerPage)
             .then(dataRows => setDataRows(dataRows))
             .catch(error => {
                 if (error instanceof DOMException && error.name === 'AbortError') {

@@ -151,8 +151,11 @@ describe('App apiRef', () => {
             (text) => text === '21-40'
         );
 
-        // apiRef fetchData triggers the same first-page fetch (cursor=null) without resetting pagination.
+        // apiRef fetchData refetches the page the user is on: it reuses the cursor
+        // that produced the current page and leaves the page number untouched.
         if (!apiRef.current) throw new Error('apiRef.current was not set');
+        const nextPageCursor = (fetchDataMock as any).mock.calls[1]?.[0]?.cursor;
+        expect(nextPageCursor).toEqual({ id: 1 });
         await act(async () => {
             apiRef.current?.fetchData();
         });
@@ -164,11 +167,115 @@ describe('App apiRef', () => {
         const calls = (fetchDataMock as any).mock.calls as any[];
         const lastCallArg = calls[2]?.[0];
         if (!lastCallArg) throw new Error('Expected fetchData third call arg');
-        expect(lastCallArg.cursor).toBe(null);
+        expect(lastCallArg.cursor).toEqual(nextPageCursor);
         await waitFor(
             pageText,
             (text) => text === '21-40'
         );
+
+        await act(async () => {
+            root.unmount();
+        });
+    });
+
+    // Counterpart to the test above: `fetchData`/`refetch` hold the current page,
+    // but applying filters must still send the user back to the first one. The
+    // fetch effect reads the cursor out of pagination state, so it only lands on
+    // page 0 because `setAppliedFilterState` resets pagination before the refetch
+    // trigger fires — this pins that ordering.
+    it('applying filters from a later page returns to the first page', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        let applyFiltersFromAction: (() => void) | null = null;
+
+        const viewsJson = JSON.stringify([
+            {
+                title: 'Test View',
+                id: 'test-view',
+                source: { type: 'collection', collectionName: 'testCollection' },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columns: [
+                    {
+                        type: 'tableColumn',
+                        id: 'id',
+                        data: [{ type: 'valueQuery', field: 'id' }],
+                        name: 'ID',
+                        cellRenderer: { section: 'cellRenderers', key: 'text' }
+                    }
+                ],
+                filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
+            }
+        ]);
+
+        const runtime = {
+            cellRenderers: { text: () => 'cell' },
+            queryTransforms: {},
+            noRowsComponents: {},
+            customFilterComponents: {},
+            initialValues: {}
+        };
+
+        const appElement = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            requestHeaders: { Authorization: 'Bearer token' },
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
+            showViewsMenu: false,
+            showViewTitle: false,
+            viewsJson,
+            externalRuntime: runtime as any,
+            syncFilterStateToUrl: false,
+            actions: [{
+                label: 'Apply',
+                onClick: (api: any) => { applyFiltersFromAction = () => api.applyFilters(); }
+            }]
+        } as any);
+
+        const root = createRoot(container);
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
+
+        await waitFor(
+            () => (fetchDataMock as any).mock.calls.length,
+            (count) => count >= 1
+        );
+
+        const pageText = () =>
+            (container.querySelector('[data-testid="pagination-page"]') as HTMLElement | null)?.textContent ?? null;
+        await waitFor(pageText, (text) => text === '1-20');
+
+        // Go to page 2 — pagination now holds a non-null cursor.
+        const next = container.querySelector('[data-testid="pagination-next"]') as HTMLButtonElement | null;
+        if (!next) throw new Error('pagination-next button not found');
+        await act(async () => { next.click(); });
+        await waitFor(
+            () => (fetchDataMock as any).mock.calls.length,
+            (count) => count >= 2
+        );
+        await waitFor(pageText, (text) => text === '21-40');
+        expect((fetchDataMock as any).mock.calls[1]?.[0]?.cursor).toEqual({ id: 1 });
+
+        // Grab the action API, then apply filters through it.
+        const actionButton = Array.from(container.querySelectorAll('button'))
+            .find(button => button.textContent?.includes('Apply')) as HTMLButtonElement | undefined;
+        if (!actionButton) throw new Error('action button not found');
+        await act(async () => { actionButton.click(); });
+        await waitFor(() => applyFiltersFromAction, (fn): fn is () => void => fn !== null);
+        await act(async () => { applyFiltersFromAction!(); });
+
+        await waitFor(
+            () => (fetchDataMock as any).mock.calls.length,
+            (count) => count >= 3
+        );
+
+        expect((fetchDataMock as any).mock.calls[2]?.[0]?.cursor).toBe(null);
+        await waitFor(pageText, (text) => text === '1-20');
 
         await act(async () => {
             root.unmount();
