@@ -52,11 +52,10 @@ export interface ActionAPI {
      * GraphQL field path the column sorts by — dotted for nested columns, e.g.
      * `customer.profile.status` — not the column id.
      *
-     * Always pass this value to `buildGraphQLQueryVariables` as its `ordering`
-     * argument, `null` included, to build variables that order and paginate exactly
-     * like the table on screen (`null` means "pagination key only", which is what an
-     * unsorted table queries). Omitting the argument is not the same thing: it
-     * selects the view's `staticOrdering`, which the table never queries by.
+     * Pass it to `buildGraphQLQueryVariables` as its `ordering` argument to build
+     * variables that order and paginate exactly like the table on screen. The view's
+     * `staticOrdering` is applied either way — it trails this ordering as a
+     * tie-breaker, and stands alone when this is `null`.
      */
     ordering: DataOrdering | null;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually the current view root field). */

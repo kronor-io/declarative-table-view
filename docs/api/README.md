@@ -48,6 +48,7 @@ Add additional docs here for transforms, custom filters, etc. as needed.
 - For rendered or composite columns, set `orderBy` on the table column JSON to one of the scalar GraphQL fields selected by `data` to enable sorting.
 - `orderBy` may be a dot-separated path for nested order fields, such as `customer.profile.status`.
 - Users can order by one sortable header at a time. Clicking a sorted header a third time removes the header ordering.
+- A view's `staticOrdering` always applies: the sorted header leads and static entries trail it as tie-breakers, so an unsorted table orders by `staticOrdering` alone. An entry for the field the user sorted by is dropped, since their direction supersedes it. A unique `paginationKey` ordering closes the list.
 
 ```jsonc
 {

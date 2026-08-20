@@ -116,13 +116,16 @@ let requestCounter = 0;
 //  - conditions: user filter conditions merged with staticConditions (if any)
 //  - paginationCondition: isolated cursor condition so the cursor value is parameterized separately
 //  - rowLimit: result size cap
-//  - orderBy: static ordering (unless overridden) followed by a unique paginationKey tie-breaker
-function getPaginationOrderings(view: View, orderingOverride?: DataOrdering | null): DataOrdering[] {
-    const orderings = orderingOverride === undefined
-        ? (view.staticOrdering ?? []).flatMap(ordering => flattenOrderBy(ordering))
-        : orderingOverride === null
-            ? []
-            : [orderingOverride];
+//  - orderBy: the ordering the user sorted by (when any) followed by the view's static
+//    ordering and a unique paginationKey tie-breaker
+function getPaginationOrderings(view: View, activeOrdering?: DataOrdering | null): DataOrdering[] {
+    const staticOrderings = (view.staticOrdering ?? []).flatMap(ordering => flattenOrderBy(ordering));
+    // staticOrdering always applies. A column the user sorted leads, and static entries
+    // trail it as tie-breakers — except one for the same field, whose direction the user
+    // has just superseded.
+    const orderings = activeOrdering
+        ? [activeOrdering, ...staticOrderings.filter(ordering => ordering.field !== activeOrdering.field)]
+        : staticOrderings;
     const hasPaginationKeyOrdering = orderings.some(ordering => ordering.field === view.paginationKey);
 
     if (!hasPaginationKeyOrdering) {
@@ -188,10 +191,10 @@ function buildImpossibleCondition(view: View) {
     );
 }
 
-function buildPaginationCondition(view: View, cursor: PaginationCursor, orderingOverride?: DataOrdering | null) {
+function buildPaginationCondition(view: View, cursor: PaginationCursor, activeOrdering?: DataOrdering | null) {
     if (cursor === null) return Hasura.empty();
 
-    const orderings = getPaginationOrderings(view, orderingOverride);
+    const orderings = getPaginationOrderings(view, activeOrdering);
     const branches = orderings.flatMap((ordering, index) => {
         const afterCondition = buildCursorAfterCondition(ordering, cursor);
         // A null ASC cursor is already in the final null segment for this field, so
@@ -219,8 +222,8 @@ function buildPaginationCondition(view: View, cursor: PaginationCursor, ordering
     return Hasura.or(...branches);
 }
 
-function buildOrderBy(view: View, orderingOverride?: DataOrdering | null): HasuraOrderBy[] {
-    return getPaginationOrderings(view, orderingOverride).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
+function buildOrderBy(view: View, activeOrdering?: DataOrdering | null): HasuraOrderBy[] {
+    return getPaginationOrderings(view, activeOrdering).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
 }
 
 export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {

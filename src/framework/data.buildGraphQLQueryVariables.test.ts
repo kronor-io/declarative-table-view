@@ -274,15 +274,15 @@ describe('buildGraphQLQueryVariables', () => {
         ]);
     });
 
-    it('uses active ordering instead of staticOrdering when provided', () => {
+    it('leads with the active ordering and keeps staticOrdering as a tie-breaker', () => {
         const view: View = {
             ...baseView,
             staticOrdering: [{ status: 'ASC' }]
         };
         const filterState: FilterState = new Map();
-        const vars = buildGraphQLQueryVariables(view, filterState, 10, { amount: 100, id: 50 }, { field: 'amount', direction: 'ASC' });
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { amount: 100, status: 'READY', id: 50 }, { field: 'amount', direction: 'ASC' });
 
-        expect(vars.orderBy).toEqual([{ amount: 'ASC' }, { id: 'DESC' }]);
+        expect(vars.orderBy).toEqual([{ amount: 'ASC' }, { status: 'ASC' }, { id: 'DESC' }]);
         expect(vars.paginationCondition).toEqual({
             _or: [
                 {
@@ -294,6 +294,18 @@ describe('buildGraphQLQueryVariables', () => {
                 {
                     _and: [
                         { amount: { _eq: 100 } },
+                        {
+                            _or: [
+                                { status: { _gt: 'READY' } },
+                                { status: { _isNull: true } }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    _and: [
+                        { amount: { _eq: 100 } },
+                        { status: { _eq: 'READY' } },
                         { id: { _lt: 50 } }
                     ]
                 }
@@ -301,16 +313,55 @@ describe('buildGraphQLQueryVariables', () => {
         });
     });
 
-    it('uses only the pagination key when ordering is explicitly disabled', () => {
+    it('does not duplicate a staticOrdering field the user sorted by, and takes their direction', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }, { createdAt: 'DESC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, null, { field: 'status', direction: 'DESC' });
+
+        expect(vars.orderBy).toEqual([{ status: 'DESC' }, { createdAt: 'DESC' }, { id: 'DESC' }]);
+    });
+
+    it('does not duplicate the pagination key when the user sorts by it', () => {
         const view: View = {
             ...baseView,
             staticOrdering: [{ status: 'ASC' }]
         };
         const filterState: FilterState = new Map();
-        const vars = buildGraphQLQueryVariables(view, filterState, 10, { id: 50 }, null);
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, null, { field: 'id', direction: 'ASC' });
 
-        expect(vars.orderBy).toEqual([{ id: 'DESC' }]);
-        expect(vars.paginationCondition).toEqual({ id: { _lt: 50 } });
+        expect(vars.orderBy).toEqual([{ id: 'ASC' }, { status: 'ASC' }]);
+    });
+
+    // Regression: the table passes null for "the user has not sorted anything", which used
+    // to mean "no ordering at all", so an unsorted table silently dropped staticOrdering.
+    it('applies staticOrdering when there is no active ordering', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+        const filterState: FilterState = new Map();
+        const vars = buildGraphQLQueryVariables(view, filterState, 10, { status: 'READY', id: 50 }, null);
+
+        expect(vars.orderBy).toEqual([{ status: 'ASC' }, { id: 'DESC' }]);
+        expect(vars.paginationCondition).toEqual({
+            _or: [
+                {
+                    _or: [
+                        { status: { _gt: 'READY' } },
+                        { status: { _isNull: true } }
+                    ]
+                },
+                {
+                    _and: [
+                        { status: { _eq: 'READY' } },
+                        { id: { _lt: 50 } }
+                    ]
+                }
+            ]
+        });
     });
 
     it('builds nested orderBy for dotted active ordering fields', () => {
@@ -325,6 +376,7 @@ describe('buildGraphQLQueryVariables', () => {
 
         expect(vars.orderBy).toEqual([
             { customer: { profile: { status: 'ASC' } } },
+            { status: 'ASC' },
             { id: 'DESC' }
         ]);
     });

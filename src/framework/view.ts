@@ -99,6 +99,8 @@ type ViewBase = {
     staticConditions?: HasuraFilterExpression[];
     // Optional static ordering entries always applied in addition to pagination ordering.
     // Each entry is a HasuraOrderBy object e.g. { createdAt: 'DESC' }
+    // When the user sorts a column, that ordering leads and these entries trail it as
+    // tie-breakers (minus any entry for the same field).
     // Pagination will still enforce an ordering on paginationKey (defaults to 'DESC') even if not provided here.
     staticOrdering?: HasuraOrderBy[];
 };
