@@ -238,8 +238,24 @@ export function serializeFilterFormStateMap(
 }
 
 /**
+ * `traverseFilterSchemaAndState` walks the *state* tree, so a stored tree with
+ * fewer children than the schema goes unnoticed there and would instead blow up
+ * later at render time. Check arity explicitly during rehydration, where we can
+ * still fall back to a schema-derived initial state.
+ */
+function assertChildArityMatches(nodeType: 'and' | 'or', schemaChildCount: number, stateChildCount: number): void {
+    if (schemaChildCount === stateChildCount) return;
+    throw new Error(
+        `Schema shape mismatch: stored '${nodeType}' state has ${stateChildCount} children but FilterExpr has ${schemaChildCount} filters`
+    );
+}
+
+/**
  * Rehydrate a single filter's stored state using its schema expression.
- * Safely returns the original node on any mismatch / error.
+ * Throws when the stored tree's shape no longer matches the schema (a filter
+ * expression gained or lost children since the state was written). Callers are
+ * expected to catch and fall back to a schema-derived initial state; see
+ * `parseFilterFormState`.
  */
 function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFormState): FilterFormState {
     return traverseFilterSchemaAndState<FilterFormState>(expression, stored, {
@@ -262,8 +278,14 @@ function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFor
 
             return { type: 'leaf', value: FilterValue.value(value) };
         },
-        and: (_schemaAnd, _stateAnd, childResults) => ({ type: 'and', children: childResults }),
-        or: (_schemaOr, _stateOr, childResults) => ({ type: 'or', children: childResults }),
+        and: (schemaAnd, stateAnd, childResults) => {
+            assertChildArityMatches('and', schemaAnd.filters.length, stateAnd.children.length);
+            return { type: 'and', children: childResults };
+        },
+        or: (schemaOr, stateOr, childResults) => {
+            assertChildArityMatches('or', schemaOr.filters.length, stateOr.children.length);
+            return { type: 'or', children: childResults };
+        },
         not: (_schemaNot, _stateNot, childResult) => ({ type: 'not', child: childResult })
     });
 }
@@ -272,16 +294,32 @@ function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFor
  * Parse serialized filter state (object keyed by filter id) back into a FilterState Map,
  * converting date string values to Date objects by consulting the filter schema.
  */
-export function parseFilterFormState(serializedState: any, filterGroups: FilterGroups): FilterState {
+export function parseFilterFormState(
+    serializedState: any,
+    filterGroups: FilterGroups,
+    missingFilterMode: FormStateInitMode = FormStateInitMode.Empty
+): FilterState {
     const filters = getAllFilters(filterGroups);
     return new Map(
         filters.map(filter => {
             const raw = serializedState ? serializedState[filter.id] : undefined;
             if (raw && typeof raw === 'object' && 'type' in raw) {
-                return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];
+                try {
+                    return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];
+                } catch (err) {
+                    // The filter's expression changed shape since this state was written.
+                    // Drop just this filter rather than failing the whole payload.
+                    console.warn(`Failed to rehydrate stored state for filter "${filter.id}":`, err);
+                }
             }
-            // If invalid/missing, fall back to an empty initialized state derived from schema
-            return [filter.id, buildInitialFormState(filter.expression, FormStateInitMode.Empty)];
+            // Missing, malformed or unrehydratable: no usable information for this
+            // filter, so derive a fresh state from the schema. Callers persisting
+            // filter state pass `WithInitialValues` here, so that a filter the stored
+            // payload knows nothing about (e.g. newly added to the view) still picks up
+            // its schema `initialValue` instead of silently coming back empty. Snapshot
+            // consumers (saved filters, shared URLs) keep the `Empty` default so they
+            // reproduce exactly what was captured.
+            return [filter.id, buildInitialFormState(filter.expression, missingFilterMode)];
         })
     );
 }

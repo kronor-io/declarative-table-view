@@ -421,11 +421,27 @@ export function createUserDataManager(
             return
         }
 
-        const remoteUserData: UserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterGroupsByViewId)
+        // Parsing hydrates every view's filter state against the current schemas, so a
+        // malformed payload throws. Left uncaught it rejects `ready` and takes down all
+        // user data (saved filters, column order, rows per page) with it, so contain it
+        // here the way the localStorage path already does.
+        let remoteUserData: UserData | null = null
+        try {
+            remoteUserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterGroupsByViewId)
+        } catch (err) {
+            console.error('Failed to read remote user data:', err)
+            options.showToast(userDataManagerErrorToToast(externalLoadFailed(
+                'Remote user data could not be read; continuing with locally stored data.',
+                err
+            )))
+        }
+        const remoteUserDataIsUnreadable = remoteUserData === null
 
         // Choose source with greater or equal revision (prefer remote on tie)
-        const remoteDataIsNewer = remoteUserData.revision >= localUserData.revision
-        const chosenUserDataBeforeMigration = remoteDataIsNewer ? remoteUserData : localUserData
+        const chosenUserDataBeforeMigration = remoteUserData !== null && remoteUserData.revision >= localUserData.revision
+            ? remoteUserData
+            : localUserData
+        const remoteDataIsNewer = chosenUserDataBeforeMigration === remoteUserData
         const migratedUserDataResult = applyUserDataMigrations(chosenUserDataBeforeMigration, { filterGroupsByViewId })
         if (Result.isFailure(migratedUserDataResult)) {
             console.error('Failed to read user data:', userDataMigrationErrorToMessage(migratedUserDataResult.error), migratedUserDataResult.error)
@@ -443,13 +459,17 @@ export function createUserDataManager(
         const wasChangedByMigration = migratedUserData.formatRevision !== chosenUserDataBeforeMigration.formatRevision
 
         const saveUserDataResult: Result<UserDataManagerError, UserDataJson> =
-            wasChangedByMigration
-                ? await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: true })
-                : remoteDataIsNewer
-                    // Remote is authoritative and unchanged by migrations; persist locally only.
-                    ? await saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: false })
-                    // Local is newer; sync to remote as well.
-                    : await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: false })
+            remoteUserDataIsUnreadable
+                // We could not parse what remote returned; keep working from local data,
+                // but don't push it over the remote copy we failed to read.
+                ? await saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: wasChangedByMigration })
+                : wasChangedByMigration
+                    ? await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: true })
+                    : remoteDataIsNewer
+                        // Remote is authoritative and unchanged by migrations; persist locally only.
+                        ? await saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: false })
+                        // Local is newer; sync to remote as well.
+                        : await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: false })
 
         if (Result.isFailure(saveUserDataResult)) {
             options.showToast(userDataManagerErrorToToast(saveUserDataResult.error))

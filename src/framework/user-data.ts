@@ -3,7 +3,7 @@ import { ViewId } from './view';
 import { fromSavedFilterJson, toSavedFilterJson, type SavedFilter, type SavedFilterJson } from './saved-filters';
 import { FilterGroups } from './filters';
 import { parseFilterFormState, serializeFilterFormStateMap } from './filter-form-state';
-import { FilterState } from './state';
+import { FilterState, FormStateInitMode } from './state';
 
 export const INITIAL_USERDATA_FORMAT_REVISION = '1970-01-01T00:00:00.000Z'
 
@@ -146,8 +146,18 @@ export function fromUserDataJson(json: UserDataJson, filterGroupsByViewId: Recor
             if (!filterGroups) return []
 
             const savedFilters = viewJson.savedFilters.map((savedFilterJson) => fromSavedFilterJson(savedFilterJson, filterGroups))
+            // Empty filters are omitted on write (see `serializeFilterFormStateMap`), so an
+            // id missing from the payload means "this filter was unknown when the state was
+            // written", not "the user cleared it" — a filter the user did clear is either
+            // absent along with the rest of its expression, or stored with an explicit
+            // `FilterValue.empty` leaf. Hydrate the unknown ones from the schema so filters
+            // added to a view after a user persisted their state keep their `initialValue`.
             const persistedFilterState = viewJson.persistedFilterState
-                ? parseFilterFormState(viewJson.persistedFilterState as Record<string, unknown>, filterGroups)
+                ? parseFilterFormState(
+                    viewJson.persistedFilterState as Record<string, unknown>,
+                    filterGroups,
+                    FormStateInitMode.WithInitialValues
+                )
                 : null
 
             return [[viewId, {

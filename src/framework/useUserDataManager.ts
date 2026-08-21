@@ -48,6 +48,11 @@ export function useUserDataManager(
             setPreferences(manager.getPreferences())
             setViewData(manager.getViewData(currentViewId))
             setSavedFilters(manager.getSavedFilters(currentViewId))
+        }).catch((err) => {
+            // `ready` is expected to handle its own failures; catch here so an
+            // unexpected throw surfaces as a logged error rather than an
+            // unhandled rejection.
+            console.error('Failed to load user data:', err)
         })
         return () => {
             cancelled = true
