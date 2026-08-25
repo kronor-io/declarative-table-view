@@ -1,6 +1,6 @@
 {
     "name": "@kronor/hasura-graphql",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Typed GraphQL and Hasura AST primitives: filter expressions, query documents, row-typed DSLs and schema type generation.",
     "repository": {
         "type": "git",
