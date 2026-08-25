@@ -1,0 +1,124 @@
+/**
+ * @jest-environment jsdom
+ */
+import { describe, it, expect, jest } from '@jest/globals';
+import * as React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { PrimeReactProvider } from 'primereact/api';
+import { GraphQLClient } from 'graphql-request';
+import type { View } from './framework/view';
+
+// Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App.
+jest.mock('graphql-request', () => {
+    return {
+        GraphQLClient: jest.fn().mockImplementation(() => ({
+            request: jest.fn(async () => ({}))
+        }))
+    };
+}, { virtual: true });
+
+jest.mock('./framework/data', () => {
+    return {
+        fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
+        resolveHeadersMiddleware: () => (request: unknown) => request,
+        getPaginationOrderFieldQueries: jest.fn(() => [])
+    };
+});
+
+jest.mock('./framework/view-parser', () => {
+    return {
+        parseViewJson: jest.fn(() => {
+            throw new Error('parseViewJson should not be called when App.views is provided');
+        })
+    };
+});
+
+import { parseViewJson } from './framework/view-parser';
+import App from './App';
+
+describe('App views prop', () => {
+    async function waitUntil(predicate: () => boolean, { timeoutMs, intervalMs }: { timeoutMs: number; intervalMs: number }): Promise<void> {
+        const start = Date.now();
+        while (true) {
+            if (predicate()) return;
+            if (Date.now() - start > timeoutMs) {
+                throw new Error('Timed out waiting for condition');
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+    }
+
+    it('bypasses view JSON parsing when views are provided', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
+
+        const views: View[] = [
+            {
+                title: 'Provided View',
+                id: 'provided-view',
+                source: { type: 'collection', collectionName: 'testCollection' },
+                paginationKey: 'id',
+                boolExpType: 'TestBoolExp',
+                orderByType: '[TestOrderBy!]',
+                columnDefinitions: [
+                    {
+                        type: 'tableColumn',
+                        id: 'id',
+                        name: 'ID',
+                        data: [{ type: 'valueQuery', field: 'id' }],
+                        cellRenderer: () => 'cell'
+                    }
+                ],
+                filterGroups: [{ name: 'default', label: null, filters: [] }]
+            }
+        ];
+
+        const appElement = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            requestHeaders: { Authorization: 'Bearer token' },
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
+            showViewsMenu: false,
+            showViewTitle: false,
+            views,
+            syncFilterStateToUrl: false
+        });
+
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElement })
+            );
+        });
+
+        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 5000, intervalMs: 5 });
+
+        expect(GraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', {
+            requestMiddleware: expect.any(Function)
+        });
+        expect(parseViewJson).not.toHaveBeenCalled();
+
+        // Basic smoke check: view title is rendered somewhere when showViewTitle is true
+        const appElementWithTitle = React.createElement(App, {
+            graphqlHost: 'http://example.com/graphql',
+            requestHeaders: { Authorization: 'Bearer token' },
+            aiIntegration: { type: 'builtInGemini' as const, geminiApiKey: 'gemini' },
+            showViewsMenu: false,
+            showViewTitle: true,
+            views,
+            syncFilterStateToUrl: false
+        });
+        await act(async () => {
+            root.render(
+                React.createElement(PrimeReactProvider, { value: {}, children: appElementWithTitle })
+            );
+        });
+
+        await waitUntil(() => (container.textContent || '').includes('Provided View'), { timeoutMs: 5000, intervalMs: 10 });
+        expect(container.textContent || '').toContain('Provided View');
+
+        await act(async () => {
+            root.unmount();
+        });
+    });
+});

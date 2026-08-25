@@ -1,0 +1,49 @@
+{
+    "name": "@kronor/hasura-graphql",
+    "version": "0.1.0",
+    "description": "Typed GraphQL and Hasura AST primitives: filter expressions, query documents, row-typed DSLs and schema type generation.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/kronor-io/declarative-table-view.git",
+        "directory": "packages/hasura-graphql"
+    },
+    "homepage": "https://github.com/kronor-io/declarative-table-view/tree/main/packages/hasura-graphql#readme",
+    "bugs": {
+        "url": "https://github.com/kronor-io/declarative-table-view/issues"
+    },
+    "type": "module",
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./typegen": {
+            "types": "./dist/typegen/index.d.ts",
+            "import": "./dist/typegen/index.js"
+        }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "rimraf dist && tsc -p tsconfig.build.json",
+        "clean": "rimraf dist",
+        "lint": "eslint .",
+        "test-unit": "jest --config jest.config.js",
+        "prepack": "npm run build"
+    },
+    "dependencies": {
+        "graphql": "^16.14.2"
+    },
+    "devDependencies": {
+        "@types/jest": "^30.0.0",
+        "@types/node": "^22.15.21",
+        "jest": "^30.0.3",
+        "rimraf": "^5.0.5",
+        "ts-jest": "^29.4.0",
+        "typescript": "~5.7.2"
+    }
+}

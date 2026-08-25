@@ -1,0 +1,169 @@
+# Declarative Table View System
+
+A React + TypeScript library for building schema-driven, declarative table views with advanced filtering, data fetching, and AI-assisted filter generation.
+
+It is one package of the [declarative-table-view](../../README.md) monorepo, and builds on
+[`@kronor/hasura-graphql`](../hasura-graphql) for its GraphQL/Hasura AST layer: Hasura filter
+expressions, query documents and the row-typed query DSL all come from there.
+
+## Library Consumption
+
+You can consume the `App` component as a library bundle with embedded styles (Tailwind + PrimeReact + PrimeIcons) without importing separate CSS files.
+
+### Build the library
+
+```sh
+npm run build:lib
+```
+
+Outputs:
+- `dist/index.es.js` (ES module bundle with runtime-injected CSS)
+- `dist/types` (Type declarations, root `index.d.ts`)
+
+### Import in your application
+
+```ts
+import { App } from '@kronor/dtv';
+import type { AppProps } from '@kronor/dtv';
+```
+
+All required styles are injected automatically via the JS bundle (using `vite-plugin-css-injected-by-js`).
+
+### Runtime Options (AppProps)
+Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
+
+- `graphqlHost` / `requestHeaders`: GraphQL endpoint + HTTP headers. Pass `{}` when no custom headers are needed.
+- `aiIntegration`: AI provider used by the AI Filter Assistant. Either the built-in Gemini integration, `{ type: 'builtInGemini', geminiApiKey }`, or a custom provider (e.g. AWS Bedrock), `{ type: 'custom', requestAiFilter }`. The `requestAiFilter` function receives `{ prompt, filterGroups, userPrompt }` — where `prompt` is the fully-built prompt — and must return the model response: either the raw text containing a JSON object mapping filter IDs to `FilterFormState`, or that object already parsed.
+- `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
+- `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
+- `showViewTitle`: Toggle the view title heading (default: `false`).
+- `showCsvExportButton`: Toggle the "Export page to CSV" button (default: `false`). When enabled, current page rows are exported using PrimeReact's built-in DataTable CSV exporter.
+- `showPopoutButton`: Toggle the Popout button that opens the table view in a fullscreen overlay (default: `true`). Set to `false` to suppress this UI in embedded contexts.
+- `externalRuntime`: Provide a runtime override for cell renderers / query transforms.
+- `syncFilterStateToUrl`: Persist applied filter state into the `dtv-filter-state` URL param (default: `false`).
+
+Example:
+```ts
+dtv.renderTableView('root', {
+  graphqlHost: 'https://example/graphql',
+  requestHeaders: { Authorization: 'Bearer token' },
+  aiIntegration: { type: 'builtInGemini', geminiApiKey: 'gemini-key' },
+  viewsJson: JSON.stringify([myViewJson]),
+  showViewTitle: true,
+  showCsvExportButton: true,
+  syncFilterStateToUrl: true
+});
+```
+
+### Peer Dependencies
+
+React and ReactDOM 19 are peer dependencies; ensure they are installed in the host project.
+
+## Project Overview
+- **Framework:** React, TypeScript, Vite
+- **Testing:** Jest (unit), Playwright (E2E)
+- **Core Domain:** Declarative, schema-driven table view system for filtering, displaying, and interacting with data collections.
+- **Key Directories:**
+  - `src/framework/`: Table/view schema, filter logic, state, and data fetching.
+  - `src/components/`: UI components, including filter forms, AI assistant, and table rendering.
+  - `src/views/`: View definitions, each exporting a `View` object with schema, columns, and query config.
+  - `src/dsl/`: Authoring helpers for views, columns and filters. Query/Hasura builders are
+    re-exported from `@kronor/hasura-graphql`.
+
+## Key Patterns & Conventions
+- **Filter Schema:** Filters are defined in `FilterFieldSchema` objects. Each filter requires an `aiGenerated: boolean` field. See `src/framework/filters.ts` for types and helpers.
+- **AI Integration:** The AI assistant (see `src/components/AIAssistantForm.tsx` and `src/components/aiAssistant.ts`) can generate filters, which must set `aiGenerated: true`.
+- **View Registration:** Each view (e.g., `paymentRequest.tsx`) exports a `View` object with a `filterSchema`, `columnDefinitions`, and a GraphQL query.
+- **Type Safety:** All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
+
+## Integration & Data Flow
+- Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).
+- Views define their own GraphQL queries and filter schemas.
+- Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
+ - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `dtv.renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
+
+## Features
+
+Core runtime capabilities:
+
+- Schema-driven column + filter definitions (JSON or TSX view formats).
+- AI assistant to generate filters (`AIAssistantForm`).
+- Cursor-based pagination with Previous / Next navigation.
+- Header-click ordering backed by GraphQL `order_by`, with one removable sortable header at a time.
+- Adjustable page size via "Rows per page" selector (10, 20, 50, 100). Changing the page size resets pagination and refetches from the first page.
+- Saved filters (local persistence + shareable URL encoding).
+- Optional CSV export of current page rows.
+- Popout (fullscreen overlay) rendering of the table view.
+
+## Development
+
+### Install dependencies
+Run from the monorepo root; npm links the workspace packages together.
+```sh
+npm install
+```
+
+### Environment Variables
+Create a `.env.development` file in the project root to set environment variables for local development (e.g., API endpoints, feature flags, secrets).
+
+Example:
+```env
+VITE_GRAPHQL_HOST=https://your-graphql-host.example.com
+VITE_REQUEST_HEADERS={"Authorization":"Bearer your-token-here"}
+VITE_GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+### Start development server
+```sh
+npm run dev
+```
+
+### Run unit tests
+```sh
+npm run test-unit
+npm run test-unit:cli
+```
+
+### Run E2E tests (Playwright)
+```sh
+npm test
+# or
+npm run test
+```
+
+## Type Generation (CLI)
+
+DTV ships a CLI command for generating TypeScript types from a Hasura GraphQL schema:
+
+- See `docs/typegen.md`
+
+## Release Process
+
+Releases are driven from the monorepo root, one package at a time. See the
+[root README](../../README.md#releasing) for the full flow.
+
+```sh
+npm run release -- --package=dtv     # from the repo root; --package=dtv is the default
+```
+
+The script lints, builds and tests the whole workspace, builds the library
+bundle, then bumps, tags (`v<version>`), pushes and publishes.
+
+### Options / Flags
+```sh
+npm run release -- --type=minor      # Non-interactive minor release
+npm run release -- --dry             # Run validations only; skip version/tag/publish
+npm run release -- --skip-e2e        # Skip Playwright tests (use sparingly)
+npm run release -- --skip-unit       # Skip Jest tests (NOT recommended)
+npm run release -- --allow-dirty     # Allow running with uncommitted changes (avoids safety check)
+```
+
+### Requirements
+- You must be authenticated with npm (`npm login`).
+- Git working tree must be clean (unless using `--allow-dirty`).
+- CI should pass for the commit you are releasing.
+- If `@kronor/hasura-graphql` changed, release it first
+  (`npm run release -- --package=hasura-graphql`). A dtv release aborts when its
+  declared dependency range has no published match.
+
+Use `--dry` first if you want to verify everything without changing the version or publishing.
