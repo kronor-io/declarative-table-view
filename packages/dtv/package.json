@@ -1,0 +1,90 @@
+{
+    "name": "@kronor/dtv",
+    "version": "7.7.0",
+    "description": "Schema-driven, declarative table views with advanced filtering, data fetching and AI-assisted filter generation.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/kronor-io/declarative-table-view.git"
+    },
+    "homepage": "https://github.com/kronor-io/declarative-table-view#readme",
+    "bugs": {
+        "url": "https://github.com/kronor-io/declarative-table-view/issues"
+    },
+    "type": "module",
+    "bin": {
+        "dtv": "bin/dtv.js"
+    },
+    "files": [
+        "bin",
+        "dist/index.es.js",
+        "dist/cli",
+        "dist/types",
+        "docs",
+        "README.md"
+    ],
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc -b && vite build",
+        "build:cli": "tsc -p tsconfig.cli.json",
+        "build:lib": "npm run build --workspace @kronor/hasura-graphql && npm run build:cli && tsc -p tsconfig.lib.json && vite build --config vite.lib.config.ts",
+        "prepack": "npm run build:lib",
+        "prepublishOnly": "npm run lint && npm run test-unit:all",
+        "dev:playground": "npm run build:lib -- --watch & vite --config vite.playground.config.ts",
+        "clean": "rimraf dist",
+        "lint": "eslint .",
+        "preview": "vite preview",
+        "test": "playwright test",
+        "test-unit": "jest --config jest.config.js",
+        "test-unit:cli": "jest --config jest.cli.config.js",
+        "test-unit:all": "npm run test-unit && npm run test-unit:cli",
+        "ai:gemini-regression": "tsx scripts/ai-regression/gemini-regression.ts",
+        "ai:gemini-list-models": "tsx scripts/ai-regression/gemini-list-models.ts"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/types/lib/index.d.ts",
+            "import": "./dist/index.es.js"
+        },
+        "./typegen": {
+            "types": "./dist/types/typegen/index.d.ts",
+            "default": "./dist/index.es.js"
+        }
+    },
+    "main": "./dist/index.es.js",
+    "module": "./dist/index.es.js",
+    "types": "./dist/types/lib/index.d.ts",
+    "peerDependencies": {
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "dependencies": {
+        "@kronor/hasura-graphql": "^0.1.0",
+        "commander": "^14.0.0",
+        "fast-glob": "^3.3.3",
+        "graphql": "^16.14.2",
+        "graphql-request": "^7.4.0",
+        "primereact": "^10.9.7",
+        "typescript": "~5.7.2"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.52.0",
+        "@tailwindcss/vite": "^4.1.1",
+        "@types/dom-speech-recognition": "^0.0.6",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^22.15.21",
+        "@types/react": "^19.1.4",
+        "@types/react-dom": "^19.1.5",
+        "@vitejs/plugin-react": "^4.3.4",
+        "jest": "^30.0.3",
+        "jest-environment-jsdom": "^30.0.4",
+        "primeicons": "^7.0.0",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "rimraf": "^5.0.5",
+        "tailwindcss": "^4.1.1",
+        "ts-jest": "^29.4.0",
+        "tsx": "^4.20.5",
+        "vite": "^6.2.0",
+        "vite-plugin-css-injected-by-js": "^3.5.2"
+    }
+}

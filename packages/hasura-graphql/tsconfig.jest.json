@@ -1,0 +1,9 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // ts-jest drives module emit itself; NodeNext confuses its ESM detection.
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "types": ["jest", "node"]
+    }
+}
