@@ -21,6 +21,7 @@ jest.mock('graphql-request', () => {
 });
 
 import App from './App';
+import { waitUntil } from './test/waitUntil';
 
 const column = (id: string, name: string, field: string) => ({
     type: 'tableColumn',
@@ -43,8 +44,6 @@ const viewsJson = JSON.stringify([
         filterSchema: { groups: [{ name: 'default', label: null }], filters: [] }
     }
 ]);
-
-const settle = (ms = 25) => new Promise(r => setTimeout(r, ms));
 
 const lastOrderBy = () => requests[requests.length - 1]?.variables?.orderBy;
 
@@ -76,7 +75,7 @@ describe('App staticOrdering', () => {
                 })
             }));
         });
-        await settle();
+        await waitUntil(() => requests.length > 0, { description: 'the initial data request' });
 
         // The unsorted table must still order by the view's staticOrdering — it used to
         // send the pagination key alone, dropping staticOrdering entirely.
@@ -85,9 +84,10 @@ describe('App staticOrdering', () => {
         const header = Array.from(container.querySelectorAll('th.p-sortable-column'))
             .find(element => element.textContent?.includes('Amount')) as HTMLElement | undefined;
         if (!header) throw new Error('Sortable column header "Amount" not found');
+        const requestsBeforeSort = requests.length;
         await act(async () => {
             header.click();
-            await settle();
+            await waitUntil(() => requests.length > requestsBeforeSort, { description: 'the re-sorted data request' });
         });
 
         expect(lastOrderBy()).toEqual([{ amount: 'ASC' }, { status: 'ASC' }, { id: 'DESC' }]);

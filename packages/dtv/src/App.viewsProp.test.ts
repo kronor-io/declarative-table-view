@@ -36,19 +36,9 @@ jest.mock('./framework/view-parser', () => {
 
 import { parseViewJson } from './framework/view-parser';
 import App from './App';
+import { waitUntil } from './test/waitUntil';
 
 describe('App views prop', () => {
-    async function waitUntil(predicate: () => boolean, { timeoutMs, intervalMs }: { timeoutMs: number; intervalMs: number }): Promise<void> {
-        const start = Date.now();
-        while (true) {
-            if (predicate()) return;
-            if (Date.now() - start > timeoutMs) {
-                throw new Error('Timed out waiting for condition');
-            }
-            await new Promise(r => setTimeout(r, intervalMs));
-        }
-    }
-
     it('bypasses view JSON parsing when views are provided', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -91,7 +81,7 @@ describe('App views prop', () => {
             );
         });
 
-        await waitUntil(() => !container.textContent?.includes('Loading data…'), { timeoutMs: 5000, intervalMs: 5 });
+        await waitUntil(() => jest.mocked(GraphQLClient).mock.calls.length > 0, { description: 'the GraphQL client to be constructed' });
 
         expect(GraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', {
             requestMiddleware: expect.any(Function)
@@ -114,7 +104,7 @@ describe('App views prop', () => {
             );
         });
 
-        await waitUntil(() => (container.textContent || '').includes('Provided View'), { timeoutMs: 5000, intervalMs: 10 });
+        await waitUntil(() => (container.textContent || '').includes('Provided View'), { intervalMs: 10, description: 'the view title to render' });
         expect(container.textContent || '').toContain('Provided View');
 
         await act(async () => {

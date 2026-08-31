@@ -9,6 +9,7 @@ export type { AIIntegration, ModifyAiFilterPromptFn, RequestAiFilterFn } from '.
 
 // Re-export selected framework types that are useful to consumers.
 export type { View } from '../framework/view';
+export { getViewRootFieldName, getViewStaticArgs } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
 export type {
     RowExpansionDefinition,

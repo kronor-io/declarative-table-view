@@ -30,6 +30,7 @@ jest.mock('../framework/data', () => {
 });
 
 import App from '../App';
+import { waitUntil } from '../test/waitUntil';
 import { REVISION_2026_03_26 } from '../framework/user-data';
 import { getViewRootFieldName } from '../framework/view';
 
@@ -82,9 +83,7 @@ const buildViewsJson = (columns: unknown[] = [idColumn]) => JSON.stringify([
     }
 ]);
 
-const settle = (ms = 25) => new Promise(r => setTimeout(r, ms));
-
-// Mounts App with the given actions and waits for the first (mocked) fetch to settle.
+// Mounts App with the given actions and waits for its action buttons to render.
 async function renderApp({ actions, columns }: { actions: unknown[]; columns?: unknown[] }) {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -111,7 +110,7 @@ async function renderApp({ actions, columns }: { actions: unknown[]; columns?: u
         );
     });
 
-    await settle();
+    await waitUntil(() => container.querySelector('[data-testid="dtv-action-0"]') !== null, { description: 'the action buttons to render' });
 
     return {
         container,
@@ -129,7 +128,6 @@ async function clickAction(container: HTMLElement, index = 0) {
     if (!btn) throw new Error(`Action button ${index} not found`);
     await act(async () => {
         btn.click();
-        await settle();
     });
 }
 
@@ -137,10 +135,13 @@ async function sortByColumn(container: HTMLElement, header: string) {
     const th = Array.from(container.querySelectorAll('th.p-sortable-column'))
         .find(element => element.textContent?.includes(header)) as HTMLElement | undefined;
     if (!th) throw new Error(`Sortable column header "${header}" not found`);
+    // Compare against the pre-click value: this helper is also used to re-sort an
+    // already-sorted column, where "is sorted at all" would already be true.
+    const sortBeforeClick = th.getAttribute('aria-sort');
     await act(async () => {
         th.click();
-        await settle();
     });
+    await waitUntil(() => th.getAttribute('aria-sort') !== sortBeforeClick, { description: `the "${header}" column's sort state to change` });
 }
 
 describe('ActionAPI GraphQL helpers', () => {

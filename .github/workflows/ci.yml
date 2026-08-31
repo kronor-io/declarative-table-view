@@ -11,18 +11,17 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [20.x]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      # Pinned via .nvmrc rather than lts/*: Node 24 carries a V8 GC bug
+      # (ClearStaleLeftTrimmedPointerVisitor) that segfaults the Jest run
+      # intermittently. Node 22 is unaffected.
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies

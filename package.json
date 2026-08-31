@@ -6,6 +6,9 @@
         "packages/hasura-graphql",
         "packages/dtv"
     ],
+    "engines": {
+        "node": ">=22 <24"
+    },
     "scripts": {
         "build": "npm run build --workspace @kronor/hasura-graphql && npm run build --workspace @kronor/dtv",
         "build:lib": "npm run build:lib --workspace @kronor/dtv",
