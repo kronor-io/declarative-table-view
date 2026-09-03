@@ -67,7 +67,6 @@ export { queryForRowType } from '../dsl/queryForRow';
 export type { QueryBuilder } from '../dsl/queryForRow';
 export type { Query, ValueQuery, ObjectQuery, ArrayQuery, FieldAlias, OrderByConfig } from '@kronor/hasura-graphql';
 export { buildGraphQLQueryVariables } from '../framework/data';
-export { getPaginationOrderFieldQueries } from '../framework/data';
 export { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from '../framework/native-runtime';
 
 export type { Result, Failure, Success } from '../framework/result';

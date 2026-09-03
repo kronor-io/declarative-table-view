@@ -226,8 +226,8 @@ function buildOrderBy(view: View, activeOrdering?: DataOrdering | null): HasuraO
     return getPaginationOrderings(view, activeOrdering).map(ordering => buildNestedOrderBy(ordering.field, ordering.direction));
 }
 
-export function getPaginationOrderFieldQueries(view: View, activeOrdering?: DataOrdering | null): FieldQuery[] {
-    const fields = new Set(getPaginationOrderings(view, activeOrdering).map(ordering => ordering.field));
+export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {
+    const fields = new Set(getPaginationOrderings(view).map(ordering => ordering.field));
     fields.delete(view.paginationKey);
 
     return Array.from(fields).map(field => fieldPathToFieldQuery(field));
