@@ -8,7 +8,9 @@ import { ColumnDefinition, FieldQuery } from '../column-definition';
 import {
     buildSelectionSet,
     ensureSelectionPath,
+    fieldQueryToSelectionSetItem,
     graphqlVariableReference,
+    mergeSelectionSets,
     renderGraphQLQuery,
     toGraphQLArgumentValue,
 } from '@kronor/hasura-graphql';
@@ -16,6 +18,7 @@ import type {
     GraphQLArgument,
     GraphQLQueryAST,
     GraphQLSelectionSet,
+    GraphQLSelectionSetItem,
     SelectionSetInput,
 } from '@kronor/hasura-graphql';
 
@@ -37,11 +40,33 @@ function generateSelectionSetFromColumnsInternal(
         })),
     );
 
-    const additionalInputs: SelectionSetInput[] = (options?.additionalFieldQueries ?? []).map(fieldQuery => ({
-        fieldQuery,
-    }));
+    const columnSelections = buildSelectionSet(columnInputs);
 
-    return buildSelectionSet([...columnInputs, ...additionalInputs]);
+    // An additional field query is there so the response carries that path under its own
+    // name; a column already selecting it that way covers it. Selections only merge when
+    // they are identical, so without this a column aliased to its own field name (which is
+    // what the column-aliased selection set produces for a column whose id is its field)
+    // would leave the path selected twice, and the consumer would see it twice.
+    const additionalSelections = (options?.additionalFieldQueries ?? [])
+        .map(fieldQuery => fieldQueryToSelectionSetItem(fieldQuery))
+        .filter(item => !isSelectedUnderOwnName(columnSelections, item));
+
+    return mergeSelectionSets(columnSelections, additionalSelections);
+}
+
+// Whether the item's whole path is already selected with no renaming along it, so a
+// consumer reading the response by field path finds it. A selection under a different
+// alias does not count: the path would be missing from the response under its own name.
+function isSelectedUnderOwnName(selectionSet: GraphQLSelectionSet, item: GraphQLSelectionSetItem): boolean {
+    const selection = selectionSet.find(
+        candidate => candidate.field === item.field && (candidate.alias ?? candidate.field) === item.field,
+    );
+
+    if (!selection) {
+        return false;
+    }
+
+    return (item.selections ?? []).every(child => isSelectedUnderOwnName(selection.selections ?? [], child));
 }
 
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
@@ -52,9 +77,13 @@ function getColumnAliasedTopLevelAlias(column: ColumnDefinition): string {
     return column.id;
 }
 
-export function generateColumnAliasedSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
+export function generateColumnAliasedSelectionSetFromColumns(
+    columns: ColumnDefinition[],
+    additionalFieldQueries?: readonly FieldQuery[],
+): GraphQLSelectionSet {
     return generateSelectionSetFromColumnsInternal(columns, {
         getTopLevelAlias: getColumnAliasedTopLevelAlias,
+        additionalFieldQueries,
     });
 }
 
@@ -123,10 +152,11 @@ export function generateColumnAliasedGraphQLQueryAST(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
+    additionalFieldQueries?: readonly FieldQuery[],
 ): GraphQLQueryAST {
     return buildGraphQLQueryAST(
         rootField,
-        generateColumnAliasedSelectionSetFromColumns(columns),
+        generateColumnAliasedSelectionSetFromColumns(columns, additionalFieldQueries),
         boolExpType,
         orderByType,
         paginationKey,
@@ -154,7 +184,8 @@ export function generateColumnAliasedGraphQLQuery(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
+    additionalFieldQueries?: readonly FieldQuery[],
 ): string {
-    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs);
+    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs, additionalFieldQueries);
     return renderGraphQLQuery(ast);
 }

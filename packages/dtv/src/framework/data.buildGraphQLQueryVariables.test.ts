@@ -274,6 +274,18 @@ describe('buildGraphQLQueryVariables', () => {
         ]);
     });
 
+    it('includes the active ordering field when asked about a specific ordering', () => {
+        const view: View = {
+            ...baseView,
+            staticOrdering: [{ status: 'ASC' }]
+        };
+
+        expect(getPaginationOrderFieldQueries(view, { field: 'amount', direction: 'ASC' })).toEqual([
+            { type: 'valueQuery', field: 'amount' },
+            { type: 'valueQuery', field: 'status' }
+        ]);
+    });
+
     it('leads with the active ordering and keeps staticOrdering as a tie-breaker', () => {
         const view: View = {
             ...baseView,

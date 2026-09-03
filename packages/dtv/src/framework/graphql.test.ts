@@ -369,6 +369,74 @@ describe("generateGraphQLQueryAST", () => {
     });
 });
 
+describe("generateColumnAliasedGraphQLQueryAST with additional field queries", () => {
+    it("appends the additional selections unaliased", () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'total', name: 'Total', data: [valueQuery({ field: 'totalAmount' })], cellRenderer: () => null },
+        ];
+
+        const ast = generateColumnAliasedGraphQLQueryAST(
+            'testRoot',
+            columns,
+            'TestBoolExp',
+            'TestOrderBy',
+            'id',
+            undefined,
+            [valueQuery({ field: 'createdAt' })],
+        );
+
+        expect(ast.selectionSet).toEqual([
+            { field: 'totalAmount', alias: 'total' },
+            { field: 'createdAt' },
+            { field: 'id' },
+        ]);
+    });
+
+    it("does not select a field a column already selects under its own name", () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'date', name: 'Date', data: [valueQuery({ field: 'date' })], cellRenderer: () => null },
+        ];
+
+        const ast = generateColumnAliasedGraphQLQueryAST(
+            'testRoot',
+            columns,
+            'TestBoolExp',
+            'TestOrderBy',
+            'id',
+            undefined,
+            [valueQuery({ field: 'date' }), valueQuery({ field: 'createdAt' })],
+        );
+
+        expect(ast.selectionSet).toEqual([
+            { field: 'date', alias: 'date' },
+            { field: 'createdAt' },
+            { field: 'id' },
+        ]);
+    });
+
+    it("still selects a field a column only exposes under a different alias", () => {
+        const columns: ColumnDefinition[] = [
+            { type: 'tableColumn', id: 'settlementDate', name: 'Date', data: [valueQuery({ field: 'date' })], cellRenderer: () => null },
+        ];
+
+        const ast = generateColumnAliasedGraphQLQueryAST(
+            'testRoot',
+            columns,
+            'TestBoolExp',
+            'TestOrderBy',
+            'id',
+            undefined,
+            [valueQuery({ field: 'date' })],
+        );
+
+        expect(ast.selectionSet).toEqual([
+            { field: 'date', alias: 'settlementDate' },
+            { field: 'date' },
+            { field: 'id' },
+        ]);
+    });
+});
+
 describe("generateColumnAliasedGraphQLQueryAST", () => {
     it("aliases each top-level selection to the column id", () => {
         const columns: ColumnDefinition[] = [
