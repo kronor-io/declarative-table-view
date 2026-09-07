@@ -136,6 +136,8 @@ npm run test
 DTV ships a CLI command for generating TypeScript types from a Hasura GraphQL schema:
 
 - See `docs/typegen.md`
+- Once a view has its generated row type, its columns and filters are checked against it —
+  see `docs/api/row-typed-views.md`
 
 ## Release Process
 

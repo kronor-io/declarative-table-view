@@ -1,4 +1,5 @@
 import type { FilterExpr, FilterField, FilterControl, FilterSchema, FilterId } from '../framework/filters';
+import { TransformResult } from '../framework/filters';
 import { FilterState } from '../framework/state';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 import * as FilterValue from '../framework/filterValue';
@@ -129,6 +130,7 @@ function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFor
         const transformed = transform(baseInput, {
             field: schemaLeaf.field,
             FilterValue,
+            result: TransformResult,
             transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
         });
         if ('condition' in transformed) {
@@ -151,7 +153,7 @@ function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { t
         return '';
     }
 
-    const field = `${getFilterFieldDisplay(schemaLeaf.field)} `;
+    const field = `${schemaLeaf.fieldLabel ?? getFilterFieldDisplay(schemaLeaf.field)} `;
     const displayValue = getLeafValueForDisplay(schemaLeaf, stateLeaf);
 
     if (schemaLeaf.value.type === 'customOperator') {

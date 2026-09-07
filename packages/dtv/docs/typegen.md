@@ -80,8 +80,42 @@ For each discovered `DSL.view({ id, collectionName, ... })` call, the generator 
 That file contains:
 
 - TypeScript types for GraphQL output types reachable from the view’s `collectionName` row type (not exported)
-- One exported alias:
+- Two exported members:
     - `<ViewIdPascal>Row` – the inferred row type for that view’s `collectionName`
+    - `<ViewIdPascal>RowType` – a phantom value of that type, produced by `DSL.rowType<…>()`, which
+      the DSL helpers take as `rowType`
+
+The generator also edits the view module itself, as a convenience: it imports
+`<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)` and
+`DSL.filter(...)` calls written inline in the `DSL.view({ ... })` argument that
+do not have one yet. Calls that already pass `rowType` are left alone, so
+re-running the generator is safe.
+
+Passing `rowType` is what turns on checking of a view's columns and filters
+against its row — see [api/row-typed-views.md](api/row-typed-views.md). A view
+where no call ends up with a `rowType` gets no generated file.
+
+## What the run reports
+
+A view that produces no types leaves whatever generated file is already
+committed next to it, so the row type it describes silently goes stale while
+the code that imports it keeps type-checking against the old shape. Every way
+that can happen is reported:
+
+- **A view the scanner could not read** — its `id`, or its `source.collectionName`
+  / `source.functionName`, is not a string literal — is named on stderr with
+  which part was unreadable. A dynamic id such as
+  `` id: subsidiaryId ? `${viewId}-${subsidiaryId}` : viewId `` is the usual
+  cause; the generator has no way to know what the id will be at run time.
+- **A view whose types could not be written** fails the command, naming the view
+  and the error. The run finishes the other views first, so one broken view
+  reports the rest rather than hiding them.
+- **A generated module that was removed**, because nothing in its view passes
+  `rowType:` any more, is named on stderr.
+
+The closing line counts what was written against what was found — `Generated
+types for 61 of 62 view(s).` — so a view that dropped out is visible without
+reading the warnings.
 
 ## Current limitations (v1)
 

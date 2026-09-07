@@ -34,21 +34,6 @@ function applyFileNamePattern(pattern: string, view: { viewId: string; rootField
         .replace(/\{collectionName\}/g, view.rootFieldName);
 }
 
-function getColumnDefinitionsArray(argObject: ts.ObjectLiteralExpression): ts.ArrayLiteralExpression | null {
-    for (const p of argObject.properties) {
-        if (!ts.isPropertyAssignment(p)) continue;
-        const name = p.name;
-        const key = ts.isIdentifier(name)
-            ? name.text
-            : ts.isStringLiteral(name)
-                ? name.text
-                : null;
-        if (key !== 'columnDefinitions') continue;
-        return ts.isArrayLiteralExpression(p.initializer) ? p.initializer : null;
-    }
-    return null;
-}
-
 function hasRowTypeProp(obj: ts.ObjectLiteralExpression): boolean {
     for (const p of obj.properties) {
         if (!ts.isPropertyAssignment(p)) continue;
@@ -97,15 +82,47 @@ function ensureRowTypeImport(sourceText: string, sourceFile: ts.SourceFile, impo
         ? importStmts[importStmts.length - 1].end
         : 0;
 
-    const prefix = insertPos === 0 ? '' : '\n';
-    const importLine = `${prefix}import { ${importName} } from ${singleQuoteStringLiteral(importPathNoExt)};\n`;
+    // After the last import the line break belongs in front; with no imports at
+    // all it belongs behind, so the file's first statement keeps its own line.
+    const importStatement = `import { ${importName} } from ${singleQuoteStringLiteral(importPathNoExt)};`;
+    const importLine = insertPos === 0 ? `${importStatement}\n` : `\n${importStatement}`;
     return {
         updatedText: applyTextEdits(sourceText, [{ pos: insertPos, insert: importLine }]),
         changed: true
     };
 }
 
-function patchInlineColumnsWithRowType(args: {
+/**
+ * DSL helpers that take a `rowType` for type checking against the view's row.
+ * `column` sits directly in `columnDefinitions`; `filter` sits inside the
+ * groups of `filterGroups`, so the whole view argument is searched rather than
+ * one property of it.
+ */
+const ROW_TYPED_HELPERS = new Set(['column', 'filter']);
+
+/** A `DSL.<helper>(...)` / `<ns>.DSL.<helper>(...)` call, however DTV was imported. */
+function getRowTypedHelperCall(
+    node: ts.Node,
+    dslIdentifiers: Set<string>,
+    dtvNamespaces: Set<string>
+): ts.CallExpression | null {
+    if (!ts.isCallExpression(node)) return null;
+
+    const expr = node.expression;
+    if (!ts.isPropertyAccessExpression(expr)) return null;
+    if (!ROW_TYPED_HELPERS.has(expr.name.text)) return null;
+
+    const receiver = expr.expression;
+    if (ts.isIdentifier(receiver) && dslIdentifiers.has(receiver.text)) return node;
+    if (ts.isPropertyAccessExpression(receiver) && receiver.name.text === 'DSL') {
+        const maybeNs = receiver.expression;
+        if (ts.isIdentifier(maybeNs) && dtvNamespaces.has(maybeNs.text)) return node;
+    }
+
+    return null;
+}
+
+function patchInlineRowTypeArgs(args: {
     sourceText: string;
     sourceFile: ts.SourceFile;
     viewArgObject: ts.ObjectLiteralExpression;
@@ -113,54 +130,38 @@ function patchInlineColumnsWithRowType(args: {
     dslIdentifiers: Set<string>;
     dtvNamespaces: Set<string>;
 }): { updatedText: string; changed: boolean; patchedCount: number } {
-    const cols = getColumnDefinitionsArray(args.viewArgObject);
-    if (!cols) return { updatedText: args.sourceText, changed: false, patchedCount: 0 };
-
     const edits: Array<{ pos: number; insert: string }> = [];
     let patchedCount = 0;
 
-    for (const el of cols.elements) {
-        if (!ts.isCallExpression(el)) continue;
+    const visit = (node: ts.Node) => {
+        const call = getRowTypedHelperCall(node, args.dslIdentifiers, args.dtvNamespaces);
+        if (call) {
+            const firstArg = call.arguments[0];
+            if (firstArg && ts.isObjectLiteralExpression(firstArg) && !hasRowTypeProp(firstArg)) {
+                const firstProp = firstArg.properties[0];
+                const insertPos = firstProp ? firstProp.getStart(args.sourceFile, false) : firstArg.getEnd() - 1;
+                const between = args.sourceText.slice(firstArg.getStart(args.sourceFile, false) + 1, insertPos);
+                const isMultiline = between.includes('\n');
 
-        const expr = el.expression;
-        if (!ts.isPropertyAccessExpression(expr)) continue;
-        if (expr.name.text !== 'column') continue;
+                if (isMultiline) {
+                    // insertPos sits after the first property's indentation, so
+                    // the new property goes in first and carries that
+                    // indentation over to the one it displaced.
+                    const lineStart = args.sourceText.lastIndexOf('\n', insertPos - 1) + 1;
+                    const indent = args.sourceText.slice(lineStart, insertPos).match(/^[ \t]*/)?.[0] ?? '';
+                    edits.push({ pos: insertPos, insert: `rowType: ${args.rowTypeIdentifier},\n${indent}` });
+                } else {
+                    edits.push({ pos: insertPos, insert: `rowType: ${args.rowTypeIdentifier}, ` });
+                }
 
-        const receiver = expr.expression;
-        const isDtvColumn = (() => {
-            if (ts.isIdentifier(receiver) && args.dslIdentifiers.has(receiver.text)) return true;
-            if (ts.isPropertyAccessExpression(receiver)) {
-                if (receiver.name.text !== 'DSL') return false;
-                const maybeNs = receiver.expression;
-                return ts.isIdentifier(maybeNs) && args.dtvNamespaces.has(maybeNs.text);
+                patchedCount += 1;
             }
-            return false;
-        })();
-        if (!isDtvColumn) continue;
-
-        const firstArg = el.arguments[0];
-        if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) continue;
-        if (hasRowTypeProp(firstArg)) continue;
-
-        const firstProp = firstArg.properties[0];
-        const insertPos = firstProp ? firstProp.getStart(args.sourceFile, false) : firstArg.getEnd() - 1;
-        const between = args.sourceText.slice(firstArg.getStart(args.sourceFile, false) + 1, insertPos);
-        const isMultiline = between.includes('\n');
-
-        if (!isMultiline) {
-            edits.push({ pos: insertPos, insert: `rowType: ${args.rowTypeIdentifier}, ` });
-            patchedCount += 1;
-            continue;
         }
 
-        const lineStart = args.sourceText.lastIndexOf('\n', insertPos - 1) + 1;
-        const before = args.sourceText.slice(lineStart, insertPos);
-        const indentMatch = before.match(/^[ \t]*/);
-        const indent = indentMatch ? indentMatch[0] : '';
+        ts.forEachChild(node, visit);
+    };
 
-        edits.push({ pos: insertPos, insert: `${indent}rowType: ${args.rowTypeIdentifier},\n` });
-        patchedCount += 1;
-    }
+    visit(args.viewArgObject);
 
     if (edits.length === 0) {
         return { updatedText: args.sourceText, changed: false, patchedCount: 0 };
@@ -222,7 +223,7 @@ function findViewArgObjectById(
     return viewArgObject;
 }
 
-function viewArgObjectHasIdentifier(viewArgObject: ts.ObjectLiteralExpression, identifier: string): boolean {
+function containsIdentifier(root: ts.Node, identifier: string): boolean {
     let found = false;
 
     const visit = (node: ts.Node) => {
@@ -230,6 +231,40 @@ function viewArgObjectHasIdentifier(viewArgObject: ts.ObjectLiteralExpression, i
         if (ts.isIdentifier(node) && node.text === identifier) {
             found = true;
             return;
+        }
+        ts.forEachChild(node, visit);
+    };
+
+    visit(root);
+    return found;
+}
+
+/**
+ * The `rowType:` values in a view that are something other than the generated
+ * const — a hand-written shape, or `{} as any`. Those views read as covered
+ * while their checks run against a type nobody regenerates, which is worth
+ * telling their author about; passing no `rowType` at all is a different and
+ * perfectly fair choice.
+ */
+function findForeignRowTypes(
+    viewArgObject: ts.ObjectLiteralExpression,
+    sourceFile: ts.SourceFile,
+    rowTypeConstName: string
+): string[] {
+    const found: string[] = [];
+
+    const visit = (node: ts.Node) => {
+        if (ts.isPropertyAssignment(node)) {
+            const name = node.name;
+            const key = ts.isIdentifier(name)
+                ? name.text
+                : ts.isStringLiteral(name)
+                    ? name.text
+                    : null;
+            if (key === 'rowType' && !containsIdentifier(node.initializer, rowTypeConstName)) {
+                const text = node.initializer.getText(sourceFile).replace(/\s+/g, ' ');
+                found.push(text.length > 60 ? `${text.slice(0, 57)}...` : text);
+            }
         }
         ts.forEachChild(node, visit);
     };
@@ -242,7 +277,9 @@ function findViewsInFile(
     sourceText: string,
     fileName: string,
     dtvImport: string,
-    debug?: { log: (line: string) => void }
+    debug?: { log: (line: string) => void },
+    /** Called for a `DSL.view({ ... })` whose id or source is not a string literal. */
+    onUnidentified?: (detail: string) => void
 ): ViewInfo[] {
     const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true);
 
@@ -409,7 +446,9 @@ function findViewsInFile(
                                 : null;
 
                         if (!viewId || !sourceType || !rootFieldName || (collectionName && functionName)) {
-                            debug?.log(`- found DSL.view({ ... }) but id/source not valid string literals (id=${viewId ?? 'null'}, sourceType=${sourceType ?? 'null'}, collectionName=${collectionName ?? 'null'}, functionName=${functionName ?? 'null'})`);
+                            const detail = `id=${viewId ?? 'not a string literal'}, sourceType=${sourceType ?? 'not a string literal'}, collectionName=${collectionName ?? 'null'}, functionName=${functionName ?? 'null'}`;
+                            debug?.log(`- found DSL.view({ ... }) but id/source not valid string literals (${detail})`);
+                            onUnidentified?.(detail);
                         } else {
                             debug?.log(`- found view id=${JSON.stringify(viewId)} rootFieldName=${JSON.stringify(rootFieldName)}`);
                             views.push({
@@ -429,7 +468,12 @@ function findViewsInFile(
     return views;
 }
 
-async function scanViews(config: DtvTypegenConfig, debug?: ScanDebugOptions): Promise<ViewInfo[]> {
+type UnidentifiedView = { sourceFile: string; detail: string };
+
+async function scanViews(
+    config: DtvTypegenConfig,
+    debug?: ScanDebugOptions
+): Promise<{ views: ViewInfo[]; unidentified: UnidentifiedView[] }> {
     const dtvImport = config.scan.dtvImport ?? '@kronor/dtv';
 
     const files = await fg(config.scan.include, {
@@ -455,6 +499,7 @@ async function scanViews(config: DtvTypegenConfig, debug?: ScanDebugOptions): Pr
     }
 
     const results: ViewInfo[] = [];
+    const unidentified: { sourceFile: string; detail: string }[] = [];
     const filesToScan = focusAbs ? files.filter(f => path.resolve(f) === path.resolve(focusAbs)) : files;
     for (const f of filesToScan) {
         if (!f.endsWith('.ts') && !f.endsWith('.tsx')) continue;
@@ -462,7 +507,9 @@ async function scanViews(config: DtvTypegenConfig, debug?: ScanDebugOptions): Pr
         const fileDebug = debug?.enabled
             ? { log: (line: string) => console.log(`[dtv typegen] ${path.resolve(f)} ${line}`) }
             : undefined;
-        results.push(...findViewsInFile(text, f, dtvImport, fileDebug));
+        results.push(...findViewsInFile(text, f, dtvImport, fileDebug, detail => {
+            unidentified.push({ sourceFile: f, detail });
+        }));
     }
 
     const byId = new Map<string, ViewInfo[]>();
@@ -489,7 +536,7 @@ async function scanViews(config: DtvTypegenConfig, debug?: ScanDebugOptions): Pr
         throw new Error(lines.join('\n'));
     }
 
-    return results;
+    return { views: results, unidentified };
 }
 
 export async function runTypegen(args: RunTypegenArgs): Promise<void> {
@@ -499,7 +546,14 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
         ? { enabled: true, focusFile: args.debugScanFile }
         : undefined;
 
-    const views = await scanViews(config, debug);
+    const { views, unidentified } = await scanViews(config, debug);
+
+    // Reported before anything else: a view read as unidentified generates
+    // nothing, which leaves any committed types for it silently frozen.
+    for (const u of unidentified) {
+        console.warn(`Warning: DSL.view({ ... }) in ${path.resolve(u.sourceFile)} was not read — ${u.detail}. Its id and source.collectionName / source.functionName must be string literals for types to be generated.`);
+    }
+
     if (views.length === 0) {
         throw new Error('No views found. Ensure Config.scan.include matches files that import DSL from your configured DTV specifier and call DSL.view({ ... }).');
     }
@@ -541,6 +595,18 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
     });
 
     const outputFiles = new Set<string>();
+    /**
+     * What became of each view. A view that produces nothing leaves whatever
+     * generated file is already committed in place, so silence here reads as
+     * success while the row type it describes goes stale — every outcome is
+     * recorded and reported.
+     */
+    const written: string[] = [];
+    const removed: { viewId: string; outFile: string }[] = [];
+    const skipped: { viewId: string; reason: string }[] = [];
+    const optedOut: string[] = [];
+    const failed: { viewId: string; message: string }[] = [];
+
     for (const v of viewRows) {
         const root = schema.getType(v.rowTypeName);
         if (!root || Array.isArray(root)) {
@@ -620,6 +686,10 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
 
             const viewArgObject = findViewArgObjectById(sf, v.viewId, { dslIdentifiers, dtvNamespaces });
             if (!viewArgObject) {
+                skipped.push({
+                    viewId: v.viewId,
+                    reason: `could not locate the DSL.view({ id: ${JSON.stringify(v.viewId)} }) argument in ${path.resolve(v.sourceFile)}`
+                });
                 continue;
             }
 
@@ -629,10 +699,14 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
 
             const viewArgObject2 = findViewArgObjectById(sf2, v.viewId);
             if (!viewArgObject2) {
+                skipped.push({
+                    viewId: v.viewId,
+                    reason: `could not re-locate the view argument after adding the ${rowTypeConstName} import`
+                });
                 continue;
             }
 
-            const patched = patchInlineColumnsWithRowType({
+            const patched = patchInlineRowTypeArgs({
                 sourceText: withImport.updatedText,
                 sourceFile: sf2,
                 viewArgObject: viewArgObject2,
@@ -644,10 +718,33 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
             const sf3 = ts.createSourceFile(v.sourceFile, patched.updatedText, ts.ScriptTarget.Latest, true);
             const viewArgObject3 = findViewArgObjectById(sf3, v.viewId, { dslIdentifiers, dtvNamespaces });
             const shouldEmitForView = viewArgObject3
-                ? viewArgObjectHasIdentifier(viewArgObject3, rowTypeConstName)
+                ? containsIdentifier(viewArgObject3, rowTypeConstName)
                 : false;
             if (!shouldEmitForView) {
+                // Nothing in the view reads the generated module. Passing no
+                // rowType is a fair choice; passing one of the view's own is
+                // not the same thing, and neither is losing the view argument
+                // — so each is named rather than left to silence.
+                const foreign = viewArgObject3
+                    ? findForeignRowTypes(viewArgObject3, sf3, rowTypeConstName)
+                    : [];
+                const existed = await fs.access(outFile).then(() => true, () => false);
                 await fs.rm(outFile, { force: true });
+                if (existed) removed.push({ viewId: v.viewId, outFile });
+
+                if (!viewArgObject3) {
+                    skipped.push({
+                        viewId: v.viewId,
+                        reason: `its view argument could not be located after patching ${path.resolve(v.sourceFile)}`
+                    });
+                } else if (foreign.length) {
+                    skipped.push({
+                        viewId: v.viewId,
+                        reason: `it passes rowType: ${foreign[0]} rather than ${rowTypeConstName}, so its checks run against a hand-written type instead of the generated one`
+                    });
+                } else if (!existed) {
+                    optedOut.push(v.viewId);
+                }
                 continue;
             }
 
@@ -671,18 +768,39 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
             ].join('\n');
 
             await writeFileEnsuringDir(outFile, content);
+            written.push(outFile);
 
             if (withImport.changed || patched.changed) {
                 await fs.writeFile(v.sourceFile, patched.updatedText, 'utf8');
             }
-        } catch {
-            // Ignore patching errors; generation still succeeds.
+        } catch (error) {
+            // Keep going so one broken view doesn't hide the rest, and report
+            // it at the end: this used to be swallowed, which left the view's
+            // committed types silently frozen at whatever they were.
+            failed.push({ viewId: v.viewId, message: error instanceof Error ? error.message : String(error) });
         }
+    }
+
+    for (const r of removed) {
+        console.warn(`Removed ${path.resolve(r.outFile)} — view ${JSON.stringify(r.viewId)} no longer passes its rowType.`);
+    }
+    for (const sk of skipped) {
+        console.warn(`Warning: generated no types for view ${JSON.stringify(sk.viewId)} — ${sk.reason}.`);
+    }
+    for (const viewId of optedOut) {
+        console.log(`View ${JSON.stringify(viewId)} passes no rowType, so it has no generated types.`);
     }
 
     if (args.onlyViewId) {
         console.log(`Generated types for view ${JSON.stringify(args.onlyViewId)}.`);
     } else {
-        console.log(`Generated types for ${viewRows.length} view(s).`);
+        console.log(`Generated types for ${written.length} of ${viewRows.length} view(s).`);
+    }
+
+    if (failed.length) {
+        const lines = ['Type generation failed for:'];
+        for (const f of failed) lines.push(`- ${f.viewId}: ${f.message}`);
+        lines.push('Their committed generated types are unchanged and may now be stale.');
+        throw new Error(lines.join('\n'));
     }
 }

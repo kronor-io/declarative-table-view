@@ -2,7 +2,8 @@
 //
 // The expression algebra itself lives in @kronor/hasura-graphql; this module
 // is the part that knows about DTV's filter schema, form state and transforms.
-import type { FilterField, FilterGroups, FilterExpr, TransformResult, TransformConditionResult, ConditionOnlyTransform, QueryTransformContext } from '../filters';
+import type { FilterField, FilterGroups, FilterExpr, TransformConditionResult, ConditionOnlyTransform, QueryTransformContext } from '../filters';
+import { TransformResult } from '../filters';
 import { FilterFormState, traverseFilterSchemaAndState } from '../filter-form-state';
 import { FilterState } from '../state';
 import { getAllFilters } from '../view';
@@ -95,6 +96,7 @@ export function buildHasuraConditions(
                             const transformContext: QueryTransformContext = {
                                 field: schema.field,
                                 FilterValue,
+                                result: TransformResult,
                                 transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
                             };
 

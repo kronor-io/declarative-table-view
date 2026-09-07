@@ -63,6 +63,8 @@ export {
 } from '../framework/graphql';
 export { hasuraDSLforRowType } from '../dsl/hasura';
 export type { HasuraForRow } from '../dsl/hasura';
+export { filterExprForRowType } from '../dsl/filterExprForRow';
+export type { FilterExprBuilderForRow } from '../dsl/filterExprForRow';
 export { queryForRowType } from '../dsl/queryForRow';
 export type { QueryBuilder } from '../dsl/queryForRow';
 export type { Query, ValueQuery, ObjectQuery, ArrayQuery, FieldAlias, OrderByConfig } from '@kronor/hasura-graphql';

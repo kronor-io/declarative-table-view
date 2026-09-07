@@ -3,10 +3,12 @@ import * as FilterValue from '../filterValue';
 import { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from './index';
 import { hasuraFilterExpressionToObject } from '../graphql';
 import type { FilterField, QueryTransformContext } from '../filters';
+import { TransformResult } from '../filters';
 
 const context = (field: FilterField): QueryTransformContext => ({
     field,
     FilterValue,
+    result: TransformResult,
     transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
 });
 

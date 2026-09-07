@@ -3,6 +3,7 @@ import { rowType } from './columns';
 import { FilterControl } from './filterControl';
 import { FilterExpr } from './filterExpr';
 import { type FilterFieldPath, filter, filterField } from './filters';
+import type { ValidateFilterFieldType } from './filterTyping';
 
 // Type-level regression tests for row-aware filter typing.
 // These tests don't assert at runtime; they fail if TypeScript can't typecheck.
@@ -20,7 +21,22 @@ type ExampleRow = {
     }>;
 };
 
+type TypedRow = {
+    id: string;
+    amount: number | null;
+    live: boolean;
+    // Hasura's date scalars are generated as string.
+    createdAt: string;
+    status: 'pending' | 'paid';
+    tags: string[];
+    payload: any;
+    customer: { email: string | null; age: number | null } | null;
+};
+
 describe('dsl/filters row-aware typing', () => {
+    // A helper whose row type is still a type parameter: the control/operator
+    // checks cannot be evaluated there and are skipped, so the constraint on
+    // `Field` is what keeps callers honest.
     function equalsTextFilter<Row, const Field extends FilterFieldPath<Row>>(args: {
         rowType: Row;
         id: string;
@@ -133,6 +149,55 @@ describe('dsl/filters row-aware typing', () => {
             id: 'bad-multi-field',
             label: 'Bad multi',
             expression: FilterExpr.equals({ field: filterField.and('id', 'nope'), control: FilterControl.text() })
+        });
+    });
+
+    // A helper that only makes sense on one kind of column brands its own
+    // field, so its callers are checked even though the checks inside cannot
+    // be evaluated while Row is a type parameter.
+    function numberRangeFilter<Row, const Field extends FilterFieldPath<Row>>(args: {
+        rowType: Row;
+        id: string;
+        label: string;
+        field: Field & ValidateFilterFieldType<Row, Field, number>;
+    }) {
+        return filter({
+            id: args.id,
+            label: args.label,
+            expression: FilterExpr.range({ field: args.field, control: FilterControl.number })
+        });
+    }
+
+    it('accepts a field that holds the type the helper needs', () => {
+        numberRangeFilter({ rowType: rowType<TypedRow>(), id: 'amount', label: 'Amount', field: 'amount' });
+        numberRangeFilter({ rowType: rowType<TypedRow>(), id: 'age', label: 'Age', field: 'customer.age' });
+        // json/jsonb columns are `any` and tell us nothing, so they pass
+        numberRangeFilter({ rowType: rowType<TypedRow>(), id: 'payload', label: 'Payload', field: 'payload' });
+    });
+
+    it('rejects a field that holds something else', () => {
+        numberRangeFilter({
+            rowType: rowType<TypedRow>(),
+            id: 'bad',
+            label: 'Bad',
+            // @ts-expect-error createdAt is a string column, not a numeric one
+            field: 'createdAt'
+        });
+
+        numberRangeFilter({
+            rowType: rowType<TypedRow>(),
+            id: 'bad-list',
+            label: 'Bad',
+            // @ts-expect-error a list column holds a list, not a number
+            field: 'tags'
+        });
+
+        numberRangeFilter({
+            rowType: rowType<TypedRow>(),
+            id: 'bad-group',
+            label: 'Bad',
+            // @ts-expect-error every field of a group has to hold the type
+            field: filterField.or('amount', 'status')
         });
     });
 });

@@ -19,7 +19,7 @@ describe('cli/typegen/runTypegen', () => {
         jest.restoreAllMocks();
     });
 
-    it('generates the type module and patches inline columns for a new view', async () => {
+    it('generates the type module and patches inline columns and filters for a new view', async () => {
         const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'dtv-typegen-'));
         const configPath = path.join(tempRoot, 'dtv.config.cjs');
         const viewPath = path.join(tempRoot, 'new-view.ts');
@@ -80,6 +80,26 @@ export const view = DSL.view({
             id: 'id',
             data: [{ field: 'id' }]
         })
+    ],
+    filterGroups: [
+        DSL.filterGroup({
+            name: 'default',
+            label: null,
+            filters: [
+                DSL.filter({
+                    id: 'id',
+                    label: 'ID',
+                    expression: DSL.FilterExpr.equals({ field: 'id', control: DSL.FilterControl.text() })
+                })
+            ]
+        }),
+        {
+            name: 'amount',
+            label: 'Amount',
+            filters: [
+                DSL.filter({ id: 'amount', label: 'Amount', expression: DSL.FilterExpr.equals({ field: 'amount', control: DSL.FilterControl.number() }) })
+            ]
+        }
     ]
 });
 `, 'utf8');
@@ -96,6 +116,20 @@ export const view = DSL.view({
             expect(generated).toContain("export const NewViewRowType = DTV.rowType<NewViewRow>();");
             expect(updatedView).toContain("import { NewViewRowType } from './new-view.typegen';");
             expect(updatedView).toContain('rowType: NewViewRowType,');
+            // The column, the filter inside a filterGroup() call, and the one
+            // inside a plain group literal all get the row type, each written
+            // at the indentation of the property it precedes.
+            expect(updatedView.match(/rowType: NewViewRowType/g)).toHaveLength(3);
+            expect(updatedView).toContain('DSL.filter({ rowType: NewViewRowType, id: \'amount\'');
+            expect(updatedView).toContain([
+                '                DSL.filter({',
+                '                    rowType: NewViewRowType,',
+                "                    id: 'id',"
+            ].join('\n'));
+            expect(updatedView).toContain("import { NewViewRowType } from './new-view.typegen';\n\nexport const view");
+            // Patching is idempotent.
+            await runTypegen({ configPath });
+            expect(await fs.readFile(viewPath, 'utf8')).toEqual(updatedView);
         } finally {
             (globalThis as any).fetch = originalFetch;
             await fs.rm(tempRoot, { recursive: true, force: true });
