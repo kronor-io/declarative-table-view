@@ -57,8 +57,11 @@ export interface AppProps {
      * request function (`{ type: 'custom', requestAiFilter }`) that receives
      * the fully-built prompt and returns the model response (raw text or the
      * parsed filter-state object).
+     *
+     * Optional: when it is omitted the AI Filter Assistant is not offered at
+     * all, so a host with no AI provider does not have to stub one out.
      */
-    aiIntegration: AIIntegration;
+    aiIntegration?: AIIntegration;
     /**
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
@@ -858,13 +861,17 @@ function App({
                                 <InputIcon className="pi pi-search" />
                                 <InputText value={state.searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search filters..." />
                             </IconField>
-                            <Button
-                                type="button"
-                                size='small'
-                                icon='pi pi-sparkles'
-                                label='AI Filter Assistant'
-                                onClick={() => setShowAIAssistantForm(v => !v)}
-                            />
+                            {
+                                aiIntegration && (
+                                    <Button
+                                        type="button"
+                                        size='small'
+                                        icon='pi pi-sparkles'
+                                        label='AI Filter Assistant'
+                                        onClick={() => setShowAIAssistantForm(v => !v)}
+                                    />
+                                )
+                            }
                         </div>
                     }
                 />
@@ -875,7 +882,7 @@ function App({
                 }
 
                 {
-                    showAIAssistantForm && (
+                    showAIAssistantForm && aiIntegration && (
                         <div className="tw:mb-6">
                             <AIAssistantForm
                                 filterState={state.filterState}

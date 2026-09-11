@@ -37,8 +37,11 @@ export type RenderTableViewOptions = {
      * request function (`{ type: 'custom', requestAiFilter }`) that receives
      * the fully-built prompt and returns the model response (raw text or the
      * parsed filter-state object).
+     *
+     * Optional: when it is omitted the AI Filter Assistant is not offered at
+     * all, so a host with no AI provider does not have to stub one out.
      */
-    aiIntegration: AIIntegration
+    aiIntegration?: AIIntegration
     showViewsMenu?: boolean
     showViewTitle?: boolean
     showCsvExportButton?: boolean
