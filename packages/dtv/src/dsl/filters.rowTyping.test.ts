@@ -86,10 +86,13 @@ describe('dsl/filters row-aware typing', () => {
             label: 'Amount Range',
             expression: FilterExpr.range({ field: 'amount', control: FilterControl.number })
         });
+    });
 
+    it('requires a rowType', () => {
+        // @ts-expect-error a filter has to say which row it is built on
         filter({
-            id: 'untyped',
-            label: 'Untyped still allowed',
+            id: 'no-row-type',
+            label: 'rowType is required',
             expression: FilterExpr.equals({ field: 'anything.goes', control: FilterControl.text() })
         });
     });
@@ -119,35 +122,35 @@ describe('dsl/filters row-aware typing', () => {
     });
 
     it('rejects unknown filter fields (including nested paths)', () => {
-        // @ts-expect-error field must exist on ExampleRow
         filter({
             rowType: rowType<ExampleRow>(),
             id: 'bad-top-level',
             label: 'Bad',
+            // @ts-expect-error field must exist on ExampleRow
             expression: FilterExpr.equals({ field: 'doesNotExist', control: FilterControl.text() })
         });
 
-        // @ts-expect-error nested field must exist on ExampleRow
         filter({
             rowType: rowType<ExampleRow>(),
             id: 'bad-nested',
             label: 'Bad nested',
+            // @ts-expect-error nested field must exist on ExampleRow
             expression: FilterExpr.equals({ field: 'customer.doesNotExist', control: FilterControl.text() })
         });
 
-        // @ts-expect-error nested field must exist on ExampleRow
         filter({
             rowType: rowType<ExampleRow>(),
             id: 'bad-array-nested',
             label: 'Bad array nested',
+            // @ts-expect-error nested field must exist on ExampleRow
             expression: FilterExpr.equals({ field: 'lines.doesNotExist', control: FilterControl.text() })
         });
 
-        // @ts-expect-error multi-field must reference only valid row fields
         filter({
             rowType: rowType<ExampleRow>(),
             id: 'bad-multi-field',
             label: 'Bad multi',
+            // @ts-expect-error multi-field must reference only valid row fields
             expression: FilterExpr.equals({ field: filterField.and('id', 'nope'), control: FilterControl.text() })
         });
     });
@@ -162,6 +165,7 @@ describe('dsl/filters row-aware typing', () => {
         field: Field & ValidateFilterFieldType<Row, Field, number>;
     }) {
         return filter({
+            rowType: args.rowType,
             id: args.id,
             label: args.label,
             expression: FilterExpr.range({ field: args.field, control: FilterControl.number })

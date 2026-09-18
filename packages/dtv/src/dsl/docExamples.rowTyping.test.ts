@@ -125,6 +125,7 @@ describe('docs/api/row-typed-views.md examples', () => {
             rowType: Row; id: string; label: string; field: Field & DSL.ValidateFilterFieldType<Row, Field, number>;
         }) {
             return DSL.filter({
+                rowType: args.rowType,
                 id: args.id,
                 label: args.label,
                 expression: FilterExpr.range({ field: args.field, control: FilterControl.number })

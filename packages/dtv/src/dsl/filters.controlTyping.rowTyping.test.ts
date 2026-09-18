@@ -76,43 +76,43 @@ describe('dsl/filters control and operator typing', () => {
     });
 
     it('rejects controls that cannot produce the field type', () => {
-        // @ts-expect-error a text control cannot filter a numeric column
         filter({
             rowType: Row,
             id: 'text-on-number',
             label: 'Bad',
+            // @ts-expect-error a text control cannot filter a numeric column
             expression: FilterExpr.equals({ field: 'amount', control: FilterControl.text() })
         });
 
-        // @ts-expect-error a number control cannot filter a string column
         filter({
             rowType: Row,
             id: 'number-on-text',
             label: 'Bad',
+            // @ts-expect-error a number control cannot filter a string column
             expression: FilterExpr.equals({ field: 'id', control: FilterControl.number() })
         });
 
-        // @ts-expect-error a date control cannot filter a boolean column
         filter({
             rowType: Row,
             id: 'date-on-boolean',
             label: 'Bad',
+            // @ts-expect-error a date control cannot filter a boolean column
             expression: FilterExpr.equals({ field: 'live', control: FilterControl.date() })
         });
 
-        // @ts-expect-error nested fields are checked the same way
         filter({
             rowType: Row,
             id: 'text-on-nested-number',
             label: 'Bad',
+            // @ts-expect-error nested fields are checked the same way
             expression: FilterExpr.equals({ field: 'customer.age', control: FilterControl.text() })
         });
 
-        // @ts-expect-error every field of an or() group has to accept the control
         filter({
             rowType: Row,
             id: 'text-on-multi-field',
             label: 'Bad',
+            // @ts-expect-error every field of an or() group has to accept the control
             expression: FilterExpr.iLike({ field: filterField.or('id', 'amount'), control: FilterControl.text() })
         });
     });
@@ -148,22 +148,22 @@ describe('dsl/filters control and operator typing', () => {
             })
         });
 
-        // @ts-expect-error 'bogus' is not one of the values status can hold
         filter({
             rowType: Row,
             id: 'bad-item',
             label: 'Bad',
+            // @ts-expect-error 'bogus' is not one of the values status can hold
             expression: FilterExpr.equals({
                 field: 'status',
                 control: FilterControl.dropdown({ items: [{ label: 'Paid', value: 'paid' }, { label: 'Oops', value: 'bogus' }] })
             })
         });
 
-        // @ts-expect-error a numeric column cannot hold '10'
         filter({
             rowType: Row,
             id: 'bad-item-type',
             label: 'Bad',
+            // @ts-expect-error a numeric column cannot hold '10'
             expression: FilterExpr.in({
                 field: 'amount',
                 control: FilterControl.multiselect({ items: [{ label: 'Ten', value: '10' }] })
@@ -202,27 +202,27 @@ describe('dsl/filters control and operator typing', () => {
             expression: FilterExpr.isNull({ field: 'live', control: FilterControl.dropdown({ items: [{ label: 'Yes', value: true }] }) })
         });
 
-        // @ts-expect-error iLike is not available on a numeric column
         filter({
             rowType: Row,
             id: 'ilike-on-number',
             label: 'Bad',
+            // @ts-expect-error iLike is not available on a numeric column
             expression: FilterExpr.iLike({ field: 'amount', control: FilterControl.number() })
         });
 
-        // @ts-expect-error greaterThan is not available on a boolean column
         filter({
             rowType: Row,
             id: 'gt-on-boolean',
             label: 'Bad',
+            // @ts-expect-error greaterThan is not available on a boolean column
             expression: FilterExpr.greaterThan({ field: 'live', control: FilterControl.dropdown({ items: [{ label: 'Yes', value: true }] }) })
         });
 
-        // @ts-expect-error like is not available on a numeric column
         filter({
             rowType: Row,
             id: 'like-on-nested-number',
             label: 'Bad',
+            // @ts-expect-error like is not available on a numeric column
             expression: FilterExpr.like({ field: 'customer.age', control: FilterControl.text() })
         });
     });
@@ -239,11 +239,11 @@ describe('dsl/filters control and operator typing', () => {
             })
         });
 
-        // @ts-expect-error a multiselect yields a list; equals would compare a scalar to it
         filter({
             rowType: Row,
             id: 'multiselect-equals',
             label: 'Bad',
+            // @ts-expect-error a multiselect yields a list; equals would compare a scalar to it
             expression: FilterExpr.equals({
                 field: 'status',
                 control: FilterControl.multiselect({ items: [{ label: 'Paid', value: 'paid' }] })
@@ -301,11 +301,11 @@ describe('dsl/filters control and operator typing', () => {
             })
         });
 
-        // @ts-expect-error _ilike is not available on a numeric column
         filter({
             rowType: Row,
             id: 'bad-operator',
             label: 'Bad',
+            // @ts-expect-error _ilike is not available on a numeric column
             expression: FilterExpr.equals({
                 field: 'amount',
                 control: FilterControl.customOperator({
@@ -332,11 +332,11 @@ describe('dsl/filters control and operator typing', () => {
         });
 
         // ... but the field still has to exist.
-        // @ts-expect-error a transform does not excuse an unknown field
         filter({
             rowType: Row,
             id: 'transformed-bad-field',
             label: 'Bad',
+            // @ts-expect-error a transform does not excuse an unknown field
             expression: FilterExpr.equals({
                 field: 'nope',
                 control: FilterControl.text(),
@@ -365,11 +365,11 @@ describe('dsl/filters control and operator typing', () => {
             })
         });
 
-        // @ts-expect-error the nested leaf filters a numeric column with a text control
         filter({
             rowType: Row,
             id: 'bad-tree',
             label: 'Bad',
+            // @ts-expect-error the nested leaf filters a numeric column with a text control
             expression: FilterExpr.and({
                 filters: [
                     FilterExpr.equals({ field: 'id', control: FilterControl.text() }),

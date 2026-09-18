@@ -2,9 +2,11 @@ import { describe, it, expect } from '@jest/globals';
 import { view } from './view';
 import type { View } from './view';
 import { filter, filterGroup } from './filters';
-import { column, valueQuery } from './columns';
+import { column, rowType, valueQuery } from './columns';
 import { FilterExpr } from './filterExpr';
 import { FilterControl } from './filterControl';
+
+const Row = rowType<{ name: string }>();
 
 describe('dsl/view', () => {
     it('is identity for View', () => {
@@ -74,11 +76,13 @@ describe('dsl/view', () => {
 
     it('throws when filters across groups have duplicate ids', () => {
         const f1 = filter({
+            rowType: Row,
             id: 'same',
             label: 'Same',
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
         });
         const f2 = filter({
+            rowType: Row,
             id: 'same',
             label: 'Same again',
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })

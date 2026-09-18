@@ -174,11 +174,11 @@ describe('dsl/filterExprForRow', () => {
 
         // A leaf nested in a tree keeps being checked: the contextual type must
         // not make it look transformed.
-        // @ts-expect-error the nested leaf filters a numeric column with a text control
         filter({
             rowType: Row,
             id: 'nested-bad',
             label: 'Bad',
+            // @ts-expect-error the nested leaf filters a numeric column with a text control
             expression: FilterExpr.and({
                 filters: [FilterExpr.equals({ field: 'amount', control: FilterControl.text() })]
             })

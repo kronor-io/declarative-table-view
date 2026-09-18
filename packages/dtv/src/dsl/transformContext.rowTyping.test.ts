@@ -91,22 +91,22 @@ describe('dsl transform context', () => {
             })
         });
 
-        // @ts-expect-error a customOperator control without a transform throws at query time
         filter({
             rowType: Row,
             id: 'no-transform',
             label: 'Bad',
+            // @ts-expect-error a customOperator control without a transform throws at query time
             expression: FilterExpr.equals({
                 field: 'amount',
                 control: FilterControl.customOperator({ operators, valueControl: FilterControl.number() })
             })
         });
 
-        // @ts-expect-error a customOperator transform that returns a value throws at query time
         filter({
             rowType: Row,
             id: 'value-transform',
             label: 'Bad',
+            // @ts-expect-error a customOperator transform that returns a value throws at query time
             expression: FilterExpr.equals({
                 field: 'amount',
                 control: FilterControl.customOperator({ operators, valueControl: FilterControl.number() }),
@@ -115,11 +115,11 @@ describe('dsl transform context', () => {
         });
 
         const wide: FilterTransform = { toQuery: input => TransformResult.value(input) };
-        // @ts-expect-error a transform typed FilterTransform cannot promise a condition
         filter({
             rowType: Row,
             id: 'wide-transform',
             label: 'Bad',
+            // @ts-expect-error a transform typed FilterTransform cannot promise a condition
             expression: FilterExpr.equals({
                 field: 'amount',
                 control: FilterControl.customOperator({ operators, valueControl: FilterControl.number() }),

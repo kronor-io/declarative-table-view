@@ -6,9 +6,10 @@ checked against that row: field paths have to exist, controls have to be able to
 produce the type of the field they filter, and operators have to be ones Hasura
 offers for that type.
 
-This is opt-in. A view that passes no row type keeps working exactly as before,
-and JSON views are unaffected (they are validated at runtime by the view
-parser, not by these types).
+`filter()` requires `rowType`: a filter has to say which row it is built on.
+Columns are still opt-in — a `column()` that passes no row type keeps working
+exactly as before — and JSON views are unaffected (they are validated at
+runtime by the view parser, not by these types).
 
 ## Getting the row type
 
@@ -227,7 +228,7 @@ with no `toQuery` at all is rejected too; it would do nothing at query time.
 ### Row-scoped builders
 
 `FilterExpr` accepts any field name and is checked when the expression reaches
-`filter({ rowType })`, which reports problems on the `filter()` call. Scoping
+`filter()`, which reports problems on the `expression` it was given. Scoping
 the builder to the row instead gives the editor a row to work from:
 
 ```ts
@@ -239,10 +240,10 @@ F.like({ field: F.field.or('reference', 'customer.email'), control: FilterContro
 ```
 
 Field names complete as they are typed, and each problem is reported on the
-property that caused it — an unsupported operator on `field`, an unusable
-control on `control`. The results are ordinary `FilterExpr` values, so
-`filter({ rowType })` still checks them; the row-scoped builder is about where
-errors appear, not about checking more.
+leaf property that caused it — an unsupported operator on `field`, an unusable
+control on `control` — rather than on the whole expression. The results are
+ordinary `FilterExpr` values, so `filter()` still checks them; the row-scoped
+builder is about where errors appear, not about checking more.
 
 `hasuraDSLforRowType` and `queryForRowType` are the same idea for
 condition-producing transforms and for nested selections:

@@ -1,9 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
+import { rowType } from './columns';
 import { filter, filterField, filterGroup } from './filters';
 import { FilterControl } from './filterControl';
 import { FilterExpr } from './filterExpr';
 import { TransformResult } from '../framework/filters';
 import { Hasura } from '../framework/graphql';
+
+const Row = rowType<{ name: string; amount: number }>();
 
 describe('dsl/filters', () => {
     it('builds FilterField helpers', () => {
@@ -13,6 +16,7 @@ describe('dsl/filters', () => {
 
     it('defaults aiGenerated to false', () => {
         const f = filter({
+            rowType: Row,
             id: 'id',
             label: 'Label',
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })
@@ -22,6 +26,7 @@ describe('dsl/filters', () => {
 
     it('builds filter group arrays with nested filters', () => {
         const f = filter({
+            rowType: Row,
             id: 'id',
             label: 'Label',
             expression: FilterExpr.equals({ field: 'name', control: FilterControl.text() })

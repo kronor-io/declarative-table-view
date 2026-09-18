@@ -82,20 +82,6 @@ export function filter<Row, const Expr extends FilterExpr>(args: {
     label: string;
     expression: Expr & ValidateFilterExprForRow<Row, Expr>;
     aiGenerated?: boolean;
-}): FilterSchema;
-export function filter(args: {
-    rowType?: never;
-    id: string;
-    label: string;
-    expression: FilterExpr;
-    aiGenerated?: boolean;
-}): FilterSchema;
-export function filter(args: {
-    rowType?: unknown;
-    id: string;
-    label: string;
-    expression: FilterExpr;
-    aiGenerated?: boolean;
 }): FilterSchema {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { rowType, ...rest } = args;
