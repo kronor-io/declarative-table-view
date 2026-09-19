@@ -58,7 +58,7 @@
         "react-dom": "^19.0.0"
     },
     "dependencies": {
-        "@kronor/hasura-graphql": "^0.1.0",
+        "@kronor/hasura-graphql": "^0.1.2",
         "commander": "^14.0.0",
         "fast-glob": "^3.3.3",
         "graphql": "^16.14.2",
