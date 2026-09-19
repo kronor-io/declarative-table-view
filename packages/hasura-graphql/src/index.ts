@@ -85,13 +85,17 @@ export type {
 export type {
     GraphQLVariable,
     GraphQLVariableReference,
+    GraphQLEnumValue,
     GraphQLArgument,
     GraphQLArgumentObject,
     GraphQLArgumentValue,
     GraphQLFieldNode,
+    GraphQLRootField,
     GraphQLSelectionSet,
     GraphQLSelectionSetItem,
     GraphQLQueryAST,
+    GraphQLMultiRootQueryAST,
+    GraphQLDocumentAST,
     HasuraOrderBy,
     HasuraOrderDirection,
 } from './query/document.js';
@@ -100,14 +104,19 @@ export {
     renderGraphQLLiteral,
     graphqlVariableReference,
     isGraphQLVariableReference,
+    graphqlEnumValue,
+    isGraphQLEnumValue,
+    orderByArgumentValue,
     toGraphQLArgumentValue,
+    rootFieldsOf,
     ensureSelectionPath,
 } from './query/document.js';
 
-export type { SelectionSetInput } from './query/selection-set.js';
+export type { SelectionSetInput, SelectionSetMergeOptions } from './query/selection-set.js';
 export {
     buildSelectionSet,
     mergeSelectionSets,
+    mergeSelectionSetItem,
     queryToSelectionSetItem,
     fieldQueryToSelectionSetItem,
 } from './query/selection-set.js';

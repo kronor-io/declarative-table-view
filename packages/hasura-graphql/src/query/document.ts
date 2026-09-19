@@ -8,6 +8,7 @@ import { hasuraFilterExpressionToObject } from '../hasura/filter-expression.js';
 import type { HasuraFilterExpression } from '../hasura/filter-expression.js';
 import type { HasuraFilterObject, HasuraOperator } from '../hasura/filter-object.js';
 import type { OrderDirection } from '../order-direction.js';
+import { mergeSelectionSetItem } from './selection-set.js';
 
 export type GraphQLVariable = {
     name: string;
@@ -17,6 +18,16 @@ export type GraphQLVariable = {
 export type GraphQLVariableReference = {
     type: 'variable';
     name: string;
+};
+
+/**
+ * A GraphQL enum value, which is rendered bare (`ASC`) rather than quoted
+ * (`"ASC"`). Hasura's `order_by` directions and `distinct_on` columns are
+ * enums, so they cannot be expressed as plain strings.
+ */
+export type GraphQLEnumValue = {
+    type: 'enum';
+    value: string;
 };
 
 export type GraphQLArgumentObject = {
@@ -30,6 +41,7 @@ export type GraphQLArgumentValue =
     | null
     | undefined
     | GraphQLVariableReference
+    | GraphQLEnumValue
     | GraphQLArgumentValue[]
     | GraphQLArgumentObject;
 
@@ -64,6 +76,12 @@ export type GraphQLSelectionSetItem = {
 
 export type GraphQLSelectionSet = GraphQLSelectionSetItem[];
 
+/** A root field together with the selection set taken from it. */
+export type GraphQLRootField = GraphQLFieldNode & {
+    selectionSet: GraphQLSelectionSet;
+};
+
+/** A document with exactly one root field. */
 export type GraphQLQueryAST = {
     operation: 'query';
     name?: string;
@@ -72,9 +90,38 @@ export type GraphQLQueryAST = {
     selectionSet: GraphQLSelectionSet;
 };
 
+/**
+ * A document with any number of root fields, for callers that need to fetch
+ * several unrelated collections in one round trip (an entity plus the option
+ * lists its form needs, say). Root fields are rendered in order; give any two
+ * that name the same collection distinct aliases.
+ */
+export type GraphQLMultiRootQueryAST = {
+    operation: 'query';
+    name?: string;
+    variables: GraphQLVariable[];
+    rootFields: GraphQLRootField[];
+};
+
+export type GraphQLDocumentAST = GraphQLQueryAST | GraphQLMultiRootQueryAST;
+
+/** Normalizes either document shape to its list of root fields. */
+export function rootFieldsOf(ast: GraphQLDocumentAST): GraphQLRootField[] {
+    if ('rootFields' in ast) {
+        return ast.rootFields;
+    }
+
+    return [{ ...ast.rootField, selectionSet: ast.selectionSet }];
+}
+
 export function renderGraphQLLiteral(value: unknown): string {
     if (value === null) return 'null';
     if (value === undefined) return 'null';
+    // Variable references and enum values are markers rather than data: they
+    // render bare so that they can appear anywhere a literal can, including
+    // inside the operator values of a `where` clause.
+    if (isGraphQLVariableReference(value)) return `$${value.name}`;
+    if (isGraphQLEnumValue(value)) return value.value;
     if (typeof value === 'string') return JSON.stringify(value);
     if (typeof value === 'number' || typeof value === 'boolean') return String(value);
     if (Array.isArray(value)) {
@@ -102,8 +149,41 @@ export function isGraphQLVariableReference(value: unknown): value is GraphQLVari
     return typeof value === 'object' && value !== null && !Array.isArray(value) && (value as GraphQLVariableReference).type === 'variable' && typeof (value as GraphQLVariableReference).name === 'string';
 }
 
+export function graphqlEnumValue(value: string): GraphQLEnumValue {
+    return {
+        type: 'enum',
+        value,
+    };
+}
+
+export function isGraphQLEnumValue(value: unknown): value is GraphQLEnumValue {
+    return typeof value === 'object' && value !== null && !Array.isArray(value) && (value as GraphQLEnumValue).type === 'enum' && typeof (value as GraphQLEnumValue).value === 'string';
+}
+
+/**
+ * Lowers a Hasura `order_by` into an argument value whose directions are enums.
+ * Directions are upper-cased, so both `'asc'` and `'ASC'` are accepted.
+ */
+export function orderByArgumentValue(orderBy: HasuraOrderBy | HasuraOrderBy[]): GraphQLArgumentValue {
+    const lower = (value: HasuraOrderBy | HasuraOrderBy[] | HasuraOrderDirection): GraphQLArgumentValue => {
+        if (Array.isArray(value)) {
+            return value.map(lower);
+        }
+
+        if (typeof value === 'object' && value !== null) {
+            return Object.fromEntries(
+                Object.entries(value).map(([key, entryValue]) => [key, lower(entryValue)])
+            );
+        }
+
+        return graphqlEnumValue(String(value).toUpperCase());
+    };
+
+    return lower(orderBy);
+}
+
 export function toGraphQLArgumentValue(value: unknown): GraphQLArgumentValue {
-    if (isGraphQLVariableReference(value)) {
+    if (isGraphQLVariableReference(value) || isGraphQLEnumValue(value)) {
         return value;
     }
 
@@ -128,12 +208,15 @@ export function toGraphQLArgumentValue(value: unknown): GraphQLArgumentValue {
  * Ensures a dotted field path is present in the selection set, adding the
  * missing nesting if it is not. Used to guarantee that fields a caller needs
  * for its own bookkeeping (e.g. a pagination cursor) are always selected.
+ *
+ * A path that partially overlaps an existing selection is merged into it, so
+ * ensuring `customer.id` next to an already-selected `customer { name }` yields
+ * one `customer` selection rather than two sibling blocks.
  */
 export function ensureSelectionPath(
     selectionSet: GraphQLSelectionSet,
     fieldPath: string,
 ): GraphQLSelectionSet {
-    const nextSelectionSet = [...selectionSet];
     const path = fieldPath.split('.').filter(Boolean);
 
     const hasSelectionPath = (set: GraphQLSelectionSet, remainingPath: string[]): boolean => {
@@ -144,20 +227,21 @@ export function ensureSelectionPath(
         return selection.selections ? hasSelectionPath(selection.selections, tail) : false;
     };
 
-    if (!hasSelectionPath(nextSelectionSet, path)) {
-        const buildNested = (path: string): GraphQLSelectionSetItem => {
-            const parts = path.split('.');
-            const head = parts[0];
-            if (parts.length === 1) return { field: head };
-            return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
-        };
-        nextSelectionSet.push(buildNested(fieldPath));
+    if (hasSelectionPath(selectionSet, path)) {
+        return [...selectionSet];
     }
 
-    return nextSelectionSet;
+    const buildNested = (path: string): GraphQLSelectionSetItem => {
+        const parts = path.split('.');
+        const head = parts[0];
+        if (parts.length === 1) return { field: head };
+        return { field: head, selections: [buildNested(parts.slice(1).join('.'))] };
+    };
+
+    return mergeSelectionSetItem(selectionSet, buildNested(fieldPath));
 }
 
-export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
+export function renderGraphQLQuery(ast: GraphQLDocumentAST): string {
     function renderVariables(vars: GraphQLVariable[]): string {
         if (!vars.length) return '';
         return '('
@@ -166,8 +250,8 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     }
 
     const renderGraphQLArgumentValue = (value: GraphQLArgumentValue): string => {
-        if (isGraphQLVariableReference(value)) {
-            return `$${value.name}`;
+        if (isGraphQLVariableReference(value) || isGraphQLEnumValue(value)) {
+            return renderGraphQLLiteral(value);
         }
 
         if (Array.isArray(value)) {
@@ -270,23 +354,13 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
             args.push(`where: ${renderHasuraFilterObject(hasuraFilterExpressionToObject(item.where))}`);
         }
         if (item.limit !== undefined) args.push(`limit: ${item.limit}`);
+        if (item.offset !== undefined) args.push(`offset: ${item.offset}`);
         if (item.path) args.push(`path: "${item.path}"`);
         if (item.distinct_on && item.distinct_on.length) {
-            const cols = item.distinct_on.map(c => String(c)).join(', ');
-            args.push(`distinctOn: [${cols}]`);
+            args.push(`distinctOn: ${renderGraphQLArgumentValue(item.distinct_on.map(column => graphqlEnumValue(String(column))))}`);
         }
         if (item.order_by) {
-            const renderOrderBy = (orderBy: HasuraOrderBy | HasuraOrderBy[] | HasuraOrderDirection | undefined): string => {
-                if (Array.isArray(orderBy)) {
-                    return '[' + orderBy.map(renderOrderBy).join(', ') + ']';
-                } else if (typeof orderBy === 'object' && orderBy !== undefined) {
-                    return '{' + Object.entries(orderBy)
-                        .map(([k, v]) => `${k}: ${renderOrderBy(v)}`)
-                        .join(', ') + '}';
-                }
-                return String(orderBy).toUpperCase();
-            };
-            args.push(`orderBy: ${renderOrderBy(item.order_by)}`);
+            args.push(`orderBy: ${renderGraphQLArgumentValue(orderByArgumentValue(item.order_by))}`);
         }
         return args.length ? `(${args.join(', ')})` : '';
     }
@@ -309,12 +383,17 @@ export function renderGraphQLQuery(ast: GraphQLQueryAST): string {
     }
 
     const vars = renderVariables(ast.variables);
-    const selection = renderSelectionSet(ast.selectionSet);
     const opName = ast.name ? ` ${ast.name}` : '';
+    const rootFields = rootFieldsOf(ast)
+        .map(rootField =>
+            `  ${renderFieldNode(rootField)} {` +
+            renderSelectionSet(rootField.selectionSet) +
+            `\n  }`)
+        .join('\n');
+
     return (
         `${ast.operation}${opName}${vars} {` +
-        `  ${renderFieldNode(ast.rootField)} {` +
-        selection +
-        `\n  }\n}`
+        rootFields +
+        `\n}`
     );
 }

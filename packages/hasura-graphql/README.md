@@ -77,6 +77,63 @@ without emitting duplicate fields. `ensureSelectionPath` guarantees a field is
 selected when the caller needs it for its own bookkeeping (a pagination cursor,
 a record id).
 
+Selections that address the same field but select different things from it are
+kept side by side by default, since a consumer that declares a whole sub-tree
+(one per table column, say) means them to stay distinct. Consumers that instead
+contribute independent field *paths* want them combined — `vendor.name` and
+`vendor.id` should reach the server as one `vendor { name id }`. Pass
+`mergeNestedSelections` for that, or use `mergeSelectionSetItem` directly:
+
+```ts
+buildSelectionSet(inputs, { mergeNestedSelections: true });
+```
+
+Items whose arguments differ — the same collection filtered two ways — are never
+merged, whatever the option says.
+
+#### Enum arguments
+
+GraphQL enums cannot be passed as strings: Hasura's `order_by` directions and
+`distinct_on` columns need `ASC`, not `"ASC"`. `graphqlEnumValue` marks a value
+as an enum wherever an argument or literal is accepted, and
+`orderByArgumentValue` lowers a whole `order_by` object for you, upper-casing
+the directions on the way:
+
+```ts
+import { graphqlEnumValue, orderByArgumentValue } from '@kronor/hasura-graphql';
+
+rootField: {
+    field: 'currencies',
+    args: [{ name: 'orderBy', value: orderByArgumentValue({ code: 'asc' }) }]
+}
+// currencies(orderBy: {code: ASC})
+```
+
+Enum values and variable references both render bare, including inside the
+operator values of a `where` clause — so a filter can compare against a query
+variable (`Hasura.eq(graphqlVariableReference('id'))`).
+
+#### Several root fields
+
+`renderGraphQLQuery` takes either document shape. Give it `rootFields` to fetch
+unrelated collections in one round trip — an entity together with the option
+lists a form needs, say. Root fields naming the same collection need distinct
+aliases; `rootFieldsOf` normalizes either shape to a list.
+
+```ts
+renderGraphQLQuery({
+    operation: 'query',
+    variables: [{ name: 'id', type: 'bigint!' }],
+    rootFields: [
+        { field: 'orders', args: [{ name: 'where', value: { id: { _eq: graphqlVariableReference('id') } } }],
+          selectionSet: buildSelectionSet([{ fieldQuery: valueQuery({ field: 'reference' }) }]) },
+        { field: 'currencies', alias: 'currencyOptions',
+          args: [{ name: 'orderBy', value: orderByArgumentValue({ code: 'asc' }) }],
+          selectionSet: buildSelectionSet([{ fieldQuery: valueQuery({ field: 'code' }) }]) }
+    ]
+});
+```
+
 ### `dsl/` — row-typed builders
 
 Given a row type — typically generated from your schema — the builders
