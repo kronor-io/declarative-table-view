@@ -107,9 +107,6 @@ function hasKey<K extends string | number | symbol, T extends { [key in K]: unkn
     return typeof obj === 'object' && obj !== null && key in obj && Array.isArray((obj as T)[key]);
 }
 
-// Request counter to be able to cancel handling of previous requests
-let requestCounter = 0;
-
 // Helper to build the GraphQL variables object for a data fetch.
 // Extracted from fetchData for reuse (e.g., custom actions, debugging, or tests).
 // It composes:
@@ -264,7 +261,8 @@ export const fetchData = async ({
     filterState,
     rowLimit,
     cursor,
-    ordering
+    ordering,
+    signal
 }: {
     client: GraphQLClient;
     view: View;
@@ -273,21 +271,20 @@ export const fetchData = async ({
     rowLimit: number;
     cursor: PaginationCursor;
     ordering?: DataOrdering | null;
+    /**
+     * Cancels the request. Once it is aborted, fetchData rejects with an AbortError
+     * instead of returning rows, even when the response has already arrived.
+     */
+    signal?: AbortSignal;
 }): Promise<FetchDataResult> => {
-    // Assign a unique ID to this request for ordering
-    const currentRequestId = ++requestCounter;
-
     try {
         const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor, ordering);
 
         // Auth headers are applied by the client's resolveHeadersMiddleware.
-        const response = await client.request(query, variables);
+        const response = await client.request({ document: query, variables, signal });
 
-        // Check if this is still the most recent request
-        if (currentRequestId !== requestCounter) {
-            // A newer request has been started, discard this response
-            throw new DOMException('Request superseded by newer request', 'AbortError');
-        }
+        // The response may have arrived just before the request was aborted; discard it
+        signal?.throwIfAborted();
 
         const rootFieldName = getViewRootFieldName(view);
 
@@ -304,14 +301,18 @@ export const fetchData = async ({
             flattenedRows: flattenFields(rowsFetched as Record<string, unknown>[], view.columnDefinitions)
         }
     } catch (error) {
-        // Don't log AbortError as it's expected when cancelling requests
-        if (error instanceof DOMException && error.name === 'AbortError') {
-            throw error; // Re-throw abort errors so fetchDataWrapper can cancel response handling
-        }
+        // Don't log aborts as they're expected when cancelling requests. Re-throw the
+        // signal's AbortError, whatever error the fetch implementation raised, so
+        // fetchDataWrapper's callers can skip response handling.
+        signal?.throwIfAborted();
         console.error('Error fetching data:', error);
         return { rows: [], flattenedRows: [] };
     }
 };
+
+// Whether fetchData rejected because its request was aborted
+export const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException && error.name === 'AbortError';
 
 // Applies flattenColumnFields to all rows for all columns
 export const flattenFields = (

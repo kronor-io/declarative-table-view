@@ -20,7 +20,7 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type PaginationCursor, type RequestHeaders } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, isAbortError, resolveHeadersMiddleware, type PaginationCursor, type RequestHeaders } from './framework/data';
 import { dataOrderingsEqual, type DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
 import { parseViewJson } from './framework/view-parser';
@@ -614,7 +614,18 @@ function App({
         }
     };
 
+    // The data request this table is waiting on. Starting a new one aborts it, so a slow
+    // response can never overwrite a newer one. Each table owns its own: other tables on
+    // the page keep their requests.
+    const inFlightRequestRef = useRef<AbortController | null>(null);
+
+    // Abort the in-flight request on unmount so its response doesn't update a gone table
+    useEffect(() => () => inFlightRequestRef.current?.abort(), []);
+
     const fetchDataWrapper = useCallback((cursor: PaginationCursor, rowLimit: number): Promise<FetchDataResult> => {
+        inFlightRequestRef.current?.abort();
+        const controller = new AbortController();
+        inFlightRequestRef.current = controller;
         return fetchData({
             client,
             view: selectedView,
@@ -622,7 +633,8 @@ function App({
             filterState: state.appliedFilterState,
             rowLimit,
             cursor,
-            ordering: activeOrdering
+            ordering: activeOrdering,
+            signal: controller.signal
         });
     }, [activeOrdering, client, selectedView, memoizedQuery, state.appliedFilterState]);
 
@@ -684,14 +696,17 @@ function App({
         setIsLoading(true);
         const currentPageCursor = state.pagination.cursors[state.pagination.cursors.length - 1] ?? null;
         fetchDataWrapper(currentPageCursor, rowsPerPage)
-            .then(dataRows => setDataRows(dataRows))
-            .catch(error => {
-                if (error instanceof DOMException && error.name === 'AbortError') {
-                    // Request was aborted, no action needed
-                    return;
-                }
+            .then(dataRows => {
+                setDataRows(dataRows);
+                setIsLoading(false);
             })
-            .finally(() => setIsLoading(false));
+            .catch(error => {
+                // An aborted request was superseded by a newer one, which owns the
+                // loading state, or the table unmounted: leave everything as it is
+                if (!isAbortError(error)) {
+                    setIsLoading(false);
+                }
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.selectedViewId, refetchTrigger, rowsPerPage, activeOrderingField, activeOrderingDirection]);
 
@@ -723,8 +738,12 @@ function App({
                 newData,
                 { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor], rowsPerPage }
             );
-        } finally {
             setIsLoading(false);
+        } catch (error) {
+            if (!isAbortError(error)) {
+                setIsLoading(false);
+                throw error;
+            }
         }
     };
 
@@ -740,8 +759,12 @@ function App({
                 newData,
                 { page: state.pagination.page - 1, cursors: prevCursors, rowsPerPage }
             );
-        } finally {
             setIsLoading(false);
+        } catch (error) {
+            if (!isAbortError(error)) {
+                setIsLoading(false);
+                throw error;
+            }
         }
     };
 

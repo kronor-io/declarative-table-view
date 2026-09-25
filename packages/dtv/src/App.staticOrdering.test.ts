@@ -12,8 +12,8 @@ const requests: { query: string; variables: any }[] = [];
 jest.mock('graphql-request', () => {
     return {
         GraphQLClient: jest.fn().mockImplementation(() => ({
-            request: jest.fn(async (query: string, variables: any) => {
-                requests.push({ query, variables });
+            request: jest.fn(async ({ document, variables }: { document: string; variables: any }) => {
+                requests.push({ query: document, variables });
                 return { testCollection: [] };
             })
         }))
