@@ -18,7 +18,7 @@ jest.mock('graphql-request', () => {
             })
         }))
     };
-});
+}, { virtual: true });
 
 import App from './App';
 import { waitUntil } from './test/waitUntil';
