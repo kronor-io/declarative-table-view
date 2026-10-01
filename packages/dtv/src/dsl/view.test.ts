@@ -6,7 +6,7 @@ import { column, rowType, valueQuery } from './columns';
 import { FilterExpr } from './filterExpr';
 import { FilterControl } from './filterControl';
 
-const Row = rowType<{ name: string }>();
+const Row = rowType<{ id: string; name: string; amount: number }>();
 
 describe('dsl/view', () => {
     it('is identity for View', () => {
@@ -18,7 +18,7 @@ describe('dsl/view', () => {
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
             columnDefinitions: [
-                column({ id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+                column({ rowType: Row, id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
             ],
             filterGroups: [filterGroup({ name: 'default', label: null, filters: [] })],
         };
@@ -35,7 +35,7 @@ describe('dsl/view', () => {
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
             columnDefinitions: [
-                column({ id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+                column({ rowType: Row, id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
             ],
             filterGroups: [filterGroup({ name: 'default', label: null, filters: [] })],
         };
@@ -46,6 +46,7 @@ describe('dsl/view', () => {
     it('preserves column footers', () => {
         const footer = 'Total';
         const definition = column({
+            rowType: Row,
             id: 'amount',
             name: 'Amount',
             data: [valueQuery({ field: 'amount' })],
@@ -65,8 +66,8 @@ describe('dsl/view', () => {
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
             columnDefinitions: [
-                column({ id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
-                column({ id: 'id', name: 'ID2', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+                column({ rowType: Row, id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+                column({ rowType: Row, id: 'id', name: 'ID2', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
             ],
             filterGroups: [filterGroup({ name: 'default', label: null, filters: [] })],
         };
@@ -96,7 +97,7 @@ describe('dsl/view', () => {
             boolExpType: 'ThingBoolExp',
             orderByType: '[ThingOrderBy!]',
             columnDefinitions: [
-                column({ id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
+                column({ rowType: Row, id: 'id', name: 'ID', data: [valueQuery({ field: 'id' })], cellRenderer: () => null }),
             ],
             filterGroups: [
                 filterGroup({ name: 'g1', label: null, filters: [f1] }),

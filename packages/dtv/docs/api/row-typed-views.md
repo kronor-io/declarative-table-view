@@ -6,10 +6,9 @@ checked against that row: field paths have to exist, controls have to be able to
 produce the type of the field they filter, and operators have to be ones Hasura
 offers for that type.
 
-`filter()` requires `rowType`: a filter has to say which row it is built on.
-Columns are still opt-in — a `column()` that passes no row type keeps working
-exactly as before — and JSON views are unaffected (they are validated at
-runtime by the view parser, not by these types).
+`column()`, `virtualColumn()`, `fieldColumn()` and `filter()` all require
+`rowType`: a column or filter has to say which row it is built on. JSON views are unaffected (they are
+validated at runtime by the view parser, not by these types).
 
 ## Getting the row type
 
@@ -22,8 +21,9 @@ export type PaymentRequestsRow = PaymentRequest;
 export const PaymentRequestsRowType = DTV.rowType<PaymentRequestsRow>();
 ```
 
-It also adds `rowType:` to the `DSL.column(...)` and `DSL.filter(...)` calls
-written inline in the view, so in practice the wiring is done for you. See
+It also adds `rowType:` to the `DSL.column(...)`, `DSL.virtualColumn(...)`,
+`DSL.fieldColumn(...)` and `DSL.filter(...)` calls written inline in the view,
+so in practice the wiring is done for you. See
 [../typegen.md](../typegen.md). To write it by hand, `rowType<Row>()` produces
 the phantom value from any row type you already have.
 
@@ -42,7 +42,66 @@ DSL.column({
 
 `data` selections are checked against the row (including nested object and
 array selections), and the `cellRenderer`'s `data` argument is derived from
-them with the row's own nullability preserved.
+them with the row's own nullability preserved. `virtualColumn()` takes the same
+`rowType`, and its `data` is checked the same way.
+
+### Reusable column helpers
+
+A column shared between views often takes its field from the caller —
+`accountColumn(rowType, 'arAccount')`. Its renderer was written for one kind of
+value, so the caller's field has to hold that kind of value. `fieldColumn`
+builds such a column and checks the field against the caller's row:
+
+```ts
+type Account = { accountNr: string; accountName: string | null };
+
+function accountColumn<Row, const Field extends string>(
+    rowType: Row,
+    field: Field & DSL.ValidateColumnFieldType<Row, Field, Account | null>,
+    name: string,
+) {
+    return DSL.fieldColumn({
+        rowType,
+        field,
+        name,
+        select: { object: [valueQuery({ field: 'accountNr' }), valueQuery({ field: 'accountName' })] },
+        cellRenderer: ({ value }) => value === null ? null : `${value.accountNr} ${value.accountName ?? ''}`,
+    });
+}
+
+accountColumn(InvoicesRowType, 'arAccount', 'AR account');
+accountColumn(InvoicesRowType, 'memo', 'Memo');
+//  field 'memo' holds string, and this column renders an object
+```
+
+- **The value.** The renderer gets the field's value as `value`, typed as the
+  value it declares, which is what the field is checked against. A renderer
+  that declares nothing, like the one above, gets the field's own type — or,
+  inside a helper, the type the helper's field was checked against
+  (`Account | null`). A field that is
+  missing from the row data arrives as `null`, so an optional field
+  (`note?: string`) is typed `string | null`.
+- **Nullability counts**, unlike for filter helpers: a cell has to render the
+  null too. A field that can be null — itself, or because an object on its
+  dotted path can be — is only accepted by a renderer whose value admits null
+  (`field 'customer.account' can be null, and this column does not render
+  null`).
+- **The selection follows from the value type**: nothing for a scalar,
+  `select: { object: [...] }` for an object, `select: { list: [...], limit, ... }`
+  for a list, each checked against it. A dotted path that steps into a list is
+  rejected: select the list instead.
+- **Ordering.** `orderBy` names the field itself for a scalar
+  (`orderBy: 'memo'`), or a scalar inside it for an object
+  (`orderBy: 'arAccount.accountNr'`); a list cannot be ordered by. The path has
+  to be one the selection includes, which is checked when the column is built.
+- **Forwarding.** The field has to be a literal path, or a field branded as
+  above. A plain `string`, or a helper's own `Field` that nothing has checked, is
+  rejected, since nothing could check it. A helper that takes the field from its
+  own caller brands its parameter with `ValidateColumnFieldType` and hands it
+  on. While the row is unknown the brand stands in for the check: a field
+  checked to hold `Account` is accepted by a helper that renders
+  `Account | null`, but a field checked to hold `Account | null` is rejected by
+  one that renders `Account` or a `string`.
 
 ## Filters
 
@@ -73,7 +132,7 @@ Failures read as the message itself, for example:
 
 ```
 Property '"control 'text' cannot produce a value for 'amount' (type number)"'
-  is missing in type … but required in type FilterTypeError<…>
+  is missing in type … but required in type DslTypeError<…>
 ```
 
 Details worth knowing:
@@ -259,13 +318,19 @@ H.scope('lines', Line => Line.condition('item.sku', Line.ilike('%SKU%')));
 
 The checks need a row type that is already known. In a generic helper that
 builds filters for a row it hasn't been given yet, they cannot be evaluated and
-are skipped rather than reported as failures — so constrain the helper's own
-arguments and its callers stay checked:
+are skipped rather than reported as failures. The helper says what its field
+has to hold instead, the same way a column helper does:
+`ValidateFilterFieldType<Row, Field, Value>` brands the field parameter, and is
+`unknown` when the field is on the row and holds that type. `Value` is what the
+helper's control produces:
 
 ```ts
-function textFilter<Row, const Field extends DSL.FilterFieldPath<Row>>(
-    args: { rowType: Row; id: string; label: string; field: Field }
-) {
+function textFilter<Row, const Field extends DSL.FilterField>(args: {
+    rowType: Row;
+    id: string;
+    label: string;
+    field: Field & DSL.ValidateFilterFieldType<Row, Field, string>;
+}) {
     return DSL.filter({
         rowType: args.rowType,
         id: args.id,
@@ -273,14 +338,8 @@ function textFilter<Row, const Field extends DSL.FilterFieldPath<Row>>(
         expression: FilterExpr.equals({ field: args.field, control: FilterControl.text() })
     });
 }
-```
 
-A helper that picks the control itself only makes sense on one kind of column,
-and can say so — `ValidateFilterFieldType<Row, Field, Value>` brands the field
-parameter, and is `unknown` when the field holds that type:
-
-```ts
-function numberRangeFilter<Row, const Field extends DSL.FilterFieldPath<Row>>(args: {
+function numberRangeFilter<Row, const Field extends DSL.FilterField>(args: {
     rowType: Row;
     id: string;
     label: string;
@@ -292,11 +351,18 @@ numberRangeFilter({ rowType: PaymentRequestsRowType, id: 'when', label: 'When', 
 //                                       field 'createdAt' holds string, and this filter needs number
 ```
 
-That restores at the call site what the helper's own body cannot check. It
-resolves the type of the one field it is given rather than selecting the row's
-fields by type: enumerating every path and resolving each one costs work
-proportional to the size of the row, and exceeded TypeScript's instantiation
-limit on real generated rows of around 900 lines.
+That restores at the call site what the helper's own body cannot check. Every
+field of an `and`/`or` group is checked. `unknown` as `Value` accepts any field
+on the row. A plain `string` field is rejected, and so is a helper's own
+`Field` that nothing has checked. A helper can hand its branded field on to
+another helper, and is accepted where the same or a wider `Value` is asked for,
+as with columns.
+
+It resolves the type of the one field it is given rather than constraining it
+to `FilterFieldPath<Row>` or selecting the row's fields by type: enumerating
+every path and resolving each one costs work proportional to the size of the
+row, and exceeded TypeScript's instantiation limit on real generated rows of
+around 900 lines.
 
 Two things to know about what it accepts: nullability is ignored, so a
 `number | null` column counts as numeric; and Hasura's `date`, `timestamp` and

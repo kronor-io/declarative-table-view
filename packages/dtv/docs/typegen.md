@@ -86,13 +86,13 @@ That file contains:
       the DSL helpers take as `rowType`
 
 The generator also edits the view module itself, as a convenience: it imports
-`<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)` and
-`DSL.filter(...)` calls written inline in the `DSL.view({ ... })` argument that
-do not have one yet. Calls that already pass `rowType` are left alone, so
+`<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)`,
+`DSL.virtualColumn(...)`, `DSL.fieldColumn(...)` and `DSL.filter(...)` calls
+written inline in the `DSL.view({ ... })` argument that do not have one yet. Calls that already pass `rowType` are left alone, so
 re-running the generator is safe.
 
-Passing `rowType` is what turns on checking of a view's columns against its
-row, and `DSL.filter(...)` requires it — see
+Passing `rowType` is what turns on checking of a view's columns and filters
+against its row, and all of these helpers require it — see
 [api/row-typed-views.md](api/row-typed-views.md). A view where no call ends up
 with a `rowType` gets no generated file.
 

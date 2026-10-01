@@ -32,6 +32,30 @@ describe('docs/api/row-typed-views.md examples', () => {
         });
     });
 
+    it('reusable column helper', () => {
+        type Account = { accountNr: string; accountName: string | null };
+        type InvoicesRow = { arAccount: Account | null; memo: string | null };
+        const InvoicesRowType = rowType<InvoicesRow>();
+
+        function accountColumn<Row, const Field extends string>(
+            rowType: Row,
+            field: Field & DSL.ValidateColumnFieldType<Row, Field, Account | null>,
+            name: string,
+        ) {
+            return DSL.fieldColumn({
+                rowType,
+                field,
+                name,
+                select: { object: [valueQuery({ field: 'accountNr' }), valueQuery({ field: 'accountName' })] },
+                cellRenderer: ({ value }) => value === null ? null : `${value.accountNr} ${value.accountName ?? ''}`,
+            });
+        }
+
+        accountColumn(InvoicesRowType, 'arAccount', 'AR account');
+        // @ts-expect-error memo holds a string, and this column renders an object
+        accountColumn(InvoicesRowType, 'memo', 'Memo');
+    });
+
     it('filter', () => {
         DSL.filter({
             rowType: PaymentRequestsRowType,
@@ -109,9 +133,9 @@ describe('docs/api/row-typed-views.md examples', () => {
     });
 
     it('reusable helper', () => {
-        function textFilter<Row, const Field extends DSL.FilterFieldPath<Row>>(
-            args: { rowType: Row; id: string; label: string; field: Field }
-        ) {
+        function textFilter<Row, const Field extends DSL.FilterField>(args: {
+            rowType: Row; id: string; label: string; field: Field & DSL.ValidateFilterFieldType<Row, Field, string>;
+        }) {
             return DSL.filter({
                 rowType: args.rowType,
                 id: args.id,
@@ -121,7 +145,7 @@ describe('docs/api/row-typed-views.md examples', () => {
         }
         textFilter({ rowType: PaymentRequestsRowType, id: 'reference', label: 'Reference', field: 'reference' });
 
-        function numberRangeFilter<Row, const Field extends DSL.FilterFieldPath<Row>>(args: {
+        function numberRangeFilter<Row, const Field extends DSL.FilterField>(args: {
             rowType: Row; id: string; label: string; field: Field & DSL.ValidateFilterFieldType<Row, Field, number>;
         }) {
             return DSL.filter({

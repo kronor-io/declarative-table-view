@@ -62,11 +62,11 @@ export function filterGroup(args: {
  *
  * The checks need a `Row` that is already known. Inside a generic helper that
  * builds filters for a row type it hasn't been given yet, they cannot be
- * evaluated and are skipped; constrain the helper's own arguments with
- * `FilterFieldPath<Row>` so its callers are still checked:
+ * evaluated and are skipped; brand the helper's field parameter with
+ * `ValidateFilterFieldType` so its callers are still checked:
  *
- *     function textFilter<Row, const Field extends FilterFieldPath<Row>>(
- *         args: { rowType: Row; id: string; label: string; field: Field }
+ *     function textFilter<Row, const Field extends FilterField>(
+ *         args: { rowType: Row; id: string; label: string; field: Field & ValidateFilterFieldType<Row, Field, string> }
  *     ) {
  *         return filter({
  *             rowType: args.rowType,

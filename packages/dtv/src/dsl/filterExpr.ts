@@ -8,6 +8,7 @@ import type {
 import { SUPPORTED_OPERATORS } from '../framework/filters';
 import type { ControlValue } from './filterControl';
 import type { FilterLeafOperator } from './filterTyping';
+import type { IsAny } from './typeErrors';
 
 export type { ConditionOnlyTransform, FilterField, FilterTransform };
 export type FilterExpr = FilterExprType;
@@ -37,7 +38,6 @@ export type FilterExprLeafWithTransform<
     Transform extends FilterTransform<any>
 > = FilterExprLeaf<Type, Field, Control> & { transform: Transform };
 
-type IsAny<T> = 0 extends 1 & T ? true : false;
 type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 /**

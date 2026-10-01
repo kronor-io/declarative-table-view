@@ -1,17 +1,20 @@
 import { describe, it, expect } from '@jest/globals';
-import { arrayQuery, column } from '../dsl/columns';
+import { arrayQuery, column, rowType, valueQuery } from '../dsl/columns';
 import { generateSelectionSetFromColumns, generateGraphQLQuery } from './graphql';
+
+const Row = rowType<{ items: Array<{ label: string }> }>();
 
 describe('GraphQL distinct_on support', () => {
     it('carries distinct_on in selection set for arrayQuery', () => {
         const col = column({
+            rowType: Row,
             id: 'items-col',
             name: 'Items',
             data: [
                 arrayQuery({
                     field: 'items',
                     selectionSet: [
-                        { type: 'valueQuery', field: 'label' } as any
+                        valueQuery({ field: 'label' })
                     ],
                     distinctOn: ['user_id', 'created_at'],
                     limit: 10
@@ -28,13 +31,14 @@ describe('GraphQL distinct_on support', () => {
 
     it('renders distinct_on in nested field args', () => {
         const col = column({
+            rowType: Row,
             id: 'items-col',
             name: 'Items',
             data: [
                 arrayQuery({
                     field: 'items',
                     selectionSet: [
-                        { type: 'valueQuery', field: 'label' } as any
+                        valueQuery({ field: 'label' })
                     ],
                     distinctOn: ['user_id', 'created_at'],
                     limit: 5

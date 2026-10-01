@@ -171,11 +171,11 @@ describe('dsl/columns row-aware typing', () => {
         expect(true).toBe(true);
     });
     it('rejects selecting fields not present on the row type', () => {
-        // @ts-expect-error unknownField is not a key of ExampleRow
         column({
             rowType: rowType<ExampleRow>(),
             id: 'bad',
             name: 'Bad',
+            // @ts-expect-error unknownField is not a key of ExampleRow
             data: [valueQuery({ field: 'unknownField' })],
             cellRenderer: () => null
         });
@@ -184,20 +184,20 @@ describe('dsl/columns row-aware typing', () => {
     });
 
     it('rejects nested selections not present on the nested row type', () => {
-        // @ts-expect-error unknownNestedField is not a key of ExampleRow.customer
         column({
             rowType: rowType<ExampleRow>(),
             id: 'badNested',
             name: 'Bad Nested',
+            // @ts-expect-error unknownNestedField is not a key of ExampleRow.customer
             data: [objectQuery({ field: 'customer', selectionSet: [valueQuery({ field: 'unknownNestedField' })] })],
             cellRenderer: () => null
         });
 
-        // @ts-expect-error unknownLineField is not a key of ExampleRow.lines element
         column({
             rowType: rowType<ExampleRow>(),
             id: 'badNestedArray',
             name: 'Bad Nested Array',
+            // @ts-expect-error unknownLineField is not a key of ExampleRow.lines element
             data: [arrayQuery({ field: 'lines', selectionSet: [valueQuery({ field: 'unknownLineField' })] })],
             cellRenderer: () => null
         });

@@ -6,6 +6,8 @@ export * from './filterExpr';
 export * from './filterExprForRow';
 export * from './filters';
 export * from './filterTyping';
+export type { ColumnFieldValue, ValidateColumnFieldType } from './columnTyping';
+export type { DslTypeError } from './typeErrors';
 export * from './hasura';
 export * from './queryForRow';
 export * from './view';

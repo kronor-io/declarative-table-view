@@ -79,7 +79,9 @@ export const view = DSL.view({
         DSL.column({
             id: 'id',
             data: [{ field: 'id' }]
-        })
+        }),
+        DSL.virtualColumn({ id: 'amount', data: [{ field: 'amount' }] }),
+        DSL.fieldColumn({ field: 'amount', name: 'Amount', cellRenderer: () => null })
     ],
     filterGroups: [
         DSL.filterGroup({
@@ -116,10 +118,12 @@ export const view = DSL.view({
             expect(generated).toContain("export const NewViewRowType = DTV.rowType<NewViewRow>();");
             expect(updatedView).toContain("import { NewViewRowType } from './new-view.typegen';");
             expect(updatedView).toContain('rowType: NewViewRowType,');
-            // The column, the filter inside a filterGroup() call, and the one
+            // The columns, the filter inside a filterGroup() call, and the one
             // inside a plain group literal all get the row type, each written
             // at the indentation of the property it precedes.
-            expect(updatedView.match(/rowType: NewViewRowType/g)).toHaveLength(3);
+            expect(updatedView.match(/rowType: NewViewRowType/g)).toHaveLength(5);
+            expect(updatedView).toContain("DSL.virtualColumn({ rowType: NewViewRowType, id: 'amount'");
+            expect(updatedView).toContain("DSL.fieldColumn({ rowType: NewViewRowType, field: 'amount'");
             expect(updatedView).toContain('DSL.filter({ rowType: NewViewRowType, id: \'amount\'');
             expect(updatedView).toContain([
                 '                DSL.filter({',

@@ -15,7 +15,7 @@
  * so `FilterExpr.iLike({ field: 'amount' })` and `H.condition('amount',
  * H.ilike(...))` now agree.
  *
- * Failures surface as a `FilterTypeError`, whose single property *name* is the
+ * Failures surface as a `DslTypeError`, whose single property *name* is the
  * message, so tsc prints it verbatim at the `filter()` call.
  *
  * Deliberate escape hatches — all of them cases where the declared shape no
@@ -34,35 +34,16 @@
  */
 import type { HasuraOperatorFor, PathValue } from '@kronor/hasura-graphql';
 import type { FilterControl, FilterExpr, TransformConditionResult } from '../framework/filters';
-
-/**
- * A failed check. The message is the property name so that tsc reports
- * "Property '<message>' is missing ..." instead of a structural diff.
- */
-export type FilterTypeError<Message extends string> = { [K in Message]: never };
+import type { Brand, CheckedAs, DescribeType, IsAny, NestingDepth, Opaque } from './typeErrors';
 
 /** Mutable counterpart of an inferred `readonly` tuple. */
 export type MutableTuple<T extends readonly unknown[]> = [...T];
 
 // --- type-level helpers ----------------------------------------------------
 
-type IsAny<T> = 0 extends 1 & T ? true : false;
 type IsTuple<T> = T extends readonly unknown[] ? (number extends T['length'] ? false : true) : false;
 
-/** Value types nothing can be concluded from: json/jsonb columns, widened rows. */
-type Opaque<Value> = IsAny<Value> extends true ? true : unknown extends Value ? true : false;
-
 type Accepts<Value, Allowed> = [Extract<Value, Allowed>] extends [never] ? false : true;
-
-/** Non-distributive so that literal unions (Hasura enums) describe as one word. */
-type DescribeType<Value> =
-    [Value] extends [string] ? 'string'
-    : [Value] extends [number] ? 'number'
-    : [Value] extends [boolean] ? 'boolean'
-    : [Value] extends [Date] ? 'Date'
-    : [Value] extends [readonly unknown[]] ? 'a list'
-    : [Value] extends [object] ? 'an object'
-    : 'unknown';
 
 type ShowValue<Value> =
     [Value] extends [string] ? `'${Value}'`
@@ -103,8 +84,14 @@ type HasTransform<Leaf> = 'transform' extends keyof Leaf
 
 // --- individual checks -----------------------------------------------------
 
-type PathError<Row, Path extends string> = [PathValue<Row, Path>] extends [never]
-    ? `'${Path}' is not a field of the row type`
+/*
+ * A field typed as plain `string` names no path, so nothing about it can be checked; it is
+ * rejected rather than let through. A helper that takes its field from a caller brands it with
+ * `ValidateFilterFieldType`, which keeps it a literal path.
+ */
+type PathError<Row, Path extends string> =
+    string extends Path ? `the field must be a literal path; a helper takes it as 'Field & ValidateFilterFieldType<Row, Field, Value>'`
+    : [PathValue<Row, Path>] extends [never] ? `'${Path}' is not a field of the row type`
     : never;
 
 type ControlError<Path extends string, Value, Control extends FilterControl> =
@@ -273,13 +260,11 @@ type LeafErrors<Row, Leaf> =
         : never;
 
 /**
- * Decrementing counter that bounds how far into and/or/not the walk goes.
- * Real filter trees are a few levels deep; the bound exists because during
- * inference the expression is still a type variable, and an unbounded walk
- * would recur until tsc gives up ("excessively deep").
+ * `NestingDepth` bounds how far into and/or/not the walk goes. Real filter
+ * trees are a few levels deep; the bound exists because during inference the
+ * expression is still a type variable, and an unbounded walk would recur until
+ * tsc gives up ("excessively deep").
  */
-type NestingDepth = { 0: never; 1: 0; 2: 1; 3: 2; 4: 3; 5: 4; 6: 5; 7: 6; 8: 7 };
-
 type ExprErrors<Row, Expr, Depth extends keyof NestingDepth = 8> =
     Depth extends 0 ? never
     : Expr extends { type: 'and' | 'or'; filters: infer Filters }
@@ -289,8 +274,6 @@ type ExprErrors<Row, Expr, Depth extends keyof NestingDepth = 8> =
         : Expr extends { type: 'not'; filter: infer Child }
             ? ExprErrors<Row, Child, NestingDepth[Depth]>
             : LeafErrors<Row, Expr>;
-
-type Brand<Errors> = [Errors] extends [never] ? unknown : FilterTypeError<Extract<Errors, string>>;
 
 /**
  * The checks above, addressed one argument at a time so that a row-scoped
@@ -308,24 +291,35 @@ export type ValidateOperatorListForRow<Row, Field, Control extends FilterControl
     Brand<OperatorListErrors<Row, Field, Control>>;
 
 /**
- * `unknown` when the field holds a `Value`, otherwise a `FilterTypeError`
- * saying what it holds instead. For a helper that only makes sense on one kind
- * of column — a numeric range, a text search — brand its field parameter with
- * this:
+ * `unknown` when the field is on the row and holds a `Value`, otherwise a
+ * `DslTypeError` saying what is wrong. A filter helper that takes its field from
+ * the caller brands its field parameter with this, so the caller's field is
+ * checked even though the checks inside the helper cannot run while `Row` is a
+ * type parameter:
  *
- *     function numberRange<Row, const Field extends FilterFieldPath<Row>>(args: {
+ *     function numberRange<Row, const Field extends FilterField>(args: {
  *         rowType: Row;
  *         field: Field & ValidateFilterFieldType<Row, Field, number>;
  *     }) { ... }
  *
- * This resolves the type of the *one* field it is given. Selecting the row's
- * fields by type instead — enumerating every path and resolving each one —
- * costs work proportional to the size of the row, and exceeded TypeScript's
- * instantiation limit on real generated rows of ~900 lines. Every field of an
- * `and`/`or` group is checked, and nullability is ignored: filtering a nullable
- * column filters the values it does have.
+ * `Value` is what the helper's control produces (`string` for a text search,
+ * `number` for a range); `unknown` accepts any field on the row. A helper can
+ * hand the field on to another such helper, as for columns (see
+ * ./columnTyping): its brand is accepted where the same or a wider `Value` is
+ * asked for. A plain `string`, or a `Field` nothing has checked, is rejected.
+ *
+ * This resolves the type of the *one* field it is given. Constraining it to
+ * `FilterFieldPath<Row>` or selecting the row's fields by type instead —
+ * enumerating every path and resolving each one — costs work proportional to
+ * the size of the row, and exceeded TypeScript's instantiation limit on real
+ * generated rows of ~900 lines. Every field of an `and`/`or` group is checked,
+ * and nullability is ignored: filtering a nullable column filters the values it
+ * does have.
  */
-export type ValidateFilterFieldType<Row, Field, Value> = Brand<FieldTypeErrors<Row, Field, Value>>;
+export type ValidateFilterFieldType<Row, Field, Value> =
+    [Row, Field] extends [infer R, infer F]
+        ? Brand<PathErrors<R, F> | FieldTypeErrors<R, F, Value>>
+        : CheckedAs<Value>;
 
 type FieldTypeErrors<Row, Field, Value> =
     PathsOf<Field>[number] extends infer Path
@@ -340,15 +334,15 @@ type FieldTypeErrors<Row, Field, Value> =
 
 /**
  * `unknown` when `Expr` is a legal filter over `Row`, otherwise a
- * `FilterTypeError` naming what is wrong. Intended to be intersected with the
+ * `DslTypeError` naming what is wrong. Intended to be intersected with the
  * expression's own inferred type at the `filter()` boundary:
  *
  *     expression: Expr & ValidateFilterExprForRow<Row, Expr>
  *
  * The checks cannot be evaluated while `Row` is still a type parameter; there
  * they yield no errors rather than false ones, so a generic helper that builds
- * filters for a row type it hasn't been given yet keeps compiling. Constrain
- * such a helper's own arguments with `FilterFieldPath<Row>` to keep its
+ * filters for a row type it hasn't been given yet keeps compiling. Brand such
+ * a helper's field parameter with `ValidateFilterFieldType` to keep its
  * callers checked. See ./filters.
  */
 export type ValidateFilterExprForRow<Row, Expr extends FilterExpr> = Brand<ExprErrors<Row, Expr>>;
