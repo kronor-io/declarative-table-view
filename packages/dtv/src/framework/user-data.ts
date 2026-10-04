@@ -177,3 +177,16 @@ export function fromUserDataJson(json: UserDataJson, filterGroupsByViewId: Recor
         formatRevision: json.formatRevision
     }
 }
+
+/**
+ * Per-view JSON layered left to right, later layers winning; missing layers are skipped.
+ * Used to carry views a manager has no schema for along with the ones it writes.
+ */
+export function mergeViewsJson(
+    ...layers: Array<Record<ViewId, ViewDataJson> | null | undefined>
+): Record<ViewId, ViewDataJson> {
+    return layers.reduce<Record<ViewId, ViewDataJson>>(
+        (merged, layer) => ({ ...merged, ...(layer ?? {}) }),
+        {}
+    )
+}

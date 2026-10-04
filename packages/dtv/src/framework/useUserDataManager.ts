@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FilterGroups } from './filters';
 import type { SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
-import type { UserPreferences, ViewData } from './user-data';
-import { createUserDataManager, USER_DATA_LOCALSTORAGE_KEY, type UserDataManagerOptions } from './user-data-manager';
+import type { UserPreferences } from './user-data';
+import { createUserDataManager, type UserDataManager, type UserDataManagerOptions } from './user-data-manager';
+import { USER_DATA_LOCALSTORAGE_KEY } from './user-data-storage';
 import type { ViewId } from './view';
 
 export function useUserDataManager(
@@ -16,38 +17,45 @@ export function useUserDataManager(
         return createUserDataManager(filterGroupsByViewId, options);
     }, [filterGroupsByViewId, options]);
 
-    // React state for the reactive parts
-    const [preferences, setPreferences] = useState<UserPreferences>(() => manager.getPreferences());
-    const [viewData, setViewData] = useState<ViewData>(() => manager.getViewData(currentViewId));
-    const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => manager.getSavedFilters(currentViewId));
+    // The manager holds the data. The values below are read from it during render, for the
+    // current view, and read again whenever it changed: after a write, after the initial
+    // load, and when another tab wrote. Reading during render (rather than syncing state
+    // from an effect) keeps `viewData` in step with `currentViewId` within a render.
+    const [generation, setGeneration] = useState(0);
+    const reread = useCallback(() => setGeneration(previous => previous + 1), []);
 
-    // Sync when view changes
-    useEffect(() => {
-        setViewData(manager.getViewData(currentViewId));
-        setSavedFilters(manager.getSavedFilters(currentViewId));
-    }, [currentViewId, manager]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` says the manager's data changed
+    const preferences = useMemo(() => manager.getPreferences(), [manager, generation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+    const viewData = useMemo(() => manager.getViewData(currentViewId), [manager, currentViewId, generation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+    const savedFilters = useMemo(() => manager.getSavedFilters(currentViewId), [manager, currentViewId, generation]);
 
-    // Listen for changes from other tabs
+    // The manager whose initial load has completed. Readiness belongs to the manager, not
+    // to the view, so switching views does not reset it.
+    const [readyManager, setReadyManager] = useState<UserDataManager | null>(null);
+    const isReady = readyManager === manager;
+
+    // Adopt what other tabs wrote. The manager caches its data, so it has to re-read
+    // localStorage first; the getters alone would hand back the stale cached copy.
     useEffect(() => {
         const onStorage = (event: StorageEvent) => {
             if (event.key !== USER_DATA_LOCALSTORAGE_KEY) return;
-            setPreferences(manager.getPreferences());
-            setViewData(manager.getViewData(currentViewId));
-            setSavedFilters(manager.getSavedFilters(currentViewId));
+            manager.refreshFromLocalStorage();
+            reread();
         };
 
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
-    }, [currentViewId, manager]);
+    }, [manager, reread]);
 
     // If the manager performs async loading, refresh once it completes.
     useEffect(() => {
         let cancelled = false
         manager.ready.then(() => {
             if (cancelled) return
-            setPreferences(manager.getPreferences())
-            setViewData(manager.getViewData(currentViewId))
-            setSavedFilters(manager.getSavedFilters(currentViewId))
+            setReadyManager(manager)
+            reread()
         }).catch((err) => {
             // `ready` is expected to handle its own failures; catch here so an
             // unexpected throw surfaces as a logged error rather than an
@@ -57,75 +65,63 @@ export function useUserDataManager(
         return () => {
             cancelled = true
         }
-    }, [currentViewId, manager])
+    }, [manager, reread])
 
-    // Actions that update both state and manager
-    const updatePreferences = useCallback(async (updateFunc: (prev: UserPreferences) => UserPreferences) => {
-        const prefs = await manager.updatePreferences(updateFunc);
-        setPreferences(prefs);
-        return prefs;
-    }, [manager]);
-
-    const setColumnOrder = useCallback(async (viewId: ViewId, order: string[] | null) => {
-        const result = await manager.setColumnOrder(viewId, order);
-        if (viewId === currentViewId) {
-            setViewData(result);
-        }
+    // Every write changes the manager's data, so the values above are read again after it.
+    const rereadAfter = useCallback(async <T,>(write: Promise<T>): Promise<T> => {
+        const result = await write;
+        reread();
         return result;
-    }, [currentViewId, manager]);
+    }, [reread]);
 
-    const setHiddenColumns = useCallback(async (viewId: ViewId, hidden: string[]) => {
-        const result = await manager.setHiddenColumns(viewId, hidden);
-        if (viewId === currentViewId) {
-            setViewData(result)
-        }
-        return result;
-    }, [currentViewId, manager]);
+    const updatePreferences = useCallback(
+        (updateFunc: (prev: UserPreferences) => UserPreferences) => rereadAfter(manager.updatePreferences(updateFunc)),
+        [manager, rereadAfter]
+    );
 
-    const setRowsPerPage = useCallback(async (viewId: ViewId, rowsPerPage: number) => {
-        const result = await manager.setRowsPerPage(viewId, rowsPerPage);
-        if (viewId === currentViewId) {
-            setViewData(result)
-        }
-        return result;
-    }, [currentViewId, manager]);
+    const setColumnOrder = useCallback(
+        (viewId: ViewId, order: string[] | null) => rereadAfter(manager.setColumnOrder(viewId, order)),
+        [manager, rereadAfter]
+    );
 
-    const setSyncFilterStateToUserData = useCallback(async (viewId: ViewId, enabled: boolean) => {
-        const result = await manager.setSyncFilterStateToUserData(viewId, enabled);
-        if (viewId === currentViewId) {
-            setViewData(result)
-        }
-        return result;
-    }, [currentViewId, manager]);
+    const setHiddenColumns = useCallback(
+        (viewId: ViewId, hidden: string[]) => rereadAfter(manager.setHiddenColumns(viewId, hidden)),
+        [manager, rereadAfter]
+    );
 
-    const setPersistedFilterState = useCallback(async (viewId: ViewId, filterState: FilterState | null) => {
-        const result = await manager.setPersistedFilterState(viewId, filterState);
-        if (viewId === currentViewId) {
-            setViewData(result)
-        }
-        return result;
-    }, [currentViewId, manager]);
+    const setRowsPerPage = useCallback(
+        (viewId: ViewId, rowsPerPage: number) => rereadAfter(manager.setRowsPerPage(viewId, rowsPerPage)),
+        [manager, rereadAfter]
+    );
 
-    const createFilter = useCallback(async (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => {
-        await manager.createFilter(filter);
-        setSavedFilters(manager.getSavedFilters(currentViewId))
-    }, [currentViewId, manager]);
+    const setSyncFilterStateToUserData = useCallback(
+        (viewId: ViewId, enabled: boolean) => rereadAfter(manager.setSyncFilterStateToUserData(viewId, enabled)),
+        [manager, rereadAfter]
+    );
 
-    const updateFilter = useCallback(async (viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) => {
-        await manager.updateFilter(viewId, savedFilterId, updates);
-        if (viewId === currentViewId) {
-            setSavedFilters(manager.getSavedFilters(currentViewId))
-        }
-    }, [currentViewId, manager]);
+    const setPersistedFilterState = useCallback(
+        (viewId: ViewId, filterState: FilterState | null) => rereadAfter(manager.setPersistedFilterState(viewId, filterState)),
+        [manager, rereadAfter]
+    );
 
-    const deleteFilter = useCallback(async (viewId: ViewId, savedFilterId: SavedFilterId) => {
-        await manager.deleteFilter(viewId, savedFilterId)
-        if (viewId === currentViewId) {
-            setSavedFilters(manager.getSavedFilters(currentViewId))
-        }
-    }, [currentViewId, manager]);
+    const createFilter = useCallback(
+        (filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>) => rereadAfter(manager.createFilter(filter)),
+        [manager, rereadAfter]
+    );
+
+    const updateFilter = useCallback(
+        (viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>) =>
+            rereadAfter(manager.updateFilter(viewId, savedFilterId, updates)),
+        [manager, rereadAfter]
+    );
+
+    const deleteFilter = useCallback(
+        (viewId: ViewId, savedFilterId: SavedFilterId) => rereadAfter(manager.deleteFilter(viewId, savedFilterId)),
+        [manager, rereadAfter]
+    );
 
     return {
+        isReady,
         preferences,
         viewData,
         savedFilters,

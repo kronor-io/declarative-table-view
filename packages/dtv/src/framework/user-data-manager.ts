@@ -1,12 +1,17 @@
 import { FilterGroups } from './filters';
 import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
-import { defaultUserData, defaultViewData, fromUserDataJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData } from './user-data';
+import { defaultUserData, defaultViewData, fromUserDataJson, mergeViewsJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData, ViewDataJson } from './user-data';
 import { applyUserDataMigrations, userDataMigrationErrorToMessage } from './user-data.migrations';
 import { ViewId } from './view';
 import type { ShowToastFn } from './toast'
-import { externalLoadFailed, externalSaveFailed, UserDataManagerError, userDataManagerErrorToToast } from './user-data-errors'
+import { errorMessage, externalLoadFailed, externalSaveFailed, localStorageFailed, UserDataManagerError, userDataManagerErrorToToast, userDataStorageErrorToMessage } from './user-data-errors'
 import { Result } from './result'
+import { createSerialQueue } from './serial-queue'
+import { cachedValue } from './cached-value'
+import { readUserDataJson, USER_DATA_LOCALSTORAGE_KEY, writeUserDataJson, type UserDataStorageError } from './user-data-storage'
+
+export { USER_DATA_LOCALSTORAGE_KEY }
 
 export interface UserDataManager {
     /**
@@ -14,6 +19,12 @@ export interface UserDataManager {
      * Useful for callers that need to await remote/user-provided hydration.
      */
     ready: Promise<void>
+
+    /**
+     * Re-reads the user data another tab wrote to localStorage, so this tab works from
+     * that revision and content. Meant for a `storage` event listener.
+     */
+    refreshFromLocalStorage(): void
 
     getPreferences(): UserPreferences
     updatePreferences(updateFunc: (prev: UserPreferences) => UserPreferences): Promise<UserPreferences>
@@ -32,8 +43,6 @@ export interface UserDataManager {
     updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<void>
     deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<void>
 }
-
-export const USER_DATA_LOCALSTORAGE_KEY = 'dtvUserData'
 
 // External callback errors are handled by showing toasts; we do not rethrow.
 
@@ -63,187 +72,338 @@ export type UserDataManagerOptions = {
     showToast: ShowToastFn
 }
 
+/** The remote's copy of the user data, parsed and as received. */
+type RemoteCopy = { userData: UserData; json: UserDataJson }
+
+/** Where and how a write goes. */
+type Persist = {
+    /** Give the data a revision above everything known here. */
+    bumpRevision: boolean
+    /** Send the data to the remote as well as to localStorage. */
+    remote: boolean
+    /**
+     * Views of a newer copy the data was derived from. Views this manager has no schema for
+     * are carried along from here, and otherwise from what localStorage holds.
+     */
+    baseViews?: Record<ViewId, ViewDataJson> | null
+}
+
 export function createUserDataManager(
     filterGroupsByViewId: Record<ViewId, FilterGroups>,
     options: UserDataManagerOptions
 ): UserDataManager {
+    const parse = (json: UserDataJson): UserData => fromUserDataJson(json, filterGroupsByViewId)
+    const serialize = (userData: UserData): UserDataJson => toUserDataJson(userData, filterGroupsByViewId)
 
-    let cachedUserData: UserData | null = null
+    // Parsing hydrates every view's filter state against the current schemas, so a
+    // malformed payload throws. Contained here so one bad payload does not take down all
+    // user data (saved filters, column order, rows per page) with it.
+    function parseStored(json: UserDataJson): Result<UserDataStorageError, UserData> {
+        try {
+            return Result.success(parse(json))
+        } catch (err) {
+            return Result.failure({ kind: 'malformed', cause: err })
+        }
+    }
 
-    async function notifySavedJson(nextUserDataJson: UserDataJson): Promise<Result<string, void>> {
+    /** What localStorage holds, for the merges and revisions below. */
+    const storedUserDataJson = (): UserDataJson | null => Result.getOrElse(null, readUserDataJson())
+
+    /** The user data in localStorage; defaults when there is none or it cannot be read. */
+    function readLocalUserData(): UserData {
+        const stored = Result.flatMap(
+            json => json === null ? Result.success(null) : parseStored(json),
+            readUserDataJson()
+        )
+        return Result.match({
+            whenError: (error) => {
+                console.error('Failed to read user data:', userDataStorageErrorToMessage(error), error.cause)
+                return defaultUserData()
+            },
+            whenSuccess: (userData) => userData ?? defaultUserData()
+        }, stored)
+    }
+
+    /** This tab's copy of the user data, read from localStorage on first use. */
+    const cachedUserData = cachedValue(readLocalUserData)
+
+    // Set when the stored data cannot be migrated to this version. The manager then works
+    // from defaults in memory and leaves both stores alone, so data a newer version wrote is
+    // not replaced by what this version makes of it.
+    let readOnly = false
+
+    /**
+     * Re-reads what another tab wrote to localStorage. A copy with a lower revision than
+     * the cached one is ignored: it can only come from a writer that did not see this tab's
+     * latest write, and adopting it would roll that write back.
+     */
+    function refreshFromLocalStorage(): void {
+        if (readOnly) return
+        const stored = readLocalUserData()
+        if (stored.revision >= cachedUserData().revision) {
+            cachedUserData.set(stored)
+        }
+    }
+
+    /**
+     * The latest user data this tab can know about: the cached copy, or what another tab
+     * wrote to localStorage since, when that is newer.
+     */
+    function latestUserData(): UserData {
+        refreshFromLocalStorage()
+        return cachedUserData()
+    }
+
+    /* The two stores */
+
+    function writeLocally(json: UserDataJson): Result<UserDataManagerError, void> {
+        return Result.mapFailure(writeUserDataJson(json), localStorageFailed)
+    }
+
+    async function writeRemotely(json: UserDataJson): Promise<Result<UserDataManagerError, void>> {
         if (!options.save) return Result.success(undefined)
-        return options.save({
-            data: nextUserDataJson,
-            showToast: options.showToast,
-            Result: Result
+        try {
+            const saved = await options.save({ data: json, showToast: options.showToast, Result: Result })
+            return Result.mapFailure(saved, externalSaveFailed)
+        } catch (err) {
+            return Result.failure(externalSaveFailed(errorMessage(err), err))
+        }
+    }
+
+    /** The remote's copy; `null` when it holds nothing yet. */
+    async function loadRemote(): Promise<Result<UserDataManagerError, RemoteCopy | null>> {
+        if (!options.load) return Result.success(null)
+        try {
+            const loaded = await options.load({ showToast: options.showToast, Result: Result })
+            return Result.flatMap(
+                json => json === null ? Result.success(null) : parseRemote(json),
+                Result.mapFailure(loaded, externalLoadFailed)
+            )
+        } catch (err) {
+            return Result.failure(externalLoadFailed(errorMessage(err), err))
+        }
+    }
+
+    function parseRemote(json: UserDataJson): Result<UserDataManagerError, RemoteCopy> {
+        return Result.bimap({
+            mapFailure: (error) => {
+                console.error('Failed to read remote user data:', error.cause)
+                return externalLoadFailed('Remote user data could not be read; continuing with locally stored data.', error.cause)
+            },
+            mapSuccess: (userData) => ({ userData, json })
+        }, parseStored(json))
+    }
+
+    async function persist(userData: UserData, how: Persist): Promise<Result<UserDataManagerError, UserData>> {
+        if (readOnly) return Result.success(cachedUserData.set(userData))
+
+        const stored = storedUserDataJson()
+        // A bumped revision is above everything known here, other tabs' writes included.
+        const revision = how.bumpRevision
+            ? Math.max(userData.revision, cachedUserData().revision, stored?.revision ?? 0) + 1
+            : userData.revision
+        const persisted: UserData = { ...userData, revision }
+        const json = serialize(persisted)
+        // Views this manager has no schema for are carried along; see `Persist.baseViews`.
+        const storedJson: UserDataJson = { ...json, views: mergeViewsJson(stored?.views, how.baseViews, json.views) }
+
+        const local = writeLocally(storedJson)
+        cachedUserData.set(persisted)
+        const remote = how.remote ? await writeRemotely(storedJson) : Result.success<void, UserDataManagerError>(undefined)
+        // A remote failure is the one to act on; a local one is reported once the rest went well.
+        return Result.mapResult(() => persisted, Result.isFailure(remote) ? remote : local)
+    }
+
+    function reportFailure(result: Result<UserDataManagerError, unknown>): void {
+        if (Result.isFailure(result)) {
+            options.showToast(userDataManagerErrorToToast(result.error))
+        }
+    }
+
+    /* Initial load: load, choose the source, migrate, persist once. */
+
+    async function synchronize(retryRejectedPush: boolean): Promise<void> {
+        // Without a loader nothing is awaited, so local-only data is migrated and available
+        // synchronously, as soon as the manager is created.
+        const remote = options.load ? await loadRemote() : Result.success<RemoteCopy | null, UserDataManagerError>(null)
+        reportFailure(remote)
+
+        // Read local data only now: another tab may have written while the load was in flight.
+        const local = latestUserData()
+        // The remote copy is the source when it is at least as new (prefer remote on a tie).
+        const remoteCopy = Result.isSuccess(remote) && remote.value !== null && remote.value.userData.revision >= local.revision
+            ? remote.value
+            : null
+        const source = remoteCopy?.userData ?? local
+
+        const migrated = applyUserDataMigrations(source, { filterGroupsByViewId })
+        if (Result.isFailure(migrated)) {
+            console.error('Failed to read user data:', userDataMigrationErrorToMessage(migrated.error), migrated.error)
+            options.showToast({
+                severity: 'error',
+                summary: 'Failed to read user data',
+                detail: userDataMigrationErrorToMessage(migrated.error),
+                life: 5000
+            })
+            readOnly = true
+            cachedUserData.set(defaultUserData())
+            return
+        }
+        const changedByMigration = migrated.value.formatRevision !== source.formatRevision
+
+        // The remote receives the data when it is known to be behind (it holds nothing, or
+        // the local copy is newer) or the migration changed what it holds. After a failed
+        // load it is unknown and left alone. A remote that is up to date is not written to.
+        const how: Persist = {
+            bumpRevision: changedByMigration,
+            remote: Result.isSuccess(remote) && (remoteCopy === null || changedByMigration),
+            baseViews: remoteCopy?.json.views
+        }
+        const persisted = await persist(migrated.value, how)
+        if (Result.isFailure(persisted) && how.remote && retryRejectedPush) {
+            // The remote rejected the push: it moved on while this manager was starting, by
+            // another tab's write or by a write of this tab that was still in flight. Load it
+            // again and settle on what it holds now.
+            return synchronize(false)
+        }
+        // A failed push leaves the data in place: it is valid, only unsynced. Resetting to
+        // defaults would make every later write start from revision 0 and be rejected.
+        reportFailure(persisted)
+    }
+
+    const ready: Promise<void> = synchronize(true)
+
+    // Writes run one at a time, after the initial load, so they reach the remote in order
+    // and a change made during the load is applied to the reconciled data.
+    const writes = createSerialQueue(ready)
+
+    /**
+     * Applies `change` to the latest user data and persists the result. A write the remote
+     * rejects means it holds a revision at or above the one just tried, written by another
+     * tab or device: `change` is applied on top of the remote copy and written once more.
+     * `change` may therefore be applied twice and has to be idempotent. Any other failure
+     * (the remote cannot be reached) leaves the local copy with the change and is reported.
+     */
+    function commitChange(change: (prev: UserData) => UserData): Promise<Result<UserDataManagerError, UserData>> {
+        return writes.enqueue(async () => {
+            const attempt = await persist(change(latestUserData()), { bumpRevision: true, remote: true })
+            if (Result.isSuccess(attempt) || !options.load) return attempt
+
+            const remote = await loadRemote()
+            if (Result.isFailure(remote) || remote.value === null) return attempt
+            // A remote below the revision just tried did not reject it; writing again would not help.
+            if (remote.value.userData.revision < cachedUserData().revision) return attempt
+
+            return persist(change(remote.value.userData), {
+                bumpRevision: true,
+                remote: true,
+                baseViews: remote.value.json.views
+            })
         })
-    }
-
-    function readUserDataJsonFromLocalStorage(): UserDataJson | null {
-        let userDataJsonString: string | null = null
-        try {
-            userDataJsonString = localStorage.getItem(USER_DATA_LOCALSTORAGE_KEY)
-        } catch (err) {
-            console.error('Failed to read localStorage:', err)
-            return null
-        }
-
-        if (userDataJsonString === null) return null
-
-        try {
-            const parsed = JSON.parse(userDataJsonString) as unknown
-            if (!parsed || typeof parsed !== 'object') return null
-            return parsed as UserDataJson
-        } catch (err) {
-            console.error('Failed to parse user data JSON:', err)
-            return null
-        }
-    }
-
-    function loadUserDataWithCache(): UserData {
-
-        function userDataFromStorageOrDefault(): UserData {
-            const existingJson = readUserDataJsonFromLocalStorage()
-            if (existingJson) {
-                try {
-                    return fromUserDataJson(existingJson, filterGroupsByViewId)
-                } catch (err) {
-                    console.error('Failed to read user data:', err)
-                }
-            }
-            return defaultUserData()
-        }
-
-        if (cachedUserData) {
-            return cachedUserData
-        }
-
-        cachedUserData = userDataFromStorageOrDefault()
-        return cachedUserData;
-    }
-
-    async function saveUserData(
-        nextUserData: UserData,
-        saveOptions: {
-            localStorageOnly: boolean
-            bumpRevision: boolean
-        }
-    ): Promise<Result<UserDataManagerError, UserDataJson>> {
-        const bumpRevision = saveOptions.bumpRevision
-
-        const baseRevision = Math.max(cachedUserData?.revision ?? 0, nextUserData.revision)
-        const revision = bumpRevision
-            ? baseRevision + 1
-            : baseRevision
-
-        const persistedUserData: UserData = bumpRevision
-            ? { ...nextUserData, revision }
-            : nextUserData
-
-        // Convert the subset of views (with known schemas) to JSON
-        const nextUserDataJson: UserDataJson = toUserDataJson(persistedUserData, filterGroupsByViewId)
-
-        // Merge existing per-view data from local storage to avoid data loss for unknown views
-        const existingUserDataJson = readUserDataJsonFromLocalStorage()
-        const mergedUserDataJson: UserDataJson = {
-            ...nextUserDataJson,
-            views: {
-                ...(existingUserDataJson?.views ?? {}),
-                ...(nextUserDataJson.views ?? {})
-            }
-        }
-
-        localStorage.setItem(USER_DATA_LOCALSTORAGE_KEY, JSON.stringify(mergedUserDataJson))
-        cachedUserData = persistedUserData
-
-        if (!saveOptions.localStorageOnly) {
-            try {
-                const externalSaveResult = await notifySavedJson(mergedUserDataJson)
-                return Result.bimap(
-                    {
-                        mapFailure: externalSaveFailed,
-                        mapSuccess: () => mergedUserDataJson
-                    },
-                    externalSaveResult
-                )
-            } catch (err) {
-                return Result.failure(externalSaveFailed('' + (err instanceof Error ? err.message : err), err))
-            }
-        }
-
-        return Result.success(mergedUserDataJson)
     }
 
     /* API */
 
     function getPreferences(): UserPreferences {
-        return loadUserDataWithCache().preferences
+        return cachedUserData().preferences
     }
 
     async function updatePreferences(updateFunc: ((prevUserPrefs: UserPreferences) => UserPreferences)): Promise<UserPreferences> {
-        const prevUserData = loadUserDataWithCache()
-        const nextUserPrefs = updateFunc(prevUserData.preferences)
-
-        const nextUserData: UserData = { ...prevUserData, preferences: nextUserPrefs }
-        await saveUserData(nextUserData, { localStorageOnly: false, bumpRevision: true });
-        return nextUserPrefs
+        const result = await commitChange(prevUserData => ({
+            ...prevUserData,
+            preferences: updateFunc(prevUserData.preferences)
+        }))
+        reportFailure(result)
+        return getPreferences()
     }
 
     function getViewData(viewId: ViewId): ViewData {
-        const userData = loadUserDataWithCache()
-        return userData.views[viewId] ?? defaultViewData()
+        return cachedUserData().views[viewId] ?? defaultViewData()
     }
 
-    async function updateViewData(viewId: ViewId, updateFunc: ((prevViewData: ViewData) => ViewData)): Promise<Result<UserDataManagerError, ViewData>> {
-        const prevUserData = loadUserDataWithCache()
-        const prevViewData = prevUserData.views[viewId] ?? defaultViewData()
-        const nextViewData = updateFunc(prevViewData)
-        const nextUserData: UserData = {
+    function updateViewData(viewId: ViewId, updateFunc: ((prevViewData: ViewData) => ViewData)): Promise<Result<UserDataManagerError, ViewData>> {
+        return commitChange(prevUserData => ({
             ...prevUserData,
             views: {
                 ...prevUserData.views,
-                [viewId]: nextViewData
+                [viewId]: updateFunc(prevUserData.views[viewId] ?? defaultViewData())
             }
-        }
-        const saveResult = await saveUserData(nextUserData, { localStorageOnly: false, bumpRevision: true })
-        return Result.mapResult(() => nextViewData, saveResult)
+        })).then(result => Result.mapResult(userData => userData.views[viewId] ?? defaultViewData(), result))
     }
 
-    async function setColumnOrder(viewId: ViewId, columnOrder: string[] | null): Promise<ViewData> {
-        const result = await updateViewData(viewId, (prevViewData) => ({ ...prevViewData, columnOrder }))
-        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    // The setters keep the change locally when the remote write fails, and say so.
+    async function setViewDataField(viewId: ViewId, updateFunc: ((prevViewData: ViewData) => ViewData)): Promise<ViewData> {
+        const result = await updateViewData(viewId, updateFunc)
+        reportFailure(result)
+        return getViewData(viewId)
     }
 
-    async function setHiddenColumns(viewId: ViewId, columns: string[]): Promise<ViewData> {
-        const result = await updateViewData(viewId, (prevViewData) => ({ ...prevViewData, hiddenColumns: columns }))
-        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    function setColumnOrder(viewId: ViewId, columnOrder: string[] | null): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({ ...prevViewData, columnOrder }))
     }
 
-    async function setRowsPerPage(viewId: ViewId, rowsPerPage: number): Promise<ViewData> {
-        const result = await updateViewData(viewId, (prevViewData) => ({ ...prevViewData, rowsPerPage }))
-        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    function setHiddenColumns(viewId: ViewId, columns: string[]): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({ ...prevViewData, hiddenColumns: columns }))
     }
 
-    async function setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData> {
-        const result = await updateViewData(viewId, (prevViewData) => ({
+    function setRowsPerPage(viewId: ViewId, rowsPerPage: number): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({ ...prevViewData, rowsPerPage }))
+    }
+
+    function setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({
             ...prevViewData,
             syncFilterStateToUserData: enabled,
             persistedFilterState: enabled ? prevViewData.persistedFilterState : null
         }))
-        return Result.isFailure(result) ? getViewData(viewId) : result.value
     }
 
-    async function setPersistedFilterState(viewId: ViewId, filterState: FilterState | null): Promise<ViewData> {
-        const result = await updateViewData(viewId, (prevViewData) => ({
-            ...prevViewData,
-            persistedFilterState: filterState
-        }))
-        return Result.isFailure(result) ? getViewData(viewId) : result.value
+    function setPersistedFilterState(viewId: ViewId, filterState: FilterState | null): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({ ...prevViewData, persistedFilterState: filterState }))
     }
+
+    /* Saved filters */
 
     function getSavedFilters(viewId: ViewId): SavedFilter[] {
-        const userData = loadUserDataWithCache()
-        return userData.views[viewId]?.savedFilters ?? []
+        return cachedUserData().views[viewId]?.savedFilters ?? []
+    }
+
+    /** Tells the user how a saved-filter change went; `verb` and `done` as in "save" / "saved". */
+    function reportSavedFilterResult(
+        result: Result<UserDataManagerError, unknown>,
+        filterName: string,
+        { verb, done }: { verb: string; done: string }
+    ): void {
+        Result.match(
+            {
+                whenError: (error) => {
+                    options.showToast({
+                        severity: 'error',
+                        summary: `Failed to ${verb} filter`,
+                        detail: `Failed to ${verb} filter "${filterName}": ${userDataManagerErrorToToast(error).detail}`,
+                        life: 3000
+                    })
+                },
+                whenSuccess: () => {
+                    options.showToast({
+                        severity: 'success',
+                        summary: `Filter ${done}`,
+                        detail: `Filter "${filterName}" has been ${done} successfully`,
+                        life: 3000
+                    })
+                }
+            },
+            result
+        )
+    }
+
+    function reportMissingSavedFilter(savedFilterId: SavedFilterId, verb: string): void {
+        options.showToast({
+            severity: 'error',
+            summary: `Failed to ${verb} filter`,
+            detail: `Filter "${savedFilterId}" does not exist`,
+            life: 3000
+        })
     }
 
     async function createFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): Promise<void> {
@@ -253,232 +413,44 @@ export function createUserDataManager(
             createdAt: new Date(),
             formatRevision: CURRENT_FORMAT_REVISION
         }
-        const updateResult = await updateViewData(savedFilter.view, (prevViewData) => ({
+        const result = await updateViewData(savedFilter.view, prevViewData => ({
             ...prevViewData,
-            savedFilters: [...prevViewData.savedFilters, savedFilter]
+            savedFilters: [...prevViewData.savedFilters.filter(filter => filter.id !== savedFilter.id), savedFilter]
         }))
-
-        Result.match(
-            {
-                whenError: (error) => {
-                    options.showToast({
-                        severity: 'error',
-                        summary: 'Failed to save filter',
-                        detail: `Failed to save filter ${filter.name}": ${userDataManagerErrorToToast(error).detail}`,
-                        life: 3000
-                    })
-                },
-                whenSuccess: () => {
-                    options.showToast({
-                        severity: 'success',
-                        summary: 'Filter saved',
-                        detail: `Filter "${filter.name}" has been saved successfully`,
-                        life: 3000
-                    })
-                }
-            },
-            updateResult
-        )
+        reportSavedFilterResult(result, filter.name, { verb: 'save', done: 'saved' })
     }
 
     async function updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<void> {
         const existingFilter = getSavedFilters(viewId).find(filter => filter.id === savedFilterId)
         if (existingFilter === undefined) {
-            options.showToast({
-                severity: 'error',
-                summary: 'Failed to update filter',
-                detail: `Filter "${savedFilterId}" does not exist`,
-                life: 3000
-            })
+            reportMissingSavedFilter(savedFilterId, 'update')
             return
         }
 
-        const updateResult = await updateViewData(viewId, (prevViewData) => {
-            const index = prevViewData.savedFilters.findIndex(existing => existing.id === savedFilterId)
-            if (index === -1) {
-                return prevViewData
-            }
-
-            const updatedFilter: SavedFilter = {
-                ...prevViewData.savedFilters[index],
-                ...updates
-            }
-
-            const nextSavedFilters = [...prevViewData.savedFilters]
-            nextSavedFilters[index] = updatedFilter
-            return {
-                ...prevViewData,
-                savedFilters: nextSavedFilters
-            }
-        })
-
-        Result.match(
-            {
-                whenError: (error) => {
-                    options.showToast({
-                        severity: 'error',
-                        summary: 'Failed to update filter',
-                        detail: `Failed to update filter ${existingFilter.name}": ${userDataManagerErrorToToast(error).detail}`,
-                        life: 3000
-                    })
-                },
-                whenSuccess: () => {
-                    options.showToast({
-                        severity: 'success',
-                        summary: 'Filter updated',
-                        detail: `Filter "${existingFilter.name}" has been updated successfully`,
-                        life: 3000
-                    })
-                }
-            },
-            updateResult
-        )
+        const result = await updateViewData(viewId, prevViewData => ({
+            ...prevViewData,
+            savedFilters: prevViewData.savedFilters.map(filter => filter.id === savedFilterId ? { ...filter, ...updates } : filter)
+        }))
+        reportSavedFilterResult(result, existingFilter.name, { verb: 'update', done: 'updated' })
     }
 
     async function deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<void> {
         const existingFilter = getSavedFilters(viewId).find(filter => filter.id === savedFilterId)
         if (existingFilter === undefined) {
-            options.showToast({
-                severity: 'error',
-                summary: 'Failed to update filter',
-                detail: `Filter "${savedFilterId}" does not exist`,
-                life: 3000
-            })
+            reportMissingSavedFilter(savedFilterId, 'delete')
             return
         }
 
-        const prevViewData = getViewData(viewId)
-        const nextSavedFilters = prevViewData.savedFilters.filter(filter => filter.id !== savedFilterId)
-        const updateResult = await updateViewData(viewId, (prev) => ({
-            ...prev,
-            savedFilters: nextSavedFilters
+        const result = await updateViewData(viewId, prevViewData => ({
+            ...prevViewData,
+            savedFilters: prevViewData.savedFilters.filter(filter => filter.id !== savedFilterId)
         }))
-
-        Result.match(
-            {
-                whenError: (error) => {
-                    options.showToast({
-                        severity: 'error',
-                        summary: 'Failed to delete filter',
-                        detail: `Failed to delete filter ${existingFilter.name}": ${userDataManagerErrorToToast(error).detail}`,
-                        life: 3000
-                    })
-                },
-                whenSuccess: () => {
-                    options.showToast({
-                        severity: 'success',
-                        summary: 'Filter deleted',
-                        detail: `Filter "${existingFilter.name}" has been deleted successfully`,
-                        life: 3000
-                    })
-                }
-            },
-            updateResult
-        )
+        reportSavedFilterResult(result, existingFilter.name, { verb: 'delete', done: 'deleted' })
     }
-
-    // Prime from localStorage immediately for sync consumers
-    loadUserDataWithCache()
-
-    const ready: Promise<void> = (async () => {
-        const localUserData = loadUserDataWithCache()
-
-        let dataFromLoadCallback: UserDataJson | null = null
-        if (options.load) {
-            try {
-                const result = await options.load({ showToast: options.showToast, Result: Result })
-                if (Result.isFailure(result)) {
-                    options.showToast(userDataManagerErrorToToast(externalLoadFailed(result.error)))
-                } else {
-                    dataFromLoadCallback = result.value
-                }
-            } catch (err) {
-                options.showToast(userDataManagerErrorToToast(externalLoadFailed('' + (err instanceof Error ? err.message : err), err)))
-            }
-        }
-
-        // If no remote data provided (no loader or loader returned null),
-        // pick local then migrate and persist accordingly.
-        if (!dataFromLoadCallback) {
-            const migratedResult = applyUserDataMigrations(localUserData, { filterGroupsByViewId })
-            if (Result.isFailure(migratedResult)) {
-                console.error('Failed to read user data:', userDataMigrationErrorToMessage(migratedResult.error), migratedResult.error)
-                options.showToast({
-                    severity: 'error',
-                    summary: 'Failed to read user data',
-                    detail: userDataMigrationErrorToMessage(migratedResult.error),
-                    life: 5000
-                })
-                cachedUserData = defaultUserData()
-                return
-            }
-
-            const saveUserDataResult = await saveUserData(migratedResult.value, { localStorageOnly: false, bumpRevision: false })
-            if (Result.isFailure(saveUserDataResult)) {
-                options.showToast(userDataManagerErrorToToast(saveUserDataResult.error))
-                cachedUserData = defaultUserData()
-            }
-            return
-        }
-
-        // Parsing hydrates every view's filter state against the current schemas, so a
-        // malformed payload throws. Left uncaught it rejects `ready` and takes down all
-        // user data (saved filters, column order, rows per page) with it, so contain it
-        // here the way the localStorage path already does.
-        let remoteUserData: UserData | null = null
-        try {
-            remoteUserData = fromUserDataJson(dataFromLoadCallback as UserDataJson, filterGroupsByViewId)
-        } catch (err) {
-            console.error('Failed to read remote user data:', err)
-            options.showToast(userDataManagerErrorToToast(externalLoadFailed(
-                'Remote user data could not be read; continuing with locally stored data.',
-                err
-            )))
-        }
-        const remoteUserDataIsUnreadable = remoteUserData === null
-
-        // Choose source with greater or equal revision (prefer remote on tie)
-        const chosenUserDataBeforeMigration = remoteUserData !== null && remoteUserData.revision >= localUserData.revision
-            ? remoteUserData
-            : localUserData
-        const remoteDataIsNewer = chosenUserDataBeforeMigration === remoteUserData
-        const migratedUserDataResult = applyUserDataMigrations(chosenUserDataBeforeMigration, { filterGroupsByViewId })
-        if (Result.isFailure(migratedUserDataResult)) {
-            console.error('Failed to read user data:', userDataMigrationErrorToMessage(migratedUserDataResult.error), migratedUserDataResult.error)
-            options.showToast({
-                severity: 'error',
-                summary: 'Failed to read user data',
-                detail: userDataMigrationErrorToMessage(migratedUserDataResult.error),
-                life: 5000
-            })
-            cachedUserData = defaultUserData()
-            return
-        }
-
-        const migratedUserData = migratedUserDataResult.value
-        const wasChangedByMigration = migratedUserData.formatRevision !== chosenUserDataBeforeMigration.formatRevision
-
-        const saveUserDataResult: Result<UserDataManagerError, UserDataJson> =
-            remoteUserDataIsUnreadable
-                // We could not parse what remote returned; keep working from local data,
-                // but don't push it over the remote copy we failed to read.
-                ? await saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: wasChangedByMigration })
-                : wasChangedByMigration
-                    ? await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: true })
-                    : remoteDataIsNewer
-                        // Remote is authoritative and unchanged by migrations; persist locally only.
-                        ? await saveUserData(migratedUserData, { localStorageOnly: true, bumpRevision: false })
-                        // Local is newer; sync to remote as well.
-                        : await saveUserData(migratedUserData, { localStorageOnly: false, bumpRevision: false })
-
-        if (Result.isFailure(saveUserDataResult)) {
-            options.showToast(userDataManagerErrorToToast(saveUserDataResult.error))
-            cachedUserData = defaultUserData()
-        }
-    })()
 
     return {
         ready,
+        refreshFromLocalStorage,
         getPreferences,
         updatePreferences,
         getViewData,

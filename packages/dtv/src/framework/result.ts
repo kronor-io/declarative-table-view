@@ -60,6 +60,16 @@ export function match<E, T, R>({ whenError: fnE, whenSuccess: fnT }: { whenError
     return isSuccess(value) ? fnT(value.value) : fnE(value.error)
 }
 
+/** Chains a step that can itself fail; a failure short-circuits. */
+export function flatMap<E, A, B>(next: (value: A) => Result<E, B>, value: Result<E, A>): Result<E, B> {
+    return isSuccess(value) ? next(value.value) : value
+}
+
+/** The success value, or `fallback` for a failure. */
+export function getOrElse<E, T>(fallback: T, value: Result<E, T>): T {
+    return isSuccess(value) ? value.value : fallback
+}
+
 export const Result = {
     failure,
     success,
@@ -68,6 +78,8 @@ export const Result = {
     mapResult,
     mapFailure,
     bimap,
+    flatMap,
+    getOrElse,
     unwrapResult,
     match
 } as const

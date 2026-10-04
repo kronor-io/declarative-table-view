@@ -492,9 +492,16 @@ function App({
         if (filterStateHydratedForViewId.current === selectedView.id) return
 
         const persistedFilterState = userDataManager.viewData.persistedFilterState
-        // Nothing to restore yet (e.g. the async remote load is still pending).
-        // Stay unsettled so we can restore once it arrives.
-        if (!persistedFilterState) return
+        if (!persistedFilterState) {
+            // Nothing to restore. While the initial load is pending, stay unsettled so the
+            // state it brings can still be restored. Afterwards settle anyway: a persisted
+            // state that shows up later comes from another tab, and the filters the user
+            // sees here must not change under them.
+            if (userDataManager.isReady) {
+                filterStateHydratedForViewId.current = selectedView.id
+            }
+            return
+        }
 
         filterStateHydratedForViewId.current = selectedView.id
 
@@ -504,7 +511,7 @@ function App({
         setFilterState(persistedFilterState)
         setAppliedFilterState(persistedFilterState)
         triggerRefetch()
-    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, state.appliedFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.viewData.persistedFilterState])
+    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, state.appliedFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.isReady, userDataManager.viewData.persistedFilterState])
 
     useEffect(() => {
         const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
@@ -517,6 +524,13 @@ function App({
         // must not restore a stale snapshot over it.
         filterStateHydratedForViewId.current = selectedView.id
         lastPersistedFilterState.current = state.appliedFilterState
+
+        // Restoring the persisted state above refetches too, as does applying filters
+        // that did not change. Writing the same state back would only bump the user-data
+        // revision, which makes the next write of every other open tab stale.
+        const persistedFilterState = userDataManager.viewData.persistedFilterState
+        if (persistedFilterState && filterStatesEqual(persistedFilterState, state.appliedFilterState)) return
+
         void userDataManager.setPersistedFilterState(selectedView.id, state.appliedFilterState)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [syncFilterStateToUserData, refetchTrigger, state.appliedFilterState]);

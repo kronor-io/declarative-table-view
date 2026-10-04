@@ -155,7 +155,7 @@ describe('user-data manager', () => {
             persistedFilterState: null,
             savedFilters: []
         });
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to parse user data JSON:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to read user data:', expect.stringContaining('not valid JSON'), expect.any(Error));
         consoleSpy.mockRestore();
     });
 
@@ -181,7 +181,7 @@ describe('user-data manager', () => {
             persistedFilterState: null,
             savedFilters: []
         });
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to read localStorage:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to read user data:', expect.stringContaining('not accessible'), expect.any(Error));
         consoleSpy.mockRestore();
     });
 
