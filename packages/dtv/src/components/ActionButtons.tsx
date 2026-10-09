@@ -13,7 +13,7 @@ export interface ActionButtonsProps {
     actions: ActionDefinition[];
     selectedView: View;
     filterState: FilterState;
-    selectedRows: unknown[];
+    selectedRows: readonly unknown[];
     setFilterState: (next: FilterState) => void;
     refetch: () => void;
     applyFilters: () => void;
@@ -36,7 +36,8 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                     const api: ActionAPI = {
                         view: selectedView,
                         filterState,
-                        selectedRows,
+                        // A copy: an action changing it must not change the table's selection
+                        selectedRows: [...selectedRows],
                         setFilterState,
                         refetch,
                         applyFilters,

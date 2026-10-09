@@ -52,15 +52,17 @@ export function useUserDataManager(
     // If the manager performs async loading, refresh once it completes.
     useEffect(() => {
         let cancelled = false
-        manager.ready.then(() => {
-            if (cancelled) return
-            setReadyManager(manager)
-            reread()
-        }).catch((err) => {
+        manager.ready.catch((err) => {
             // `ready` is expected to handle its own failures; catch here so an
             // unexpected throw surfaces as a logged error rather than an
             // unhandled rejection.
             console.error('Failed to load user data:', err)
+        }).then(() => {
+            // Done either way: what is there is all there will be, and tables waiting
+            // for the initial load must not wait forever
+            if (cancelled) return
+            setReadyManager(manager)
+            reread()
         })
         return () => {
             cancelled = true

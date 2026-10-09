@@ -179,10 +179,7 @@ describe('App apiRef', () => {
     });
 
     // Counterpart to the test above: `fetchData`/`refetch` hold the current page,
-    // but applying filters must still send the user back to the first one. The
-    // fetch effect reads the cursor out of pagination state, so it only lands on
-    // page 0 because `setAppliedFilterState` resets pagination before the refetch
-    // trigger fires — this pins that ordering.
+    // but applying filters must still send the user back to the first one.
     it('applying filters from a later page returns to the first page', async () => {
         const container = document.createElement('div');
         document.body.appendChild(container);

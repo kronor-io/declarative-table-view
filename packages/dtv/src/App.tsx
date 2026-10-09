@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GraphQLClient } from 'graphql-request';
 import Table, { type RowExpansionApi } from './components/Table';
@@ -20,9 +20,10 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, FetchDataResult, flattenFieldQueries, getPaginationCursorValue, getPaginationOrderFieldQueries, isAbortError, resolveHeadersMiddleware, type PaginationCursor, type RequestHeaders } from './framework/data';
-import { dataOrderingsEqual, type DataOrdering } from './framework/data-ordering';
-import { buildInitialFormState, filterStatesEqual, FilterState, FormStateInitMode, setFilterStateById, useAppState } from './framework/state';
+import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, flattenFieldQueries, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type RequestHeaders } from './framework/data';
+import type { DataOrdering } from './framework/data-ordering';
+import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilterStateById, useAppState, type AppStateEnv, type Panel } from './framework/state';
+import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
@@ -129,9 +130,56 @@ export type DTVAPI = {
     };
 };
 
-type ActivePanel = 'filters' | 'savedFilters' | 'preferences' | null;
-
 const builtInRuntime: Runtime = nativeRuntime
+
+const DEFAULT_ROWS_PER_PAGE = 20
+// A module constant, so that a table without `rowsPerPageOptions` keeps one identity across renders
+const DEFAULT_ROWS_PER_PAGE_OPTIONS = [20, 50, 100, 200]
+
+// The data query of each view, generated when the view is first fetched
+const dataQueries = new WeakMap<View, string>()
+
+function dataQueryFor(view: View): string {
+    const cached = dataQueries.get(view)
+    if (cached !== undefined) return cached
+
+    const query = generateGraphQLQuery(
+        getViewRootFieldName(view),
+        view.columnDefinitions,
+        view.boolExpType,
+        view.orderByType,
+        view.paginationKey,
+        getViewStaticArgs(view),
+        [
+            ...getPaginationOrderFieldQueries(view),
+            ...(view.rowExpansion?.lazy ? [] : view.rowExpansion?.data ?? [])
+        ]
+    )
+    dataQueries.set(view, query)
+    return query
+}
+
+// The query of each lazily expanded view's row expansion, generated when a row is first expanded
+const lazyRowExpansionQueries = new WeakMap<View, string>()
+
+function lazyRowExpansionQueryFor(view: View): string | null {
+    if (!view.rowExpansion?.lazy) return null
+
+    const cached = lazyRowExpansionQueries.get(view)
+    if (cached !== undefined) return cached
+
+    const query = generateGraphQLQuery(
+        getViewRootFieldName(view),
+        [],
+        view.boolExpType,
+        view.orderByType,
+        view.paginationKey,
+        getViewStaticArgs(view),
+        view.rowExpansion.data
+    )
+    lazyRowExpansionQueries.set(view, query)
+    return query
+}
 
 function App({
     graphqlHost,
@@ -150,7 +198,7 @@ function App({
     rowSelection,
     actions = [],
     rowClassFunction,
-    rowsPerPageOptions = [20, 50, 100, 200],
+    rowsPerPageOptions = DEFAULT_ROWS_PER_PAGE_OPTIONS,
     userData,
     modifyAiFilterPrompt,
     apiRef
@@ -184,27 +232,78 @@ function App({
         }
     }, [views]);
 
-    const {
-        state,
-        selectedView,
-        setSelectedViewId,
-        setFilterState,
-        setAppliedFilterState,
-        commitFilterState,
-        setSearchQuery,
-        setFilterGroupExpanded,
-        setDataRows,
-        setRowsPerPage,
-        setOrdering
-    } = useAppState(views, rowsPerPageOptions, initialFilterStateFromUrl);
+    const viewsById = useMemo(() => new Map(views.map(view => [view.id, view] as const)), [views]);
+
+    // Resolve `requestHeaders` (which may be an async function) before every
+    // request via a client-level middleware, so it covers all requests — table
+    // fetches, lazy row expansion, and suggestion fetchers that use this client
+    // directly. See resolveHeadersMiddleware.
+    const client = useMemo(
+        () => new GraphQLClient(graphqlHost, { requestMiddleware: resolveHeadersMiddleware(requestHeaders) }),
+        [graphqlHost, requestHeaders]
+    );
+
+    const appStateEnv = useMemo((): AppStateEnv => ({
+        filterGroups: viewId => viewsById.get(viewId)?.filterGroups ?? [],
+        rowsPerPageOptions
+    }), [rowsPerPageOptions, viewsById]);
+
+    // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
+    // `userDataManager` is only used by the effects, once rendering is done.
+    const [state, dispatch] = useAppState(
+        appStateEnv,
+        {
+            viewId: views[0].id,
+            rowsPerPage: rowsPerPageOptions[0] ?? DEFAULT_ROWS_PER_PAGE,
+            initialFilterState: initialFilterStateFromUrl
+        },
+        {
+            fetchRows: (query, signal) => {
+                const view = viewsById.get(query.viewId);
+                if (!view) return Promise.reject(new Error(`Unknown view: ${query.viewId}`));
+                return fetchData({
+                    client,
+                    view,
+                    query: dataQueryFor(view),
+                    filterState: query.filters,
+                    rowLimit: query.rowsPerPage,
+                    cursor: query.cursors.at(-1) ?? null,
+                    ordering: query.ordering,
+                    signal
+                });
+            },
+            runCommand: command => {
+                switch (command.tag) {
+                    case 'persistFilterState':
+                        void userDataManager.setPersistedFilterState(command.viewId, command.filters);
+                        return;
+                    case 'persistRowsPerPage':
+                        void userDataManager.setRowsPerPage(command.viewId, command.rowsPerPage);
+                        return;
+                }
+            }
+        }
+    );
+
+    const selectedView = viewsById.get(state.selectedViewId) ?? views[0];
+    const filterState = state.filterState;
+    const appliedFilterState = State.appliedFilterState(state.table);
+    // The rows on screen, and the query they answer
+    const shownPage = State.shownPage(state.table);
+    const shownRows: FetchDataResult = shownPage?.rows ?? noRows;
+    const rowsPerPage = state.rowsPerPage;
+    const activeOrdering = state.orderingByViewId[selectedView.id] ?? null;
+
+    const setSearchQuery = useCallback((searchQuery: string) => dispatch({ tag: 'searchQueryChanged', searchQuery }), [dispatch]);
 
     const filterSchemaById = useMemo(() => new Map<FilterId, FilterSchema>(
-        getAllFilters(state.filterGroups).map(filter => [filter.id, filter])
-    ), [state.filterGroups]);
+        getAllFilters(selectedView.filterGroups).map(filter => [filter.id, filter])
+    ), [selectedView.filterGroups]);
 
     const appliedFilterItems = useMemo(() => {
-        return getFilterStatePillItems(state.appliedFilterState, getAllFilters(state.filterGroups));
-    }, [state.appliedFilterState, state.filterGroups]);
+        if (!appliedFilterState) return [];
+        return getFilterStatePillItems(appliedFilterState, getAllFilters(selectedView.filterGroups));
+    }, [appliedFilterState, selectedView.filterGroups]);
 
     const userDataManagerOptions = useMemo(() => {
         return {
@@ -224,116 +323,54 @@ function App({
         viewData: userDataManager.viewData
     }
 
-    // Resolve `requestHeaders` (which may be an async function) before every
-    // request via a client-level middleware, so it covers all requests — table
-    // fetches, lazy row expansion, and suggestion fetchers that use this client
-    // directly. See resolveHeadersMiddleware.
-    const client = useMemo(
-        () => new GraphQLClient(graphqlHost, { requestMiddleware: resolveHeadersMiddleware(requestHeaders) }),
-        [graphqlHost, requestHeaders]
-    );
-
-    const activeOrdering = state.orderingByViewId[selectedView.id] ?? null;
-    const activeOrderingField = activeOrdering?.field ?? null;
-    const activeOrderingDirection = activeOrdering?.direction ?? null;
-
-    // Memoized GraphQL query generation for the selected view
-    const memoizedQuery = useMemo(() => {
-        const additionalFieldQueries = [
-            ...getPaginationOrderFieldQueries(selectedView),
-            ...(selectedView.rowExpansion?.lazy ? [] : selectedView.rowExpansion?.data ?? [])
-        ];
-
-        return generateGraphQLQuery(
-            getViewRootFieldName(selectedView),
-            selectedView.columnDefinitions,
-            selectedView.boolExpType,
-            selectedView.orderByType,
-            selectedView.paginationKey,
-            getViewStaticArgs(selectedView),
-            additionalFieldQueries
-        );
-    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const memoizedLazyRowExpansionQuery = useMemo(() => {
-        if (!selectedView.rowExpansion?.lazy) {
-            return null;
-        }
-
-        return generateGraphQLQuery(
-            getViewRootFieldName(selectedView),
-            [],
-            selectedView.boolExpType,
-            selectedView.orderByType,
-            selectedView.paginationKey,
-            getViewStaticArgs(selectedView),
-            selectedView.rowExpansion.data
-        );
-    }, [selectedView.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // The user data of the selected view reaches the state as a message. Until it arrives (the
+    // local copy, then the loaded one), the table cannot know its filters. It is sent again
+    // whenever the state waits for it, e.g. after views were switched back and forth at once.
+    const { isReady: isUserDataReady } = userDataManager;
+    const { persistedFilterState, rowsPerPage: persistedRowsPerPage } = userDataManager.viewData;
+    const isAwaitingUserData = state.userData === null;
+    useEffect(() => {
+        dispatch({
+            tag: 'userDataChanged',
+            viewId: selectedView.id,
+            userData: {
+                ready: isUserDataReady,
+                syncFilterState: syncFilterStateToUserData,
+                persistedFilterState,
+                rowsPerPage: persistedRowsPerPage
+            }
+        });
+    }, [dispatch, isAwaitingUserData, isUserDataReady, persistedFilterState, persistedRowsPerPage, selectedView.id, syncFilterStateToUserData]);
 
     const tableRef = useRef<DataTable<any>>(null);
     const toast = useRef<Toast>(null);
-    const [showAIAssistantForm, setShowAIAssistantForm] = useState(false);
-    const [activePanel, setActivePanel] = useState<ActivePanel>(null);
-    const [refetchTrigger, setRefetchTrigger] = useState(0);
-    const [showPopout, setShowPopout] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedRows, setSelectedRows] = useState<unknown[]>([]);
-    const initialSelectedViewId = useRef<View['id'] | undefined>(views[0]?.id)
-    const shouldSkipUserDataHydrationForInitialUrl = useRef(Boolean(initialFilterStateFromUrl))
-    const previousRefetchTrigger = useRef(refetchTrigger)
-    const lastPersistedFilterState = useRef<FilterState | null>(null)
-    const filterStateHydratedForViewId = useRef<View['id'] | null>(null)
-    const showFilterForm = activePanel === 'filters';
-    const showSavedFilterList = activePanel === 'savedFilters';
-    const showPreferencesPanel = activePanel === 'preferences';
+    const showFilterForm = state.activePanel === 'filters';
+    const showSavedFilterList = state.activePanel === 'savedFilters';
+    const showPreferencesPanel = state.activePanel === 'preferences';
 
-    const triggerRefetch = useCallback(() => {
-        setRefetchTrigger(prev => prev + 1);
-    }, []);
+    // Refetches the current page, e.g. after a mutation elsewhere
+    const refresh = useCallback(() => dispatch({ tag: 'refreshRequested' }), [dispatch]);
 
-    const togglePanel = useCallback((panel: Exclude<ActivePanel, null>) => {
-        setActivePanel(prev => prev === panel ? null : panel);
-    }, []);
+    const setFilterState = useCallback((filters: FilterState) => dispatch({ tag: 'draftChanged', filters }), [dispatch]);
 
-    const setFilterFormVisible = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-        setActivePanel(prevActivePanel => {
-            const isVisible = prevActivePanel === 'filters';
-            const nextVisible = typeof value === 'function' ? value(isVisible) : value;
+    const togglePanel = useCallback((panel: Panel) => dispatch({ tag: 'panelToggled', panel }), [dispatch]);
 
-            if (nextVisible) {
-                return 'filters';
-            }
+    const setFilterFormVisible = useCallback((shown: boolean) => dispatch({ tag: 'filterPanelShown', shown }), [dispatch]);
 
-            return isVisible ? null : prevActivePanel;
-        });
-    }, []);
+    const setSelectedRows = useCallback((rows: readonly unknown[]) => dispatch({ tag: 'rowsSelected', rows }), [dispatch]);
 
-    const applyFilterState = useCallback((filterState: FilterState) => {
-        setAppliedFilterState(filterState);
-        triggerRefetch();
-    }, [setAppliedFilterState, triggerRefetch]);
+    const applyFilterState = useCallback((filters: FilterState) => dispatch({ tag: 'filtersApplied', filters }), [dispatch]);
 
     // The `applyFilters` handed to cell renderers, noRowsComponents, row
     // expansion renderers and actions. Runtime code sets a value with
     // `updateFilterById`/`setFilterState` (which only touch the draft filter
-    // state) and then calls `applyFilters`, so this must both promote the draft
-    // to the applied state — reading the latest draft, hence the reducer in
-    // `commitFilterState` rather than a captured `state.filterState` — and
-    // refetch. A bare refetch would re-run the query against the previously
-    // applied filters, leaving the new value populated in the form but not
-    // applied.
-    //
-    // Order matters: the fetch effect keys off `refetchTrigger` and reads
-    // `state.appliedFilterState` through `fetchDataWrapper`'s closure, so the
-    // commit has to be queued before the trigger bump.
-    const applyFilters = useCallback(() => {
-        commitFilterState();
-        triggerRefetch();
-    }, [commitFilterState, triggerRefetch]);
+    // state) and then calls `applyFilters`. Messages are handled in the order
+    // they are sent, so the draft applied is the one just set, not the one this
+    // render captured.
+    const applyFilters = useCallback(() => dispatch({ tag: 'draftApplied' }), [dispatch]);
 
     const dtvApi = useRef<DTVAPI>({
-        fetchData: triggerRefetch,
+        fetchData: refresh,
         rowSelection: {
             reset: () => undefined
         },
@@ -349,7 +386,7 @@ function App({
             setSelectedRows([]);
             resetFn?.();
         };
-    }, []);
+    }, [setSelectedRows]);
 
     const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
         const collapseAll = () => api?.collapseAll();
@@ -362,13 +399,16 @@ function App({
         const filterSchema = filterSchemaById.get(filterId);
         if (!filterSchema) return;
 
+        // Pills show only once filters are applied
+        if (!appliedFilterState) return;
+
         const initialFilterState = buildInitialFormState(filterSchema.expression, FormStateInitMode.Empty);
-        const nextDraftFilterState = setFilterStateById(state.filterState, filterId, initialFilterState);
-        const nextAppliedFilterState = setFilterStateById(state.appliedFilterState, filterId, initialFilterState);
+        const nextDraftFilterState = setFilterStateById(filterState, filterId, initialFilterState);
+        const nextAppliedFilterState = setFilterStateById(appliedFilterState, filterId, initialFilterState);
 
         setFilterState(nextDraftFilterState);
         applyFilterState(nextAppliedFilterState);
-    }, [applyFilterState, filterSchemaById, setFilterState, state.appliedFilterState, state.filterState]);
+    }, [applyFilterState, appliedFilterState, filterSchemaById, filterState, setFilterState]);
 
     const rowSelectionWithInternalHandler = useMemo(() => {
         if (!rowSelection) return undefined;
@@ -379,18 +419,15 @@ function App({
                 rowSelection.onRowSelectionChange?.(rows);
             }
         };
-    }, [rowSelection]);
+    }, [rowSelection, setSelectedRows]);
 
-    // Clear selection when switching views, or if row selection gets disabled.
-    useEffect(() => {
-        setSelectedRows([]);
-    }, [selectedView.id]);
-
+    // Clear the selection if row selection gets disabled. Switching views clears it too
+    // (see `viewSelected`).
     useEffect(() => {
         if ((rowSelection?.rowSelectionType ?? 'none') !== 'multiple') {
             setSelectedRows([]);
         }
-    }, [rowSelection?.rowSelectionType]);
+    }, [rowSelection?.rowSelectionType, setSelectedRows]);
 
     // Expose imperative API to consumers.
     useEffect(() => {
@@ -401,23 +438,17 @@ function App({
         };
     }, [apiRef]);
 
-    // Auto-expand filter panel when user starts typing a search (help discover filters)
-    useEffect(() => {
-        if (state.searchQuery && !showFilterForm) {
-            setFilterFormVisible(true);
-        }
-    }, [setFilterFormVisible, state.searchQuery, showFilterForm]);
 
     // Lock body scroll when popout is open (only in root instance)
     useEffect(() => {
-        if (!isOverlay && showPopout) {
+        if (!isOverlay && state.showPopout) {
             const previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             return () => {
                 document.body.style.overflow = previousOverflow;
             };
         }
-    }, [showPopout, isOverlay]);
+    }, [state.showPopout, isOverlay]);
 
     // Close overlay on ESC key (only applies to overlay instance)
     useEffect(() => {
@@ -431,17 +462,14 @@ function App({
         return () => window.removeEventListener('keydown', handleKey);
     }, [isOverlay, onCloseOverlay]);
 
-    // Pagination derived values
-    const rowsPerPage = state.pagination.rowsPerPage;
-    const hasNextPage = state.data.rows.length === rowsPerPage;
-    const hasPrevPage = state.pagination.page > 0;
+    // Pagination of the rows on screen
+    const hasNextPage = State.hasNextPage(state.table);
+    const hasPrevPage = State.hasPreviousPage(state.table);
+    const paginationState = useMemo(() => State.paginationState(state.table, rowsPerPage), [rowsPerPage, state.table]);
 
-    const handleOrderingChange = useCallback((nextOrdering: DataOrdering | null) => {
-        if (dataOrderingsEqual(activeOrdering, nextOrdering)) return;
-
-        setOrdering(selectedView.id, nextOrdering);
-        triggerRefetch();
-    }, [activeOrdering, selectedView.id, setOrdering, triggerRefetch]);
+    const handleOrderingChange = useCallback((ordering: DataOrdering | null) => {
+        dispatch({ tag: 'orderingChanged', ordering });
+    }, [dispatch]);
 
     // If we consumed a URL param and state syncing is off, clear it (once)
     const didHandleInitialUrlParam = useRef(false)
@@ -456,84 +484,19 @@ function App({
         }
     }, [syncFilterStateToUrlWithOverride, initialFilterStateFromUrl]);
 
-    // Persist current filter state only when filters are applied (refetchTrigger increments)
+    // Keep the applied filter state in the URL. Only applying filters changes it, not
+    // editing the draft.
     useEffect(() => {
         if (!syncFilterStateToUrlWithOverride) return;
-        // Only write after an application event (refetchTrigger change), not on every keystroke
-        setFilterInUrl(state.appliedFilterState, selectedView.filterGroups);
-    }, [syncFilterStateToUrlWithOverride, refetchTrigger, state.appliedFilterState, selectedView.filterGroups]);
+        if (!appliedFilterState) return;
+        setFilterInUrl(appliedFilterState, selectedView.filterGroups);
+    }, [syncFilterStateToUrlWithOverride, appliedFilterState, selectedView.filterGroups]);
 
     // If URL syncing is disabled via preferences ("No"), immediately clear any existing URL state.
     useEffect(() => {
         if (syncFilterStateToUrlWithOverride) return;
         clearFilterFromUrl();
     }, [syncFilterStateToUrlWithOverride]);
-
-    // Restore persisted filter state at most once per view selection. Background
-    // user-data updates (manager re-creation on a new `views` reference, the async
-    // remote load resolving, or a cross-tab storage event) all push a fresh
-    // `viewData.persistedFilterState` through this effect. Re-applying it every
-    // time races with a filter the user is actively working with: an in-flight
-    // remote reload returning a stale snapshot would clobber the just-applied
-    // filter and fire extra GraphQL requests (the reported "filter → empty →
-    // filter" flicker). Settling once per view removes that race.
-    useEffect(() => {
-        if (!syncFilterStateToUserData) return
-
-        if (shouldSkipUserDataHydrationForInitialUrl.current && selectedView.id === initialSelectedViewId.current) {
-            shouldSkipUserDataHydrationForInitialUrl.current = false
-            filterStateHydratedForViewId.current = selectedView.id
-            return
-        }
-
-        // Already settled for this view — either restored below on an earlier run,
-        // or the user applied a filter (see the persistence effect). Never
-        // overwrite the live filter state from a background user-data update.
-        if (filterStateHydratedForViewId.current === selectedView.id) return
-
-        const persistedFilterState = userDataManager.viewData.persistedFilterState
-        if (!persistedFilterState) {
-            // Nothing to restore. While the initial load is pending, stay unsettled so the
-            // state it brings can still be restored. Afterwards settle anyway: a persisted
-            // state that shows up later comes from another tab, and the filters the user
-            // sees here must not change under them.
-            if (userDataManager.isReady) {
-                filterStateHydratedForViewId.current = selectedView.id
-            }
-            return
-        }
-
-        filterStateHydratedForViewId.current = selectedView.id
-
-        if (persistedFilterState === lastPersistedFilterState.current) return
-        if (filterStatesEqual(persistedFilterState, state.appliedFilterState)) return
-
-        setFilterState(persistedFilterState)
-        setAppliedFilterState(persistedFilterState)
-        triggerRefetch()
-    }, [selectedView.id, selectedView.filterGroups, setAppliedFilterState, setFilterState, state.appliedFilterState, syncFilterStateToUserData, triggerRefetch, userDataManager.isReady, userDataManager.viewData.persistedFilterState])
-
-    useEffect(() => {
-        const didApplyFilters = previousRefetchTrigger.current !== refetchTrigger
-        previousRefetchTrigger.current = refetchTrigger
-
-        if (!syncFilterStateToUserData) return;
-        if (!didApplyFilters) return;
-        // The user has established filter state for this view; a background
-        // user-data reload (e.g. the async remote load resolving just after)
-        // must not restore a stale snapshot over it.
-        filterStateHydratedForViewId.current = selectedView.id
-        lastPersistedFilterState.current = state.appliedFilterState
-
-        // Restoring the persisted state above refetches too, as does applying filters
-        // that did not change. Writing the same state back would only bump the user-data
-        // revision, which makes the next write of every other open tab stale.
-        const persistedFilterState = userDataManager.viewData.persistedFilterState
-        if (persistedFilterState && filterStatesEqual(persistedFilterState, state.appliedFilterState)) return
-
-        void userDataManager.setPersistedFilterState(selectedView.id, state.appliedFilterState)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [syncFilterStateToUserData, refetchTrigger, state.appliedFilterState]);
 
     useEffect(() => {
         if (syncFilterStateToUserData) return;
@@ -578,7 +541,7 @@ function App({
     // Share current filter state
     const handleShareFilter = async () => {
         try {
-            const shareableUrl = createShareableUrl(state.filterState, selectedView.filterGroups);
+            const shareableUrl = createShareableUrl(filterState, selectedView.filterGroups);
             await copyToClipboard(shareableUrl);
 
             toast.current?.show({
@@ -628,41 +591,19 @@ function App({
         }
     };
 
-    // The data request this table is waiting on. Starting a new one aborts it, so a slow
-    // response can never overwrite a newer one. Each table owns its own: other tables on
-    // the page keep their requests.
-    const inFlightRequestRef = useRef<AbortController | null>(null);
-
-    // Abort the in-flight request on unmount so its response doesn't update a gone table
-    useEffect(() => () => inFlightRequestRef.current?.abort(), []);
-
-    const fetchDataWrapper = useCallback((cursor: PaginationCursor, rowLimit: number): Promise<FetchDataResult> => {
-        inFlightRequestRef.current?.abort();
-        const controller = new AbortController();
-        inFlightRequestRef.current = controller;
-        return fetchData({
-            client,
-            view: selectedView,
-            query: memoizedQuery,
-            filterState: state.appliedFilterState,
-            rowLimit,
-            cursor,
-            ordering: activeOrdering,
-            signal: controller.signal
-        });
-    }, [activeOrdering, client, selectedView, memoizedQuery, state.appliedFilterState]);
-
     const loadLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
         const rowExpansion = selectedView.rowExpansion;
-        if (!rowExpansion?.lazy || !memoizedLazyRowExpansionQuery) {
+        const lazyRowExpansionQuery = lazyRowExpansionQueryFor(selectedView);
+        // The expanded row is one on screen: it is fetched with the query that showed it
+        if (!rowExpansion?.lazy || !lazyRowExpansionQuery || !shownPage) {
             return {};
         }
 
-        const variables = buildGraphQLQueryVariables(selectedView, state.appliedFilterState, 1, null, activeOrdering);
+        const variables = buildGraphQLQueryVariables(selectedView, shownPage.query.filters, 1, null, shownPage.query.ordering);
         const rowKeyCondition = hasuraFilterExpressionToObject(Hasura.condition(selectedView.paginationKey, { _eq: rowKey }));
         const hasBaseConditions = Object.keys(variables.conditions).length > 0;
 
-        const response = await client.request(memoizedLazyRowExpansionQuery, {
+        const response = await client.request(lazyRowExpansionQuery, {
             ...variables,
             conditions: hasBaseConditions
                 ? { _and: [variables.conditions, rowKeyCondition] }
@@ -681,113 +622,17 @@ function App({
         }
 
         return flattenFieldQueries(row as Record<string, unknown>, rowExpansion.data);
-    }, [activeOrdering, client, memoizedLazyRowExpansionQuery, selectedView, state.appliedFilterState]);
-
-    // Apply per-view rowsPerPage from user data (when present)
-    useEffect(() => {
-        const persisted = userDataManager.viewData.rowsPerPage
-        if (typeof persisted !== 'number') return
-        if (rowsPerPageOptions.length > 0 && !rowsPerPageOptions.includes(persisted)) return
-        if (persisted === rowsPerPage) return
-        setRowsPerPage(persisted)
-    }, [rowsPerPage, rowsPerPageOptions, setRowsPerPage, userDataManager.viewData.rowsPerPage])
-
-    // Fetch data when view changes, rowsPerPage changes, or refetch is triggered.
-    //
-    // Refetches the *current* page rather than jumping back to the first one:
-    // `DTVAPI.fetchData` is called after out-of-band mutations (mass actions and
-    // the like) and the user expects to stay where they are. The cursor that
-    // produced the current page is the last entry of `pagination.cursors`
-    // (empty on page 0), mirroring how `handlePrevPage` recovers its cursor.
-    //
-    // Every other trigger of this effect — view change, filter apply, ordering
-    // change, rowsPerPage change — resets pagination in its own reducer before
-    // bumping `refetchTrigger`, so the cursor read here is already null and
-    // those paths still land on page 0. Because we refetch the page we are on,
-    // leaving `setDataRows`'s pagination argument off correctly keeps the
-    // existing page number and cursor history.
-    useEffect(() => {
-        setIsLoading(true);
-        const currentPageCursor = state.pagination.cursors[state.pagination.cursors.length - 1] ?? null;
-        fetchDataWrapper(currentPageCursor, rowsPerPage)
-            .then(dataRows => {
-                setDataRows(dataRows);
-                setIsLoading(false);
-            })
-            .catch(error => {
-                // An aborted request was superseded by a newer one, which owns the
-                // loading state, or the table unmounted: leave everything as it is
-                if (!isAbortError(error)) {
-                    setIsLoading(false);
-                }
-            });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedViewId, refetchTrigger, rowsPerPage, activeOrderingField, activeOrderingDirection]);
+    }, [client, selectedView, shownPage]);
 
     // When filter is loaded, set filter state
     const handleFilterLoad = (filterState: FilterState) => {
         setFilterState(filterState);
     };
 
-    const filterDisplayState = state.filterDisplayState;
+    const handleNextPage = () => dispatch({ tag: 'nextPageRequested' });
+    const handlePrevPage = () => dispatch({ tag: 'previousPageRequested' });
 
-    // Next page handler
-    const handleNextPage = async () => {
-        const cursor = state.data.rows.length > 0 ? state.data.rows[state.data.rows.length - 1] : null
-        let paginationKeyValue: unknown;
-        try {
-            paginationKeyValue = getPaginationCursorValue(cursor, selectedView.paginationKey);
-        } catch (error) {
-            console.error('Invalid cursor type:', cursor, error);
-            return;
-        }
-        if (cursor !== null && typeof paginationKeyValue !== 'string' && typeof paginationKeyValue !== 'number') {
-            console.error('Invalid cursor type:', cursor);
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const newData = await fetchDataWrapper(cursor, rowsPerPage);
-            setDataRows(
-                newData,
-                { page: state.pagination.page + 1, cursors: [...state.pagination.cursors, cursor], rowsPerPage }
-            );
-            setIsLoading(false);
-        } catch (error) {
-            if (!isAbortError(error)) {
-                setIsLoading(false);
-                throw error;
-            }
-        }
-    };
-
-    // Previous page handler
-    const handlePrevPage = async () => {
-        if (state.pagination.page === 0) return;
-        const prevCursors = state.pagination.cursors.slice(0, -1)
-        const prevCursor = prevCursors[prevCursors.length - 1] ?? null;
-        setIsLoading(true);
-        try {
-            const newData = await fetchDataWrapper(prevCursor, rowsPerPage)
-            setDataRows(
-                newData,
-                { page: state.pagination.page - 1, cursors: prevCursors, rowsPerPage }
-            );
-            setIsLoading(false);
-        } catch (error) {
-            if (!isAbortError(error)) {
-                setIsLoading(false);
-                throw error;
-            }
-        }
-    };
-
-    // Rows-per-page change handler: reset pagination; fetch is handled by effect
-    const handleRowsPerPageChange = async (value: number) => {
-        if (value === rowsPerPage) return;
-        setRowsPerPage(value)
-        await userDataManager.setRowsPerPage(selectedView.id, value)
-    };
+    const handleRowsPerPageChange = (value: number) => dispatch({ tag: 'rowsPerPageChanged', rowsPerPage: value });
 
     return (
         <div className='tw:p-2 tw:relative' style={{ height: '100%' }}>  {/* tw:relative is for loading overlay */}
@@ -803,7 +648,7 @@ function App({
                             items: views.map((view: View) => ({
                                 label: view.title,
                                 icon: 'pi pi-table',
-                                command: () => setSelectedViewId(view.id)
+                                command: () => dispatch({ tag: 'viewSelected', viewId: view.id })
                             }))
                         }] : [])
                     ]}
@@ -865,7 +710,7 @@ function App({
                                             if (isOverlay) {
                                                 onCloseOverlay?.();
                                             } else {
-                                                setShowPopout(true);
+                                                dispatch({ tag: 'popoutShown', shown: true });
                                             }
                                         }}
                                     />
@@ -879,15 +724,16 @@ function App({
                             <ActionButtons
                                 actions={actions}
                                 selectedView={selectedView}
-                                filterState={state.filterState}
-                                selectedRows={selectedRows}
+                                filterState={filterState}
+                                selectedRows={state.selectedRows}
                                 setFilterState={setFilterState}
-                                refetch={triggerRefetch}
+                                refetch={refresh}
                                 applyFilters={applyFilters}
                                 showToast={(opts) => toast.current?.show({ ...opts })}
-                                paginationState={state.pagination}
-                                rowsPerPage={rowsPerPage}
-                                ordering={activeOrdering}
+                                paginationState={paginationState}
+                                // What the rows on screen were fetched with, like the cursors
+                                rowsPerPage={shownPage?.query.rowsPerPage ?? rowsPerPage}
+                                ordering={shownPage ? shownPage.query.ordering : activeOrdering}
                                 userData={actionUserData}
                             />
                         </div>
@@ -905,7 +751,7 @@ function App({
                                         size='small'
                                         icon='pi pi-sparkles'
                                         label='AI Filter Assistant'
-                                        onClick={() => setShowAIAssistantForm(v => !v)}
+                                        onClick={() => dispatch({ tag: 'aiAssistantToggled' })}
                                     />
                                 )
                             }
@@ -919,10 +765,10 @@ function App({
                 }
 
                 {
-                    showAIAssistantForm && aiIntegration && (
+                    state.showAIAssistant && aiIntegration && (
                         <div className="tw:mb-6">
                             <AIAssistantForm
-                                filterState={state.filterState}
+                                filterState={filterState}
                                 setFilterState={setFilterState}
                                 selectedView={selectedView}
                                 aiIntegration={aiIntegration}
@@ -941,7 +787,7 @@ function App({
                     onFilterApply={applyFilterState}
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
-                    filterGroups={state.filterGroups}
+                    filterGroups={selectedView.filterGroups}
                 />
 
                 <UserPreferencesPanel
@@ -958,16 +804,16 @@ function App({
                 {
                     showFilterForm && (
                         <FilterForm
-                            filterGroups={state.filterGroups}
-                            filterState={state.filterState}
+                            filterGroups={selectedView.filterGroups}
+                            filterState={filterState}
                             setFilterState={setFilterState}
                             onSaveFilter={handleSaveFilter}
                             onUpdateFilter={handleUpdateFilter}
                             onShareFilter={handleShareFilter}
                             savedFilters={userDataManager.savedFilters}
-                            displayState={filterDisplayState}
+                            displayState={state.filterDisplayState}
                             onFilterGroupExpandedChange={(groupName, expanded) => {
-                                setFilterGroupExpanded(groupName, expanded);
+                                dispatch({ tag: 'filterGroupExpandedChanged', groupName, expanded });
                             }}
                             onSubmit={() => {
                                 // `FilterForm` is fully controlled by
@@ -1001,13 +847,13 @@ function App({
                         columns={selectedView.columnDefinitions}
                         hiddenColumnIds={userDataManager.viewData.hiddenColumns}
                         paginationKey={selectedView.paginationKey}
-                        data={state.data.flattenedRows}
-                        rawRows={state.data.rows}
+                        data={shownRows.flattenedRows}
+                        rawRows={shownRows.rows}
                         rowExpansion={selectedView.rowExpansion}
                         loadLazyRowExpansionData={selectedView.rowExpansion?.lazy ? loadLazyRowExpansionData : undefined}
                         noRowsComponent={selectedView.noRowsComponent}
                         setFilterState={setFilterState}
-                        filterState={state.filterState}
+                        filterState={filterState}
                         applyFilters={applyFilters}
                         rowSelection={rowSelectionWithInternalHandler}
                         rowClassFunction={rowClassFunction}
@@ -1018,23 +864,23 @@ function App({
                     />
                 </div>
                 {
-                    state.data.rows.length > 0 && (
+                    shownRows.rows.length > 0 && (
                         <TablePagination
                             onPageChange={handleNextPage}
                             onPrevPage={handlePrevPage}
                             hasNextPage={hasNextPage}
                             hasPrevPage={hasPrevPage}
-                            currentPage={state.pagination.page}
+                            currentPage={paginationState.page}
                             rowsPerPage={rowsPerPage}
-                            actualRows={state.data.rows.length}
+                            actualRows={shownRows.rows.length}
                             onRowsPerPageChange={handleRowsPerPageChange}
                             rowsPerPageOptions={rowsPerPageOptions}
                         />
                     )
                 }
             </div>
-            {isLoading && <LoadingOverlay message="Loading data…" />}
-            {showPopout && !isOverlay && createPortal(
+            {State.isLoading(state.table) && <LoadingOverlay message="Loading data…" />}
+            {state.showPopout && !isOverlay && createPortal(
                 <div className="tw:fixed tw:inset-0 tw:bg-white tw:overflow-auto tw:z-10">
                     <App
                         graphqlHost={graphqlHost}
@@ -1048,7 +894,7 @@ function App({
                         viewsJson={viewsJson}
                         externalRuntime={externalRuntime}
                         isOverlay={true}
-                        onCloseOverlay={() => setShowPopout(false)}
+                        onCloseOverlay={() => dispatch({ tag: 'popoutShown', shown: false })}
                         syncFilterStateToUrl={syncFilterStateToUrl}
                         rowSelection={rowSelection}
                         rowClassFunction={rowClassFunction}

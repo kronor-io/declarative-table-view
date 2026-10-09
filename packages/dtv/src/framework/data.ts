@@ -303,7 +303,7 @@ export const fetchData = async ({
     } catch (error) {
         // Don't log aborts as they're expected when cancelling requests. Re-throw the
         // signal's AbortError, whatever error the fetch implementation raised, so
-        // fetchDataWrapper's callers can skip response handling.
+        // callers can skip response handling.
         signal?.throwIfAborted();
         console.error('Error fetching data:', error);
         return { rows: [], flattenedRows: [] };

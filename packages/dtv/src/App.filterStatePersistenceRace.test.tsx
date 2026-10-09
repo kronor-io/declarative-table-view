@@ -113,7 +113,8 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1000) {
         if (Date.now() - start > timeoutMs) {
             throw new Error(`Timed out. fetch emails so far: ${JSON.stringify(fetchCalls.map(emailOfFetchCall))}`);
         }
-        await new Promise(r => setTimeout(r, 10));
+        // Inside act: the table's updates while waiting are part of what is awaited
+        await act(async () => { await new Promise(r => setTimeout(r, 10)); });
     }
 }
 

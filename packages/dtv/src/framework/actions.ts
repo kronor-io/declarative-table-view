@@ -24,9 +24,9 @@ export interface ActionAPI {
     /** Current selected rows (simplified/flattened), empty when none selected or selection disabled. */
     selectedRows: unknown[];
     /**
-     * Replace the *draft* filter state (resets pagination). This is what the
-     * filter form edits; it does not affect the query until applied. Follow it
-     * with `applyFilters` to make the new value take effect.
+     * Replace the *draft* filter state. This is what the filter form edits; it
+     * does not affect the query, nor the page the user is on, until applied.
+     * Follow it with `applyFilters` to make the new value take effect.
      */
     setFilterState: (next: FilterState) => void;
     /**

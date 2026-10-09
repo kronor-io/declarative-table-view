@@ -14,7 +14,7 @@ interface AIAssistantFormProps {
     aiIntegration: AIIntegration;
     toast: RefObject<Toast | null>;
     // When AI applies filters, ensure the filter form becomes visible so user can inspect/edit them
-    setShowFilterForm: (value: boolean | ((prev: boolean) => boolean)) => void;
+    setShowFilterForm: (shown: boolean) => void;
 
     /** Optional hook to modify the AI prompt template before it is sent to the AI provider. */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;

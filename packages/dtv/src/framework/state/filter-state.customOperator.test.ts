@@ -2,10 +2,10 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { buildInitialFormState, FormStateInitMode } from './state';
-import { FilterControl } from '../dsl/filterControl';
-import { FilterExpr } from '../dsl/filterExpr';
-import * as FilterValue from './filterValue';
+import { buildInitialFormState, FormStateInitMode } from './filter-state';
+import { FilterControl } from '../../dsl/filterControl';
+import { FilterExpr } from '../../dsl/filterExpr';
+import * as FilterValue from '../filterValue';
 
 describe('buildInitialFormState customOperator handling', () => {
     it('should build initial state object with operator and nested value (valueControl initialValue)', () => {

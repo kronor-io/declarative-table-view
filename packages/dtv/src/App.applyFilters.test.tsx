@@ -154,7 +154,7 @@ describe('App applyFilters', () => {
         expect(fetchDataMock.mock.calls.length).toBeGreaterThan(initialFetchCallCount);
 
         // The refetch must carry the new value, not the previously applied one —
-        // a bare `triggerRefetch` would query with `jane@example.com`.
+        // a bare refresh would query with `jane@example.com`.
         const lastCall = fetchDataMock.mock.calls[fetchDataMock.mock.calls.length - 1];
         expect(JSON.stringify(Array.from(lastCall[0].filterState))).toContain('clicked@example.com');
     });
