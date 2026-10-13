@@ -60,6 +60,11 @@ export const Hasura = {
     nregex: (value: string): HasuraOperator => ({ _nregex: value }),
     iregex: (value: string): HasuraOperator => ({ _iregex: value }),
     niregex: (value: string): HasuraOperator => ({ _niregex: value }),
+    contains: (value: unknown): HasuraOperator => ({ _contains: value }),
+    containedIn: (value: unknown): HasuraOperator => ({ _containedIn: value }),
+    hasKey: (key: string): HasuraOperator => ({ _hasKey: key }),
+    hasKeysAny: (keys: ReadonlyArray<string>): HasuraOperator => ({ _hasKeysAny: keys }),
+    hasKeysAll: (keys: ReadonlyArray<string>): HasuraOperator => ({ _hasKeysAll: keys }),
 } as const;
 
 export function hasuraFilterExpressionToObject(expr: HasuraFilterExpression): HasuraFilterObject {

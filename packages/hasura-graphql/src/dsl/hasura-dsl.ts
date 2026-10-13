@@ -74,6 +74,11 @@ export type HasuraForRow<Row> = {
     nregex: (value: string) => { _nregex: string };
     iregex: (value: string) => { _iregex: string };
     niregex: (value: string) => { _niregex: string };
+    contains: (value: unknown) => { _contains: unknown };
+    containedIn: (value: unknown) => { _containedIn: unknown };
+    hasKey: (key: string) => { _hasKey: string };
+    hasKeysAny: (keys: ReadonlyArray<string>) => { _hasKeysAny: ReadonlyArray<string> };
+    hasKeysAll: (keys: ReadonlyArray<string>) => { _hasKeysAll: ReadonlyArray<string> };
 };
 
 export function hasuraDSLforRowType<Row>(): HasuraForRow<Row>;
@@ -120,5 +125,10 @@ export function hasuraDSLforRowType<Row>(_rowType?: Row): HasuraForRow<Row> {
         nregex: (value: string): { _nregex: string } => ({ _nregex: value }),
         iregex: (value: string): { _iregex: string } => ({ _iregex: value }),
         niregex: (value: string): { _niregex: string } => ({ _niregex: value }),
+        contains: (value: unknown): { _contains: unknown } => ({ _contains: value }),
+        containedIn: (value: unknown): { _containedIn: unknown } => ({ _containedIn: value }),
+        hasKey: (key: string): { _hasKey: string } => ({ _hasKey: key }),
+        hasKeysAny: (keys: ReadonlyArray<string>): { _hasKeysAny: ReadonlyArray<string> } => ({ _hasKeysAny: keys }),
+        hasKeysAll: (keys: ReadonlyArray<string>): { _hasKeysAll: ReadonlyArray<string> } => ({ _hasKeysAll: keys }),
     };
 }

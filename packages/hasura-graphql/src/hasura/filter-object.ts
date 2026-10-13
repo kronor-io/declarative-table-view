@@ -31,13 +31,26 @@ type StringOps<S> = [S] extends [never]
           _niregex?: string;
       };
 
+// Hasura's jsonb operators. A jsonb column has no scalar type to go by: the row typegen gives it as
+// unknown and the GraphQL typegen as any, so a field typed either way gets them, and a scalar or a
+// relationship (filtered with a nested expression instead) does not.
+type JsonbOps<T> = unknown extends T
+    ? {
+          _contains?: unknown;
+          _containedIn?: unknown;
+          _hasKey?: string;
+          _hasKeysAny?: ReadonlyArray<string>;
+          _hasKeysAll?: ReadonlyArray<string>;
+      }
+    : Record<never, never>;
+
 export type HasuraOperatorFor<T> = {
     _eq?: T;
     _neq?: T;
     _in?: InOf<T>;
     _nin?: InOf<T>;
     _isNull?: boolean;
-} & ComparableOps<ComparableOf<T>> & StringOps<StringOf<T>>;
+} & ComparableOps<ComparableOf<T>> & StringOps<StringOf<T>> & JsonbOps<T>;
 
 // Public operator type (normalized internal format). Kept intentionally loose.
 // Historically this was expressed as a union of single-key objects; the object form is equivalent

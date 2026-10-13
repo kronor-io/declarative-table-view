@@ -64,6 +64,26 @@ describe('dsl/hasura row-aware typing', () => {
         expect(true).toBe(true);
     });
 
+    it('offers the jsonb operators on a jsonb field only', () => {
+        // A jsonb column, as the row typegen gives it.
+        type RowWithJson = ExampleRow & { roles: unknown | null };
+        const H = hasuraDSLforRowType(rowType<RowWithJson>());
+
+        H.condition('roles', H.hasKeysAny(['ROLE_ADMIN']));
+        H.condition('roles', H.hasKeysAll(['ROLE_ADMIN', 'ROLE_USER']));
+        H.condition('roles', H.hasKey('ROLE_ADMIN'));
+        H.condition('roles', H.contains({ ROLE_ADMIN: true }));
+        H.condition('roles', H.containedIn({ ROLE_ADMIN: true }));
+
+        // @ts-expect-error a string column has no jsonb operators
+        H.condition('id', H.hasKey('x'));
+
+        // @ts-expect-error a number column has no jsonb operators
+        H.condition('amount', H.contains({}));
+
+        expect(true).toBe(true);
+    });
+
     it('supports scope into array field with AND of inner conditions', () => {
         type NestedExampleRow = Omit<ExampleRow, 'lines'> & {
             lines: Array<{

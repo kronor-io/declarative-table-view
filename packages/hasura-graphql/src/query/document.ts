@@ -130,12 +130,24 @@ export function renderGraphQLLiteral(value: unknown): string {
     if (typeof value === 'object') {
         return `{${
             Object.entries(value as Record<string, unknown>)
-                .map(([key, entryValue]) => `${key}: ${renderGraphQLLiteral(entryValue)}`)
+                .map(([key, entryValue]) => `${renderGraphQLObjectKey(key)}: ${renderGraphQLLiteral(entryValue)}`)
                 .join(', ')
         }}`;
     }
 
     return JSON.stringify(value);
+}
+
+// GraphQL has no quoted form for an object key, so a key that is not a GraphQL name (a jsonb key
+// such as 'ROLE-ADMIN', say) cannot be written inline and has to go through a variable instead.
+function renderGraphQLObjectKey(key: string): string {
+    if (!/^[_A-Za-z][_0-9A-Za-z]*$/.test(key)) {
+        throw new Error(
+            `Cannot render the object key '${key}' inline: it is not a valid GraphQL name. ` +
+            'Pass the value as a variable instead (graphqlVariableReference).'
+        );
+    }
+    return key;
 }
 
 export function graphqlVariableReference(name: string): GraphQLVariableReference {

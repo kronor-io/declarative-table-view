@@ -78,6 +78,47 @@ describe('variables and enums inside a where clause', () => {
     });
 });
 
+describe('jsonb operators inside a where clause', () => {
+    const renderWhere = (where: ReturnType<typeof Hasura.condition>, variables: GraphQLQueryAST['variables'] = []) =>
+        renderGraphQLQuery({
+            operation: 'query',
+            variables,
+            rootField: { field: 'User' },
+            selectionSet: buildSelectionSet([{
+                fieldQuery: arrayQuery({
+                    field: 'accounts',
+                    selectionSet: [valueQuery({ field: 'id' })],
+                    where,
+                }),
+            }]),
+        });
+
+    it('renders a _contains object inline', () => {
+        expect(renderWhere(Hasura.condition('settings', Hasura.contains({ theme: 'dark', flags: { beta: true } }))))
+            .toContain('accounts(where: {settings: {_contains: {theme: "dark", flags: {beta: true}}}})');
+    });
+
+    it('rejects a jsonb key that is not a GraphQL name rather than render a broken query', () => {
+        expect(() => renderWhere(Hasura.condition('roles', Hasura.contains({ 'ROLE-ADMIN': true }))))
+            .toThrow(/'ROLE-ADMIN'.*variable/);
+    });
+
+    it('renders a variable reference as the _contains value', () => {
+        const query = renderWhere(
+            Hasura.condition('roles', Hasura.contains(graphqlVariableReference('roles'))),
+            [{ name: 'roles', type: 'jsonb!' }],
+        );
+
+        expect(query).toContain('query($roles: jsonb!)');
+        expect(query).toContain('accounts(where: {roles: {_contains: $roles}})');
+    });
+
+    it('quotes the keys given to _hasKeysAny, so any key is fine there', () => {
+        expect(renderWhere(Hasura.condition('roles', Hasura.hasKeysAny(['ROLE-ADMIN', 'ROLE_USER']))))
+            .toContain('accounts(where: {roles: {_hasKeysAny: ["ROLE-ADMIN", "ROLE_USER"]}})');
+    });
+});
+
 describe('offset', () => {
     it('renders an offset argument next to limit', () => {
         const query = renderGraphQLQuery({

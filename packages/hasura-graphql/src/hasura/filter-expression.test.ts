@@ -33,6 +33,19 @@ describe('hasuraFilterExpressionToObject', () => {
         expect(hasuraFilterExpressionToObject(expr)).toEqual({ lines: { sku: { _eq: 'X' } } });
     });
 
+    it('compiles the jsonb operators', () => {
+        const expr = Hasura.and(
+            Hasura.condition('roles', Hasura.hasKeysAny(['ROLE_ADMIN', 'ROLE_ACCOUNTANT'])),
+            Hasura.condition('settings', Hasura.contains({ theme: 'dark' })),
+        );
+        expect(hasuraFilterExpressionToObject(expr)).toEqual({
+            _and: [
+                { roles: { _hasKeysAny: ['ROLE_ADMIN', 'ROLE_ACCOUNTANT'] } },
+                { settings: { _contains: { theme: 'dark' } } },
+            ],
+        });
+    });
+
     it('compiles _not', () => {
         expect(hasuraFilterExpressionToObject(Hasura.not(Hasura.condition('id', Hasura.eq(1)))))
             .toEqual({ _not: { id: { _eq: 1 } } });
