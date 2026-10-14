@@ -57,11 +57,21 @@ type MissingAsNull<Row, Key extends keyof Row> =
     : never;
 
 /**
+ * Whether a path can continue past a value: into an object (or `any`, a
+ * json/jsonb column), not into a scalar, whose keys (`length`) are no fields.
+ */
+type CanStepInto<Value> =
+    IsAny<Value> extends true ? true
+    : [Value] extends [Date | ((...args: never[]) => unknown)] ? false
+    : [Value] extends [object] ? true
+    : false;
+
+/**
  * The value a cell gets at a dotted path: the field's own type, plus null when
  * it or an object on the way can be null or missing (`undefined` never reaches
  * the cell, see `readPath` in ./columns). `never` when the path is not on the
- * row; `ThroughList` when it steps into a list; `unknown` on a row with an
- * index signature.
+ * row or steps into a scalar; `ThroughList` when it steps into a list;
+ * `unknown` on a row with an index signature.
  */
 export type ColumnFieldValue<Row, Path extends string, Prefix extends string = ''> =
     string extends keyof Row ? unknown
@@ -69,6 +79,7 @@ export type ColumnFieldValue<Row, Path extends string, Prefix extends string = '
         ? Head extends keyof Row
             ? NonNullable<Row[Head]> extends readonly unknown[]
                 ? ThroughList<`${Prefix}${Head}`>
+                : CanStepInto<NonNullable<Row[Head]>> extends false ? never
                 : ColumnFieldValue<NonNullable<Row[Head]>, Tail, `${Prefix}${Head}.`> extends infer Inner
                     ? [Inner] extends [never] ? never
                     : Inner extends ThroughList<string> ? Inner

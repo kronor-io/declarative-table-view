@@ -243,6 +243,11 @@ describe('dsl/filters row-aware typing', () => {
         >>();
         assertType<Equal<ValidateFilterFieldType<TypedRow, 'amount', number>, unknown>>();
         assertType<Equal<ValidateFilterFieldType<TypedRow, 'payload', number>, unknown>>();
+        assertType<Equal<ValidateFilterFieldType<TypedRow, 'payload.anything', number>, unknown>>();
+        assertType<Equal<
+            ValidateFilterFieldType<TypedRow, 'customer.email.length', number>,
+            DslTypeError<"'customer.email.length' is not a field of the row type">
+        >>();
     });
 
     it('rejects unknown filter fields (including nested paths)', () => {
@@ -276,6 +281,22 @@ describe('dsl/filters row-aware typing', () => {
             label: 'Bad multi',
             // @ts-expect-error multi-field must reference only valid row fields
             expression: FilterExpr.equals({ field: filterField.and('id', 'nope'), control: FilterControl.text() })
+        });
+
+        filter({
+            rowType: rowType<ExampleRow>(),
+            id: 'bad-through-scalar',
+            label: 'Bad through scalar',
+            // @ts-expect-error a string has a length, but no fields to filter on
+            expression: FilterExpr.greaterThan({ field: 'id.length', control: FilterControl.number() })
+        });
+
+        filter({
+            rowType: rowType<ExampleRow>(),
+            id: 'bad-nested-through-scalar',
+            label: 'Bad nested through scalar',
+            // @ts-expect-error a string has a length, but no fields to filter on
+            expression: FilterExpr.greaterThan({ field: 'customer.email.length', control: FilterControl.number() })
         });
     });
 

@@ -139,6 +139,11 @@ describe('dsl/columnTyping fieldColumn', () => {
             ValidateColumnFieldType<ExampleRow, 'lines.sku', string>,
             DslTypeError<"field 'lines.sku' goes through the list 'lines'; select the list instead">
         >>();
+        assertType<Equal<
+            ValidateColumnFieldType<ExampleRow, 'memo.length', number | null>,
+            DslTypeError<"field 'memo.length' is not on the row">
+        >>();
+        assertType<Equal<ColumnFieldValue<ExampleRow, 'createdAt.getTime'>, never>>();
         expect(true).toBe(true);
     });
 

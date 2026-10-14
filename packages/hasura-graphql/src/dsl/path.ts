@@ -58,16 +58,26 @@ type PropValue<Row, Key extends string> =
             : never;
 
 /**
+ * Whether a dotted path may continue past a value: into the values `FieldPath`
+ * recurses into, and into `any` (a json/jsonb column). A string or a number
+ * has keys too (`length`, `toFixed`), but no fields Hasura can filter on.
+ */
+type CanStepInto<T> = 0 extends 1 & T ? true : [ShouldRecurse<T>] extends [true] ? true : false;
+
+/**
  * Resolve the (possibly nullable) value type at a dotted field path.
  *
  * Examples:
  * - PathValue<Row, "id"> => Row["id"]
  * - PathValue<Row, "customer.email"> => Row["customer"]["email"] (with nullables preserved)
  * - Arrays are traversed via their element type.
+ * - PathValue<Row, "id.length"> => never: a path does not step into a scalar.
  */
 export type PathValue<Row, Path extends string> =
     string extends keyof Row
         ? unknown
         : Path extends `${infer Head}.${infer Tail}`
-            ? PathValue<NextPathTarget<PropValue<Row, Head>>, Tail>
+            ? NextPathTarget<PropValue<Row, Head>> extends infer Next
+                ? CanStepInto<Next> extends true ? PathValue<Next, Tail> : never
+                : never
             : PropValue<Row, Path>;
