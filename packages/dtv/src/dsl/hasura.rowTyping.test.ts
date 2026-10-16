@@ -110,4 +110,63 @@ describe('dsl/hasura row-aware typing', () => {
 
         expect(true).toBe(true);
     });
+
+    // Relationships that lead back to their own type, as in a generated schema
+    // (an account's parent account, a business unit's parent unit). With paths
+    // up to 11 segments a single condition on this row took more instantiations
+    // than TypeScript allows (TS2589), whichever path it named.
+    type Account = {
+        id: string;
+        name: string | null;
+        number: string | null;
+        description: string | null;
+        createdAt: string | null;
+        modifiedAt: string | null;
+        currency: string | null;
+        iban: string | null;
+        parent: Account | null;
+        unit: Unit | null;
+    };
+    type Unit = {
+        id: string;
+        name: string | null;
+        code: string | null;
+        description: string | null;
+        createdAt: string | null;
+        modifiedAt: string | null;
+        externalReference: string | null;
+        deletedAt: string | null;
+        parent: Unit | null;
+        owner: Owner | null;
+    };
+    type Owner = {
+        id: string;
+        email: string | null;
+        name: string | null;
+        role: string | null;
+        createdAt: string | null;
+        modifiedAt: string | null;
+        locale: string | null;
+        timezone: string | null;
+        account: Account | null;
+        unit: Unit | null;
+    };
+
+    it('typechecks a condition on a row whose relationships lead back to their own type', () => {
+        const H = hasuraDSLforRowType(rowType<Account>());
+
+        H.condition('id', H.eq('1'));
+        H.condition('parent.unit.owner.email', H.ilike('%@boozt%'));
+        // Six segments is the deepest path a condition takes
+        H.condition('parent.parent.parent.parent.parent.name', H.eq('x'));
+
+        // @ts-expect-error seven segments is beyond what a condition takes
+        H.condition('parent.parent.parent.parent.parent.parent.name', H.eq('x'));
+
+        // A deeper path goes through scope
+        H.scope('parent.parent.parent', Ancestor =>
+            Ancestor.condition('parent.parent.parent.name', Ancestor.eq('x')));
+
+        expect(true).toBe(true);
+    });
 });

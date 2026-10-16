@@ -3,7 +3,17 @@ import type { HasuraFilterExpression } from '../hasura/filter-expression.js';
 import type { HasuraOperatorFor, HasuraComparable } from '../hasura/filter-object.js';
 import type { FieldPath, PathValue } from './path.js';
 
-type OperatorForPath<Row, Path extends FieldPath<Row>> = HasuraOperatorFor<PathValue<Row, Path>>;
+/**
+ * The paths `condition` and `scope` accept: up to 6 segments. TypeScript checks
+ * an operator against every path of this union, not only the one passed, so a
+ * deeper limit makes a condition on a large row with self-references
+ * (`parentAccount.parentAccount…`) exceed its instantiation limit (TS2589); at
+ * the default 10 one such row needed 5M instantiations per condition, at 5 under
+ * 400k. A deeper path goes through `scope`.
+ */
+type ConditionPath<Row> = FieldPath<Row, 5>;
+
+type OperatorForPath<Row, Path extends ConditionPath<Row>> = HasuraOperatorFor<PathValue<Row, Path>>;
 
 type NonNull<T> = Exclude<T, null | undefined>;
 
@@ -24,8 +34,8 @@ type ScopePath<Row> =
     string extends keyof Row
         ? string
         : {
-              [P in FieldPath<Row>]: IsScopeableValue<NonNull<PathValue<Row, P>>> extends true ? P : never;
-          }[FieldPath<Row>];
+              [P in ConditionPath<Row>]: IsScopeableValue<NonNull<PathValue<Row, P>>> extends true ? P : never;
+          }[ConditionPath<Row>];
 
 type ScopeTargetRow<V> =
     V extends readonly (infer E)[]
@@ -47,7 +57,7 @@ export type HasuraForRow<Row> = {
         build: (scoped: HasuraForRow<ScopeTargetRow<PathValue<Row, Path>>>) => HasuraFilterExpression
     ) => HasuraFilterExpression;
     condition: <
-        const Path extends FieldPath<Row>,
+        const Path extends ConditionPath<Row>,
         Op extends OperatorForPath<Row, Path>
     >(
         path: Path,
@@ -101,7 +111,7 @@ export function hasuraDSLforRowType<Row>(_rowType?: Row): HasuraForRow<Row> {
         not: Hasura.not,
         scope,
         condition: <
-            const Path extends FieldPath<Row>,
+            const Path extends ConditionPath<Row>,
             Op extends OperatorForPath<Row, Path>
         >(
             path: Path,
