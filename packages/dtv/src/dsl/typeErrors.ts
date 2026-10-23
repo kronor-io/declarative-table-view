@@ -51,7 +51,8 @@ export type DescribeType<Value> =
     : [Value] extends [number] ? 'number'
     : [Value] extends [boolean] ? 'boolean'
     : [Value] extends [Date] ? 'Date'
-    : [Value] extends [readonly unknown[]] ? 'a list'
+    : [Value] extends [unknown[]] ? 'a list'
+    : [Value] extends [readonly unknown[]] ? 'a readonly list'
     : [Value] extends [object] ? 'an object'
     : 'unknown';
 

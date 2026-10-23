@@ -114,6 +114,19 @@ describe('dsl/columnTyping fieldColumn', () => {
         expect(true).toBe(true);
     });
 
+    it('takes a readonly list where the column renders one, and names readonly in the error where it does not', () => {
+        type Line = { amount: number; };
+        type ReadonlyRow = { lines: ReadonlyArray<Line>; };
+        type MutableRow = { lines: Line[]; };
+        assertType<Equal<ValidateColumnFieldType<ReadonlyRow, 'lines', readonly Line[]>, unknown>>();
+        assertType<Equal<ValidateColumnFieldType<MutableRow, 'lines', readonly Line[]>, unknown>>();
+        assertType<Equal<
+            ValidateColumnFieldType<ReadonlyRow, 'lines', Line[]>,
+            DslTypeError<"field 'lines' holds a readonly list, and this column renders a list">
+        >>();
+        expect(true).toBe(true);
+    });
+
     it('rejects a field holding something else, a field not on the row, and a path through a list', () => {
         // @ts-expect-error name is a string
         accountColumn(rowType<ExampleRow>(), 'name');

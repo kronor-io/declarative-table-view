@@ -64,6 +64,10 @@ const config: DtvTypegenConfig = {
         // jsonb: 'unknown'
     },
 
+    // Optional: emit row fields as `readonly` and lists as `ReadonlyArray` (default false),
+    // so code that changes a row it got from the server does not compile.
+    // immutableTypes: true,
+
     debug: {
         // When true, include original GraphQL type refs as comments
         includeGraphqlTypeComments: false

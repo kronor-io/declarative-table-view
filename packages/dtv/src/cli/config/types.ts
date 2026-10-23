@@ -21,6 +21,9 @@ export type DtvTypegenConfig = {
     /** Optional scalar overrides: GraphQL scalar name -> TS type expression (e.g. "DateTime": "string"). */
     scalars?: Record<string, string>;
 
+    /** Emit row fields as `readonly` and lists as `ReadonlyArray` (default false). */
+    immutableTypes?: boolean;
+
     debug?: {
         /** Include original GraphQL type references as comments in generated output. */
         includeGraphqlTypeComments?: boolean;

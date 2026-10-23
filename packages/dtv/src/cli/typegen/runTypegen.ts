@@ -758,6 +758,7 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
                 '',
                 renderTsFromSchema(reachable, {
                     scalars: config.scalars,
+                    immutableTypes: config.immutableTypes === true,
                     includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
                     exportTypes: false
                 }).trimEnd(),

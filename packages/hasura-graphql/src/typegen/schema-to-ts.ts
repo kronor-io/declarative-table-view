@@ -79,6 +79,11 @@ export function renderTsFromSchema(
          * When false, emit local `type ...` declarations.
          */
         exportTypes?: boolean;
+        /**
+         * When true, emit object fields as `readonly` and lists as `ReadonlyArray`, so code that
+         * changes a row it got from the server does not compile (default false).
+         */
+        immutableTypes?: boolean;
     }
 ): string {
     const scalarMap: Record<string, string> = {
@@ -102,6 +107,10 @@ export function renderTsFromSchema(
         return getNamedType(t).name;
     };
 
+    const immutableTypes = options?.immutableTypes === true;
+    const arrayType = immutableTypes ? 'ReadonlyArray' : 'Array';
+    const fieldPrefix = immutableTypes ? 'readonly ' : '';
+
     const renderTypeRef = (t: GraphQLType): string => {
         if (!isNonNullType(t)) {
             return `${renderTypeRefNonNull(t)} | null`;
@@ -111,7 +120,7 @@ export function renderTsFromSchema(
 
     const renderTypeRefNonNull = (t: GraphQLType): string => {
         if (isNonNullType(t)) return renderTypeRefNonNull(t.ofType);
-        if (isListType(t)) return `Array<${renderTypeRef(t.ofType)}>`;
+        if (isListType(t)) return `${arrayType}<${renderTypeRef(t.ofType)}>`;
 
         const named = getNamedType(t);
         if (isScalarType(named)) {
@@ -160,9 +169,9 @@ export function renderTsFromSchema(
                 const key = safePropKey(field.name);
                 const tsType = renderTypeRef(field.type);
                 if (includeGraphqlTypeComments) {
-                    lines.push(`    ${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
+                    lines.push(`    ${fieldPrefix}${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
                 } else {
-                    lines.push(`    ${key}: ${tsType};`);
+                    lines.push(`    ${fieldPrefix}${key}: ${tsType};`);
                 }
             }
             chunks.push(`${typePrefix} ${typeName} = {`);
@@ -180,9 +189,9 @@ export function renderTsFromSchema(
                 const key = safePropKey(field.name);
                 const tsType = renderTypeRef(field.type);
                 if (includeGraphqlTypeComments) {
-                    lines.push(`    ${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
+                    lines.push(`    ${fieldPrefix}${key}: ${tsType}; // GraphQL: ${renderGraphqlTypeRef(field.type)}`);
                 } else {
-                    lines.push(`    ${key}: ${tsType};`);
+                    lines.push(`    ${fieldPrefix}${key}: ${tsType};`);
                 }
             }
             chunks.push(`${typePrefix} ${typeName} = {`);

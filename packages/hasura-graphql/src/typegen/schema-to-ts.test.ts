@@ -49,4 +49,37 @@ describe('cli/typegen/schemaToTs', () => {
         // Debug comments include original GraphQL type
         expect(tsOut).toContain('// GraphQL: CustomScalar!');
     });
+    it('renders readonly fields and lists when immutableTypes is set', () => {
+        const schema = buildSchema(`
+            type Query {
+                invoices: [Invoice!]!
+            }
+
+            type Invoice {
+                id: ID!
+                lines: [InvoiceLine!]!
+                tags: [String]
+            }
+
+            type InvoiceLine {
+                amount: Int
+            }
+        `);
+
+        const root = schema.getType('Invoice');
+        if (!root || Array.isArray(root)) throw new Error('Missing Invoice type');
+
+        const types = collectReachableTypes(schema, [root as any]);
+        const immutable = renderTsFromSchema(types, { immutableTypes: true, includeGraphqlTypeComments: true });
+        const mutable = renderTsFromSchema(types);
+
+        expect(immutable).toContain('readonly id: string; // GraphQL: ID!');
+        expect(immutable).toContain('readonly lines: ReadonlyArray<InvoiceLine>;');
+        expect(immutable).toContain('readonly tags: ReadonlyArray<string | null> | null;');
+        expect(immutable).toContain('readonly amount: number | null;');
+        expect(immutable).not.toMatch(/[^y]Array</);
+
+        expect(mutable).toContain('lines: Array<InvoiceLine>;');
+        expect(mutable).not.toContain('readonly');
+    });
 });

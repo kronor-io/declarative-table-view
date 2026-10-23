@@ -103,6 +103,10 @@ export async function loadConfig(configPath: string): Promise<DtvTypegenConfig> 
         throw new Error('Config.scalars must be an object when provided');
     }
 
+    if (cfg.immutableTypes !== undefined && typeof cfg.immutableTypes !== 'boolean') {
+        throw new Error('Config.immutableTypes must be a boolean when provided');
+    }
+
     if (cfg.debug !== undefined) {
         if (!isRecord(cfg.debug)) throw new Error('Config.debug must be an object when provided');
         if (cfg.debug.includeGraphqlTypeComments !== undefined && typeof cfg.debug.includeGraphqlTypeComments !== 'boolean') {
