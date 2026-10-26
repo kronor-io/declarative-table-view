@@ -153,6 +153,21 @@ describe('scenarios: user data over the life of a view', () => {
         expect(result.written.views.payments.hiddenColumns).toEqual(['createdAt', 'id']);
     });
 
+    it('a column sorting by another field: its sort is reset, generated; a sort by another column stays', async () => {
+        await snapshotted([filters.text('status')], [columns.of('id'), columns.of('amount')]);
+        await decide(VIEW, columns.of('amount'), columns.of('amount', 'amountMinor'));
+
+        expect((await project.snapshot()).todos).toBe(0);
+        expect(await project.read(`${MIGRATIONS}/v2.ts`)).toContain("m.resetSort('amount')");
+        expect(await project.check()).toEqual({ problems: [], warnings: [] });
+
+        const byAmount = await read({ payments: { definitionRevision: 1, ordering: { field: 'amount', direction: 'DESC' } } });
+        expect(byAmount.written.views.payments.ordering).toBeNull();
+
+        const byId = await read({ payments: { definitionRevision: 1, ordering: { field: 'id', direction: 'DESC' } } });
+        expect(byId.written.views.payments.ordering).toEqual({ field: 'id', direction: 'DESC' });
+    });
+
     it('a filter state shared in a URL for an older revision is migrated too', async () => {
         await snapshotted([filters.text('amt', 'amount')]);
         await changeFilters(filters.text('amount', 'amount'));

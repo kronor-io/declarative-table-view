@@ -22,6 +22,7 @@ interface UserPreferencesPanelProps {
     columnDefinitions: ColumnDefinition[];
     onSetHiddenColumns: (viewId: ViewId, hiddenColumns: string[]) => Promise<ViewData>;
     onSetSyncFilterStateToUserData: (viewId: ViewId, enabled: boolean) => Promise<ViewData>;
+    onSetSyncOrderingToUserData: (viewId: ViewId, enabled: boolean) => Promise<ViewData>;
 }
 
 export default function UserPreferencesPanel({
@@ -32,7 +33,8 @@ export default function UserPreferencesPanel({
     viewData,
     columnDefinitions,
     onSetHiddenColumns,
-    onSetSyncFilterStateToUserData
+    onSetSyncFilterStateToUserData,
+    onSetSyncOrderingToUserData
 }: UserPreferencesPanelProps) {
     const tableColumns: TableColumnDefinition[] = useMemo(() => {
         return columnDefinitions.filter((col): col is TableColumnDefinition => col.type === 'tableColumn');
@@ -112,6 +114,28 @@ export default function UserPreferencesPanel({
                             optionValue="value"
                             onChange={(e) => {
                                 void onSetSyncFilterStateToUserData(currentView.id, e.value === true);
+                            }}
+                            className="tw:min-w-[240px]"
+                        />
+                    </div>
+                </div>
+
+                <div className="tw:flex tw:justify-between tw:items-center tw:gap-3 tw:flex-wrap">
+                    <label className="tw:text-sm tw:text-gray-700 tw:w-[240px] tw:flex-shrink-0">
+                        Persist sorting for this view
+                    </label>
+
+                    <div className="tw:min-w-[240px]">
+                        <Dropdown
+                            value={viewData.syncOrderingToUserData}
+                            options={[
+                                { label: 'No', value: false },
+                                { label: 'Yes', value: true }
+                            ]}
+                            optionLabel="label"
+                            optionValue="value"
+                            onChange={(e) => {
+                                void onSetSyncOrderingToUserData(currentView.id, e.value === true);
                             }}
                             className="tw:min-w-[240px]"
                         />

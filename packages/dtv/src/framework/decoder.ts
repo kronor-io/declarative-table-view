@@ -76,6 +76,15 @@ export function withDefault<T>(decoder: Decoder<T>, fallback: () => T): Decoder<
     }
 }
 
+/** `decoder`'s values that pass `guard`; others fail as not `expected`. */
+export function refine<A, B extends A>(decoder: Decoder<A>, guard: (value: A) => value is B, expected: string): Decoder<B> {
+    return (input, context) => {
+        const decoded = decoder(input, context)
+        if (!Result.isSuccess(decoded)) return decoded
+        return guard(decoded.value) ? Result.success(decoded.value) : fail(context, expected, input)
+    }
+}
+
 export function map<A, B>(decoder: Decoder<A>, f: (value: A) => B): Decoder<B> {
     return (input, context) => Result.mapResult(f, decoder(input, context))
 }

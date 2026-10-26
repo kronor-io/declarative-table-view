@@ -1,4 +1,5 @@
 import { ViewId, type View } from './view';
+import type { DataOrdering } from './data-ordering';
 
 import { decodeSavedFilter, encodeSavedFilter, type SavedFilter } from './saved-filters';
 import { FilterGroups, FilterId } from './filters';
@@ -48,6 +49,8 @@ export interface ViewData {
     columnOrder: string[] | null;
     hiddenColumns: string[];
     rowsPerPage: number | null;
+    syncOrderingToUserData: boolean;
+    ordering: DataOrdering | null;
     syncFilterStateToUserData: boolean;
     persistedFilterState: FilterState | null;
     savedFilters: SavedFilter[];
@@ -68,6 +71,8 @@ export interface ViewDataJson {
     columnOrder: string[] | null;
     hiddenColumns: string[];
     rowsPerPage: number | null;
+    syncOrderingToUserData?: boolean;
+    ordering?: DataOrdering | null;
     syncFilterStateToUserData?: boolean;
     persistedFilterState?: unknown;
     savedFilters: SavedFilterJson[];
@@ -114,6 +119,8 @@ export function defaultViewData(): ViewData {
         columnOrder: null,
         hiddenColumns: [],
         rowsPerPage: null,
+        syncOrderingToUserData: true,
+        ordering: null,
         syncFilterStateToUserData: true,
         persistedFilterState: null,
         savedFilters: []
@@ -205,6 +212,8 @@ export function decodeViewData(viewId: ViewId, stored: UndecodedViewData, filter
             columnOrder: stored.columnOrder,
             hiddenColumns: stored.hiddenColumns,
             rowsPerPage: stored.rowsPerPage,
+            syncOrderingToUserData: stored.syncOrderingToUserData,
+            ordering: stored.ordering,
             syncFilterStateToUserData: stored.syncFilterStateToUserData,
             persistedFilterState: persisted?.state ?? null,
             savedFilters: savedFilters.map(decoded => decoded.savedFilter)
@@ -218,6 +227,8 @@ export function encodeViewData(viewData: ViewData, filterGroups: FilterGroups, d
         columnOrder: viewData.columnOrder,
         hiddenColumns: viewData.hiddenColumns,
         rowsPerPage: viewData.rowsPerPage,
+        syncOrderingToUserData: viewData.syncOrderingToUserData,
+        ordering: viewData.ordering,
         syncFilterStateToUserData: viewData.syncFilterStateToUserData,
         persistedFilterState: viewData.persistedFilterState
             ? encodeFilterState(viewData.persistedFilterState, filterGroups)

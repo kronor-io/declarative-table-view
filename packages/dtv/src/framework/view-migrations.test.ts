@@ -160,6 +160,21 @@ describe('applying a migration to stored view data', () => {
         expect(migrated.resets).toEqual({ persistedFilterState: ['status'], savedFilters: [{ name: 'Saved', filterIds: ['status'] }] });
     });
 
+    it('resets a stored sort by what a column sorted by, once it sorts by another field or is dropped', () => {
+        const byAmount = { field: 'amount', direction: 'DESC' } as const;
+        const byId = { field: 'id', direction: 'ASC' } as const;
+        expect(applyToViewData(complete, stored({ ordering: byAmount })).data.ordering).toBeNull();
+        expect(applyToViewData(complete, stored({ ordering: byId })).data.ordering).toEqual(byId);
+
+        const withoutAmount: ViewMigration = {
+            from: v1,
+            to: { ...v1, revision: 2, columns: { id: v1.columns.id, old: v1.columns.old } },
+            ops: [{ kind: 'dropColumn', columnId: 'amount' }]
+        };
+        expect(applyToViewData(withoutAmount, stored({ ordering: byAmount })).data.ordering).toBeNull();
+        expect(applyToViewData(withoutAmount, stored({ ordering: byId })).data.ordering).toEqual(byId);
+    });
+
     it('clears values a mapping drops, and operators mapped to nothing', () => {
         const migration = defineMigration(v1, v2, m => [
             m.mapValues('status', value => value === 'VOID' ? DROP : value),

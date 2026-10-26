@@ -1,5 +1,7 @@
+import type { DataOrdering } from './data-ordering'
 import * as D from './decoder'
 import type { Json } from './decoder'
+import { isOrderDirection } from './order-direction'
 import { Result } from './result'
 import type { ViewId } from './view'
 
@@ -42,6 +44,9 @@ export type UndecodedViewData = {
     columnOrder: string[] | null
     hiddenColumns: string[]
     rowsPerPage: number | null
+    syncOrderingToUserData: boolean
+    /** The ordering the user sorted by: a field the view orders by, not a column id. */
+    ordering: DataOrdering | null
     syncFilterStateToUserData: boolean
     persistedFilterState: UndecodedFilterState | null
     savedFilters: UndecodedSavedFilter[]
@@ -84,6 +89,8 @@ export function defaultUndecodedViewData(): UndecodedViewData {
         columnOrder: null,
         hiddenColumns: [],
         rowsPerPage: null,
+        syncOrderingToUserData: true,
+        ordering: null,
         syncFilterStateToUserData: true,
         persistedFilterState: null,
         savedFilters: [],
@@ -122,11 +129,18 @@ export const undecodedSavedFilter: D.Decoder<UndecodedSavedFilter> = D.object({
     state: D.withDefault(undecodedFilterState, () => ({}))
 })
 
+export const dataOrdering: D.Decoder<DataOrdering> = D.object({
+    field: D.string,
+    direction: D.refine(D.string, isOrderDirection, 'an order direction')
+})
+
 /** Lenient field by field: an invalid field falls back to its default. */
 export const undecodedViewData: D.Decoder<UndecodedViewData> = D.object({
     columnOrder: D.withDefault(D.nullable(D.array(D.string)), () => null),
     hiddenColumns: D.withDefault(D.array(D.string), () => []),
     rowsPerPage: D.withDefault(D.nullable(D.number), () => null),
+    syncOrderingToUserData: D.withDefault(D.boolean, () => true),
+    ordering: D.withDefault(D.nullable(dataOrdering), () => null),
     syncFilterStateToUserData: D.withDefault(D.boolean, () => true),
     persistedFilterState: D.withDefault(D.nullable(undecodedFilterState), () => null),
     savedFilters: D.withDefault(D.arrayDroppingInvalid(undecodedSavedFilter), () => []),

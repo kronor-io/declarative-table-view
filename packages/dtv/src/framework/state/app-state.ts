@@ -26,6 +26,8 @@ export interface ViewUserData {
     readonly syncFilterState: boolean;
     readonly persistedFilterState: FilterState | null;
     readonly rowsPerPage: number | null;
+    readonly syncOrdering: boolean;
+    readonly ordering: DataOrdering | null;
 }
 
 /** A panel shown below the menu bar; one at a time. */
@@ -58,6 +60,8 @@ export interface AppStateEnv {
     readonly filterGroups: (viewId: ViewId) => FilterGroups;
     /** The rows per page a user may pick; empty allows any. */
     readonly rowsPerPageOptions: readonly number[];
+    /** The fields a view's rows can be ordered by. */
+    readonly orderableFields: (viewId: ViewId) => readonly string[];
 }
 
 export type Msg =
@@ -87,7 +91,8 @@ export type Msg =
 
 export type Command =
     | { readonly tag: 'persistFilterState'; readonly viewId: ViewId; readonly filters: FilterState }
-    | { readonly tag: 'persistRowsPerPage'; readonly viewId: ViewId; readonly rowsPerPage: number };
+    | { readonly tag: 'persistRowsPerPage'; readonly viewId: ViewId; readonly rowsPerPage: number }
+    | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null };
 
 export interface AppStateInit {
     readonly viewId: ViewId;
@@ -128,24 +133,37 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             // the previous one, while the user's newer choice is being written, must not undo it.
             const persisted = persistedRowsPerPage(env, msg.userData);
             const rowsPerPageChanged = state.userData === null || state.userData.rowsPerPage !== msg.userData.rowsPerPage;
+            // The persisted ordering likewise
+            const ordering = persistedOrdering(env, state, msg.userData);
             const next: AppState = {
                 ...state,
                 userData: msg.userData,
-                rowsPerPage: persisted !== null && rowsPerPageChanged ? persisted : state.rowsPerPage
+                rowsPerPage: persisted !== null && rowsPerPageChanged ? persisted : state.rowsPerPage,
+                orderingByViewId: ordering === undefined
+                    ? state.orderingByViewId
+                    : { ...state.orderingByViewId, [state.selectedViewId]: ordering }
             };
+
+            // Persisting the ordering was just turned on: the one on screen is the one to keep
+            const current = next.orderingByViewId[next.selectedViewId] ?? null;
+            const commands: Command[] = state.userData !== null && !state.userData.syncOrdering && msg.userData.syncOrdering
+                && current !== null && !dataOrderingsEqual(current, msg.userData.ordering)
+                ? [{ tag: 'persistOrdering', viewId: next.selectedViewId, ordering: current }]
+                : [];
 
             if (state.table.tag === 'hydrating') {
                 const filters = state.table.initialFilterState ?? hydratedFilterState(env, next.selectedViewId, msg.userData);
-                return [filters ? settle(env, next, filters) : next, []];
+                return [filters ? settle(env, next, filters) : next, commands];
             }
 
             const query = currentQuery(state.table);
-            if (query === null) return [next, []];
+            if (query === null) return [next, commands];
 
             // Settled: a persisted filter state that arrives now comes from another tab, and
-            // the filters on screen must not change under the user. Only rows per page apply.
-            if (next.rowsPerPage === query.rowsPerPage) return [next, []];
-            return [startRequest(next, queryFrom(next, query.filters), shownPage(state.table)), []];
+            // the filters on screen must not change under the user. Only rows per page and the
+            // ordering apply.
+            if (next.rowsPerPage === query.rowsPerPage && dataOrderingsEqual(current, query.ordering)) return [next, commands];
+            return [startRequest(next, queryFrom(next, query.filters), shownPage(state.table)), commands];
         }
 
         case 'viewSelected': {
@@ -209,7 +227,11 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                 ...state,
                 orderingByViewId: { ...state.orderingByViewId, [state.selectedViewId]: msg.ordering }
             };
-            return [restartFromFirstPage(next, state), []];
+            // Until the user data arrives, whether to persist is not known
+            const commands: Command[] = state.userData !== null && state.userData.syncOrdering
+                ? [{ tag: 'persistOrdering', viewId: state.selectedViewId, ordering: msg.ordering }]
+                : [];
+            return [restartFromFirstPage(next, state), commands];
         }
 
         case 'rowsPerPageChanged': {
@@ -293,7 +315,9 @@ function viewUserDataEqual(left: ViewUserData, right: ViewUserData): boolean {
     return left.ready === right.ready
         && left.syncFilterState === right.syncFilterState
         && left.persistedFilterState === right.persistedFilterState
-        && left.rowsPerPage === right.rowsPerPage;
+        && left.rowsPerPage === right.rowsPerPage
+        && left.syncOrdering === right.syncOrdering
+        && dataOrderingsEqual(left.ordering, right.ordering);
 }
 
 function persistedRowsPerPage(env: AppStateEnv, userData: ViewUserData): number | null {
@@ -301,6 +325,21 @@ function persistedRowsPerPage(env: AppStateEnv, userData: ViewUserData): number 
     if (rowsPerPage === null) return null;
     if (env.rowsPerPageOptions.length > 0 && !env.rowsPerPageOptions.includes(rowsPerPage)) return null;
     return rowsPerPage;
+}
+
+/**
+ * The persisted ordering when it is to apply, `undefined` when not. Like rows per page, it
+ * applies when it changes: a re-read that still holds the previous one, while the user's
+ * newer choice is being written, must not undo it. An ordering by a field the view no
+ * longer orders by does not apply. Nothing persisted, the first time the user data arrives,
+ * leaves the ordering the view had before as it is.
+ */
+function persistedOrdering(env: AppStateEnv, state: AppState, userData: ViewUserData): DataOrdering | null | undefined {
+    if (!userData.syncOrdering) return undefined;
+    const { ordering } = userData;
+    if (state.userData === null ? ordering === null : dataOrderingsEqual(state.userData.ordering, ordering)) return undefined;
+    if (ordering !== null && !env.orderableFields(state.selectedViewId).includes(ordering.field)) return undefined;
+    return ordering;
 }
 
 /**

@@ -55,6 +55,8 @@ describe('user data decoded up to the views', () => {
                     columnOrder: null,
                     hiddenColumns: ['h'],
                     rowsPerPage: null,
+                    syncOrderingToUserData: true,
+                    ordering: null,
                     syncFilterStateToUserData: true,
                     persistedFilterState: null,
                     definitionRevision: 1,

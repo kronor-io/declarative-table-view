@@ -221,6 +221,8 @@ describe('ActionAPI GraphQL helpers', () => {
                 persistedFilterState: null,
                 rowsPerPage: 50,
                 savedFilters: [],
+                syncOrderingToUserData: true,
+                ordering: null,
                 syncFilterStateToUserData: true
             },
         });

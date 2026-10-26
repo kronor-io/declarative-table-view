@@ -25,6 +25,7 @@ import type { DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilterStateById, useAppState, type AppStateEnv, type Panel } from './framework/state';
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
+import { getColumnOrderBy } from './framework/column-definition';
 import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
@@ -259,10 +260,19 @@ function App({
         [graphqlHost, requestHeaders]
     );
 
+    const orderableFieldsByViewId = useMemo(() => new Map(views.map(view => [
+        view.id,
+        view.columnDefinitions.flatMap(column => {
+            const orderBy = column.type === 'tableColumn' ? getColumnOrderBy(column) : undefined;
+            return orderBy === undefined ? [] : [orderBy];
+        })
+    ] as const)), [views]);
+
     const appStateEnv = useMemo((): AppStateEnv => ({
         filterGroups: viewId => viewsById.get(viewId)?.filterGroups ?? [],
-        rowsPerPageOptions
-    }), [rowsPerPageOptions, viewsById]);
+        rowsPerPageOptions,
+        orderableFields: viewId => orderableFieldsByViewId.get(viewId) ?? []
+    }), [orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
 
     // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
     // `userDataManager` is only used by the effects, once rendering is done.
@@ -295,6 +305,9 @@ function App({
                         return;
                     case 'persistRowsPerPage':
                         void userDataManager.setRowsPerPage(command.viewId, command.rowsPerPage);
+                        return;
+                    case 'persistOrdering':
+                        void userDataManager.setOrdering(command.viewId, command.ordering);
                         return;
                 }
             }
@@ -344,7 +357,12 @@ function App({
     // local copy, then the loaded one), the table cannot know its filters. It is sent again
     // whenever the state waits for it, e.g. after views were switched back and forth at once.
     const { isReady: isUserDataReady } = userDataManager;
-    const { persistedFilterState, rowsPerPage: persistedRowsPerPage } = userDataManager.viewData;
+    const {
+        persistedFilterState,
+        rowsPerPage: persistedRowsPerPage,
+        syncOrderingToUserData,
+        ordering: persistedOrdering
+    } = userDataManager.viewData;
     const isAwaitingUserData = state.userData === null;
     useEffect(() => {
         dispatch({
@@ -354,10 +372,12 @@ function App({
                 ready: isUserDataReady,
                 syncFilterState: syncFilterStateToUserData,
                 persistedFilterState,
-                rowsPerPage: persistedRowsPerPage
+                rowsPerPage: persistedRowsPerPage,
+                syncOrdering: syncOrderingToUserData,
+                ordering: persistedOrdering
             }
         });
-    }, [dispatch, isAwaitingUserData, isUserDataReady, persistedFilterState, persistedRowsPerPage, selectedView.id, syncFilterStateToUserData]);
+    }, [dispatch, isAwaitingUserData, isUserDataReady, persistedFilterState, persistedOrdering, persistedRowsPerPage, selectedView.id, syncFilterStateToUserData, syncOrderingToUserData]);
 
     const tableRef = useRef<DataTable<any>>(null);
     const toast = useRef<Toast>(null);
@@ -816,6 +836,7 @@ function App({
                     columnDefinitions={selectedView.columnDefinitions}
                     onSetHiddenColumns={userDataManager.setHiddenColumns}
                     onSetSyncFilterStateToUserData={userDataManager.setSyncFilterStateToUserData}
+                    onSetSyncOrderingToUserData={userDataManager.setSyncOrderingToUserData}
                 />
 
                 {

@@ -50,6 +50,8 @@ describe('user-data serialization', () => {
                     columnOrder: ['c1'],
                     hiddenColumns: ['h1'],
                     rowsPerPage: 50,
+                    syncOrderingToUserData: true,
+                    ordering: { field: 'amount', direction: 'DESC' },
                     syncFilterStateToUserData: true,
                     persistedFilterState: filterState,
                     savedFilters: [
@@ -73,6 +75,7 @@ describe('user-data serialization', () => {
         expect(json.views['view-a'].syncFilterStateToUserData).toBe(true);
         expect(json.views['view-a'].persistedFilterState).toEqual({});
         expect(json.views['view-a'].definitionRevision).toBe(1);
+        expect(json.views['view-a'].ordering).toEqual({ field: 'amount', direction: 'DESC' });
         expect(json.views['view-a'].savedFilters[0].createdAt).toBe('2026-01-02T03:04:05.000Z');
 
         const roundtripped = read(JSON.parse(JSON.stringify(json)), { 'view-a': basicSchema });
@@ -81,6 +84,7 @@ describe('user-data serialization', () => {
         expect(createdAt.toISOString()).toBe('2026-01-02T03:04:05.000Z');
         expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(true);
         expect(roundtripped.views['view-a'].persistedFilterState).toEqual(filterState);
+        expect(roundtripped.views['view-a'].ordering).toEqual({ field: 'amount', direction: 'DESC' });
     });
 
     it('roundtrips closeFilterPanelOnApply when present', () => {
@@ -118,6 +122,22 @@ describe('user-data serialization', () => {
         expect(roundtripped.views['view-a'].syncFilterStateToUserData).toBe(true);
     });
 
+    it('defaults a missing ordering to none, persisted, and an invalid one too', () => {
+        const views = read({
+            preferences: defaultUserPreferences,
+            views: {
+                'view-a': viewJson({}),
+                'view-b': viewJson({ ordering: { field: 'amount', direction: 'sideways' } })
+            },
+            revision: 0,
+            formatRevision: CURRENT_USERDATA_FORMAT_REVISION
+        }, { 'view-a': basicSchema, 'view-b': basicSchema }).views;
+
+        expect(views['view-a'].syncOrderingToUserData).toBe(true);
+        expect(views['view-a'].ordering).toBeNull();
+        expect(views['view-b'].ordering).toBeNull();
+    });
+
     it('preserves explicit opt-out for per-view filter-state persistence', () => {
         const roundtripped = read({
             preferences: defaultUserPreferences,
@@ -143,7 +163,9 @@ describe('user-data serialization', () => {
         expect(Object.keys(data.retainedViews)).toEqual(['other-view']);
 
         const written = encodeUserData(data, { 'view-a': basicSchema });
-        expect(written.views['other-view']).toEqual({ ...otherView, syncFilterStateToUserData: true, persistedFilterState: null });
+        expect(written.views['other-view']).toEqual({
+            ...otherView, syncOrderingToUserData: true, ordering: null, syncFilterStateToUserData: true, persistedFilterState: null
+        });
         expect(JSON.parse(JSON.stringify(written.views['other-view'])).addedByALaterVersion).toEqual({ a: 1 });
     });
 
@@ -176,9 +198,9 @@ describe('user-data serialization', () => {
         }, { 'view-a': basicSchema });
 
         const base = {
-            'view-a': { ...viewJson({ hiddenColumns: ['stale'] }), syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 },
-            'remote-only': { ...viewJson({ hiddenColumns: ['stale'] }), syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 },
-            'local-only': { ...viewJson({ hiddenColumns: ['local'] }), syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 }
+            'view-a': { ...viewJson({ hiddenColumns: ['stale'] }), syncOrderingToUserData: true, ordering: null, syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 },
+            'remote-only': { ...viewJson({ hiddenColumns: ['stale'] }), syncOrderingToUserData: true, ordering: null, syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 },
+            'local-only': { ...viewJson({ hiddenColumns: ['local'] }), syncOrderingToUserData: true, ordering: null, syncFilterStateToUserData: true, persistedFilterState: null, definitionRevision: 1 }
         };
         const written = encodeUserData(data, { 'view-a': basicSchema }, base);
 

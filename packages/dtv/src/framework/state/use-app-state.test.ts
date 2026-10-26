@@ -9,7 +9,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { FetchDataResult } from '../data'
 import { useAppState, type AppState, type AppStateEffects, type AppStateEnv, type Command, type Msg, type Query } from '.'
 
-const env: AppStateEnv = { filterGroups: () => [], rowsPerPageOptions: [] }
+const env: AppStateEnv = { filterGroups: () => [], rowsPerPageOptions: [], orderableFields: () => [] }
 
 const rows = (...ids: number[]): FetchDataResult => ({
     rows: ids.map(id => ({ id })),
@@ -50,7 +50,7 @@ const send = (msg: Msg) => act(async () => { latest.dispatch(msg) })
 const userDataLoaded: Msg = {
     tag: 'userDataChanged',
     viewId: 'payments',
-    userData: { ready: true, syncFilterState: true, persistedFilterState: null, rowsPerPage: null }
+    userData: { ready: true, syncFilterState: true, persistedFilterState: null, rowsPerPage: null, syncOrdering: true, ordering: null }
 }
 
 describe('useAppState', () => {

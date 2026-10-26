@@ -1,6 +1,6 @@
 # View migrations
 
-Users' saved filters, their persisted filter state, hidden columns and shared links are stored
+Users' saved filters, their persisted filter state, hidden columns, sorting and shared links are stored
 against a view's definition: by filter and column ids, and in the shape of each filter's
 expression. When the definition changes, what is stored has to change with it, or it is lost —
 or worse, silently means something else (a reordered date range swaps its bounds; a filter now
@@ -131,7 +131,7 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 | `m.mapValues(id, value => …)` | Stored values change, e.g. renamed enum values. Lists are mapped element by element; return `DROP` to remove one. Users are told about removed values. |
 | `m.mapOperators(id, { old: 'new' \| null })` | Custom operators were removed (checked: every removed one is mapped). `null` clears what used it; users are told. |
 | `m.custom(from, to, state => … \| RESET)` | Anything else; `state` is typed by both snapshots. |
-| `m.renameColumn(from, to)`, `m.dropColumn(id)`, `m.resetSort(id)` | Columns. |
+| `m.renameColumn(from, to)`, `m.dropColumn(id)`, `m.resetSort(id)` | Columns. A stored sort by what a dropped column, or one given `resetSort`, sorted by is reset. |
 
 Ids are checked against the snapshots: `m.reset('amount')` does not compile if v3 has no `amount`.
 

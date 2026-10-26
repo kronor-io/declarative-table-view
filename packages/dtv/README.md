@@ -89,7 +89,7 @@ Core runtime capabilities:
 - Schema-driven column + filter definitions (JSON or TSX view formats).
 - AI assistant to generate filters (`AIAssistantForm`).
 - Cursor-based pagination with Previous / Next navigation.
-- Header-click ordering backed by GraphQL `order_by`, with one removable sortable header at a time.
+- Header-click ordering backed by GraphQL `order_by`, with one removable sortable header at a time. The ordering is kept in the user's data per view, and the view starts from it; users can turn that off per view under preferences ("Persist sorting for this view").
 - Adjustable page size via "Rows per page" selector (10, 20, 50, 100). Changing the page size resets pagination and refetches from the first page.
 - Saved filters (local persistence + shareable URL encoding).
 - Optional CSV export of current page rows.

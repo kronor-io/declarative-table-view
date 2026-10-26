@@ -104,6 +104,7 @@ export const both = (...children: unknown[]) => ({ type: 'and', children });
 export type StoredView = {
     definitionRevision?: number;
     hiddenColumns?: string[];
+    ordering?: { field: string; direction: 'ASC' | 'DESC' } | null;
     persistedFilterState?: Record<string, unknown> | null;
     savedFilters?: Array<{ name: string; state: Record<string, unknown> }>;
 };
@@ -118,6 +119,8 @@ export function storedUserData(views: Record<string, StoredView>, formatRevision
             columnOrder: null,
             hiddenColumns: view.hiddenColumns ?? [],
             rowsPerPage: null,
+            syncOrderingToUserData: true,
+            ordering: view.ordering ?? null,
             syncFilterStateToUserData: true,
             persistedFilterState: (view.persistedFilterState ?? null) as Json,
             savedFilters: (view.savedFilters ?? []).map(saved => ({

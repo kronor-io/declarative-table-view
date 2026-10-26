@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FilterGroups } from './filters';
 import type { SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
+import type { DataOrdering } from './data-ordering';
 import type { UserPreferences } from './user-data';
 import { createUserDataManager, type UserDataManager, type UserDataManagerOptions } from './user-data-manager';
 import { USER_DATA_LOCALSTORAGE_KEY } from './user-data-storage';
@@ -96,6 +97,16 @@ export function useUserDataManager(
         [manager, rereadAfter]
     );
 
+    const setSyncOrderingToUserData = useCallback(
+        (viewId: ViewId, enabled: boolean) => rereadAfter(manager.setSyncOrderingToUserData(viewId, enabled)),
+        [manager, rereadAfter]
+    );
+
+    const setOrdering = useCallback(
+        (viewId: ViewId, ordering: DataOrdering | null) => rereadAfter(manager.setOrdering(viewId, ordering)),
+        [manager, rereadAfter]
+    );
+
     const setSyncFilterStateToUserData = useCallback(
         (viewId: ViewId, enabled: boolean) => rereadAfter(manager.setSyncFilterStateToUserData(viewId, enabled)),
         [manager, rereadAfter]
@@ -131,6 +142,8 @@ export function useUserDataManager(
         setRowsPerPage,
         setColumnOrder,
         setHiddenColumns,
+        setSyncOrderingToUserData,
+        setOrdering,
         setSyncFilterStateToUserData,
         setPersistedFilterState,
         createFilter,

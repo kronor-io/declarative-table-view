@@ -1,6 +1,7 @@
 import { FilterGroups, FilterId } from './filters';
 import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
+import type { DataOrdering } from './data-ordering';
 import {
     decodeUserData,
     defaultUserData,
@@ -49,6 +50,8 @@ export interface UserDataManager {
     setColumnOrder(viewId: ViewId, order: string[] | null): Promise<ViewData>
     setHiddenColumns(viewId: ViewId, hidden: string[] | null): Promise<ViewData>
     setRowsPerPage(viewId: ViewId, rowsPerPage: number): Promise<ViewData>
+    setSyncOrderingToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData>
+    setOrdering(viewId: ViewId, ordering: DataOrdering | null): Promise<ViewData>
     setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData>
     setPersistedFilterState(viewId: ViewId, filterState: FilterState | null): Promise<ViewData>
 
@@ -407,6 +410,18 @@ export function createUserDataManager(
         return setViewDataField(viewId, prevViewData => ({ ...prevViewData, rowsPerPage }))
     }
 
+    function setSyncOrderingToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({
+            ...prevViewData,
+            syncOrderingToUserData: enabled,
+            ordering: enabled ? prevViewData.ordering : null
+        }))
+    }
+
+    function setOrdering(viewId: ViewId, ordering: DataOrdering | null): Promise<ViewData> {
+        return setViewDataField(viewId, prevViewData => ({ ...prevViewData, ordering }))
+    }
+
     function setSyncFilterStateToUserData(viewId: ViewId, enabled: boolean): Promise<ViewData> {
         return setViewDataField(viewId, prevViewData => ({
             ...prevViewData,
@@ -514,6 +529,8 @@ export function createUserDataManager(
         setColumnOrder,
         setHiddenColumns,
         setRowsPerPage,
+        setSyncOrderingToUserData,
+        setOrdering,
         setSyncFilterStateToUserData,
         setPersistedFilterState,
         getSavedFilters,

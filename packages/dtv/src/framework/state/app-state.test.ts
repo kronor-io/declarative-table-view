@@ -11,7 +11,8 @@ import type { ViewId } from '../view'
 
 const env: AppStateEnv = {
     filterGroups: () => [],
-    rowsPerPageOptions: [2, 3, 50]
+    rowsPerPageOptions: [2, 3, 50],
+    orderableFields: () => ['id', 'amount']
 }
 
 const emailFilter = (email: string): FilterState =>
@@ -32,7 +33,10 @@ const options = (overrides: Partial<AppStateInit> = {}): AppStateInit => ({
 const userDataArrives = (overrides: Partial<ViewUserData> = {}, viewId: ViewId = 'payments'): Msg => ({
     tag: 'userDataChanged',
     viewId,
-    userData: { ready: false, syncFilterState: true, persistedFilterState: null, rowsPerPage: null, ...overrides }
+    userData: {
+        ready: false, syncFilterState: true, persistedFilterState: null, rowsPerPage: null, syncOrdering: true, ordering: null,
+        ...overrides
+    }
 })
 
 const loaded = (overrides: Partial<ViewUserData> = {}, viewId?: ViewId) => userDataArrives({ ready: true, ...overrides }, viewId)
@@ -390,6 +394,84 @@ describe('persisting filter state', () => {
         const { commands } = start(userDataArrives({ syncFilterState: false }), { tag: 'filtersApplied', filters: emailFilter('a') })
 
         expect(commands).toEqual([])
+    })
+})
+
+describe('persisting the ordering', () => {
+    const byAmount = { field: 'amount', direction: 'DESC' } as const
+    const byId = { field: 'id', direction: 'ASC' } as const
+
+    it('includes the persisted ordering in the first request', () => {
+        const { requests } = start(userDataArrives(), loaded({ ordering: byAmount }))
+
+        expect(requests.map(r => r.query.ordering)).toEqual([byAmount])
+    })
+
+    it('ignores a persisted ordering by a field the view does not order by', () => {
+        const { requests } = start(loaded({ ordering: { field: 'removed', direction: 'ASC' } }))
+
+        expect(requests.map(r => r.query.ordering)).toEqual([null])
+    })
+
+    it('ignores the persisted ordering when persisting it is off', () => {
+        const { requests } = start(loaded({ syncOrdering: false, ordering: byAmount }))
+
+        expect(requests.map(r => r.query.ordering)).toEqual([null])
+    })
+
+    it('persists the ordering the user picks, removing it too', () => {
+        const { commands } = start(
+            loaded(),
+            answer(rows(1)),
+            { tag: 'orderingChanged', ordering: byAmount },
+            { tag: 'orderingChanged', ordering: null }
+        )
+
+        expect(commands).toEqual([
+            { tag: 'persistOrdering', viewId: 'payments', ordering: byAmount },
+            { tag: 'persistOrdering', viewId: 'payments', ordering: null }
+        ])
+    })
+
+    it('does not persist when persisting is off, nor before the user data arrives', () => {
+        expect(start({ tag: 'orderingChanged', ordering: byAmount }).commands).toEqual([])
+        expect(start(loaded({ syncOrdering: false }), { tag: 'orderingChanged', ordering: byAmount }).commands).toEqual([])
+    })
+
+    it('does not undo an ordering change with a re-read that still holds the previous one', () => {
+        const { model, requests } = start(
+            loaded({ ordering: byAmount }),
+            answer(rows(1)),
+            { tag: 'orderingChanged', ordering: byId },
+            loaded({ ordering: byAmount, persistedFilterState: emailFilter('written') }),
+            loaded({ ordering: byId, persistedFilterState: emailFilter('written') })
+        )
+
+        expect(requests.map(r => r.query.ordering)).toEqual([byAmount, byId])
+        expect(model.orderingByViewId.payments).toEqual(byId)
+    })
+
+    it('applies an ordering another tab persists, from the first page, removing it too', () => {
+        const { requests } = start(
+            loaded(), answer(rows(1, 2)),
+            { tag: 'nextPageRequested' }, answer(rows(3, 4)),
+            loaded({ ordering: byAmount }),
+            answer(rows(1)),
+            loaded({ ordering: null })
+        )
+
+        expect(requests.map(r => [r.query.cursors.length, r.query.ordering])).toEqual([[0, null], [1, null], [0, byAmount], [0, null]])
+    })
+
+    it('persists the ordering on screen when persisting is turned on', () => {
+        const { commands } = start(
+            loaded({ syncOrdering: false }),
+            answer(rows(1)),
+            { tag: 'orderingChanged', ordering: byAmount },
+            loaded({ syncOrdering: true })
+        )
+
+        expect(commands).toEqual([{ tag: 'persistOrdering', viewId: 'payments', ordering: byAmount }])
     })
 })
 

@@ -1,3 +1,4 @@
+import type { DataOrdering } from './data-ordering';
 import type { Json } from './decoder';
 import type { FilterId } from './filters';
 import { BASELINE_DEFINITION_REVISION, defaultUndecodedViewData, type UndecodedFilterFormState, type UndecodedFilterState, type UndecodedFilterValue, type UndecodedViewData } from './user-data-undecoded';
@@ -37,7 +38,7 @@ export type MigrationOp =
     }
     | { readonly kind: 'renameColumn'; readonly from: string; readonly to: string }
     | { readonly kind: 'dropColumn'; readonly columnId: string }
-    /** The column sorts by another field. The stored sort is reset once sorting is persisted. */
+    /** The column sorts by another field: a stored sort by its old field is reset. */
     | { readonly kind: 'resetSort'; readonly columnId: string }
     /** A decision left open by `dtv definitions snapshot`. Fails the check; at runtime it resets `subject` if it is a filter. */
     | { readonly kind: 'todo'; readonly subject: string; readonly message: string }
@@ -294,6 +295,14 @@ function migrateColumnIds(migration: ViewMigration, columnIds: string[]): string
     }, columnIds)
 }
 
+/** The stored ordering, unless it sorts by what a dropped column, or one sorting by another field now, sorted by. */
+function migrateOrdering(migration: ViewMigration, ordering: DataOrdering | null): DataOrdering | null {
+    return migration.ops.reduce<DataOrdering | null>((current, op) => {
+        if (current === null || (op.kind !== 'dropColumn' && op.kind !== 'resetSort')) return current
+        return migration.from.columns[op.columnId]?.orderBy === current.field ? null : current
+    }, ordering)
+}
+
 /** Filters reset by migrations, or that lost stored values to them (`mapValues`, `mapOperators`), where they were stored. */
 export type MigrationResets = {
     persistedFilterState: FilterId[]
@@ -312,6 +321,7 @@ export function applyToViewData(migration: ViewMigration, data: UndecodedViewDat
             ...data,
             columnOrder: data.columnOrder === null ? null : migrateColumnIds(migration, data.columnOrder),
             hiddenColumns: migrateColumnIds(migration, data.hiddenColumns),
+            ordering: migrateOrdering(migration, data.ordering),
             persistedFilterState: persisted?.state ?? null,
             savedFilters: savedFilters.map(({ savedFilter, migrated }) => ({ ...savedFilter, state: migrated.state })),
             definitionRevision: migration.to.revision
