@@ -16,7 +16,7 @@ import type { DslTypeError } from './typeErrors';
  * a `todo`. Every operation is checked against the two snapshots it migrates between: ids
  * have to exist in the right snapshot, renamed filters have to keep their shape, and so on.
  *
- *     export default defineMigration(v3, v4, m => [
+ *     export default defineMigration(rev3, rev4, m => [
  *         m.renameFilter('amt', 'amount'),
  *         m.keep('createdAt', { because: 'the GraphQL field was renamed; same values' }),
  *         m.mapOperators('reference', { _like: '_ilike' }),

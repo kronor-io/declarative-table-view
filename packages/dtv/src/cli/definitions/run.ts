@@ -4,6 +4,7 @@ import {
     deepEqual,
     generateOps,
     migrationFile,
+    MIGRATION_FILE,
     renderIndex,
     renderMigration,
     renderSnapshot,
@@ -81,7 +82,7 @@ function sameDefinition(live: ViewProjection, latest: ViewProjection): boolean {
 async function migrationRevisions(folder: string): Promise<number[]> {
     const files = await fs.readdir(folder).catch(() => [] as string[]);
     return files
-        .map(file => /^v(\d+)\.ts$/.exec(file))
+        .map(file => MIGRATION_FILE.exec(file))
         .flatMap(match => match === null ? [] : [Number(match[1])])
         .sort((left, right) => left - right);
 }

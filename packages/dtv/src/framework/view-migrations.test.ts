@@ -21,7 +21,7 @@ import type { View } from './view';
 const leaf = (value: unknown): UndecodedFilterFormState => ({ type: 'leaf', value: { type: 'value', value: value as never } });
 const empty: UndecodedFilterFormState = { type: 'leaf', value: { type: 'empty' } };
 
-const v1 = {
+const rev1 = {
     definition: 'payments',
     revision: 1,
     filters: {
@@ -45,12 +45,12 @@ const v1 = {
     columns: { id: { orderBy: 'id' }, old: { orderBy: null }, amount: { orderBy: 'amount' } }
 } as const satisfies ViewProjection;
 
-const v2 = {
+const rev2 = {
     definition: 'payments',
     revision: 2,
     filters: {
-        amount: v1.filters.amt,
-        status: v1.filters.status,
+        amount: rev1.filters.amt,
+        status: rev1.filters.status,
         reference: {
             kind: 'leaf',
             cmp: 'equals',
@@ -69,7 +69,7 @@ const v2 = {
     columns: { id: { orderBy: 'id' }, renamed: { orderBy: null }, amount: { orderBy: 'amountMinor' } }
 } as const satisfies ViewProjection;
 
-const complete = defineMigration(v1, v2, m => [
+const complete = defineMigration(rev1, rev2, m => [
     m.renameFilter('amt', 'amount'),
     m.mapOperators('reference', { _like: '_ilike', _nlike: null }),
     m.keep('created', { because: 'the GraphQL field was renamed' }),
@@ -116,7 +116,7 @@ describe('checkMigration', () => {
     });
 
     it('reports every change no operation covers, and undecided todos', () => {
-        const partial: ViewMigration = { from: v1, to: v2, ops: [{ kind: 'todo', subject: 'amt', message: 'rename?' }] };
+        const partial: ViewMigration = { from: rev1, to: rev2, ops: [{ kind: 'todo', subject: 'amt', message: 'rename?' }] };
 
         expect(checkMigration(partial).map(problem => problem.message)).toEqual([
             'migration of "payments" to revision 2: undecided for "amt": rename?',
@@ -167,8 +167,8 @@ describe('applying a migration to stored view data', () => {
         expect(applyToViewData(complete, stored({ ordering: byId })).data.ordering).toEqual(byId);
 
         const withoutAmount: ViewMigration = {
-            from: v1,
-            to: { ...v1, revision: 2, columns: { id: v1.columns.id, old: v1.columns.old } },
+            from: rev1,
+            to: { ...rev1, revision: 2, columns: { id: rev1.columns.id, old: rev1.columns.old } },
             ops: [{ kind: 'dropColumn', columnId: 'amount' }]
         };
         expect(applyToViewData(withoutAmount, stored({ ordering: byAmount })).data.ordering).toBeNull();
@@ -176,7 +176,7 @@ describe('applying a migration to stored view data', () => {
     });
 
     it('clears values a mapping drops, and operators mapped to nothing', () => {
-        const migration = defineMigration(v1, v2, m => [
+        const migration = defineMigration(rev1, rev2, m => [
             m.mapValues('status', value => value === 'VOID' ? DROP : value),
             m.mapOperators('reference', { _like: '_ilike', _nlike: null })
         ]);
@@ -189,7 +189,7 @@ describe('applying a migration to stored view data', () => {
     });
 
     it('does not report values a mapping only rewrites', () => {
-        const migration = defineMigration(v1, v2, m => [
+        const migration = defineMigration(rev1, rev2, m => [
             m.mapValues('status', value => value === 'PAID' ? 'paid' : value),
             m.mapOperators('reference', { _like: '_ilike', _nlike: null })
         ]);
@@ -205,7 +205,7 @@ describe('applying a migration to stored view data', () => {
     });
 
     it('reports filters it resets, by where they were stored', () => {
-        const migration = defineMigration(v1, v2, m => [
+        const migration = defineMigration(rev1, rev2, m => [
             m.reset('created'),
             m.custom('amt', 'amount', state => state.value.type === 'value' && typeof state.value.value === 'number' && state.value.value > 0 ? state : RESET)
         ]);
@@ -221,7 +221,7 @@ describe('applying a migration to stored view data', () => {
 
     it('resets a filter whose custom migration throws', () => {
         const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-        const migration = defineMigration(v1, v2, m => [m.custom('amt', 'amount', () => { throw new Error('boom'); })]);
+        const migration = defineMigration(rev1, rev2, m => [m.custom('amt', 'amount', () => { throw new Error('boom'); })]);
 
         const migrated = applyToViewData(migration, stored({ persistedFilterState: { amt: leaf(1) } }));
 
@@ -232,8 +232,8 @@ describe('applying a migration to stored view data', () => {
 });
 
 describe('migration chains', () => {
-    const v3 = { ...v2, revision: 3, definition: 'payment-list', filters: { ...v2.filters, merchant: { ...v2.filters.merchant, field: 'merchantId' } } } as const;
-    const chain = defineViewMigrations(v1, [complete, defineMigration(v2, v3, m => [m.reset('merchant')])]);
+    const rev3 = { ...rev2, revision: 3, definition: 'payment-list', filters: { ...rev2.filters, merchant: { ...rev2.filters.merchant, field: 'merchantId' } } } as const;
+    const chain = defineViewMigrations(rev1, [complete, defineMigration(rev2, rev3, m => [m.reset('merchant')])]);
 
     it('migrates stored data from the revision it was written for', () => {
         const fromRevision1 = migrateViewData(chain, stored({ persistedFilterState: { amt: leaf(1), merchant: leaf('m') } }));
@@ -259,8 +259,8 @@ describe('migration chains', () => {
 
 describe('filters changed since the latest snapshot', () => {
     it('lose their stored state; unchanged and added filters keep theirs', () => {
-        const live: ViewProjection = { ...v2, filters: { ...v2.filters, amount: { ...v2.filters.amount, cmp: 'greaterThan' }, extra: v2.filters.merchant } };
-        const result = resetFiltersChangedSinceSnapshot(v2, live, stored({
+        const live: ViewProjection = { ...rev2, filters: { ...rev2.filters, amount: { ...rev2.filters.amount, cmp: 'greaterThan' }, extra: rev2.filters.merchant } };
+        const result = resetFiltersChangedSinceSnapshot(rev2, live, stored({
             persistedFilterState: { amount: leaf(1), status: leaf(['x']) },
             savedFilters: [{ id: 'sf', name: 'Saved', view: 'payments', createdAt: '2026-01-01T00:00:00.000Z', formatRevision: '', state: { amount: leaf(2) } }]
         }));
@@ -355,7 +355,7 @@ describe('the schema and state sides of every operation agree', () => {
     });
 
     it('projectFilter and expressionOf are inverses for the snapshots above', () => {
-        for (const filter of Object.values(v1.filters)) {
+        for (const filter of Object.values(rev1.filters)) {
             expect(projectFilter(expressionOf(filter))).toEqual(filter);
         }
     });

@@ -246,9 +246,12 @@ export function toLiteral(value: unknown, indent = ''): string {
     throw new Error(`Cannot write ${typeof value} into a snapshot`);
 }
 
-export const snapshotName = (revision: number) => `v${revision}`;
-export const snapshotFile = (revision: number) => `v${revision}.snapshot.ts`;
-export const migrationFile = (revision: number) => `v${revision}.ts`;
+export const snapshotName = (revision: number) => `rev${revision}`;
+export const snapshotFile = (revision: number) => `rev${revision}.snapshot.ts`;
+/** The migration into `revision`, from the revision before it. */
+export const migrationFile = (revision: number) => `rev${revision}.migration.ts`;
+/** Matches `migrationFile`; its group is the revision. */
+export const MIGRATION_FILE = /^rev(\d+)\.migration\.ts$/;
 
 export function renderSnapshot(projection: ViewProjection, dtvImport: string): string {
     return [

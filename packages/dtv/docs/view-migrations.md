@@ -24,7 +24,7 @@ factories that is all it takes.
    npx dtv definitions snapshot
    ```
 
-   This writes a `dtv-migrations/<definition>/` folder (`v1.snapshot.ts`, `index.ts`) next to each
+   This writes a `dtv-migrations/<definition>/` folder (`rev1.snapshot.ts`, `index.ts`) next to each
    view's module, and wires the view up with it:
 
    ```ts
@@ -86,10 +86,11 @@ whose module is not found, such as JSON views; default `dtv-migrations`). Option
 ## Changing a view
 
 Change the definition, then run `npx dtv definitions snapshot`. For each changed view it writes the next
-snapshot and a migration:
+snapshot and the migration into it (`rev4.snapshot.ts` and `rev4.migration.ts`), and adds the migration
+to `index.ts`:
 
 ```ts
-export default DSL.defineMigration(v3, v4, m => [
+export default DSL.defineMigration(rev3, rev4, m => [
     // "amt" was removed and "amount" added, with the same definition.
     // If "amount" is another filter that only looks the same: m.drop('amt')
     m.renameFilter('amt', 'amount'),
@@ -133,7 +134,7 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 | `m.custom(from, to, state => … \| RESET)` | Anything else; `state` is typed by both snapshots. |
 | `m.renameColumn(from, to)`, `m.dropColumn(id)`, `m.resetSort(id)` | Columns. A stored sort by what a dropped column, or one given `resetSort`, sorted by is reset. |
 
-Ids are checked against the snapshots: `m.reset('amount')` does not compile if v3 has no `amount`.
+Ids are checked against the snapshots: `m.reset('amount')` does not compile if rev3 has no `amount`.
 
 ### Changes the snapshots cannot see
 

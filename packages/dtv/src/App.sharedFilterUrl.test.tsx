@@ -144,9 +144,9 @@ describe('filter state shared in the URL', () => {
 
     it('migrates a filter state shared for an older revision of the view', async () => {
         const emailLeaf = { kind: 'leaf', cmp: 'equals', field: 'email', control: { type: 'text' } } as const;
-        const v1 = { definition: 'view-a', revision: 1, filters: { 'email-old': emailLeaf }, columns: { id: { orderBy: 'id' } } } as const;
-        const v2 = { definition: 'view-a', revision: 2, filters: { [EMAIL_FILTER_ID]: emailLeaf }, columns: { id: { orderBy: 'id' } } } as const;
-        const migrations = defineViewMigrations(v1, [defineMigration(v1, v2, m => [m.renameFilter('email-old', EMAIL_FILTER_ID)])]);
+        const rev1 = { definition: 'view-a', revision: 1, filters: { 'email-old': emailLeaf }, columns: { id: { orderBy: 'id' } } } as const;
+        const rev2 = { definition: 'view-a', revision: 2, filters: { [EMAIL_FILTER_ID]: emailLeaf }, columns: { id: { orderBy: 'id' } } } as const;
+        const migrations = defineViewMigrations(rev1, [defineMigration(rev1, rev2, m => [m.renameFilter('email-old', EMAIL_FILTER_ID)])]);
         const viewWithMigrations = { ...rawViews[0], migrations: { section: 'viewMigrations', key: 'view-a' } };
         const sharedForRevision1 = toBase64Url({
             view: 'view-a',

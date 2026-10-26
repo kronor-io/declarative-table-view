@@ -112,8 +112,8 @@ describe('dtv definitions', () => {
             { payments: 'src/pages/payments/view.ts' }
         ));
 
-        expect(await read('src/pages/payments/dtv-migrations/payments/v1.snapshot.ts')).toContain("definition: 'payments',\n    revision: 1,");
-        expect(await read('src/pages/payments/dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(v1, []);');
+        expect(await read('src/pages/payments/dtv-migrations/payments/rev1.snapshot.ts')).toContain("definition: 'payments',\n    revision: 1,");
+        expect(await read('src/pages/payments/dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(rev1, []);');
         expect(await read('src/pages/payments/view.ts')).toBe(
             "import { DSL } from '@kronor/dtv';\nimport paymentsMigrations from './dtv-migrations/payments';\n\n" +
             "export const paymentsView = () => DSL.view({\n    id: 'payments',\n    migrations: paymentsMigrations,\n});\n"
@@ -127,7 +127,7 @@ describe('dtv definitions', () => {
     it('puts the first snapshot of a view it cannot find the source of under the migrations dir', async () => {
         await runMigrate(options, await projectWith({ payments: viewWith([textFilter('status')]) }));
 
-        expect(await read('dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(v1, []);');
+        expect(await read('dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(rev1, []);');
         expect(log.slice(1)).toEqual([
             `  Wire it up in the view definition of "payments" (its module is not known, as for a JSON view; the path is from ${cwd}):`,
             "    import paymentsMigrations from './dtv-migrations/payments';",
@@ -146,10 +146,10 @@ describe('dtv definitions', () => {
         ));
 
         expect(todos).toBe(0);
-        const migration = await read('shared/dtv-migrations/payments/v2.ts');
+        const migration = await read('shared/dtv-migrations/payments/rev2.migration.ts');
         expect(migration).toContain("m.renameFilter('amt', 'amount'),");
         expect(migration).toContain("m.drop('legacy'),");
-        expect(await read('shared/dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(v1, [m2]);');
+        expect(await read('shared/dtv-migrations/payments/index.ts')).toContain('DSL.defineViewMigrations(rev1, [m2]);');
         expect(log).toEqual(['payments: revision 2, 2 operation(s)']);
     });
 
@@ -165,7 +165,7 @@ describe('dtv definitions', () => {
         expect(log).toEqual(['payments: up to date at revision 1']);
 
         await runMigrate({ ...options, definition: 'payments', manual: 'status values are lower case now' }, project);
-        expect(await read('dtv-migrations/payments/v2.ts')).toContain("m.todo('manual revision', 'status values are lower case now'),");
+        expect(await read('dtv-migrations/payments/rev2.migration.ts')).toContain("m.todo('manual revision', 'status values are lower case now'),");
     });
 
     it('takes over the folder of a renamed definition, where it is', async () => {
@@ -177,8 +177,8 @@ describe('dtv definitions', () => {
         );
 
         expect(await fs.readdir(path.join(cwd, 'src/dtv-migrations'))).toEqual(['payment-list']);
-        expect(await read('src/dtv-migrations/payment-list/v2.snapshot.ts')).toContain("definition: 'payment-list',");
-        expect(await read('src/dtv-migrations/payment-list/v2.ts')).toContain('DSL.defineMigration(v1, v2, () => []);');
+        expect(await read('src/dtv-migrations/payment-list/rev2.snapshot.ts')).toContain("definition: 'payment-list',");
+        expect(await read('src/dtv-migrations/payment-list/rev2.migration.ts')).toContain('DSL.defineMigration(rev1, rev2, () => []);');
         expect(log[0]).toBe('payment-list: took over src/dtv-migrations/payments, now src/dtv-migrations/payment-list');
     });
 

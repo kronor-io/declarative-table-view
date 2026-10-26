@@ -22,21 +22,21 @@ const textFilter = (id: string, field = id): FilterSchema => ({
 
 const textFilterProjection = (field: string) => ({ kind: 'leaf', cmp: 'equals', field, control: { type: 'text' } }) as const;
 
-const v1 = {
+const rev1 = {
     definition: 'payments',
     revision: 1,
     filters: { amt: textFilterProjection('amount'), status: textFilterProjection('status') },
     columns: {}
 } as const;
 
-const v2 = {
+const rev2 = {
     definition: 'payments',
     revision: 2,
     filters: { amount: textFilterProjection('amount'), status: textFilterProjection('status') },
     columns: {}
 } as const;
 
-const chain = defineViewMigrations(v1, [defineMigration(v1, v2, m => [m.renameFilter('amt', 'amount')])]);
+const chain = defineViewMigrations(rev1, [defineMigration(rev1, rev2, m => [m.renameFilter('amt', 'amount')])]);
 
 const viewOf = (id: string, filters: FilterSchema[], migrations = chain): View => ({
     id,
@@ -106,13 +106,13 @@ describe('user-data-manager view-level migrations', () => {
 
     it('lets a view renamed between snapshots take over the data stored under its old id', async () => {
         const renamed = {
-            ...v2,
+            ...rev2,
             definition: 'payment-list',
             revision: 3
         } as const;
-        const renamingChain = defineViewMigrations(v1, [
-            defineMigration(v1, v2, m => [m.renameFilter('amt', 'amount')]),
-            defineMigration(v2, renamed, () => [])
+        const renamingChain = defineViewMigrations(rev1, [
+            defineMigration(rev1, rev2, m => [m.renameFilter('amt', 'amount')]),
+            defineMigration(rev2, renamed, () => [])
         ]);
         store({ payments: viewJson({ hiddenColumns: ['x'], persistedFilterState: { amt: leaf('5') } }), other: viewJson() });
 

@@ -58,7 +58,7 @@ describe('scenarios: views coming and going', () => {
         await project.write('payments/view.ts', relabelled);
 
         expect((await project.snapshot()).log).toEqual(['1 view up to date']);
-        expect(await project.exists('payments/dtv-migrations/payments/v2.ts')).toBe(false);
+        expect(await project.exists('payments/dtv-migrations/payments/rev2.migration.ts')).toBe(false);
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
     });
 

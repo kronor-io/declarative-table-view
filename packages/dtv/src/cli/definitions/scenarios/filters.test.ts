@@ -11,7 +11,7 @@ import { both, emptyLeaf, filters, leaf, scenario, storedUserData, viewModule, w
 jest.setTimeout(60_000);
 
 const VIEW = 'payments/view.ts';
-const V2 = 'payments/dtv-migrations/payments/v2.ts';
+const V2 = 'payments/dtv-migrations/payments/rev2.migration.ts';
 
 const decoded = (value: unknown) => ({ type: 'leaf', value: { type: 'value', value } });
 const decodedEmpty = { type: 'leaf', value: { type: 'empty' } };
@@ -49,7 +49,7 @@ describe('scenarios: filters change', () => {
         await changeFilters(filters.text('status'), filters.text('merchant').replace("value: { type: 'text' }", "value: { type: 'text', initialValue: 'acme' }"));
 
         expect((await project.snapshot()).log).toEqual(['payments: revision 2, 0 operation(s)']);
-        expect(await project.read(V2)).toContain('DSL.defineMigration(v1, v2, () => []);');
+        expect(await project.read(V2)).toContain('DSL.defineMigration(rev1, rev2, () => []);');
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
         expect(project.typeErrors()).toEqual([]);
 

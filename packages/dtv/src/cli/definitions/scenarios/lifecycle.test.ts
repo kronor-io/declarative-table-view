@@ -123,7 +123,7 @@ describe('scenarios: user data over the life of a view', () => {
         expect((await project.snapshot()).log).toEqual(['1 view up to date']);
         const { todos } = await project.snapshot({ definition: 'payments', manual: 'status values are lower case now' });
         expect(todos).toBe(1);
-        await decide(`${MIGRATIONS}/v2.ts`, "m.todo('manual revision', 'status values are lower case now'),",
+        await decide(`${MIGRATIONS}/rev2.migration.ts`, "m.todo('manual revision', 'status values are lower case now'),",
             "m.mapValues('status', value => value === 'PAID' ? 'paid' : value === 'VOID' ? DSL.DROP : value),");
         expect(project.typeErrors()).toEqual([]);
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
@@ -145,7 +145,7 @@ describe('scenarios: user data over the life of a view', () => {
         await decide(VIEW, columns.of('created', 'createdAt'), columns.of('createdAt', 'createdAt'));
 
         expect((await project.snapshot()).todos).toBe(1);
-        await decide(`${MIGRATIONS}/v2.ts`, "m.todo('created', 'renamed to \"createdAt\"?'),", "m.renameColumn('created', 'createdAt'),");
+        await decide(`${MIGRATIONS}/rev2.migration.ts`, "m.todo('created', 'renamed to \"createdAt\"?'),", "m.renameColumn('created', 'createdAt'),");
         expect(project.typeErrors()).toEqual([]);
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
 
@@ -158,7 +158,7 @@ describe('scenarios: user data over the life of a view', () => {
         await decide(VIEW, columns.of('amount'), columns.of('amount', 'amountMinor'));
 
         expect((await project.snapshot()).todos).toBe(0);
-        expect(await project.read(`${MIGRATIONS}/v2.ts`)).toContain("m.resetSort('amount')");
+        expect(await project.read(`${MIGRATIONS}/rev2.migration.ts`)).toContain("m.resetSort('amount')");
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
 
         const byAmount = await read({ payments: { definitionRevision: 1, ordering: { field: 'amount', direction: 'DESC' } } });
