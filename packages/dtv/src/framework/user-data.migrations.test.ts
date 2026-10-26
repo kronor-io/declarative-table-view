@@ -1,11 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
+import { applyUserDataMigrations, CURRENT_USERDATA_FORMAT_REVISION, REVISION_2026_05_06, SAVED_FILTERS_MIGRATED_TO_USERDATA_KEY } from './user-data.migrations';
 import { __applyUserDataMigrationsWithStepsForTest } from './user-data.migrations';
-import { defaultUserData, defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_03_26, toUserDataJson, type UserData } from './user-data';
+import { defaultUserPreferences, INITIAL_USERDATA_FORMAT_REVISION, REVISION_2026_01_05, REVISION_2026_03_26 } from './user-data';
 import type { FilterGroups } from './filters';
-import { parseFilterFormState } from './filter-form-state';
 import { SAVED_FILTERS_KEY } from './saved-filters';
 import { isFailure, isSuccess } from './result';
 
@@ -64,17 +63,10 @@ describe('user-data migrations', () => {
     });
 
     it('applyUserDataMigrations short-circuits when already at current revision', () => {
-        const data = defaultUserData();
-        data.formatRevision = CURRENT_USERDATA_FORMAT_REVISION;
-        const migrated = applyUserDataMigrations(data, {
-            filterGroupsByViewId: {
-                'view-a': basicSchema,
-                'view-b': basicSchema,
-                'test-view': basicSchema
-            }
-        });
-        expect(isSuccess(migrated)).toBe(true);
-        expect(migrated).toEqual({ tag: 'success', value: data });
+        const json = { preferences: defaultUserPreferences, views: {}, revision: 0, formatRevision: CURRENT_USERDATA_FORMAT_REVISION };
+        const migrated = applyUserDataMigrations(json);
+        expect(migrated).toEqual({ tag: 'success', value: json });
+        expect(isSuccess(migrated) && migrated.value).toBe(json);
         expect(consoleSpy).not.toHaveBeenCalled();
     });
 
@@ -123,6 +115,23 @@ describe('user-data migrations', () => {
         expect(consoleSpy).not.toHaveBeenCalled();
     });
 
+    it('imports legacy savedFilters of views this app does not define, and keeps them', async () => {
+        mockLocalStorage['dtvUserData'] = JSON.stringify({
+            preferences: defaultUserPreferences,
+            views: {},
+            formatRevision: INITIAL_USERDATA_FORMAT_REVISION
+        });
+        mockLocalStorage[SAVED_FILTERS_KEY] = JSON.stringify([
+            { id: 'sf-other', name: 'Other app', view: 'other-view', state: {}, createdAt: '2026-01-02T00:00:00.000Z', formatRevision: 'rev' }
+        ]);
+
+        const { userData } = await loadUserDataManager();
+        await userData.ready;
+
+        const stored = JSON.parse(mockLocalStorage['dtvUserData']);
+        expect(stored.views['other-view'].savedFilters.map((f: { id: string }) => f.id)).toEqual(['sf-other']);
+    });
+
     it('skips invalid legacy saved filter entries', async () => {
         mockLocalStorage['dtvUserData'] = JSON.stringify({
             preferences: defaultUserPreferences,
@@ -167,9 +176,8 @@ describe('user-data migrations', () => {
         const deterministicUuid = '00000000-0000-4000-8000-000000000001' as const;
         const randomUuidSpy = jest.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(deterministicUuid);
 
-        const existingFilterState = parseFilterFormState({}, basicSchema);
-
-        const existing: UserData = {
+        // Stored user data at an old revision, so migrations run
+        mockLocalStorage['dtvUserData'] = JSON.stringify({
             preferences: defaultUserPreferences,
             views: {
                 'view-a': {
@@ -179,25 +187,13 @@ describe('user-data migrations', () => {
                     syncFilterStateToUserData: false,
                     persistedFilterState: null,
                     savedFilters: [
-                        {
-                            id: 'dup',
-                            name: 'Existing',
-                            view: 'view-a',
-                            state: existingFilterState,
-                            createdAt: new Date('2026-01-01T00:00:00.000Z'),
-                            formatRevision: 'rev'
-                        }
+                        { id: 'dup', name: 'Existing', view: 'view-a', state: {}, createdAt: '2026-01-01T00:00:00.000Z', formatRevision: 'rev' }
                     ]
                 }
             },
             revision: 0,
-            formatRevision: CURRENT_USERDATA_FORMAT_REVISION
-        };
-
-        // Store valid dtvUserData JSON but force an old revision so migrations run
-        const json = toUserDataJson(existing, { 'view-a': basicSchema });
-        json.formatRevision = INITIAL_USERDATA_FORMAT_REVISION;
-        mockLocalStorage['dtvUserData'] = JSON.stringify(json);
+            formatRevision: INITIAL_USERDATA_FORMAT_REVISION
+        });
 
         // Legacy filter has colliding id
         mockLocalStorage[SAVED_FILTERS_KEY] = JSON.stringify([
@@ -219,16 +215,7 @@ describe('user-data migrations', () => {
     });
 
     it('applyUserDataMigrations returns failure when starting revision is not the expected fromRevision', () => {
-        const data = defaultUserData();
-        data.formatRevision = '2025-01-01T00:00:00.000Z';
-
-        const result = applyUserDataMigrations(data, {
-            filterGroupsByViewId: {
-                'view-a': basicSchema,
-                'view-b': basicSchema,
-                'test-view': basicSchema
-            }
-        })
+        const result = applyUserDataMigrations({ views: {}, formatRevision: '2025-01-01T00:00:00.000Z' })
 
         expect(isFailure(result)).toBe(true)
         if (isFailure(result)) {
@@ -240,87 +227,95 @@ describe('user-data migrations', () => {
         const REV_A = '2026-01-01T00:00:00.000Z'
         const REV_B = CURRENT_USERDATA_FORMAT_REVISION
 
-        const data = defaultUserData();
         // Simulate persisted user-data that was already migrated to REV_A in a prior release.
         // A later release appends stepAtoB and should migrate starting from REV_A.
-        data.formatRevision = REV_A;
-
         const result = __applyUserDataMigrationsWithStepsForTest(
-            data,
-            {
-                filterGroupsByViewId: {
-                    'view-a': basicSchema,
-                    'view-b': basicSchema,
-                    'test-view': basicSchema
-                }
-            },
+            { views: {}, formatRevision: REV_A },
             [
                 {
                     fromRevision: INITIAL_USERDATA_FORMAT_REVISION,
                     toRevision: REV_A,
-                    migrate: (u: UserData) => ({ ...u })
+                    migrate: json => ({ ...json, stepA: true })
                 },
                 {
                     fromRevision: REV_A,
                     toRevision: REV_B,
-                    migrate: (u: UserData) => ({ ...u })
+                    migrate: json => ({ ...json, stepB: true })
                 }
             ]
         )
 
         expect(isSuccess(result)).toBe(true)
         if (isSuccess(result)) {
-            expect(result.value.formatRevision).toBe(REV_B)
+            expect(result.value).toEqual({ views: {}, formatRevision: REV_B, stepB: true })
         }
     })
 
     it('sets syncFilterStateToUrlOverride to null when migrating', () => {
-        const data = defaultUserData();
-        data.formatRevision = REVISION_2026_01_05;
-        data.preferences = { syncFilterStateToUrlOverride: true, closeFilterPanelOnApply: false };
-
-        const result = applyUserDataMigrations(data, {
-            filterGroupsByViewId: {
-                'view-a': basicSchema,
-                'view-b': basicSchema,
-                'test-view': basicSchema
-            }
+        const result = applyUserDataMigrations({
+            preferences: { syncFilterStateToUrlOverride: true, closeFilterPanelOnApply: false },
+            views: {},
+            formatRevision: REVISION_2026_01_05
         })
 
         expect(isSuccess(result)).toBe(true)
         if (isSuccess(result)) {
             // Migration step sets the field to null (use App option) regardless of prior value.
-            expect(result.value.preferences.syncFilterStateToUrlOverride).toBe(null)
+            expect(result.value.preferences).toEqual({ syncFilterStateToUrlOverride: null, closeFilterPanelOnApply: false })
         }
     })
 
-    it('adds per-view filter-state persistence fields when migrating', () => {
-        const data = defaultUserData();
-        data.formatRevision = REVISION_2026_03_26;
-        data.views['view-a'] = {
-            columnOrder: ['col-a'],
-            hiddenColumns: ['col-b'],
-            rowsPerPage: 50,
-            syncFilterStateToUserData: false,
-            persistedFilterState: null,
-            savedFilters: []
-        };
-
-        const result = applyUserDataMigrations(data, {
-            filterGroupsByViewId: {
-                'view-a': basicSchema,
-                'view-b': basicSchema,
-                'test-view': basicSchema
-            }
+    it('resets persisted filter state when adding per-view filter-state persistence', () => {
+        const result = applyUserDataMigrations({
+            views: {
+                'view-a': {
+                    columnOrder: ['col-a'],
+                    hiddenColumns: ['col-b'],
+                    rowsPerPage: 50,
+                    syncFilterStateToUserData: false,
+                    persistedFilterState: { stale: true },
+                    savedFilters: []
+                }
+            },
+            formatRevision: REVISION_2026_03_26
         })
 
         expect(isSuccess(result)).toBe(true)
         if (isSuccess(result)) {
-            expect(result.value.views['view-a'].columnOrder).toEqual(['col-a'])
-            expect(result.value.views['view-a'].hiddenColumns).toEqual(['col-b'])
-            expect(result.value.views['view-a'].rowsPerPage).toBe(50)
-            expect(result.value.views['view-a'].syncFilterStateToUserData).toBe(false)
-            expect(result.value.views['view-a'].persistedFilterState).toBe(null)
+            expect(result.value.views).toEqual({
+                'view-a': {
+                    columnOrder: ['col-a'],
+                    hiddenColumns: ['col-b'],
+                    rowsPerPage: 50,
+                    syncFilterStateToUserData: false,
+                    persistedFilterState: null,
+                    savedFilters: [],
+                    definitionRevision: 1
+                }
+            })
+        }
+    })
+
+    it('stamps every view with the baseline definition revision, schema or not', () => {
+        const result = applyUserDataMigrations({
+            views: {
+                'view-a': { savedFilters: [] },
+                'some-other-apps-view': { hiddenColumns: ['x'] },
+                'not-a-view': 42
+            },
+            formatRevision: REVISION_2026_05_06
+        })
+
+        expect(isSuccess(result)).toBe(true)
+        if (isSuccess(result)) {
+            expect(result.value).toEqual({
+                views: {
+                    'view-a': { savedFilters: [], definitionRevision: 1 },
+                    'some-other-apps-view': { hiddenColumns: ['x'], definitionRevision: 1 },
+                    'not-a-view': 42
+                },
+                formatRevision: CURRENT_USERDATA_FORMAT_REVISION
+            })
         }
     })
 

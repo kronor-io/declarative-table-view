@@ -1,7 +1,10 @@
-import { FilterField, FilterControl, FilterExpr, FilterGroups } from './filters';
+import { FilterField, FilterControl, FilterExpr, FilterGroups, FilterId, isLeaf } from './filters';
 import { getAllFilters } from './view';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 import * as FilterValue from './filterValue';
+import { decode, type DecodeIssue, type Json } from './decoder';
+import { undecodedFilterState, type UndecodedFilterFormState, type UndecodedFilterState, type UndecodedFilterValue } from './user-data-undecoded';
+import { Result } from './result';
 
 // Tree-like state for FilterForm
 export type FilterFormState =
@@ -181,18 +184,6 @@ function migrateLegacyLeafValue(value: unknown, schemaLeaf: LeafFilterExpr): Fil
     return FilterValue.value(value);
 }
 
-function rehydrateLeafValueForSchema(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): FilterValue.FilterValue {
-    const rawValue = (stateLeaf as unknown as { value?: unknown }).value;
-    const storedValue = FilterValue.fromObject(rawValue);
-
-    if (schemaLeaf.value.type === 'customOperator') {
-        if (!storedValue) return normalizeCustomOperatorLeafValue(rawValue);
-        if (FilterValue.isEmpty(storedValue)) return FilterValue.empty;
-        return normalizeCustomOperatorLeafValue(storedValue.value);
-    }
-
-    return storedValue ?? migrateLegacyLeafValue(rawValue, schemaLeaf);
-}
 
 /**
  * Schema-aware emptiness check for a FilterFormState tree.
@@ -215,14 +206,32 @@ export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): b
     });
 }
 
+/* Encoding and decoding against the schema */
+
+function encodeFilterFormState(node: FilterFormState): UndecodedFilterFormState {
+    switch (node.type) {
+        case 'leaf':
+            return {
+                type: 'leaf',
+                value: FilterValue.isEmpty(node.value)
+                    ? { type: 'empty' }
+                    // Leaf values are JSON once dates are strings; JSON.stringify takes care of
+                    // any date nested deeper, as in a custom operator's value.
+                    : { type: 'value', value: (node.value.value instanceof Date ? node.value.value.toISOString() : node.value.value) as Json }
+            };
+        case 'not':
+            return { type: 'not', child: encodeFilterFormState(node.child) };
+        case 'and':
+        case 'or':
+            return { type: node.type, children: node.children.map(encodeFilterFormState) };
+    }
+}
+
 /**
- * Serialize a FilterState Map to a JSON object for persistence/sharing.
+ * The filter state as stored: dates as ISO strings, and empty filters left out.
  * Requires schema so emptiness can be evaluated correctly.
  */
-export function serializeFilterFormStateMap(
-    state: FilterState,
-    filterGroups: FilterGroups
-): Record<string, any> {
+export function encodeFilterState(state: FilterState, filterGroups: FilterGroups): UndecodedFilterState {
     const filtersById = new Map(getAllFilters(filterGroups).map(f => [f.id, f] as const));
 
     return Object.fromEntries(
@@ -232,62 +241,125 @@ export function serializeFilterFormStateMap(
                 return [];
             }
 
-            return [[id, makeFilterFormStateSerializable(node)]];
+            return [[id, encodeFilterFormState(node)]];
         })
     );
 }
 
 /**
- * `traverseFilterSchemaAndState` walks the *state* tree, so a stored tree with
- * fewer children than the schema goes unnoticed there and would instead blow up
- * later at render time. Check arity explicitly during rehydration, where we can
- * still fall back to a schema-derived initial state.
+ * Serialize a FilterState Map to a JSON object for persistence/sharing.
+ * Requires schema so emptiness can be evaluated correctly.
  */
-function assertChildArityMatches(nodeType: 'and' | 'or', schemaChildCount: number, stateChildCount: number): void {
-    if (schemaChildCount === stateChildCount) return;
-    throw new Error(
-        `Schema shape mismatch: stored '${nodeType}' state has ${stateChildCount} children but FilterExpr has ${schemaChildCount} filters`
-    );
+export function serializeFilterFormStateMap(
+    state: FilterState,
+    filterGroups: FilterGroups
+): Record<string, any> {
+    return encodeFilterState(state, filterGroups);
+}
+
+function decodeLeafValue(schemaLeaf: LeafFilterExpr, stored: UndecodedFilterValue): FilterValue.FilterValue {
+    if (schemaLeaf.value.type === 'customOperator') {
+        if (stored.type === 'empty') return FilterValue.empty;
+        const decoded = normalizeCustomOperatorLeafValue(stored.type === 'value' ? stored.value : stored.raw);
+        if (FilterValue.isValue(decoded)) {
+            const { operator } = decoded.value as { operator: string };
+            if (!schemaLeaf.value.operators.some(option => option.value === operator)) {
+                throw new Error(`Operator "${operator}" is not one of the filter's operators`);
+            }
+        }
+        return decoded;
+    }
+
+    const value = stored.type === 'legacy'
+        ? migrateLegacyLeafValue(stored.raw, schemaLeaf)
+        : stored.type === 'empty' ? FilterValue.empty : FilterValue.value(stored.value);
+
+    if (schemaLeaf.value.type === 'date' && FilterValue.isValue(value) && typeof value.value === 'string') {
+        const date = new Date(value.value);
+        return isNaN(date.getTime()) ? FilterValue.empty : FilterValue.value(date);
+    }
+
+    return value;
 }
 
 /**
- * Rehydrate a single filter's stored state using its schema expression.
- * Throws when the stored tree's shape no longer matches the schema (a filter
- * expression gained or lost children since the state was written). Callers are
- * expected to catch and fall back to a schema-derived initial state; see
- * `parseFilterFormState`.
+ * Decodes a single filter's stored state using its schema expression. Throws when the
+ * stored tree's shape no longer matches the schema (the expression gained, lost or
+ * reordered children since the state was written) or a value is not one the schema
+ * allows. Callers catch and fall back to a schema-derived initial state; see
+ * `decodeFilterState`.
  */
-function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFormState): FilterFormState {
-    return traverseFilterSchemaAndState<FilterFormState>(expression, stored, {
-        leaf: (schemaLeaf, stateLeaf) => {
-            const migrated = rehydrateLeafValueForSchema(schemaLeaf, stateLeaf);
-
-            if (FilterValue.isEmpty(migrated)) {
-                return { type: 'leaf', value: migrated };
+function decodeFilterFormState(expression: FilterExpr, stored: UndecodedFilterFormState): FilterFormState {
+    switch (stored.type) {
+        case 'leaf':
+            if (!isLeaf(expression)) {
+                throw new Error(`Schema shape mismatch: stored a leaf, FilterExpr is '${expression.type}'`);
             }
+            return { type: 'leaf', value: decodeLeafValue(expression, stored.value) };
+        case 'not':
+            if (expression.type !== 'not') {
+                throw new Error(`Schema shape mismatch: stored 'not', FilterExpr is '${expression.type}'`);
+            }
+            return { type: 'not', child: decodeFilterFormState(expression.filter, stored.child) };
+        case 'and':
+        case 'or': {
+            if (expression.type !== stored.type) {
+                throw new Error(`Schema shape mismatch: stored '${stored.type}', FilterExpr is '${expression.type}'`);
+            }
+            // A stored tree with fewer children than the schema would blow up at render time.
+            if (expression.filters.length !== stored.children.length) {
+                throw new Error(
+                    `Schema shape mismatch: stored '${stored.type}' state has ${stored.children.length} children but FilterExpr has ${expression.filters.length} filters`
+                );
+            }
+            return {
+                type: stored.type,
+                children: stored.children.map((child, index) => decodeFilterFormState(expression.filters[index], child))
+            };
+        }
+    }
+}
 
-            const value = migrated.value;
-            if (schemaLeaf.value.type === 'date' && typeof value === 'string') {
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                    return { type: 'leaf', value: FilterValue.value(date) };
-                } else {
-                    return { type: 'leaf', value: FilterValue.empty };
+export type FilterStateDecoding = {
+    state: FilterState;
+    /** Filters whose stored state no longer fit the schema and were reset. */
+    resetFilterIds: FilterId[];
+};
+
+/**
+ * Decodes stored filter state against the schema. Every filter of the schema gets a
+ * state; stored state for filters the schema no longer has is dropped.
+ */
+export function decodeFilterState(
+    stored: UndecodedFilterState,
+    filterGroups: FilterGroups,
+    missingFilterMode: FormStateInitMode = FormStateInitMode.Empty
+): FilterStateDecoding {
+    const resetFilterIds: FilterId[] = [];
+    const state: FilterState = new Map(
+        getAllFilters(filterGroups).map(filter => {
+            const storedFilter = Object.prototype.hasOwnProperty.call(stored, filter.id) ? stored[filter.id] : undefined;
+            if (storedFilter !== undefined) {
+                try {
+                    return [filter.id, decodeFilterFormState(filter.expression, storedFilter)];
+                } catch (err) {
+                    // The filter's expression changed since this state was written.
+                    // Reset just this filter rather than failing the whole payload.
+                    console.warn(`Failed to rehydrate stored state for filter "${filter.id}":`, err);
+                    resetFilterIds.push(filter.id);
+                    return [filter.id, buildInitialFormState(filter.expression, missingFilterMode)];
                 }
             }
-
-            return { type: 'leaf', value: FilterValue.value(value) };
-        },
-        and: (schemaAnd, stateAnd, childResults) => {
-            assertChildArityMatches('and', schemaAnd.filters.length, stateAnd.children.length);
-            return { type: 'and', children: childResults };
-        },
-        or: (schemaOr, stateOr, childResults) => {
-            assertChildArityMatches('or', schemaOr.filters.length, stateOr.children.length);
-            return { type: 'or', children: childResults };
-        },
-        not: (_schemaNot, _stateNot, childResult) => ({ type: 'not', child: childResult })
-    });
+            // Missing: no information for this filter, so derive a fresh state from the
+            // schema. Callers persisting filter state pass `WithInitialValues` here, so that
+            // a filter the stored payload knows nothing about (e.g. newly added to the view)
+            // still picks up its schema `initialValue` instead of silently coming back
+            // empty. Snapshot consumers (saved filters, shared URLs) keep the `Empty`
+            // default so they reproduce exactly what was captured.
+            return [filter.id, buildInitialFormState(filter.expression, missingFilterMode)];
+        })
+    );
+    return { state, resetFilterIds };
 }
 
 /**
@@ -295,31 +367,11 @@ function rehydrateFilterStateForSchema(expression: FilterExpr, stored: FilterFor
  * converting date string values to Date objects by consulting the filter schema.
  */
 export function parseFilterFormState(
-    serializedState: any,
+    serializedState: unknown,
     filterGroups: FilterGroups,
     missingFilterMode: FormStateInitMode = FormStateInitMode.Empty
 ): FilterState {
-    const filters = getAllFilters(filterGroups);
-    return new Map(
-        filters.map(filter => {
-            const raw = serializedState ? serializedState[filter.id] : undefined;
-            if (raw && typeof raw === 'object' && 'type' in raw) {
-                try {
-                    return [filter.id, rehydrateFilterStateForSchema(filter.expression, raw as FilterFormState)];
-                } catch (err) {
-                    // The filter's expression changed shape since this state was written.
-                    // Drop just this filter rather than failing the whole payload.
-                    console.warn(`Failed to rehydrate stored state for filter "${filter.id}":`, err);
-                }
-            }
-            // Missing, malformed or unrehydratable: no usable information for this
-            // filter, so derive a fresh state from the schema. Callers persisting
-            // filter state pass `WithInitialValues` here, so that a filter the stored
-            // payload knows nothing about (e.g. newly added to the view) still picks up
-            // its schema `initialValue` instead of silently coming back empty. Snapshot
-            // consumers (saved filters, shared URLs) keep the `Empty` default so they
-            // reproduce exactly what was captured.
-            return [filter.id, buildInitialFormState(filter.expression, missingFilterMode)];
-        })
-    );
+    const { result } = decode(undecodedFilterState, serializedState);
+    const stored = Result.getOrElse<DecodeIssue, UndecodedFilterState>({}, result);
+    return decodeFilterState(stored, filterGroups, missingFilterMode).state;
 }

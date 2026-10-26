@@ -17,6 +17,7 @@
         "src/cli/**/*.ts"
     ],
     "exclude": [
-        "src/cli/**/*.test.ts"
+        "src/cli/**/*.test.ts",
+        "src/cli/**/scenarios/**"
     ]
 }

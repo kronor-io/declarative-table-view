@@ -30,7 +30,9 @@ import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
-import { parseFilterFormState } from './framework/filter-form-state';
+import { decodeFilterState } from './framework/filter-form-state';
+import { viewMigrationContext } from './framework/user-data';
+import { currentDefinitionRevision, migrateFilterState } from './framework/view-migrations';
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
@@ -218,21 +220,35 @@ function App({
         return Object.fromEntries(views.map((view) => [view.id, view.filterGroups] as const));
     }, [views]);
 
-    // Determine initial filter state (shared param precedence) BEFORE initializing app state
-    const initialFilterStateFromUrl = useMemo(() => {
-        const raw = getFilterFromUrl();
-        if (!raw) return undefined;
-        try {
-            const firstView = views[0];
-            if (!firstView) return undefined;
-            return parseFilterFormState(raw, firstView.filterGroups);
-        } catch (e) {
-            console.warn('Invalid initial filter state from URL, falling back to defaults', e);
-            return undefined;
-        }
+    const migrationsByViewId = useMemo(() => {
+        return Object.fromEntries(views.flatMap((view) => {
+            const context = viewMigrationContext(view);
+            return context === undefined ? [] : [[view.id, context] as const];
+        }));
     }, [views]);
 
     const viewsById = useMemo(() => new Map(views.map(view => [view.id, view] as const)), [views]);
+
+    // Determine the initial view and filter state (shared param precedence) BEFORE initializing app state
+    const initialFromUrl = useMemo((): { viewId: string; filterState: FilterState } | undefined => {
+        const shared = getFilterFromUrl();
+        if (!shared) return undefined;
+        // Links from before views were named in them are for the first view.
+        const view = shared.view === null ? views[0] : viewsById.get(shared.view);
+        if (!view) {
+            console.warn(`The filter state in the URL is for view "${shared.view}", which this table does not have`);
+            return undefined;
+        }
+        if (shared.definitionRevision > currentDefinitionRevision(view.migrations)) {
+            console.warn(`The filter state in the URL is for a newer revision of view "${view.id}"`);
+            return undefined;
+        }
+        const state = view.migrations === undefined
+            ? shared.state
+            : migrateFilterState(view.migrations, shared.definitionRevision, shared.state);
+        return { viewId: view.id, filterState: decodeFilterState(state, view.filterGroups).state };
+    }, [views, viewsById]);
+    const initialFilterStateFromUrl = initialFromUrl?.filterState;
 
     // Resolve `requestHeaders` (which may be an async function) before every
     // request via a client-level middleware, so it covers all requests — table
@@ -253,7 +269,7 @@ function App({
     const [state, dispatch] = useAppState(
         appStateEnv,
         {
-            viewId: views[0].id,
+            viewId: initialFromUrl?.viewId ?? views[0].id,
             rowsPerPage: rowsPerPageOptions[0] ?? DEFAULT_ROWS_PER_PAGE,
             initialFilterState: initialFilterStateFromUrl
         },
@@ -309,9 +325,10 @@ function App({
         return {
             load: userData?.onLoad,
             save: userData?.onSave,
-            showToast: (opts => toast.current?.show({ ...opts })) as ShowToastFn
+            showToast: (opts => toast.current?.show({ ...opts })) as ShowToastFn,
+            migrationsByViewId
         }
-    }, [userData?.onLoad, userData?.onSave])
+    }, [userData?.onLoad, userData?.onSave, migrationsByViewId])
 
     const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
 
@@ -489,8 +506,8 @@ function App({
     useEffect(() => {
         if (!syncFilterStateToUrlWithOverride) return;
         if (!appliedFilterState) return;
-        setFilterInUrl(appliedFilterState, selectedView.filterGroups);
-    }, [syncFilterStateToUrlWithOverride, appliedFilterState, selectedView.filterGroups]);
+        setFilterInUrl(selectedView, appliedFilterState);
+    }, [syncFilterStateToUrlWithOverride, appliedFilterState, selectedView]);
 
     // If URL syncing is disabled via preferences ("No"), immediately clear any existing URL state.
     useEffect(() => {
@@ -541,7 +558,7 @@ function App({
     // Share current filter state
     const handleShareFilter = async () => {
         try {
-            const shareableUrl = createShareableUrl(filterState, selectedView.filterGroups);
+            const shareableUrl = createShareableUrl(selectedView, filterState);
             await copyToClipboard(shareableUrl);
 
             toast.current?.show({
@@ -564,7 +581,7 @@ function App({
     // Share a specific saved filter state
     const handleShareSavedFilter = async (filterState: FilterState) => {
         try {
-            const shareableUrl = createShareableUrl(filterState, selectedView.filterGroups);
+            const shareableUrl = createShareableUrl(selectedView, filterState);
             await copyToClipboard(shareableUrl);
 
             toast.current?.show({

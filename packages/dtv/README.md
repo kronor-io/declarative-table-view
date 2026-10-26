@@ -80,7 +80,7 @@ React and ReactDOM 19 are peer dependencies; ensure they are installed in the ho
 - Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).
 - Views define their own GraphQL queries and filter schemas.
 - Filter expressions are serialized/deserialized using helpers in `src/framework/filters.ts`.
- - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `dtv.renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). When disabled, a one-off link is consumed (param removed after load).
+ - Unified URL Filter Param: Both share links and persistence use a single base64 URL-safe encoded parameter `dtv-filter-state`. Enable syncing by passing `syncFilterStateToUrl: true` to `dtv.renderTableView` (or `?sync-filter-state-to-url=true` in dev). The param is updated only when filters are applied (not on every change). It names the view the filter state belongs to, so a shared link opens that view. When disabled, a one-off link is consumed (param removed after load).
 
 ## Features
 
@@ -138,6 +138,12 @@ DTV ships a CLI command for generating TypeScript types from a Hasura GraphQL sc
 - See `docs/typegen.md`
 - Once a view has its generated row type, its columns and filters are checked against it —
   see `docs/api/row-typed-views.md`
+
+## View Migrations (CLI)
+
+Users' saved filters and settings are stored against a view's definition. `dtv definitions snapshot`
+snapshots definitions and writes the migrations their stored data needs when they change;
+`dtv definitions check` fails CI when a change has none. See `docs/view-migrations.md`.
 
 ## Release Process
 

@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 import {
-    encodeFilterState,
-    decodeFilterState
+    encodeSharedFilterState,
+    decodeSharedFilterState
 } from './filter-sharing';
 import { FilterState } from './state';
 import type { FilterGroups } from './filters';
@@ -54,9 +54,9 @@ describe('filter-sharing', () => {
         }]
     ]);
 
-    describe('encodeFilterState', () => {
+    describe('encodeSharedFilterState', () => {
         it('should encode filter state to base64 URL-safe string', () => {
-            const encoded = encodeFilterState(mockFilterState, filterGroups);
+            const encoded = encodeSharedFilterState({ id: 'view-a', filterGroups }, mockFilterState);
 
             expect(typeof encoded).toBe('string');
             expect(encoded.length).toBeGreaterThan(0);
@@ -65,7 +65,7 @@ describe('filter-sharing', () => {
         });
 
         it('should handle empty filter state', () => {
-            const encoded = encodeFilterState(new Map(), filterGroups);
+            const encoded = encodeSharedFilterState({ id: 'view-a', filterGroups }, new Map());
             expect(typeof encoded).toBe('string');
         });
 
@@ -89,15 +89,17 @@ describe('filter-sharing', () => {
                 }]
             ]);
 
-            expect(() => encodeFilterState(complexFilter, filterGroups)).not.toThrow();
+            expect(() => encodeSharedFilterState({ id: 'view-a', filterGroups }, complexFilter)).not.toThrow();
         });
     });
 
-    describe('decodeFilterState', () => {
+    describe('decodeSharedFilterState', () => {
         it('should decode base64 string back to filter state', () => {
-            const encoded = encodeFilterState(mockFilterState, filterGroups);
-            const decoded = decodeFilterState(encoded);
+            const encoded = encodeSharedFilterState({ id: 'view-a', filterGroups }, mockFilterState);
+            const { view, definitionRevision, state: decoded } = decodeSharedFilterState(encoded);
 
+            expect(view).toBe('view-a');
+            expect(definitionRevision).toBe(1);
             expect(typeof decoded).toBe('object');
             expect(decoded).not.toBeNull();
             expect(Array.isArray(decoded)).toBe(false);
@@ -112,7 +114,7 @@ describe('filter-sharing', () => {
             // Mock console.error to suppress expected error output in tests
             const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
-            expect(() => decodeFilterState('invalid-base64')).toThrow();
+            expect(() => decodeSharedFilterState('invalid-base64')).toThrow();
 
             // Restore console.error
             consoleSpy.mockRestore();
@@ -122,7 +124,7 @@ describe('filter-sharing', () => {
             // Mock console.error to suppress expected error output in tests
             const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
-            expect(() => decodeFilterState('')).toThrow();
+            expect(() => decodeSharedFilterState('')).toThrow();
 
             // Restore console.error
             consoleSpy.mockRestore();
@@ -131,8 +133,8 @@ describe('filter-sharing', () => {
 
     describe('round-trip encoding/decoding', () => {
         it('should preserve filter state through encode/decode cycle', () => {
-            const encoded = encodeFilterState(mockFilterState, filterGroups);
-            const decoded = decodeFilterState(encoded);
+            const encoded = encodeSharedFilterState({ id: 'view-a', filterGroups }, mockFilterState);
+            const decoded = decodeSharedFilterState(encoded).state;
 
             // The decoded state should be an object with filter ID keys
             expect(typeof decoded).toBe('object');
@@ -153,6 +155,36 @@ describe('filter-sharing', () => {
                 type: 'leaf',
                 value: { type: 'value', value: '2023-01-01T00:00:00.000Z' } // Date serialized as ISO string
             });
+        });
+    });
+
+    describe('links from before views were named in them', () => {
+        const toBase64Url = (json: unknown) => btoa(JSON.stringify(json)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+        it('decodes a bare filter state, with no view', () => {
+            const decoded = decodeSharedFilterState(toBase64Url({
+                'name-filter': { type: 'leaf', value: { type: 'value', value: 'test' } },
+                'legacy-filter': { type: 'leaf', value: 'raw' }
+            }));
+
+            expect(decoded).toEqual({
+                view: null,
+                definitionRevision: 1,
+                state: {
+                    'name-filter': { type: 'leaf', value: { type: 'value', value: 'test' } },
+                    'legacy-filter': { type: 'leaf', value: { type: 'legacy', raw: 'raw' } }
+                }
+            });
+        });
+
+        it('does not mistake filters named like the envelope for one', () => {
+            const decoded = decodeSharedFilterState(toBase64Url({
+                view: { type: 'leaf', value: { type: 'value', value: 'v' } },
+                state: { type: 'leaf', value: { type: 'empty' } }
+            }));
+
+            expect(decoded.view).toBeNull();
+            expect(Object.keys(decoded.state)).toEqual(['view', 'state']);
         });
     });
 });

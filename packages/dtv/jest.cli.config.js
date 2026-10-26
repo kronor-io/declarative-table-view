@@ -9,6 +9,8 @@ export default {
     moduleNameMapper: {
         '^@kronor/hasura-graphql/typegen$': '<rootDir>/../hasura-graphql/src/typegen/index.ts',
         '^@kronor/hasura-graphql$': '<rootDir>/../hasura-graphql/src/index.ts',
+        // What scenario projects (src/cli/definitions/scenarios) import as @kronor/dtv.
+        '^@kronor/dtv$': '<rootDir>/src/cli/definitions/scenarios/dtv.ts',
         '^(\\.{1,2}/.*)\\.js$': '$1'
     }
 };

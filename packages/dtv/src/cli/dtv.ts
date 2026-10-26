@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { registerTypegenCommand } from './commands/typegen.js';
 import { registerInitCommand } from './commands/init.js';
+import { registerDefinitionsCommand } from './commands/definitions.js';
 
 const program = new Command();
 program
@@ -10,5 +11,6 @@ program
 
 registerTypegenCommand(program);
 registerInitCommand(program);
+registerDefinitionsCommand(program);
 
 program.parse(process.argv);

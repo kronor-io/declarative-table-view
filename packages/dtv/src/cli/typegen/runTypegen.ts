@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import fg from 'fast-glob';
 import ts from 'typescript';
 import type { GraphQLNamedType } from 'graphql';
-import { loadConfig } from '../config/loadConfig.js';
+import { loadConfig, resolveSchema } from '../config/loadConfig.js';
 import type { DtvTypegenConfig, ScanDebugOptions, ViewInfo } from '../config/types.js';
 import {
     collectReachableTypes,
@@ -273,7 +273,7 @@ function findForeignRowTypes(
     return found;
 }
 
-function findViewsInFile(
+export function findViewsInFile(
     sourceText: string,
     fileName: string,
     dtvImport: string,
@@ -570,7 +570,8 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
         );
     }
 
-    const schema = await fetchSchema({ endpoint: config.schema.endpoint, headers: config.schema.headers ?? {} });
+    const schemaConfig = await resolveSchema(config);
+    const schema = await fetchSchema({ endpoint: schemaConfig.endpoint, headers: schemaConfig.headers ?? {} });
     const queryType = schema.getQueryType();
     if (!queryType) throw new Error('Schema has no Query type');
     const queryFields = queryType.getFields();

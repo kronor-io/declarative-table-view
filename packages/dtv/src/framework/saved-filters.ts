@@ -1,23 +1,12 @@
-import { serializeFilterFormStateMap, parseFilterFormState } from './filter-form-state';
-import { FilterGroups } from './filters';
+import { decodeFilterState, encodeFilterState } from './filter-form-state';
+import { FilterGroups, FilterId } from './filters';
 import { FilterState } from './state';
+import type { UndecodedSavedFilter } from './user-data-undecoded';
 
 /**
  * Format revisions for saved filters
  */
 export const CURRENT_FORMAT_REVISION = '2025-09-19T00:00:00.000Z';
-
-/**
- * Raw saved filter data as stored in localStorage - using unknown for type safety
- */
-export interface SavedFilterJson {
-    id: string;
-    name: string;
-    view: string;
-    state: unknown; // Serialized FilterState - could be object format or legacy array format
-    createdAt: string | Date; // Could be string from JSON or Date object
-    formatRevision: string;
-}
 
 /**
  * Parsed saved filter with properly typed state
@@ -35,27 +24,36 @@ export type SavedFilterId = SavedFilter['id'];
 
 export const SAVED_FILTERS_KEY = 'dtvSavedFilters';
 
-export function fromSavedFilterJson(rawFilter: SavedFilterJson, filterGroups: FilterGroups): SavedFilter {
-    const parsedState = parseFilterFormState(rawFilter.state as Record<string, unknown>, filterGroups);
+export type SavedFilterDecoding = {
+    savedFilter: SavedFilter;
+    /** Filters whose stored state no longer fit the schema and were reset. */
+    resetFilterIds: FilterId[];
+};
+
+/** Decodes a saved filter of the view `viewId` against the view's filter schema. */
+export function decodeSavedFilter(stored: UndecodedSavedFilter, viewId: string, filterGroups: FilterGroups): SavedFilterDecoding {
+    // A saved filter is an exact snapshot: filters it does not mention stay empty.
+    const { state, resetFilterIds } = decodeFilterState(stored.state, filterGroups);
 
     return {
-        id: rawFilter.id,
-        name: rawFilter.name,
-        view: rawFilter.view,
-        state: parsedState,
-        createdAt: typeof rawFilter.createdAt === 'string'
-            ? new Date(rawFilter.createdAt)
-            : rawFilter.createdAt,
-        formatRevision: CURRENT_FORMAT_REVISION
+        savedFilter: {
+            id: stored.id,
+            name: stored.name,
+            view: viewId,
+            state,
+            createdAt: new Date(stored.createdAt),
+            formatRevision: CURRENT_FORMAT_REVISION
+        },
+        resetFilterIds
     };
 }
 
-export function toSavedFilterJson(savedFilter: SavedFilter, filterGroups: FilterGroups): SavedFilterJson {
+export function encodeSavedFilter(savedFilter: SavedFilter, filterGroups: FilterGroups): UndecodedSavedFilter {
     return {
         id: savedFilter.id,
         name: savedFilter.name,
         view: savedFilter.view,
-        state: serializeFilterFormStateMap(savedFilter.state, filterGroups),
+        state: encodeFilterState(savedFilter.state, filterGroups),
         createdAt: savedFilter.createdAt.toISOString(),
         formatRevision: CURRENT_FORMAT_REVISION
     };

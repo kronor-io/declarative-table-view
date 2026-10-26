@@ -2,6 +2,7 @@ import React from "react";
 import { CellRenderer, TableColumnDefinitionFooter } from "./column-definition";
 import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
 import { QueryTransformContext, TransformResult, SuggestionFetcher } from "./filters";
+import type { ViewMigrationChain } from "./view-migrations";
 
 // Use SuggestionFetcher alias from filters.ts; runtime suggestionFetchers return string arrays.
 
@@ -18,4 +19,6 @@ export type Runtime = {
     initialValues: Record<string, any>;
     // New runtime section for dynamic suggestion fetchers used by autocomplete filter controls
     suggestionFetchers: Record<string, SuggestionFetcher>;
+    // View-level migrations of JSON views, referenced by a view's `migrations`
+    viewMigrations?: Record<string, ViewMigrationChain>;
 };

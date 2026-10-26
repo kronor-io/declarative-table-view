@@ -7,10 +7,11 @@ import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, Vie
 import type { Runtime } from './runtime';
 import type { HasuraFilterExpression, HasuraOrderBy } from './graphql';
 import { isOrderDirection, type OrderDirection } from './order-direction';
+import type { ViewMigrationChain } from './view-migrations';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
     key: string;
 };
 
@@ -145,6 +146,7 @@ export type ViewJson = {
     staticConditions?: HasuraFilterExpression[];
     staticOrdering?: HasuraOrderBy[];
     noRowsComponent?: RuntimeReference; // Optional reference to no-rows component from runtime
+    migrations?: RuntimeReference; // Optional reference to the view's migrations (section "viewMigrations")
     rowExpansion?: {
         data: FieldQueryJson[];
         runtime: RuntimeReference;
@@ -169,7 +171,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -909,6 +911,21 @@ export function parseViewJson(
         );
     }
 
+    // Parse optional migrations with runtime resolution
+    let migrations: ViewMigrationChain | undefined;
+    if (view.migrations !== undefined) {
+        const migrationsRef = parseRuntimeReference(view.migrations);
+        if (migrationsRef.section !== 'viewMigrations') {
+            throw new Error('Invalid migrations: section must be "viewMigrations"');
+        }
+
+        migrations = resolveRuntimeReference<ViewMigrationChain>(
+            migrationsRef,
+            externalRuntime,
+            builtInRuntime
+        );
+    }
+
     let rowExpansion;
     if (view.rowExpansion !== undefined) {
         if (typeof view.rowExpansion !== 'object' || view.rowExpansion === null || Array.isArray(view.rowExpansion)) {
@@ -1013,7 +1030,8 @@ export function parseViewJson(
         paginationDirection,
         noRowsComponent,
         staticConditions,
-        staticOrdering
+        staticOrdering,
+        ...(migrations === undefined ? {} : { migrations })
     };
 
     if (parsedSource.type === 'collection') {

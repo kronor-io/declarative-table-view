@@ -11,6 +11,11 @@ export type { AIIntegration, ModifyAiFilterPromptFn, RequestAiFilterFn } from '.
 export type { View } from '../framework/view';
 export { getViewRootFieldName, getViewStaticArgs } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
+export type { ViewProjection, FilterProjection, ColumnProjection, ControlProjection } from '../framework/view-projection';
+export type { ViewMigration, ViewMigrationChain } from '../framework/view-migrations';
+// Used by `dtv definitions`, which loads them from the project's own copy of the package.
+export { projectView, projectionsEqual } from '../framework/view-projection';
+export { checkMigration } from '../framework/view-migrations';
 export type {
     RowExpansionDefinition,
     RowExpansionRenderer,

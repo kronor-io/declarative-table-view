@@ -1,15 +1,31 @@
-import { FilterGroups } from './filters';
+import { FilterGroups, FilterId } from './filters';
 import { CURRENT_FORMAT_REVISION, SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
-import { defaultUserData, defaultViewData, fromUserDataJson, mergeViewsJson, toUserDataJson, UserData, UserDataJson, UserPreferences, ViewData, ViewDataJson } from './user-data';
-import { applyUserDataMigrations, userDataMigrationErrorToMessage } from './user-data.migrations';
-import { ViewId } from './view';
+import {
+    decodeUserData,
+    defaultUserData,
+    defaultViewData,
+    encodeUserData,
+    initialUserDataJson,
+    readUserData,
+    UserData,
+    UserDataJson,
+    UserPreferences,
+    ViewData,
+    type UserDataDecodeError,
+    type UserDataRead,
+    type ViewMigrationContext,
+    type ViewResets
+} from './user-data';
+import type { UserDataWithUndecodedViews } from './user-data-undecoded';
+import { userDataMigrationErrorToMessage, type UserDataMigrationError } from './user-data.migrations';
+import { getAllFilters, ViewId } from './view';
 import type { ShowToastFn } from './toast'
-import { errorMessage, externalLoadFailed, externalSaveFailed, localStorageFailed, UserDataManagerError, userDataManagerErrorToToast, userDataStorageErrorToMessage } from './user-data-errors'
+import { errorMessage, externalLoadFailed, externalSaveFailed, localStorageFailed, UserDataManagerError, userDataManagerErrorToToast, userDataStorageErrorToMessage, viewResetsToToast } from './user-data-errors'
 import { Result } from './result'
 import { createSerialQueue } from './serial-queue'
 import { cachedValue } from './cached-value'
-import { readUserDataJson, USER_DATA_LOCALSTORAGE_KEY, writeUserDataJson, type UserDataStorageError } from './user-data-storage'
+import { readUserDataJson, USER_DATA_LOCALSTORAGE_KEY, writeUserDataJson } from './user-data-storage'
 
 export { USER_DATA_LOCALSTORAGE_KEY }
 
@@ -70,10 +86,12 @@ export type UserDataManagerOptions = {
     save?: UserDataSaveCallback
     /** Toast function forwarded to load/save callbacks */
     showToast: ShowToastFn
+    /** The migrations of views that have them, see `viewMigrationContext`. */
+    migrationsByViewId?: Record<ViewId, ViewMigrationContext>
 }
 
-/** The remote's copy of the user data, parsed and as received. */
-type RemoteCopy = { userData: UserData; json: UserDataJson }
+/** Stored user data at a format revision this version cannot migrate from, e.g. one a newer version wrote. */
+type UnsupportedFormat = { kind: 'unsupportedFormat'; error: UserDataMigrationError }
 
 /** Where and how a write goes. */
 type Persist = {
@@ -81,47 +99,64 @@ type Persist = {
     bumpRevision: boolean
     /** Send the data to the remote as well as to localStorage. */
     remote: boolean
-    /**
-     * Views of a newer copy the data was derived from. Views this manager has no schema for
-     * are carried along from here, and otherwise from what localStorage holds.
-     */
-    baseViews?: Record<ViewId, ViewDataJson> | null
 }
 
 export function createUserDataManager(
     filterGroupsByViewId: Record<ViewId, FilterGroups>,
     options: UserDataManagerOptions
 ): UserDataManager {
-    const parse = (json: UserDataJson): UserData => fromUserDataJson(json, filterGroupsByViewId)
-    const serialize = (userData: UserData): UserDataJson => toUserDataJson(userData, filterGroupsByViewId)
+    /*
+     * Every copy of the user data — localStorage's, the remote's, another tab's — is read
+     * the same way: user-data-level migrations, decoding up to the views, then each view
+     * this manager has a schema for decoded against it. See `readUserData`.
+     */
+    const migrationsByViewId = options.migrationsByViewId ?? {}
+    const read = (json: unknown): Result<UserDataDecodeError, UserDataRead> => readUserData(json, filterGroupsByViewId, migrationsByViewId)
 
-    // Parsing hydrates every view's filter state against the current schemas, so a
-    // malformed payload throws. Contained here so one bad payload does not take down all
-    // user data (saved filters, column order, rows per page) with it.
-    function parseStored(json: UserDataJson): Result<UserDataStorageError, UserData> {
-        try {
-            return Result.success(parse(json))
-        } catch (err) {
-            return Result.failure({ kind: 'malformed', cause: err })
-        }
+    function decodeErrorMessage(error: UserDataDecodeError): string {
+        return error.kind === 'migrationFailed'
+            ? userDataMigrationErrorToMessage(error.error)
+            : `the stored user data is not valid (${error.issue.path}: ${error.issue.message})`
     }
 
-    /** What localStorage holds, for the merges and revisions below. */
-    const storedUserDataJson = (): UserDataJson | null => Result.getOrElse(null, readUserDataJson())
-
-    /** The user data in localStorage; defaults when there is none or it cannot be read. */
-    function readLocalUserData(): UserData {
-        const stored = Result.flatMap(
-            json => json === null ? Result.success(null) : parseStored(json),
-            readUserDataJson()
-        )
+    /** localStorage's copy; with nothing stored, the initial user data (which may import legacy data). */
+    function readLocal(): Result<UserDataDecodeError, UserDataRead> {
         return Result.match({
             whenError: (error) => {
                 console.error('Failed to read user data:', userDataStorageErrorToMessage(error), error.cause)
+                return read(initialUserDataJson())
+            },
+            whenSuccess: (json) => read(json ?? initialUserDataJson())
+        }, readUserDataJson())
+    }
+
+    /** The user data in localStorage; defaults when it cannot be read. */
+    function readLocalUserData(): UserData {
+        return Result.match({
+            whenError: (error) => {
+                console.error('Failed to read user data:', decodeErrorMessage(error), error)
                 return defaultUserData()
             },
-            whenSuccess: (userData) => userData ?? defaultUserData()
-        }, stored)
+            whenSuccess: ({ userData }) => userData
+        }, readLocal())
+    }
+
+    /** What localStorage holds, decoded up to the views: for the revisions and the views carried along on a write. */
+    function storedUserData(): Result<UserDataDecodeError, UserDataWithUndecodedViews> | null {
+        const json = Result.getOrElse(null, readUserDataJson())
+        if (json === null) return null
+        return Result.mapResult(({ data }) => data, decodeUserData(json))
+    }
+
+    function filterLabel(viewId: ViewId, filterId: FilterId): string {
+        const filterGroups = filterGroupsByViewId[viewId] ?? []
+        return getAllFilters(filterGroups).find(filter => filter.id === filterId)?.label ?? filterId
+    }
+
+    function reportResets(resets: ViewResets[]): void {
+        if (resets.length > 0) {
+            options.showToast(viewResetsToToast(resets, filterLabel))
+        }
     }
 
     /** This tab's copy of the user data, read from localStorage on first use. */
@@ -131,6 +166,17 @@ export function createUserDataManager(
     // from defaults in memory and leaves both stores alone, so data a newer version wrote is
     // not replaced by what this version makes of it.
     let readOnly = false
+
+    function becomeReadOnly(error: UserDataMigrationError): void {
+        console.error('Failed to read user data:', userDataMigrationErrorToMessage(error), error)
+        options.showToast({
+            severity: 'error',
+            summary: 'Failed to read user data',
+            detail: userDataMigrationErrorToMessage(error),
+            life: 5000
+        })
+        readOnly = true
+    }
 
     /**
      * Re-reads what another tab wrote to localStorage. A copy with a lower revision than
@@ -156,7 +202,7 @@ export function createUserDataManager(
 
     /* The two stores */
 
-    function writeLocally(json: UserDataJson): Result<UserDataManagerError, void> {
+    function writeLocally(json: UserDataWithUndecodedViews): Result<UserDataManagerError, void> {
         return Result.mapFailure(writeUserDataJson(json), localStorageFailed)
     }
 
@@ -170,13 +216,17 @@ export function createUserDataManager(
         }
     }
 
-    /** The remote's copy; `null` when it holds nothing yet. */
-    async function loadRemote(): Promise<Result<UserDataManagerError, RemoteCopy | null>> {
+    /**
+     * The remote's copy; `null` when it holds nothing yet. A copy this version cannot read
+     * is a load failure, unless it is at a format revision this version cannot migrate
+     * from: then the manager becomes read-only (`unsupportedFormat`).
+     */
+    async function loadRemote(): Promise<Result<UserDataManagerError | UnsupportedFormat, UserDataRead | null>> {
         if (!options.load) return Result.success(null)
         try {
             const loaded = await options.load({ showToast: options.showToast, Result: Result })
-            return Result.flatMap(
-                json => json === null ? Result.success(null) : parseRemote(json),
+            return Result.flatMap<UserDataManagerError | UnsupportedFormat, unknown, UserDataRead | null>(
+                json => json === null ? Result.success(null) : readRemote(json),
                 Result.mapFailure(loaded, externalLoadFailed)
             )
         } catch (err) {
@@ -184,32 +234,37 @@ export function createUserDataManager(
         }
     }
 
-    function parseRemote(json: UserDataJson): Result<UserDataManagerError, RemoteCopy> {
-        return Result.bimap({
-            mapFailure: (error) => {
-                console.error('Failed to read remote user data:', error.cause)
-                return externalLoadFailed('Remote user data could not be read; continuing with locally stored data.', error.cause)
-            },
-            mapSuccess: (userData) => ({ userData, json })
-        }, parseStored(json))
+    function readRemote(json: unknown): Result<UserDataManagerError | UnsupportedFormat, UserDataRead> {
+        return Result.mapFailure(read(json), (error): UserDataManagerError | UnsupportedFormat => {
+            if (error.kind === 'migrationFailed') return { kind: 'unsupportedFormat', error: error.error }
+            console.error('Failed to read remote user data:', decodeErrorMessage(error))
+            return externalLoadFailed('Remote user data could not be read; continuing with locally stored data.', error)
+        })
     }
 
     async function persist(userData: UserData, how: Persist): Promise<Result<UserDataManagerError, UserData>> {
         if (readOnly) return Result.success(cachedUserData.set(userData))
 
-        const stored = storedUserDataJson()
+        const stored = storedUserData()
+        if (stored !== null && Result.isFailure(stored) && stored.error.kind === 'migrationFailed') {
+            // A newer version wrote localStorage since this manager read it. Writing would
+            // replace that data with what this version makes of it.
+            becomeReadOnly(stored.error.error)
+            return Result.success(cachedUserData.set(userData))
+        }
+        const storedData = stored !== null && Result.isSuccess(stored) ? stored.value : null
+
         // A bumped revision is above everything known here, other tabs' writes included.
         const revision = how.bumpRevision
-            ? Math.max(userData.revision, cachedUserData().revision, stored?.revision ?? 0) + 1
+            ? Math.max(userData.revision, cachedUserData().revision, storedData?.revision ?? 0) + 1
             : userData.revision
         const persisted: UserData = { ...userData, revision }
-        const json = serialize(persisted)
-        // Views this manager has no schema for are carried along; see `Persist.baseViews`.
-        const storedJson: UserDataJson = { ...json, views: mergeViewsJson(stored?.views, how.baseViews, json.views) }
+        // Views stored by other tabs and not known here are carried along.
+        const json = encodeUserData(persisted, filterGroupsByViewId, storedData?.views, migrationsByViewId)
 
-        const local = writeLocally(storedJson)
+        const local = writeLocally(json)
         cachedUserData.set(persisted)
-        const remote = how.remote ? await writeRemotely(storedJson) : Result.success<void, UserDataManagerError>(undefined)
+        const remote = how.remote ? await writeRemotely(json) : Result.success<void, UserDataManagerError>(undefined)
         // A remote failure is the one to act on; a local one is reported once the rest went well.
         return Result.mapResult(() => persisted, Result.isFailure(remote) ? remote : local)
     }
@@ -225,41 +280,46 @@ export function createUserDataManager(
     async function synchronize(retryRejectedPush: boolean): Promise<void> {
         // Without a loader nothing is awaited, so local-only data is migrated and available
         // synchronously, as soon as the manager is created.
-        const remote = options.load ? await loadRemote() : Result.success<RemoteCopy | null, UserDataManagerError>(null)
-        reportFailure(remote)
+        const remote = options.load ? await loadRemote() : Result.success<UserDataRead | null, UserDataManagerError>(null)
+        if (Result.isFailure(remote)) {
+            if (remote.error.kind === 'unsupportedFormat') {
+                becomeReadOnly(remote.error.error)
+                cachedUserData.set(defaultUserData())
+                return
+            }
+            options.showToast(userDataManagerErrorToToast(remote.error))
+        }
 
         // Read local data only now: another tab may have written while the load was in flight.
-        const local = latestUserData()
+        const localRead = readLocal()
+        if (Result.isFailure(localRead)) {
+            if (localRead.error.kind === 'migrationFailed') {
+                becomeReadOnly(localRead.error.error)
+                cachedUserData.set(defaultUserData())
+                return
+            }
+            console.error('Failed to read user data:', decodeErrorMessage(localRead.error), localRead.error)
+        }
+        const local: UserDataRead = Result.isSuccess(localRead)
+            ? localRead.value
+            : { userData: defaultUserData(), resets: [], migrated: false, issues: [] }
         // The remote copy is the source when it is at least as new (prefer remote on a tie).
-        const remoteCopy = Result.isSuccess(remote) && remote.value !== null && remote.value.userData.revision >= local.revision
+        const remoteCopy = Result.isSuccess(remote) && remote.value !== null && remote.value.userData.revision >= local.userData.revision
             ? remote.value
             : null
-        const source = remoteCopy?.userData ?? local
-
-        const migrated = applyUserDataMigrations(source, { filterGroupsByViewId })
-        if (Result.isFailure(migrated)) {
-            console.error('Failed to read user data:', userDataMigrationErrorToMessage(migrated.error), migrated.error)
-            options.showToast({
-                severity: 'error',
-                summary: 'Failed to read user data',
-                detail: userDataMigrationErrorToMessage(migrated.error),
-                life: 5000
-            })
-            readOnly = true
-            cachedUserData.set(defaultUserData())
-            return
-        }
-        const changedByMigration = migrated.value.formatRevision !== source.formatRevision
+        const source = remoteCopy ?? local
+        reportResets(source.resets)
+        // Migrations and resets change what is stored; writing it once settles them.
+        const changedByReading = source.migrated || source.resets.length > 0
 
         // The remote receives the data when it is known to be behind (it holds nothing, or
-        // the local copy is newer) or the migration changed what it holds. After a failed
+        // the local copy is newer) or reading it changed what it holds. After a failed
         // load it is unknown and left alone. A remote that is up to date is not written to.
         const how: Persist = {
-            bumpRevision: changedByMigration,
-            remote: Result.isSuccess(remote) && (remoteCopy === null || changedByMigration),
-            baseViews: remoteCopy?.json.views
+            bumpRevision: changedByReading,
+            remote: Result.isSuccess(remote) && (remoteCopy === null || changedByReading)
         }
-        const persisted = await persist(migrated.value, how)
+        const persisted = await persist(source.userData, how)
         if (Result.isFailure(persisted) && how.remote && retryRejectedPush) {
             // The remote rejected the push: it moved on while this manager was starting, by
             // another tab's write or by a write of this tab that was still in flight. Load it
@@ -294,11 +354,8 @@ export function createUserDataManager(
             // A remote below the revision just tried did not reject it; writing again would not help.
             if (remote.value.userData.revision < cachedUserData().revision) return attempt
 
-            return persist(change(remote.value.userData), {
-                bumpRevision: true,
-                remote: true,
-                baseViews: remote.value.json.views
-            })
+            // The remote copy's retained views are carried along with it.
+            return persist(change(remote.value.userData), { bumpRevision: true, remote: true })
         })
     }
 

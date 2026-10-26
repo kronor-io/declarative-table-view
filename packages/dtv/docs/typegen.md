@@ -77,6 +77,18 @@ const config: DtvTypegenConfig = {
 export default config;
 ```
 
+`schema` may also be a function returning the same object (or a promise of it). Only `dtv typegen`
+calls it, so other commands reading `dtv.config.ts` (`dtv definitions`) do not need what it needs, e.g. a
+secret from the environment:
+
+```ts
+schema: () => {
+    const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
+    if (!secret) throw new Error('HASURA_GRAPHQL_ADMIN_SECRET is required for type generation.');
+    return { endpoint: 'https://my-hasura.example.com/v1/graphql', headers: { 'x-hasura-admin-secret': secret } };
+},
+```
+
 ## Output
 
 For each discovered `DSL.view({ id, collectionName, ... })` call, the generator writes one file next to the view source file, named by `output.fileNamePattern`.
