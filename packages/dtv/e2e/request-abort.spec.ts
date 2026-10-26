@@ -6,7 +6,7 @@ import { mockPaginationGraphQL } from './graphqlMock';
 // left as an unhandled rejection, and the loading overlay stays up until the newer
 // request answers.
 
-const APP_URL = 'http://localhost:5173/?test-view=simple-test-view';
+const APP_URL = '/?test-view=simple-test-view';
 const nextButton = '[data-testid="pagination-next"]';
 const pageIndicator = '[data-testid="pagination-page"]';
 const tableRows = 'table tbody tr';

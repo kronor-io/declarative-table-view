@@ -1,6 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
+ * The tests run their own dev server, on a port of their own: not Vite's default 5173, which
+ * an app embedding dtv may be serving on, and never reusing a server already there, which
+ * could be anything. A port taken fails the run instead.
+ */
+const PORT = Number(process.env.DTV_E2E_PORT ?? 5273);
+const BASE_URL = `http://localhost:${PORT}`;
+
+/**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
@@ -22,7 +30,7 @@ export default defineConfig({
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         /* Base URL to use in actions like \`await page.goto('/')\`. */
-        baseURL: 'http://localhost:5173',
+        baseURL: BASE_URL,
 
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: 'on-first-retry',
@@ -47,8 +55,8 @@ export default defineConfig({
 
     /* Run your local dev server before starting the tests */
     webServer: {
-        command: 'npm run dev',
-        url: 'http://localhost:5173',
-        reuseExistingServer: !process.env.CI,
+        command: `npm run dev -- --port ${PORT} --strictPort`,
+        url: BASE_URL,
+        reuseExistingServer: false,
     },
 });
