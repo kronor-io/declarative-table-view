@@ -169,3 +169,14 @@ are named in a notice.
   error is logged and the stored state of the changed filters is reset rather than misread. Columns
   are not compared at runtime (an instance may show a column only with some arguments); `check` does.
 - Shared links carry the view and revision they were made for, and are migrated too.
+
+## Known limits
+
+- Snapshots do not see query transforms or what a custom filter component stores. When either
+  changes what a stored value means, make a `--manual` revision; nothing warns you to.
+- Data written while a definition without a snapshot was deployed is stamped with the older revision
+  but has the newer shape. Running `check` in CI is what prevents that.
+- Renaming a definition does not move the data of instances whose ids are derived from it
+  (`…-${orderId}`).
+- View ids must be unique across all apps that share one user's data.
+- Views with an id per record (one per order, say) each store their own data, which grows without bound.
