@@ -108,7 +108,11 @@ export async function loadProject(args: LoadProjectArgs): Promise<DefinitionsPro
     try {
         server = await vite.createServer({
             configFile: viteConfig,
-            server: { middlewareMode: true, hmr: false, ws: false },
+            // The views are loaded once, so nothing is watched: watching a large project can exceed
+            // the system's limit of watchers (ENOSPC on Linux CI). Not `watch: null`, which a
+            // project's `server.watch` would override (mergeConfig skips nulls) and which turns
+            // off Vite's resolve cache, making the run half again as slow.
+            server: { middlewareMode: true, hmr: false, ws: false, watch: { ignored: () => true } },
             optimizeDeps: { noDiscovery: true, include: [] },
             // Dependencies are bundled for SSR rather than imported by Node: view modules import
             // components whose CommonJS dependencies (e.g. prop-types) Node cannot give named
