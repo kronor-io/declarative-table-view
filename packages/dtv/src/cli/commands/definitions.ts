@@ -76,10 +76,10 @@ export function registerDefinitionsCommand(program: Command) {
                 report.problems.forEach(problem => console.error(problem));
                 if (report.problems.length > 0) process.exitCode = 1;
                 else console.log(definition !== undefined
-                    ? `${definition}: matches its latest snapshot, and its migrations are complete.`
+                    ? `${definition}: matches its latest snapshot, and its migrations cover every change between snapshots.`
                     : views === 1
-                        ? '1 view matches its latest snapshot, and its migrations are complete.'
-                        : `${views} views match their latest snapshots, and their migrations are complete.`);
+                        ? '1 view matches its latest snapshot, and its migrations cover every change between snapshots.'
+                        : `${views} views match their latest snapshots, and their migrations cover every change between snapshots.`);
             } catch (e) {
                 fail(e);
             }

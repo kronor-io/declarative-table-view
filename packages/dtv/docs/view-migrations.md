@@ -54,6 +54,13 @@ items passed in as data are left out), so for most factories that is all it take
 
    `npx dtv definitions check journal-list` checks one definition.
 
+   It checks that each view uses its own migrations, that its latest snapshot is the definition as
+   it is, and that its migrations cover every change between snapshots: replaying each migration's
+   operations over the older snapshot gives the newer one, no `todo` is left, and a `mapValues`
+   maps the older item values to newer ones. It does not run `custom` migrations, cannot tell
+   whether a `keep` is right that stored state still means the same, and does not see changes
+   the snapshots cannot (see below).
+
 ### When a factory needs help
 
 `dtv definitions` says which factories it cannot handle alone; configure them in `dtv.config.ts`, by export
