@@ -74,8 +74,16 @@ async function locate(options: DefinitionsOptions, project: DefinitionsProject, 
     return { kind: 'unwired', folder: path.join(parent, definition), chain: null };
 }
 
+/**
+ * Whether the definition is as its latest snapshot has it. A snapshot without items was
+ * written before snapshots had them, or when no filter's items were fixed: its items are not
+ * compared (`runMigrate` adds them).
+ */
 function sameDefinition(live: ViewProjection, latest: ViewProjection): boolean {
-    return live.definition === latest.definition && deepEqual(live.filters, latest.filters) && deepEqual(live.columns, latest.columns);
+    return live.definition === latest.definition
+        && deepEqual(live.filters, latest.filters)
+        && deepEqual(live.columns, latest.columns)
+        && (latest.items === undefined || deepEqual(live.items, latest.items));
 }
 
 /** The migration revisions a folder has files for, oldest first. */
@@ -175,6 +183,8 @@ export async function runMigrate(options: MigrateOptions, project: DefinitionsPr
     let todos = 0;
     /** Definitions without changes; counted rather than listed when all definitions are snapshotted. */
     let upToDate = 0;
+    /** Definitions whose latest snapshot got the items it was written without. */
+    let itemsAdded = 0;
     for (const definition of definitions) {
         const view = project.definitions[definition].instances[0];
         const renamedChain = renamedFolder === null ? null : chains.get(renamedFolder) ?? null;
@@ -198,6 +208,15 @@ export async function runMigrate(options: MigrateOptions, project: DefinitionsPr
         const latest = chain.latest;
         const revision = latest.revision + 1;
         const live = project.projectDefinition(definition, revision);
+        if (sameDefinition(live, latest) && latest.items === undefined && live.items !== undefined && options.manual === undefined) {
+            // Items say nothing about what was stored before: no revision for them.
+            const file = path.join(folder, snapshotFile(latest.revision));
+            if (await fs.access(file).then(() => true, () => false)) {
+                await writeFile(file, renderSnapshot({ ...latest, items: live.items }, options.dtvImport));
+                itemsAdded++;
+            }
+        }
+
         if (sameDefinition(live, latest) && options.manual === undefined) {
             // Only worth a line of its own when asked for, or when it is wired up now.
             if (options.definition === undefined && located.kind !== 'unwired') {
@@ -232,6 +251,7 @@ export async function runMigrate(options: MigrateOptions, project: DefinitionsPr
         if (located.kind === 'unwired') (await wireUp(options, project, definition, folder)).forEach(options.log);
     }
 
+    if (itemsAdded > 0) options.log(`${itemsAdded} ${itemsAdded === 1 ? 'view' : 'views'}: added the values of fixed dropdown and multiselect items to the latest snapshot`);
     if (upToDate > 0) options.log(`${upToDate} ${upToDate === 1 ? 'view' : 'views'} up to date`);
 
     return { todos, problems: project.problems };

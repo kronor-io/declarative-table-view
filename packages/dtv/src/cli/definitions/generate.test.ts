@@ -101,6 +101,40 @@ describe('generateOps', () => {
 });
 
 describe('rendering', () => {
+    it('asks how to map the values a filter\'s items no longer have', () => {
+        const dropdown: FilterProjection = { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } };
+        const withItems = (revision: number, values: unknown[] | undefined, filterId = 'voided'): ViewProjection =>
+            ({ ...projection(revision, { [filterId]: dropdown }), ...(values === undefined ? {} : { items: { [filterId]: values } }) });
+
+        expect(generateOps(withItems(1, [true, false]), withItems(2, [1, 0]))).toEqual([{
+            code: "m.todo('voided', 'its items no longer have true, false')",
+            comments: [
+                'Map each to one of 1, 0, or to DSL.DROP to clear it:',
+                "m.mapValues('voided', value => value === true ? … : value === false ? … : DSL.DROP)",
+                "Otherwise: m.reset('voided')"
+            ],
+            todo: true
+        }]);
+        // Values kept stay as they are
+        expect(generateOps(withItems(1, ['PAID', 'OPEN']), withItems(2, ['paid', 'OPEN']))[0].comments[1])
+            .toBe("m.mapValues('voided', value => value === 'PAID' ? … : value)");
+        // Nothing to ask without items on both sides, or when only values were added
+        expect(codes(withItems(1, undefined), withItems(2, [1, 0]))).toEqual([]);
+        expect(codes(withItems(1, [true, false]), withItems(2, undefined))).toEqual([]);
+        expect(codes(withItems(1, [true]), withItems(2, [true, false]))).toEqual([]);
+        // A renamed filter is migrated with custom instead
+        expect(codes(withItems(1, [true, false]), withItems(2, [1, 0], 'isVoided'))).toEqual([
+            "m.renameFilter('voided', 'isVoided')",
+            "m.todo('voided', 'renamed to \"isVoided\", and its items no longer have true, false')"
+        ]);
+    });
+
+    it('does not ask about the values of a filter that is reset anyway', () => {
+        const from: ViewProjection = { ...projection(1, { voided: { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } } }), items: { voided: [true, false] } };
+        const to: ViewProjection = { ...projection(2, { voided: { kind: 'leaf', cmp: 'in', field: 'voided', control: { type: 'multiselect' } } }), items: { voided: [1, 0] } };
+        expect(codes(from, to)).toEqual(["m.reset('voided')"]);
+    });
+
     it('writes projections as TypeScript literals', () => {
         expect(toLiteral({ a: [1, 'x'], 'not-an-identifier': { b: null }, c: [] })).toBe(
             "{\n    a: [1, 'x'],\n    'not-an-identifier': {\n        b: null\n    },\n    c: []\n}"

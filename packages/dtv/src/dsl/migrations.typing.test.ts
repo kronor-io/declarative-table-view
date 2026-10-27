@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { defineMigration, defineViewMigrations, RESET, type UndecodedFilterFormStateFor } from './migrations';
+import { defineMigration, defineViewMigrations, DROP, RESET, type UndecodedFilterFormStateFor } from './migrations';
 import type { ViewProjection } from '../framework/view-projection';
 
 // Type-level tests for migrations between two snapshots; they fail if TypeScript cannot
@@ -128,6 +128,24 @@ describe('defineMigration typing', () => {
             // @ts-expect-error a todo has to be replaced
             m.todo('amt', 'rename to amount, or drop?')
         ]);
+    });
+
+    it('types mapValues by the item values of both snapshots, where they have them', () => {
+        const voided = { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } } as const;
+        const withBooleans = { definition: 'journal', revision: 1, filters: { voided }, columns: {}, items: { voided: [true, false] } } as const satisfies ViewProjection;
+        const withNumbers = { definition: 'journal', revision: 2, filters: { voided }, columns: {}, items: { voided: [1, 0] } } as const satisfies ViewProjection;
+        const withoutItems = { definition: 'journal', revision: 3, filters: { voided }, columns: {} } as const satisfies ViewProjection;
+
+        defineMigration(withBooleans, withNumbers, m => [
+            m.mapValues('voided', value => value ? 1 : 0),
+            m.mapValues('voided', value => value === true ? 1 : DROP),
+            // @ts-expect-error 2 is not among the newer snapshot's items
+            m.mapValues('voided', value => value ? 1 : 2),
+            // @ts-expect-error 'yes' is not among the older snapshot's items
+            m.mapValues('voided', value => value === 'yes' ? 1 : 0)
+        ]);
+        // Without items in the newer snapshot, anything goes
+        defineMigration(withBooleans, withoutItems, m => [m.mapValues('voided', value => value ? 'yes' : 'no')]);
     });
 
     it('chains migrations that follow on from each other, and throws on ones that do not', () => {

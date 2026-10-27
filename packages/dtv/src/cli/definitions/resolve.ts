@@ -11,7 +11,10 @@ import type { LoadedDefinition, LoadedView, ViewProjection } from './types.js';
  * - the id: fine when the contrasting id only adds a suffix to the minimal one (`asset-list`,
  *   `asset-list-1`), which is the definition id then; otherwise its definition id has to
  *   be configured;
- * - the columns (e.g. one shown only when a callback is passed): the snapshot gets them all.
+ * - the columns (e.g. one shown only when a callback is passed): the snapshot gets them all;
+ * - the items of a dropdown or multiselect: those that differ come from the arguments (data,
+ *   as a rule), and the snapshot leaves them out. It keeps those that are the same in every
+ *   build, e.g. yes / no options.
  */
 
 export type BuiltExport = {
@@ -85,11 +88,23 @@ export function resolveDefinitions(built: readonly BuiltExport[], project: Proje
     return { definitions, problems };
 }
 
-/** The projection of a definition: its instances' filters (which agree) and all their columns. */
+/**
+ * The projection of a definition: its instances' filters (which agree), all their columns,
+ * and the items that are the same in all of them.
+ */
 export function projectDefinition(definition: LoadedDefinition, id: string, revision: number, project: (view: LoadedView, definition: string, revision: number) => ViewProjection): ViewProjection {
     const [first, ...rest] = definition.instances.map(view => project(view, id, revision));
-    return rest.reduce((merged, projection) => ({
+    const columns = rest.reduce((merged, projection) => ({
         ...merged,
-        columns: { ...merged.columns, ...Object.fromEntries(Object.entries(projection.columns).filter(([column]) => merged.columns[column] === undefined)) }
-    }), first);
+        ...Object.fromEntries(Object.entries(projection.columns).filter(([column]) => merged[column] === undefined))
+    }), first.columns);
+    const items = Object.fromEntries(Object.entries(first.items ?? {})
+        .filter(([filterId, values]) => rest.every(projection => deepEqual(projection.items?.[filterId], values))));
+    return {
+        definition: first.definition,
+        revision: first.revision,
+        filters: first.filters,
+        columns,
+        ...(Object.keys(items).length > 0 ? { items } : {})
+    };
 }

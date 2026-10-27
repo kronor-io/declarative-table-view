@@ -71,6 +71,20 @@ describe('resolveDefinitions', () => {
         expect(Object.keys(projectDefinition(definitions['vendor-flag-list'], 'vendor-flag-list', 2, project).columns)).toEqual(['code', 'actions']);
     });
 
+    it('snapshots the items that are the same in every build, and leaves out those that come from the arguments', () => {
+        // A stand-in view with item values by filter id
+        const projectWithItems = (loaded: LoadedView, definition: string, revision = 1): ViewProjection =>
+            ({ ...project(loaded, definition, revision), items: (loaded as FakeView & { items: Record<string, unknown[]> }).items });
+        const journal = (items: Record<string, unknown[]>) => ({ ...view('journal-list', { voided: 'voided', currency: 'currency' }), items });
+        const definitionOf = (minimal: Record<string, unknown[]>, contrasting: Record<string, unknown[]>) => {
+            const { definitions } = resolveDefinitions([factory('journalList', [{ view: journal(minimal) }, { view: journal(contrasting) }])], projectWithItems);
+            return projectDefinition(definitions['journal-list'], 'journal-list', 1, projectWithItems);
+        };
+
+        expect(definitionOf({ voided: [true, false], currency: [] }, { voided: [true, false], currency: ['x1'] }).items).toEqual({ voided: [true, false] });
+        expect(definitionOf({ currency: [] }, { currency: ['x1'] })).not.toHaveProperty('items');
+    });
+
     it('reports factories that cannot be built, and ignores contrasting builds that fail', () => {
         const { definitions, problems } = resolveDefinitions([
             factory('broken', [{ error: 'subsidiaries[0] is undefined' }, { view: view('broken') }]),

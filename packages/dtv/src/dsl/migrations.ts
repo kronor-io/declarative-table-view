@@ -65,6 +65,10 @@ export type UndecodedFilterFormStateFor<F> =
 
 type StateOf<P extends ViewProjection, Id extends keyof P['filters']> = UndecodedFilterFormStateFor<P['filters'][Id]>
 
+/** A value a filter's items offer, when the snapshot has them; any value otherwise. */
+export type ItemValueOf<P extends ViewProjection, Id extends string> =
+    P extends { items: infer Items } ? (Id extends keyof Items ? (Items[Id] extends readonly (infer V)[] ? V : Json) : Json) : Json
+
 /** The operations of a migration from the snapshot `From` to the snapshot `To`. */
 export interface MigrationBuilder<From extends ViewProjection, To extends ViewProjection> {
     /** The filter got another id; it is otherwise the same. */
@@ -88,10 +92,14 @@ export interface MigrationBuilder<From extends ViewProjection, To extends ViewPr
     /**
      * Rewrite the stored values of the filter's leaves, e.g. for renamed enum values. A list
      * (a multiselect's value) is mapped element by element. Return `DROP` to remove a value.
-     * Dropdown items are not part of snapshots, so this is checked by nothing but you:
-     * `dtv definitions snapshot --manual` makes a revision for it.
+     *
+     * Where the snapshots have the filter's item values, the mapping takes one of the older
+     * snapshot's (other stored values are left as they are) and returns one of the newer
+     * one's; `dtv definitions check` runs it on each. Items that are not in snapshots (they
+     * come from data) leave it to you, as do query transforms: `dtv definitions snapshot
+     * --manual` makes a revision for such a change.
      */
-    mapValues<Id extends FilterIdOf<From> & FilterIdOf<To>>(id: Id, map: (value: Json) => Json | typeof DROP): MigrationOp
+    mapValues<Id extends FilterIdOf<From> & FilterIdOf<To>>(id: Id, map: (value: ItemValueOf<From, Id>) => ItemValueOf<To, Id> | typeof DROP): MigrationOp
 
     /** Map each custom operator the filter no longer offers to one it does, or to `null` to clear it. */
     mapOperators<Id extends FilterIdOf<From> & FilterIdOf<To>>(

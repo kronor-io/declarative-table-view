@@ -13,9 +13,10 @@ import {
     migrateViewData,
     previousDefinitions,
     resetFiltersChangedSinceSnapshot,
+    type MigrationOp,
     type ViewMigration
 } from './view-migrations';
-import { projectFilter, projectView, type ControlProjection, type FilterProjection, type ViewProjection } from './view-projection';
+import { itemValues, projectFilter, projectView, type ControlProjection, type FilterProjection, type ViewProjection } from './view-projection';
 import type { View } from './view';
 
 const leaf = (value: unknown): UndecodedFilterFormState => ({ type: 'leaf', value: { type: 'value', value: value as never } });
@@ -82,7 +83,7 @@ const complete = defineMigration(rev1, rev2, m => [
 const stored = (fields: Partial<UndecodedViewData>): UndecodedViewData => ({ ...defaultUndecodedViewData(), ...fields });
 
 describe('view projections', () => {
-    it('keep what stored user data depends on, and leave out labels, initial values and items', () => {
+    it('keep what stored user data depends on, item values apart, and leave out labels and initial values', () => {
         const view = {
             id: 'payments-credit',
             filterGroups: [{
@@ -105,8 +106,23 @@ describe('view projections', () => {
             definition: 'payments',
             revision: 3,
             filters: { status: { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } } },
-            columns: { id: { orderBy: 'id' } }
+            columns: { id: { orderBy: 'id' } },
+            items: { status: ['PAID'] }
         });
+    });
+
+    it('take item values from every dropdown and multiselect of a filter, but not from inside custom operators', () => {
+        const yesNo = FilterControl.dropdown({ items: [{ label: 'Yes', value: true }, { label: 'No', value: false }] });
+        expect(itemValues(FilterExpr.or({ filters: [
+            FilterExpr.equals({ field: 'voided', control: yesNo }),
+            FilterExpr.equals({ field: 'confirmed', control: FilterControl.dropdown({ items: [{ label: 'Yes', value: true }, { label: 'Maybe', value: null }] }) })
+        ] }))).toEqual([true, false, null]);
+
+        expect(itemValues(FilterExpr.equals({ field: 'reference', control: FilterControl.customOperator({ operators: [{ label: 'is', value: '_eq' }], valueControl: yesNo }) }))).toBeNull();
+        expect(itemValues(FilterExpr.equals({ field: 'at', control: FilterControl.dropdown({ items: [{ label: 'Now', value: new Date(0) }] }) }))).toBeNull();
+        expect(itemValues(FilterExpr.equals({ field: 'name', control: FilterControl.text() }))).toBeNull();
+        // As built of made-up arguments
+        expect(itemValues({ type: 'equals', field: 'status', value: { type: 'dropdown', items: [undefined] as never } })).toBeNull();
     });
 });
 
@@ -127,6 +143,66 @@ describe('checkMigration', () => {
             'migration of "payments" to revision 2: column "old" was removed; drop or rename it',
             'migration of "payments" to revision 2: column "amount" sorts differently; reset its sort'
         ]);
+    });
+});
+
+describe('item values', () => {
+    const journal = (revision: number, items?: unknown[], filterId = 'voided'): ViewProjection => ({
+        definition: 'journal',
+        revision,
+        filters: { [filterId]: { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } } },
+        columns: {},
+        ...(items === undefined ? {} : { items: { [filterId]: items as never } })
+    });
+    const mapVoided = (map: (value: never) => unknown) => ({ kind: 'mapValues', filterId: 'voided', map }) as MigrationOp;
+    const messages = (migration: ViewMigration) => checkMigration(migration).map(problem => problem.message);
+
+    it('are a problem when gone from a filter\'s items, until mapped to the remaining ones', () => {
+        const from = journal(1, [true, false]);
+        const to = journal(2, [1, 0]);
+
+        expect(messages({ from, to, ops: [] })).toEqual([
+            'migration of "journal" to revision 2: filter "voided" no longer has the items true, false; map them with mapValues, or reset it'
+        ]);
+        expect(messages({ from, to, ops: [mapVoided(value => value === true ? 1 : 0)] })).toEqual([]);
+        expect(messages({ from, to, ops: [{ kind: 'reset', filterId: 'voided' }] })).toEqual([]);
+    });
+
+    it('are mapped to the remaining ones, or dropped, without failing', () => {
+        const from = journal(1, [true, false]);
+        const to = journal(2, [1, 0]);
+
+        expect(messages({ from, to, ops: [mapVoided(value => value === true ? 1 : DROP)] })).toEqual([]);
+        expect(messages({ from, to, ops: [mapVoided(value => value === true ? 1 : 2)] })).toEqual([
+            'migration of "journal" to revision 2: mapValues of "voided" maps false to 2, which is not among its items (1, 0)'
+        ]);
+        expect(messages({ from, to, ops: [mapVoided(() => { throw new Error('nope'); })] })).toEqual([
+            'migration of "journal" to revision 2: mapValues of "voided" fails for true: nope',
+            'migration of "journal" to revision 2: mapValues of "voided" fails for false: nope'
+        ]);
+    });
+
+    it('are compared only where both snapshots have them', () => {
+        expect(messages({ from: journal(1), to: journal(2, [1, 0]), ops: [] })).toEqual([]);
+        expect(messages({ from: journal(1, [true, false]), to: journal(2), ops: [] })).toEqual([]);
+    });
+
+    it('follow a renamed filter', () => {
+        const rename: MigrationOp = { kind: 'renameFilter', from: 'voided', to: 'isVoided' };
+        expect(messages({ from: journal(1, [true, false]), to: journal(2, [false, true], 'isVoided'), ops: [rename] })).toEqual([]);
+        expect(messages({ from: journal(1, [true, false]), to: journal(2, [1, 0], 'isVoided'), ops: [rename] })).toEqual([
+            'migration of "journal" to revision 2: filter "isVoided" no longer has the items true, false; map them with mapValues, or reset it'
+        ]);
+    });
+
+    it('limit a mapping to the stored values among them', () => {
+        const migration: ViewMigration = { from: journal(1, [true, false]), to: journal(2, [1, 0]), ops: [mapVoided(value => value === true ? 1 : 0)] };
+        const migrated = applyToViewData(migration, stored({ persistedFilterState: { voided: leaf(true) }, savedFilters: [
+            { id: 'sf', name: 'Odd', view: 'journal', createdAt: '2026-01-01T00:00:00.000Z', formatRevision: '', state: { voided: leaf('stale') } }
+        ] }));
+
+        expect(migrated.data.persistedFilterState).toEqual({ voided: leaf(1) });
+        expect(migrated.data.savedFilters[0].state).toEqual({ voided: leaf('stale') });
     });
 });
 

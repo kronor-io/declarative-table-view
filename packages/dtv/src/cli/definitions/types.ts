@@ -20,6 +20,7 @@ export type ViewProjection = {
     readonly revision: number;
     readonly filters: { readonly [filterId: string]: FilterProjection };
     readonly columns: { readonly [columnId: string]: { readonly orderBy: string | null } };
+    readonly items?: { readonly [filterId: string]: readonly unknown[] };
 };
 
 export type MigrationOpData = { readonly kind: string } & Record<string, unknown>;

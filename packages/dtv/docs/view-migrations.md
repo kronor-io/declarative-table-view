@@ -15,8 +15,9 @@ when it reads a user's data, and `dtv definitions check` fails CI when a definit
 `dtv definitions` finds the views itself: the modules `scan` in `dtv.config.ts` matches that call
 `DTV.view`, and in them the exports that are views or return one. A factory is built with arguments
 made up from its parameter types — twice, minimal and contrasting, to see what its arguments change.
-What a snapshot records does not depend on labels, initial values or dropdown items, so for most
-factories that is all it takes.
+What a snapshot records does not depend on labels or initial values, and it keeps only the
+dropdown and multiselect items that are the same in both builds (fixed ones, like yes / no options;
+items passed in as data are left out), so for most factories that is all it takes.
 
 1. Snapshot every view:
 
@@ -110,7 +111,8 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 
 | Change | Written |
 |---|---|
-| Filter or column added; labels, initial values, dropdown items changed | nothing |
+| Filter or column added; labels or initial values changed; items added | nothing |
+| Fixed items removed (their values may be stored) | `m.todo` (map them with `m.mapValues`, or reset) |
 | Filter removed | `m.drop(id)` |
 | Filter removed and exactly one added with the same definition, matching no other | `m.renameFilter(old, new)` |
 | Filters removed and added with the same definition, but not one to one | `m.todo` for each removed one (rename or drop) |
@@ -129,7 +131,7 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 | `m.keep(id, { because })` | The filter changed, but every stored state still fits and means the same (checked: the state types fit). |
 | `m.reset(id)` | Stored state is dropped; the filter starts from its initial value. Users are told. |
 | `m.drop(id)` | The filter was removed. |
-| `m.mapValues(id, value => …)` | Stored values change, e.g. renamed enum values. Lists are mapped element by element; return `DROP` to remove one. Users are told about removed values. |
+| `m.mapValues(id, value => …)` | Stored values change, e.g. renamed enum values. Lists are mapped element by element; return `DROP` to remove one. Users are told about removed values. Where the snapshots have the filter's items, `value` is one of the older items (other stored values are left as they are) and the result has to be one of the newer ones (checked by the types, and by running it). |
 | `m.mapOperators(id, { old: 'new' \| null })` | Custom operators were removed (checked: every removed one is mapped). `null` clears what used it; users are told. |
 | `m.custom(from, to, state => … \| RESET)` | Anything else; `state` is typed by both snapshots. |
 | `m.renameColumn(from, to)`, `m.dropColumn(id)`, `m.resetSort(id)` | Columns. A stored sort by what a dropped column, or one given `resetSort`, sorted by is reset. |
@@ -138,9 +140,9 @@ Ids are checked against the snapshots: `m.reset('amount')` does not compile if r
 
 ### Changes the snapshots cannot see
 
-Dropdown items and query transforms are not in snapshots. When stored values need to change for
-such a reason — enum values renamed, a transform now reading major instead of minor units — make a
-revision by hand:
+Items that come from data, query transforms and what custom filter components store are not in
+snapshots. When stored values need to change for such a reason — status values from the database
+renamed, a transform now reading major instead of minor units — make a revision by hand:
 
 ```sh
 npx dtv definitions snapshot journal-list --manual "status values are lower case now"
@@ -173,8 +175,13 @@ are named in a notice.
 
 ## Known limits
 
-- Snapshots do not see query transforms or what a custom filter component stores. When either
-  changes what a stored value means, make a `--manual` revision; nothing warns you to.
+- Snapshots do not see items that come from data, query transforms, or what a custom filter
+  component stores. When one of them changes what a stored value means, make a `--manual`
+  revision; nothing warns you to.
+- Items are told apart by building a factory twice: items that come neither from its arguments nor
+  from literals (read from a module-level store, say) are taken for fixed ones.
+- Snapshots written by dtv 9.4 have no items; `check` compares items only where a snapshot has
+  them, and the next `snapshot` adds them to the latest snapshot without a revision.
 - Data written while a definition without a snapshot was deployed is stamped with the older revision
   but has the newer shape. Running `check` in CI is what prevents that.
 - Renaming a definition does not move the data of instances whose ids are derived from it

@@ -116,15 +116,20 @@ describe('scenarios: user data over the life of a view', () => {
         expect(result.written.views['payment-list']).toMatchObject({ definitionRevision: 2, savedFilters: [{ name: 'Paid', state: { status: leaf('PAID') } }] });
     });
 
-    it('enum values renamed, which snapshots cannot see: a manual revision rewrites them, and reports the dropped ones', async () => {
+    it('enum values renamed: asked about; mapped as the user decides, and the dropped ones reported', async () => {
         await snapshotted([filters.multiselect('status', 'status', ['PAID', 'VOID', 'OPEN'])]);
         await changeFilters(filters.multiselect('status', 'status', ['paid', 'OPEN']));
 
-        expect((await project.snapshot()).log).toEqual(['1 view up to date']);
-        const { todos } = await project.snapshot({ definition: 'payments', manual: 'status values are lower case now' });
-        expect(todos).toBe(1);
-        await decide(`${MIGRATIONS}/rev2.migration.ts`, "m.todo('manual revision', 'status values are lower case now'),",
-            "m.mapValues('status', value => value === 'PAID' ? 'paid' : value === 'VOID' ? DSL.DROP : value),");
+        expect((await project.snapshot()).todos).toBe(1);
+        expect((await project.check()).problems).toContain(
+            'payments: migration of "payments" to revision 2: filter "status" no longer has the items "PAID", "VOID"; map them with mapValues, or reset it'
+        );
+
+        // A value the new items do not have does not type-check
+        await decide(`${MIGRATIONS}/rev2.migration.ts`, "m.todo('status', 'its items no longer have \"PAID\", \"VOID\"'),",
+            "m.mapValues('status', value => value === 'PAID' ? 'Paid' : value === 'VOID' ? DSL.DROP : value),");
+        expect(project.typeErrors()).not.toEqual([]);
+        await decide(`${MIGRATIONS}/rev2.migration.ts`, "value === 'PAID' ? 'Paid'", "value === 'PAID' ? 'paid'");
         expect(project.typeErrors()).toEqual([]);
         expect(await project.check()).toEqual({ problems: [], warnings: [] });
 
@@ -138,6 +143,48 @@ describe('scenarios: user data over the life of a view', () => {
         expect(result.written.views.payments.savedFilters[0].state).toEqual({ status: leaf(['paid', 'OPEN']) });
         expect(result.written.views.payments.persistedFilterState).toEqual({});
         expect(result.resets).toEqual([{ viewId: 'payments', persistedFilterState: ['status'], savedFilters: [] }]);
+    });
+
+    it('items from data, which snapshots leave out: a manual revision rewrites stored values', async () => {
+        project = await scenario();
+        const statusFrom = "{ id: 'status', label: 'status', aiGenerated: false, expression: { type: 'in', field: 'status', " +
+            "value: { type: 'multiselect', items: statuses.map(status => ({ label: status, value: status })) } } }";
+        await project.write(VIEW, viewModule({
+            id: 'payments',
+            exportName: 'paymentsView',
+            filters: [statusFrom],
+            factory: { parameters: '(statuses: string[])', idExpression: "'payments'" }
+        }));
+        await project.snapshot();
+        expect(await project.read(`${MIGRATIONS}/rev1.snapshot.ts`)).not.toContain('items');
+
+        const { todos } = await project.snapshot({ definition: 'payments', manual: 'status values are lower case now' });
+        expect(todos).toBe(1);
+        await decide(`${MIGRATIONS}/rev2.migration.ts`, "m.todo('manual revision', 'status values are lower case now'),",
+            "m.mapValues('status', value => typeof value === 'string' ? value.toLowerCase() : value),");
+        expect(project.typeErrors()).toEqual([]);
+        expect(await project.check()).toEqual({ problems: [], warnings: [] });
+
+        const result = await project.readUserData(
+            storedUserData({ payments: { definitionRevision: 1, persistedFilterState: { status: leaf(['PAID']) } } }),
+            loaded => [(loaded.module(VIEW).paymentsView as (statuses: string[]) => unknown)(['paid'])]
+        );
+        expect(result.written.views.payments.persistedFilterState).toEqual({ status: leaf(['paid']) });
+    });
+
+    it('a snapshot written before snapshots had items: checked without them; the next snapshot adds them, without a revision', async () => {
+        await snapshotted([filters.multiselect('status', 'status', ['PAID', 'OPEN'])]);
+        const snapshot = `${MIGRATIONS}/rev1.snapshot.ts`;
+        const withItems = await project.read(snapshot);
+        await project.write(snapshot, withItems.replace(/,\n {4}items: \{[\s\S]*?\n {4}\}\n\}/, '\n}'));
+        expect(await project.read(snapshot)).not.toContain('items');
+
+        expect(await project.check()).toEqual({ problems: [], warnings: [] });
+        expect((await project.snapshot()).log).toEqual([
+            '1 view: added the values of fixed dropdown and multiselect items to the latest snapshot',
+            '1 view up to date'
+        ]);
+        expect(await project.read(snapshot)).toEqual(withItems);
     });
 
     it('a column renamed: asked about; hidden columns follow the rename the user decides', async () => {

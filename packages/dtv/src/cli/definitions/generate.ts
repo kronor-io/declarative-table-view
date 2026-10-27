@@ -95,6 +95,13 @@ function controlOperators(control: ControlProjection): string[] {
     return control.type === 'customOperator' ? [...control.operators, ...controlOperators(control.valueControl)] : [];
 }
 
+/** `from`'s values that `to` does not have. */
+function removedValues(from: readonly unknown[], to: readonly unknown[]): unknown[] {
+    return from.filter(value => !to.some(other => deepEqual(other, value)));
+}
+
+const describeValues = (values: readonly unknown[]) => values.map(value => JSON.stringify(value)).join(', ');
+
 /* The operations of a migration */
 
 /** The operations a migration from `from` to `to` needs, as far as the diff can tell. */
@@ -156,6 +163,9 @@ export function generateOps(from: ViewProjection, to: ViewProjection): Generated
         ]));
     }
 
+    /** Filters whose stored state is reset anyway: their item values do not matter. */
+    const reset = new Set<string>();
+
     for (const filterId of Object.keys(from.filters)) {
         const toFilter = to.filters[filterId];
         if (toFilter === undefined || deepEqual(from.filters[filterId], toFilter)) continue;
@@ -164,6 +174,7 @@ export function generateOps(from: ViewProjection, to: ViewProjection): Generated
         compareFilters(from.filters[filterId], toFilter, change);
 
         if (change.structure !== null) {
+            reset.add(filterId);
             ops.push(op(`m.reset(${quote(filterId)})`, [
                 `Stored state of "${filterId}" no longer fits: ${change.structure}.`,
                 `To carry it over instead: m.custom(${quote(filterId)}, ${quote(filterId)}, state => …)`
@@ -192,6 +203,31 @@ export function generateOps(from: ViewProjection, to: ViewProjection): Generated
                 `Otherwise: m.reset(${quote(filterId)})`
             ]));
         }
+    }
+
+    // Item values a filter no longer has: what is stored for it may be one of them. Compared
+    // where both snapshots have the filter's items, as `check` does.
+    for (const [filterId, values] of Object.entries(from.items ?? {})) {
+        const renamed = renames.get(filterId);
+        const target = renamed ?? filterId;
+        const toValues = to.items?.[target];
+        if (toValues === undefined || to.filters[target] === undefined || reset.has(filterId)) continue;
+        const removed = removedValues(values, toValues);
+        if (removed.length === 0) continue;
+
+        if (renamed !== undefined) {
+            ops.push(todo(filterId, `renamed to "${renamed}", and its items no longer have ${describeValues(removed)}`, [
+                `Rename it and map the values, each to one of ${describeValues(toValues)}, or to DSL.RESET to reset it:`,
+                `m.custom(${quote(filterId)}, ${quote(renamed)}, state => …) in place of the m.renameFilter above`
+            ]));
+            continue;
+        }
+        const kept = values.length > removed.length;
+        ops.push(todo(filterId, `its items no longer have ${describeValues(removed)}`, [
+            `Map each to one of ${describeValues(toValues)}, or to DSL.DROP to clear it:`,
+            `m.mapValues(${quote(filterId)}, value => ${removed.map(value => `value === ${toLiteral(value)} ? …`).join(' : ')} : ${kept ? 'value' : 'DSL.DROP'})`,
+            `Otherwise: m.reset(${quote(filterId)})`
+        ]));
     }
 
     const removedColumns = Object.keys(from.columns).filter(id => to.columns[id] === undefined);

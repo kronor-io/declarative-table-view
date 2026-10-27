@@ -94,8 +94,37 @@ function omit<T>(record: { readonly [key: string]: T }, key: string): { [key: st
     return Object.fromEntries(Object.entries(record).filter(([entryKey]) => entryKey !== key))
 }
 
+/** What `op` does to the item values of the snapshot `projection` of a migration to `to`. */
+function applyToItems(op: MigrationOp, items: NonNullable<ViewProjection['items']>, to: ViewProjection): ViewProjection['items'] {
+    const takeFromTo = (filterId: FilterId) => to.items?.[filterId] === undefined
+        ? omit(items, filterId)
+        : { ...items, [filterId]: to.items[filterId] }
+
+    switch (op.kind) {
+        case 'renameFilter':
+            return items[op.from] === undefined ? items : { ...omit(items, op.from), [op.to]: items[op.from] }
+        case 'keep':
+        case 'reset':
+        case 'mapValues':
+            return takeFromTo(op.filterId)
+        case 'drop':
+            return omit(items, op.filterId)
+        case 'custom': {
+            const rest = omit(items, op.from)
+            return to.items?.[op.to] === undefined ? rest : { ...rest, [op.to]: to.items[op.to] }
+        }
+        default:
+            return items
+    }
+}
+
 /** What `op` does to the snapshot `projection` of a migration to `to`. */
 export function applySchema(op: MigrationOp, projection: ViewProjection, to: ViewProjection): ViewProjection {
+    const result = applyToFiltersAndColumns(op, projection, to)
+    return projection.items === undefined ? result : { ...result, items: applyToItems(op, projection.items, to) }
+}
+
+function applyToFiltersAndColumns(op: MigrationOp, projection: ViewProjection, to: ViewProjection): ViewProjection {
     const filters = projection.filters
     const columns = projection.columns
     const withFilters = (next: ViewProjection['filters']): ViewProjection => ({ ...projection, filters: next })
@@ -133,10 +162,30 @@ export function applySchema(op: MigrationOp, projection: ViewProjection, to: Vie
 
 export type MigrationProblem = { readonly message: string }
 
+const includes = (values: readonly Json[], value: Json) => values.some(other => projectionsEqual(other, value))
+
+const describeValues = (values: readonly Json[]) => values.map(value => JSON.stringify(value)).join(', ')
+
+/** What a `mapValues` mapping does wrong with `values`, which it is given, when `to` knows the values it may give. */
+function checkValueMapping(op: Extract<MigrationOp, { kind: 'mapValues' }>, values: readonly Json[], to: readonly Json[], where: string): MigrationProblem[] {
+    return values.flatMap(value => {
+        let mapped: Json | typeof DROP
+        try {
+            mapped = op.map(value)
+        } catch (err) {
+            return [{ message: `${where}: mapValues of "${op.filterId}" fails for ${JSON.stringify(value)}: ${err instanceof Error ? err.message : String(err)}` }]
+        }
+        return mapped === DROP || includes(to, mapped)
+            ? []
+            : [{ message: `${where}: mapValues of "${op.filterId}" maps ${JSON.stringify(value)} to ${JSON.stringify(mapped)}, which is not among its items (${describeValues(to)})` }]
+    })
+}
+
 /**
  * What `migration` leaves uncovered: replaying its operations over the older snapshot has
- * to give the newer one, except for filters and columns the newer one adds. Undecided
- * `todo`s are problems too.
+ * to give the newer one, except for filters and columns the newer one adds. Item values are
+ * compared where both snapshots have them: what may be stored for a filter has to stay among
+ * its items, or be mapped to them. Undecided `todo`s are problems too.
  */
 export function checkMigration(migration: ViewMigration): MigrationProblem[] {
     const { from, to } = migration
@@ -147,7 +196,14 @@ export function checkMigration(migration: ViewMigration): MigrationProblem[] {
         if (op.kind === 'todo') problems.push({ message: `${where}: undecided for "${op.subject}": ${op.message}` })
     }
 
-    const expected = migration.ops.reduce((projection, op) => applySchema(op, projection, to), from)
+    const expected = migration.ops.reduce((projection, op) => {
+        const values = op.kind === 'mapValues' ? projection.items?.[op.filterId] : undefined
+        const toValues = op.kind === 'mapValues' ? to.items?.[op.filterId] : undefined
+        if (op.kind === 'mapValues' && values !== undefined && toValues !== undefined) {
+            problems.push(...checkValueMapping(op, values, toValues, where))
+        }
+        return applySchema(op, projection, to)
+    }, from)
 
     for (const [filterId, filter] of Object.entries(expected.filters)) {
         if (to.filters[filterId] === undefined) {
@@ -161,6 +217,14 @@ export function checkMigration(migration: ViewMigration): MigrationProblem[] {
             problems.push({ message: `${where}: column "${columnId}" was removed; drop or rename it` })
         } else if (!projectionsEqual(column, to.columns[columnId])) {
             problems.push({ message: `${where}: column "${columnId}" sorts differently; reset its sort` })
+        }
+    }
+    for (const [filterId, values] of Object.entries(expected.items ?? {})) {
+        const toValues = to.items?.[filterId]
+        if (toValues === undefined || to.filters[filterId] === undefined) continue
+        const removed = values.filter(value => !includes(toValues, value))
+        if (removed.length > 0) {
+            problems.push({ message: `${where}: filter "${filterId}" no longer has the items ${describeValues(removed)}; map them with mapValues, or reset it` })
         }
     }
 
@@ -226,7 +290,12 @@ function mapOperator(value: UndecodedFilterValue, map: Readonly<Record<string, s
     return value.type === 'value' ? { type: 'value', value: mapped } : { type: 'legacy', raw: mapped }
 }
 
-function applyToFilterState(op: MigrationOp, to: ViewProjection, { state, reset }: FilterStateMigration): FilterStateMigration {
+/** `map`, leaving values that are not among `values` (when known) as they are. */
+function onlyAmong(values: readonly Json[] | undefined, map: (value: Json) => Json | typeof DROP): (value: Json) => Json | typeof DROP {
+    return values === undefined ? map : value => includes(values, value) ? map(value) : value
+}
+
+function applyToFilterState(op: MigrationOp, from: ViewProjection, to: ViewProjection, { state, reset }: FilterStateMigration): FilterStateMigration {
     const has = (filterId: FilterId) => Object.prototype.hasOwnProperty.call(state, filterId)
     const resetFilter = (filterId: FilterId): FilterStateMigration => has(filterId)
         ? { state: omit(state, filterId), reset: to.filters[filterId] === undefined ? reset : [...reset, filterId] }
@@ -249,7 +318,7 @@ function applyToFilterState(op: MigrationOp, to: ViewProjection, { state, reset 
             if (!has(op.filterId)) return { state, reset }
             const before = state[op.filterId]
             const after = op.kind === 'mapValues'
-                ? mapLeaves(before, value => mapValue(value, op.map))
+                ? mapLeaves(before, value => mapValue(value, onlyAmong(from.items?.[op.filterId], op.map)))
                 : mapLeaves(before, value => mapOperator(value, op.map))
             // A value mapped away is lost to the user as much as a reset filter is: they are told.
             return { state: { ...state, [op.filterId]: after }, reset: lostValues(before, after) ? [...reset, op.filterId] : reset }
@@ -277,7 +346,7 @@ function applyToFilterState(op: MigrationOp, to: ViewProjection, { state, reset 
 
 function migrateFilterStateOnce(migration: ViewMigration, state: UndecodedFilterState): FilterStateMigration {
     return migration.ops.reduce(
-        (migrated, op) => applyToFilterState(op, migration.to, migrated),
+        (migrated, op) => applyToFilterState(op, migration.from, migration.to, migrated),
         { state, reset: [] as FilterId[] }
     )
 }
