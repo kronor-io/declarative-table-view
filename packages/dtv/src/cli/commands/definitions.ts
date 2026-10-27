@@ -70,11 +70,16 @@ export function registerDefinitionsCommand(program: Command) {
         .argument('[definition]', 'Only this definition'))
         .action(async (definition: string | undefined, opts: CommonOpts) => {
             try {
-                const report = await withProject(opts, (project, options) => runCheck({ ...options, definition }, project));
+                const { report, views } = await withProject(opts, async (project, options) =>
+                    ({ report: await runCheck({ ...options, definition }, project), views: Object.keys(project.definitions).length }));
                 report.warnings.forEach(warning => console.warn(`warning: ${warning}`));
                 report.problems.forEach(problem => console.error(problem));
                 if (report.problems.length > 0) process.exitCode = 1;
-                else console.log(definition === undefined ? 'View migrations are complete.' : `View migrations of "${definition}" are complete.`);
+                else console.log(definition !== undefined
+                    ? `${definition}: matches its latest snapshot, and its migrations are complete.`
+                    : views === 1
+                        ? '1 view matches its latest snapshot, and its migrations are complete.'
+                        : `${views} views match their latest snapshots, and their migrations are complete.`);
             } catch (e) {
                 fail(e);
             }
