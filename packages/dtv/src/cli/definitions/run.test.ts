@@ -212,6 +212,27 @@ describe('dtv definitions', () => {
         ]);
     });
 
+    it('checks one definition when asked, leaving out the others and unused migrations', async () => {
+        const changed = chainOf([textFilter('status')], 'changed');
+        const project = await projectWith({
+            changed: viewWith([textFilter('status', 'state')], changed),
+            unsnapshotted: viewWith([])
+        }, {
+            'src/dtv-migrations/changed': changed,
+            'src/dtv-migrations/orphan': chainOf([], 'orphan')
+        });
+
+        expect(await runCheck({ ...options, definition: 'changed' }, project)).toEqual({
+            problems: ['changed: changed since revision 1; run `dtv definitions snapshot changed`'],
+            warnings: []
+        });
+        expect(await runCheck({ ...options, definition: 'unsnapshotted' }, project)).toEqual({
+            problems: ['unsnapshotted: no snapshots; run `dtv definitions snapshot unsnapshotted`'],
+            warnings: []
+        });
+        await expect(runCheck({ ...options, definition: 'missing' }, project)).rejects.toThrow('No view definition "missing"');
+    });
+
     it('passes views that use complete migrations of their own', async () => {
         const chain = chainOf([textFilter('status')]);
         const report = await runCheck(options, await projectWith(

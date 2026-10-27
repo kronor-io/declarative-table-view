@@ -52,6 +52,8 @@ items passed in as data are left out), so for most factories that is all it take
    npx dtv definitions check
    ```
 
+   `npx dtv definitions check journal-list` checks one definition.
+
 ### When a factory needs help
 
 `dtv definitions` says which factories it cannot handle alone; configure them in `dtv.config.ts`, by export

@@ -66,14 +66,15 @@ export function registerDefinitionsCommand(program: Command) {
 
     withCommonOptions(definitions
         .command('check')
-        .description('Fail when a view definition changed without a migration, or a migration is incomplete'))
-        .action(async (opts: CommonOpts) => {
+        .description('Fail when a view definition changed without a migration, or a migration is incomplete')
+        .argument('[definition]', 'Only this definition'))
+        .action(async (definition: string | undefined, opts: CommonOpts) => {
             try {
-                const report = await withProject(opts, (project, options) => runCheck(options, project));
+                const report = await withProject(opts, (project, options) => runCheck({ ...options, definition }, project));
                 report.warnings.forEach(warning => console.warn(`warning: ${warning}`));
                 report.problems.forEach(problem => console.error(problem));
                 if (report.problems.length > 0) process.exitCode = 1;
-                else console.log('View migrations are complete.');
+                else console.log(definition === undefined ? 'View migrations are complete.' : `View migrations of "${definition}" are complete.`);
             } catch (e) {
                 fail(e);
             }

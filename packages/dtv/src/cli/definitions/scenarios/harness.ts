@@ -163,7 +163,7 @@ export type Scenario = {
     exists(file: string): Promise<boolean>;
     load(): Promise<Loaded>;
     snapshot(options?: Partial<Pick<MigrateOptions, 'definition' | 'manual' | 'renamedFrom'>>): Promise<{ log: string[]; todos: number; problems: readonly string[] }>;
-    check(): Promise<CheckReport>;
+    check(definition?: string): Promise<CheckReport>;
     /** dtv's runtime reading `stored` with the project's views (and `views`, e.g. instances of factories). */
     readUserData(stored: Json, views?: (loaded: Loaded) => unknown[]): Promise<Read>;
     /** TypeScript's errors in the project's own files. */
@@ -231,9 +231,9 @@ export async function scenario(config: { factories?: DtvDefinitionsConfig['defin
             const { todos, problems } = await runMigrate({ ...options(log), ...migrate }, project);
             return { log, todos, problems };
         },
-        async check() {
+        async check(definition) {
             const { project } = await load();
-            return runCheck(options([]), project);
+            return runCheck({ ...options([]), definition }, project);
         },
         async readUserData(stored, views = () => []) {
             const loaded = await load();

@@ -24,6 +24,13 @@ export type DefinitionsOptions = {
     log: (line: string) => void;
 };
 
+/** Throws unless the project has the definition `definition`. */
+function requireDefinition(project: DefinitionsProject, definition: string): void {
+    if (project.definitions[definition] === undefined) {
+        throw new Error(`No view definition "${definition}"; there are ${Object.keys(project.definitions).join(', ')}`);
+    }
+}
+
 export type MigrateOptions = DefinitionsOptions & {
     /** Only this definition. */
     definition?: string;
@@ -143,9 +150,7 @@ async function writeFile(file: string, content: string): Promise<void> {
  */
 export async function runMigrate(options: MigrateOptions, project: DefinitionsProject): Promise<{ todos: number; problems: readonly string[] }> {
     const definitions = options.definition === undefined ? Object.keys(project.definitions) : [options.definition];
-    if (options.definition !== undefined && project.definitions[options.definition] === undefined) {
-        throw new Error(`No view definition "${options.definition}"; there are ${Object.keys(project.definitions).join(', ')}`);
-    }
+    if (options.definition !== undefined) requireDefinition(project, options.definition);
     if ((options.manual !== undefined || options.renamedFrom !== undefined) && options.definition === undefined) {
         throw new Error('--manual and --renamed-from need the definition they are for');
     }
@@ -259,20 +264,27 @@ export async function runMigrate(options: MigrateOptions, project: DefinitionsPr
 
 export type CheckReport = { problems: string[]; warnings: string[] };
 
+export type CheckOptions = DefinitionsOptions & {
+    /** Only this definition: views that could not be made definitions of, and unused migrations, are left out. */
+    definition?: string;
+};
+
 /**
  * Whether every view's stored user data can be migrated to its definition as it is: each
  * view uses its migrations, its latest snapshot is the definition as it is, and each
  * migration covers its revision's changes and has no `todo` left.
  */
-export async function runCheck(options: DefinitionsOptions, project: DefinitionsProject): Promise<CheckReport> {
+export async function runCheck(options: CheckOptions, project: DefinitionsProject): Promise<CheckReport> {
     const problems: string[] = [];
     const warnings: string[] = [];
     const chains = await loadChains(project);
     const used = new Set<string>();
 
-    problems.push(...project.problems);
+    if (options.definition !== undefined) requireDefinition(project, options.definition);
+    else problems.push(...project.problems);
 
     for (const [definition, { instances: [view] }] of Object.entries(project.definitions)) {
+        if (options.definition !== undefined && definition !== options.definition) continue;
         const located = await locate(options, project, chains, definition, view);
         if (located.kind === 'problem') {
             problems.push(located.message);
@@ -304,7 +316,7 @@ export async function runCheck(options: DefinitionsOptions, project: Definitions
     }
 
     for (const folder of chains.keys()) {
-        if (!used.has(folder)) {
+        if (options.definition === undefined && !used.has(folder)) {
             warnings.push(`${relative(options, folder)}: migrations no view uses (renamed? \`dtv definitions snapshot <new id> --renamed-from ${path.basename(folder)}\`)`);
         }
     }
