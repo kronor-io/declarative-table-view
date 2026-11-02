@@ -28,12 +28,14 @@ jest.mock('./framework/data', () => {
     };
 });
 
-import App from './App';
+import App, { type AppProps } from './App';
 import type { Runtime } from './framework/runtime';
 import type { fetchData, FetchDataResult } from './framework/data';
 import type { DTVAnalyticsEvent } from './framework/analytics';
 import { FetchError } from './framework/fetch-error';
 import { startPageSession } from './framework/analytics-emitter';
+import { failure, success } from './framework/result';
+import { defaultUserPreferences } from './framework/user-data';
 
 const rawView = {
     title: 'Test View',
@@ -59,7 +61,10 @@ const runtime: Runtime = {
 
 const settle = () => act(async () => { await new Promise(r => setTimeout(r, 50)); });
 
-async function renderApp(onEvent: (event: DTVAnalyticsEvent) => void, { strict = false } = {}) {
+async function renderApp(
+    onEvent: (event: DTVAnalyticsEvent) => void,
+    { strict = false, userData }: { strict?: boolean; userData?: AppProps['userData'] } = {}
+) {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -76,7 +81,8 @@ async function renderApp(onEvent: (event: DTVAnalyticsEvent) => void, { strict =
                     viewsJson: JSON.stringify([rawView]),
                     externalRuntime: runtime,
                     syncFilterStateToUrl: false,
-                    analytics: { onEvent }
+                    analytics: { onEvent },
+                    userData
                 })
             })
         );
@@ -136,6 +142,35 @@ describe('analytics', () => {
         await app.unmount();
 
         expect(events.map(event => event.type)).toEqual(['sessionStarted', 'viewMounted', 'userDataLoad', 'filtersApplied', 'fetch', 'viewUnmounted']);
+    });
+
+    it('reports the user data failing to be written as the table loads once in StrictMode', async () => {
+        const events: DTVAnalyticsEvent[] = [];
+        const app = await renderApp(event => events.push(event), {
+            strict: true,
+            // Nothing stored remotely: the local copy is pushed, and the push fails
+            userData: { onLoad: async () => success(null), onSave: async () => failure('the API is down') }
+        });
+        await app.unmount();
+
+        expect(events.filter(event => event.type === 'userDataSaveFailed')).toHaveLength(1);
+        expect(events.filter(event => event.type === 'userDataLoad')).toHaveLength(1);
+    });
+
+    it('reports the user data turning read-only as the table loads once in StrictMode', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        const events: DTVAnalyticsEvent[] = [];
+        const app = await renderApp(event => events.push(event), {
+            strict: true,
+            // Written by a newer version, in a format this one cannot read
+            userData: {
+                onLoad: async () => success({ preferences: defaultUserPreferences, views: {}, revision: 1, formatRevision: '2099-01-01T00:00:00.000Z' }),
+                onSave: async () => success(undefined)
+            }
+        });
+        await app.unmount();
+
+        expect(events.filter(event => event.type === 'userDataReadOnly')).toHaveLength(1);
     });
 
     it('reports one session for the tables of a page, started by the first one', async () => {
