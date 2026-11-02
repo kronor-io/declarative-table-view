@@ -6,7 +6,7 @@ fails. DTV only reports. Storing the events and analysing them is up to the app.
 - [Setting up](#setting-up)
 - [The envelope](#the-envelope): what every event carries
 - [Events](#events): every event and its fields
-  - [Lifecycle](#lifecycle): `viewMounted`, `viewUnmounted`, `viewSelected`
+  - [Lifecycle](#lifecycle): `sessionStarted`, `viewMounted`, `viewUnmounted`, `viewSelected`
   - [Filters](#filters): `filtersApplied`, `filterSearch`
   - [The table](#the-table): `orderingChanged`, `rowsPerPageChanged`, `hiddenColumnsChanged`, `panelShown`, `rowExpansionToggled`
   - [Saved filters and links](#saved-filters-and-links): `savedFilterSaved`, `savedFilterDeleted`, `shareLinkCreated`
@@ -67,6 +67,7 @@ Every event has these fields besides its own:
 | Field | Type | |
 |---|---|---|
 | `type` | string | Which event it is; see [Events](#events). |
+| `sessionId` | string | The page session, a UUID: from when DTV was loaded until the page is loaded again. All tables of the page share it, however many and whenever they mount; moving between pages of a single-page app keeps it. Another tab has another one. |
 | `instanceId` | string | One mounted table, a UUID. A popout of it is another one, and so is each table on a page. |
 | `seq` | number | Numbers the instance's events from 1, without gaps, in the order they were reported. |
 | `at` | number | When the event was reported, in milliseconds since the epoch, by the browser's clock. |
@@ -85,6 +86,7 @@ A whole event, as `onEvent` receives it:
 
 ```json
 {
+    "sessionId": "9c2d7a41-6b3e-4f8a-a1d5-0e4b7c9f2a63",
     "instanceId": "4b1f0e2c-9a57-4d1e-8f0a-2c6f1d3e7b90",
     "seq": 4,
     "at": 1793875200345,
@@ -113,9 +115,26 @@ Fields marked *optional* are left out, not `null`, when they do not apply.
 
 ### Lifecycle
 
+#### `sessionStarted`
+
+The page session started. Reported once per session, by the table that reports an event first,
+as its first event, before its `viewMounted`.
+
+| Field | Type | |
+|---|---|---|
+| `dtvVersion` | string | The version of `@kronor/dtv` running; `development` in a build that is not the library's, such as tests. |
+
+```json
+{ "type": "sessionStarted", "dtvVersion": "9.5.0" }
+```
+
+The version is the same for the whole session, so it is reported here only: an event's
+version is its session's.
+
 #### `viewMounted`
 
-The table mounted. Always the instance's first event.
+The table mounted. The instance's first event, but in the table that starts the session,
+where `sessionStarted` comes before it.
 
 | Field | Type | |
 |---|---|---|
@@ -661,6 +680,9 @@ they returned or threw.
 
 ## Order and guarantees
 
+- **One session per page load.** Every table of the page has the same `sessionId`, and the
+  first to report anything reports `sessionStarted`. Events are numbered per table, not per
+  session: order a session's tables by their `viewMounted.at`.
 - **One instance per mounted table.** Each `App` has its own `instanceId`, numbering, and user
   data load. Several tables on a page are several instances, and so is a popout. The popout is
   mounted without the app's actions and user data callbacks, so it reports no `action`, and its
@@ -669,8 +691,9 @@ they returned or threw.
   reported. A gap means events were lost on the way, not that the table skipped one. Events are
   numbered only while there is a handler: one set after the table mounted starts the
   numbering then.
-- **`viewMounted` comes first, `viewUnmounted` last.** The exception is spans that were running
-  as the table unmounted: they end after it, as `aborted`, or as they settle.
+- **`viewMounted` comes first, `viewUnmounted` last.** The exceptions: `sessionStarted` comes
+  before `viewMounted` in the session's first table, and spans that were running as the table
+  unmounted end after it, as `aborted`, or as they settle.
 - **Filters before requests.** The `filtersApplied` a request's filters come from is reported
   before the request starts, so `filtersSeq` always points back.
 - **Spans are reported when they end.** A `fetch` that started before another event can come
@@ -687,13 +710,17 @@ they returned or threw.
 
 ## Putting events together
 
-- **A table's session:** its events by `instanceId`, ordered by `seq`. Time on the view is
+- **A page session:** its events by `sessionId`, each table's by `instanceId` and `seq`: the
+  views a user opened, one after another, between two page loads. Its `sessionStarted` says
+  which DTV version all of them ran.
+- **A table's life:** its events by `instanceId`, ordered by `seq`. Time on the view is
   `viewUnmounted.at - viewMounted.at`.
 - **The filters a request ran with:** the `filtersApplied` with the same `instanceId` and
   `seq = fetch.filtersSeq`. Slow and failing filter combinations come out of this.
 - **How a view opens:** the first `filtersApplied` after `viewMounted` (or `viewSelected`)
   says where its filters came from, and the `fetch` that names it how long the first rows took.
-  `userDataLoad` before it says how long the user's data took.
+  `userDataLoad` says how long the user's data took. It can come before or after: a table opens
+  from the local copy when that is enough, without waiting for the load.
 - **Saved filter use:** `savedFilterSaved` and `savedFilterDeleted` by `savedFilterId`, and the
   `filtersApplied` whose `savedFilter.id` names it.
 - **How long a panel was open:** a `panelShown` with `shown: true` and the next one of the same

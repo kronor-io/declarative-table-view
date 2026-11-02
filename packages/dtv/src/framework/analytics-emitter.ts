@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
 import type { DTVAnalyticsEvent, DTVAnalyticsEventPayload, DTVAnalyticsSpan, ReportedEvent } from './analytics';
+import { DTV_VERSION } from './dtv-version';
 import { currentDefinitionRevision } from './view-migrations';
 import type { View, ViewId } from './view';
 
@@ -30,32 +31,61 @@ export function newInstanceId(): string {
 }
 
 /**
+ * The page session: from when DTV is loaded until the page is, again. The tables of a page,
+ * however many and whenever they mount, are of one session.
+ */
+export type PageSession = {
+    readonly id: string;
+    /** `sessionStarted` was reported. */
+    started: boolean;
+};
+
+let pageSession: PageSession = { id: newInstanceId(), started: false };
+
+/** Starts another page session, as loading the page again would. For tests. */
+export function startPageSession(): PageSession {
+    pageSession = { id: newInstanceId(), started: false };
+    return pageSession;
+}
+
+/**
  * An emitter numbering events from 1. `onEvent` is read at each event, so the host's
  * handler may change; while there is none, nothing is numbered or reported. What the
- * handler throws is logged: reporting must never break the table.
+ * handler throws is logged: reporting must never break the table. The first event of the
+ * page session, of whichever table reports one first, is preceded by `sessionStarted`.
  */
 export function createAnalyticsEmitter(
     instanceId: string,
     onEvent: () => ((event: DTVAnalyticsEvent) => void) | undefined,
     definitionOf: (viewId: ViewId) => ViewDefinition,
-    now: () => number = Date.now
+    now: () => number = Date.now,
+    session: () => PageSession = () => pageSession
 ): AnalyticsEmitter {
     let seq = 0;
     let filtersAppliedSeq: number | null = null;
+
+    function deliver(handler: (event: DTVAnalyticsEvent) => void, sessionId: string, viewId: ViewId, payload: DTVAnalyticsEventPayload): void {
+        seq += 1;
+        if (payload.type === 'filtersApplied') filtersAppliedSeq = seq;
+        const event: DTVAnalyticsEvent = { sessionId, instanceId, seq, at: now(), viewId, ...definitionOf(viewId), ...payload };
+        try {
+            handler(event);
+        } catch (error) {
+            console.error('The analytics event handler failed:', error);
+        }
+    }
 
     return {
         emit(viewId, payload) {
             const handler = onEvent();
             if (handler === undefined) return;
 
-            seq += 1;
-            if (payload.type === 'filtersApplied') filtersAppliedSeq = seq;
-            const event: DTVAnalyticsEvent = { instanceId, seq, at: now(), viewId, ...definitionOf(viewId), ...payload };
-            try {
-                handler(event);
-            } catch (error) {
-                console.error('The analytics event handler failed:', error);
+            const current = session();
+            if (!current.started) {
+                current.started = true;
+                deliver(handler, current.id, viewId, { type: 'sessionStarted', dtvVersion: DTV_VERSION });
             }
+            deliver(handler, current.id, viewId, payload);
         },
         lastFiltersAppliedSeq: () => filtersAppliedSeq
     };

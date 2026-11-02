@@ -15,6 +15,11 @@ import type { ViewId } from './view';
 
 /** Where an event happened. */
 export type DTVAnalyticsEventBase = {
+    /**
+     * Identifies the page session: from when DTV was loaded until the page is loaded again.
+     * Its tables, however many, share it; another tab has another one.
+     */
+    readonly sessionId: string;
     /** Identifies one mounted table. A popout of it is another one. */
     readonly instanceId: string;
     /** Numbers the instance's events from 1, without gaps, in the order they were reported. */
@@ -108,6 +113,11 @@ export type DTVAnalyticsUserDataError = {
 };
 
 export type DTVAnalyticsEventPayload =
+    /**
+     * The page session started: reported once per session, as the first event of the table that
+     * reports one first.
+     */
+    | { readonly type: 'sessionStarted'; readonly dtvVersion: string }
     /** The table mounted. */
     | { readonly type: 'viewMounted'; readonly popout: boolean }
     /** The table unmounted. Spans still running end after it, as aborted. */

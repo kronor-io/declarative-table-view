@@ -33,6 +33,7 @@ import type { Runtime } from './framework/runtime';
 import type { fetchData, FetchDataResult } from './framework/data';
 import type { DTVAnalyticsEvent } from './framework/analytics';
 import { FetchError } from './framework/fetch-error';
+import { startPageSession } from './framework/analytics-emitter';
 
 const rawView = {
     title: 'Test View',
@@ -96,19 +97,22 @@ function ofType<T extends DTVAnalyticsEvent['type']>(events: DTVAnalyticsEvent[]
 describe('analytics', () => {
     beforeEach(() => {
         localStorage.clear();
+        // Each test loads the page again
+        startPageSession();
         fetchDataMock.mockReset();
         fetchDataMock.mockImplementation(async () => oneRow());
     });
 
-    it('reports the table opening, its first request and closing, numbered in order', async () => {
+    it('reports the session starting, the table opening, its first request and closing, numbered in order', async () => {
         const events: DTVAnalyticsEvent[] = [];
         const app = await renderApp(event => events.push(event));
         await app.unmount();
 
-        expect(events.map(event => event.type)).toEqual(['viewMounted', 'userDataLoad', 'filtersApplied', 'fetch', 'viewUnmounted']);
-        expect(events.map(event => event.seq)).toEqual([1, 2, 3, 4, 5]);
+        expect(events.map(event => event.type)).toEqual(['sessionStarted', 'viewMounted', 'userDataLoad', 'filtersApplied', 'fetch', 'viewUnmounted']);
+        expect(events.map(event => event.seq)).toEqual([1, 2, 3, 4, 5, 6]);
         expect(new Set(events.map(event => event.instanceId)).size).toBe(1);
-        expect(events[0]).toMatchObject({ viewId: 'test-view', definition: 'test-view', definitionRevision: 1, popout: false });
+        expect(events[0]).toMatchObject({ type: 'sessionStarted', dtvVersion: 'development' });
+        expect(events[1]).toMatchObject({ viewId: 'test-view', definition: 'test-view', definitionRevision: 1, popout: false });
 
         const [applied] = ofType(events, 'filtersApplied');
         const [fetch] = ofType(events, 'fetch');
@@ -131,7 +135,21 @@ describe('analytics', () => {
         const app = await renderApp(event => events.push(event), { strict: true });
         await app.unmount();
 
-        expect(events.map(event => event.type)).toEqual(['viewMounted', 'userDataLoad', 'filtersApplied', 'fetch', 'viewUnmounted']);
+        expect(events.map(event => event.type)).toEqual(['sessionStarted', 'viewMounted', 'userDataLoad', 'filtersApplied', 'fetch', 'viewUnmounted']);
+    });
+
+    it('reports one session for the tables of a page, started by the first one', async () => {
+        const events: DTVAnalyticsEvent[] = [];
+        const first = await renderApp(event => events.push(event));
+        const second = await renderApp(event => events.push(event));
+        await first.unmount();
+        await second.unmount();
+
+        expect(events.filter(event => event.type === 'sessionStarted')).toHaveLength(1);
+        expect(new Set(events.map(event => event.sessionId)).size).toBe(1);
+        expect(new Set(events.map(event => event.instanceId)).size).toBe(2);
+        // The second table's events start from its own mount
+        expect(events.filter(event => event.instanceId !== events[0]?.instanceId)[0]).toMatchObject({ type: 'viewMounted', seq: 1 });
     });
 
     it('reports a failed request with what kind of failure it was, and shows no rows', async () => {

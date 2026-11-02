@@ -8,6 +8,7 @@ import { createRoot, type Root } from 'react-dom/client'
 
 import type { FetchDataResult } from '../data'
 import type { ReportedEvent } from '../analytics'
+import { startPageSession } from '../analytics-emitter'
 import { useAppState, type AppState, type AppStateEffects, type AppStateEnv, type HostCommand, type Msg, type Query } from '.'
 
 const env: AppStateEnv = {
@@ -81,6 +82,8 @@ describe('useAppState', () => {
         fetches = []
         commands = []
         effectLog = []
+        // A session under way: what a table reports first in a session is tested with the App
+        startPageSession().started = true
         root = createRoot(document.createElement('div'))
         await act(async () => { root.render(React.createElement(Harness)) })
     })
