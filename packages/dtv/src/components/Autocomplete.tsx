@@ -2,6 +2,8 @@ import { GraphQLClient } from "graphql-request";
 import { AutoComplete } from "primereact/autocomplete";
 import { useCallback, useState } from "react";
 import { SuggestionFetcher, SuggestionItem } from "../framework/filters";
+import { analyticsError } from "../framework/analytics";
+import { useTrack } from "../framework/analytics-emitter";
 import './Autocomplete.css';
 
 type AutocompleteProps = {
@@ -19,6 +21,7 @@ type AutocompleteProps = {
 // Autocomplete requires local suggestions state; implement inline component to manage it.
 export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, suggestionFetcher, queryMinLength = 1, suggestionLabelField = 'label', multiple = false, selectionLimit }: AutocompleteProps) => {
     const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+    const track = useTrack();
 
     const fetchSuggestions = useCallback(async (query: string) => {
         if (query.length < queryMinLength) {
@@ -29,10 +32,11 @@ export const Autocomplete = ({ value, placeholder, onChange, graphqlClient, sugg
             const items = await suggestionFetcher(query, graphqlClient);
             setSuggestions(items);
         } catch (err) {
-            // Silently ignore errors to avoid breaking filter form
+            // Ignore errors, apart from reporting them, to avoid breaking filter form
+            track({ type: 'suggestionsFailed', error: analyticsError(err) });
             console.warn('Autocomplete suggestionFetcher error:', err);
         }
-    }, [graphqlClient, suggestionFetcher, queryMinLength]);
+    }, [graphqlClient, suggestionFetcher, queryMinLength, track]);
 
     return (
         <div className="tw:flex tw:flex-col tw:gap-1">

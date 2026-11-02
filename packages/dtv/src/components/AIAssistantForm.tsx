@@ -3,8 +3,10 @@ import { Toast } from 'primereact/toast';
 import SpeechInput from './SpeechInput';
 import { useEffect, useState, RefObject } from 'react';
 import { View } from '../framework/view';
-import { generateFilterWithAI, GeminiApi, type AIIntegration, type ModifyAiFilterPromptFn } from './aiAssistant';
+import { generateFilterWithAI, GeminiApi, type AIFilterResult, type AIIntegration, type ModifyAiFilterPromptFn } from './aiAssistant';
 import { FilterState } from '../framework/state';
+import { analyticsError } from '../framework/analytics';
+import { startSpan, useTrack } from '../framework/analytics-emitter';
 
 interface AIAssistantFormProps {
     filterState: FilterState;
@@ -31,6 +33,7 @@ export default function AIAssistantForm({
     const [aiPrompt, setAiPrompt] = useState(selectedView.defaultAIFilterPrompt ?? '');
     // const [aiFilterExprInput, setAiFilterExprInput] = useState('(payment method or currency) and a filter to exclude payment status');
     const [aiLoading, setAiLoading] = useState(false);
+    const track = useTrack();
 
     useEffect(() => {
         setAiPrompt(selectedView.defaultAIFilterPrompt ?? '');
@@ -49,8 +52,11 @@ export default function AIAssistantForm({
                     loading={aiLoading}
                     onClick={async () => {
                         setAiLoading(true);
+                        // The assistant tells the user itself when it did not fill the filters
+                        const end = startSpan();
+                        let result: AIFilterResult = { filled: false, error: new Error('The AI filter assistant did not answer') };
                         try {
-                            await generateFilterWithAI(
+                            result = await generateFilterWithAI(
                                 selectedView.filterGroups,
                                 aiPrompt,
                                 setFilterState,
@@ -69,6 +75,7 @@ export default function AIAssistantForm({
                                 life: 3000
                             });
                         } catch (error) {
+                            result = { filled: false, error };
                             console.error('AI filter generation failed:', error);
                             toast.current?.show({
                                 severity: 'error',
@@ -77,6 +84,12 @@ export default function AIAssistantForm({
                                 life: 3000
                             });
                         } finally {
+                            track({
+                                type: 'aiFilter',
+                                ...end(),
+                                prompt: aiPrompt,
+                                ...(result.filled ? { outcome: 'succeeded' } : { outcome: 'failed', error: analyticsError(result.error) })
+                            });
                             setAiLoading(false);
                         }
                     }}

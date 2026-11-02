@@ -28,7 +28,8 @@ interface FilterFormProps {
     savedFilters: SavedFilter[];
     displayState: FilterDisplayState;
     onFilterGroupExpandedChange: (groupName: string, expanded: boolean) => void;
-    onSubmit: (state: FilterState) => void;
+    /** The filters are to be applied: the form was submitted, or all filters were reset. */
+    onSubmit: (trigger: 'submit' | 'reset') => void;
     graphqlClient: GraphQLClient;
 }
 
@@ -299,7 +300,7 @@ function FilterForm({
     function resetAllFilters() {
         const resetState = createDefaultFilterState(filterGroups, FormStateInitMode.Empty);
         setFilterState(resetState);
-        onSubmit(resetState);
+        onSubmit('reset');
     }
 
     const displayedGroups: FilterGroups = displayState.type === 'all'
@@ -319,7 +320,7 @@ function FilterForm({
     const expandedGroupsSet = useMemo(() => new Set(displayState.expandedGroups), [displayState.expandedGroups]);
 
     return (
-        <form className="tw:mb-4" onSubmit={e => { e.preventDefault(); onSubmit(filterState); }}>
+        <form className="tw:mb-4" onSubmit={e => { e.preventDefault(); onSubmit('submit'); }}>
             {/* Render default group filters above the dividers */}
             {defaultGroup && defaultFilters.length > 0 && (
                 <div className="tw:flex tw:flex-wrap tw:gap-4 tw:items-start tw:mb-4">

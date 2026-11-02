@@ -7,9 +7,16 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import type { FetchDataResult } from '../data'
-import { useAppState, type AppState, type AppStateEffects, type AppStateEnv, type Command, type Msg, type Query } from '.'
+import type { ReportedEvent } from '../analytics'
+import { useAppState, type AppState, type AppStateEffects, type AppStateEnv, type HostCommand, type Msg, type Query } from '.'
 
-const env: AppStateEnv = { filterGroups: () => [], rowsPerPageOptions: [], orderableFields: () => [] }
+const env: AppStateEnv = {
+    filterGroups: () => [],
+    rowsPerPageOptions: [],
+    orderableFields: () => [],
+    definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
+    snapshotDiff: () => null
+}
 
 const rows = (...ids: number[]): FetchDataResult => ({
     rows: ids.map(id => ({ id })),
@@ -24,24 +31,40 @@ interface PendingFetch {
 }
 
 let fetches: PendingFetch[]
-let commands: Command[]
-let latest: { model: AppState; dispatch: (msg: Msg) => void }
+/** The commands run, analytics events apart. */
+let commands: HostCommand[]
+/** The analytics events reported (a fetch with its outcome) and the requests started, in order. */
+let effectLog: string[]
+let latest: { model: AppState; dispatch: (msg: Msg) => void; report: (event: ReportedEvent) => void }
 let root: Root
 
 // A fetch that answers when the test says so, aborted or not: a response can arrive after
 // its request was superseded
 const effects: AppStateEffects = {
-    fetchRows: (query, signal) => new Promise(resolve => {
+    fetchRows: ({ query, reason }, signal) => new Promise(resolve => {
+        effectLog.push(`fetch ${reason}`)
         fetches.push({ query, signal, resolve })
     }),
     runCommand: command => {
         commands.push(command)
+    },
+    onEvent: event => {
+        effectLog.push(event.type === 'fetch' ? `${event.type} ${event.outcome}` : event.type)
     }
 }
 
-function Harness() {
-    const [model, dispatch] = useAppState(env, { viewId: 'payments', rowsPerPage: 2 }, effects)
-    latest = { model, dispatch }
+let renders = 0
+
+function Harness({ reportWhileRendering, analytics = true }: { reportWhileRendering?: ReportedEvent; analytics?: boolean }) {
+    const [model, dispatch, report] = useAppState(env, { viewId: 'payments', rowsPerPage: 2 }, analytics ? effects : { ...effects, onEvent: undefined })
+    latest = { model, dispatch, report }
+    renders += 1
+    // As the user data manager does: it starts loading as it is created, during the first render
+    const reported = React.useRef(false)
+    if (reportWhileRendering && !reported.current) {
+        reported.current = true
+        report(reportWhileRendering)
+    }
     return null
 }
 
@@ -57,6 +80,7 @@ describe('useAppState', () => {
     beforeEach(async () => {
         fetches = []
         commands = []
+        effectLog = []
         root = createRoot(document.createElement('div'))
         await act(async () => { root.render(React.createElement(Harness)) })
     })
@@ -100,8 +124,8 @@ describe('useAppState', () => {
         const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
         const failing: AppStateEffects = { ...effects, fetchRows: () => Promise.reject(new Error('offline')) }
         function FailingHarness() {
-            const [model, dispatch] = useAppState(env, { viewId: 'payments', rowsPerPage: 2 }, failing)
-            latest = { model, dispatch }
+            const [model, dispatch, report] = useAppState(env, { viewId: 'payments', rowsPerPage: 2 }, failing)
+            latest = { model, dispatch, report }
             return null
         }
         await act(async () => { root.render(React.createElement(FailingHarness)) })
@@ -143,5 +167,114 @@ describe('useAppState', () => {
             { tag: 'persistRowsPerPage', viewId: 'payments', rowsPerPage: 4 }
         ])
         await act(async () => { root.unmount() })
+    })
+
+    it('reports the event of a transition before the request it started', async () => {
+        await send(userDataLoaded)
+        await send({ tag: 'filtersApplied', filters: new Map(), trigger: 'submit' })
+
+        // The filters a request is for are always reported before it starts
+        expect(effectLog).toEqual(['viewMounted', 'filtersApplied', 'fetch filters', 'filtersApplied', 'fetch filters'])
+        await act(async () => { root.unmount() })
+    })
+
+    it('reports a request when it ends, with how it ended', async () => {
+        await send(userDataLoaded)
+        await act(async () => { fetches[0].resolve(rows(1)) })
+        await send({ tag: 'refreshRequested' })
+        await act(async () => { root.unmount() })
+
+        expect(effectLog.filter(entry => entry.startsWith('fetch'))).toEqual(['fetch filters', 'fetch succeeded', 'fetch refresh'])
+    })
+
+    it('reports what is reported before the table mounted after it did, and at once after it unmounted', async () => {
+        await act(async () => { root.unmount() })
+        effectLog = []
+        root = createRoot(document.createElement('div'))
+        await act(async () => {
+            root.render(React.createElement(Harness, { reportWhileRendering: { type: 'userDataConflict', resolved: true } }))
+        })
+        await act(async () => { root.unmount() })
+        latest.report({ type: 'rowExpansionLoad', startedAt: 0, durationMs: 1, outcome: 'succeeded' })
+
+        expect(effectLog).toEqual(['viewMounted', 'userDataConflict', 'viewUnmounted', 'rowExpansionLoad'])
+    })
+
+    it('reports each event once in StrictMode, and an unmount only when the table unmounts', async () => {
+        await act(async () => { root.unmount() })
+        effectLog = []
+        root = createRoot(document.createElement('div'))
+        await act(async () => {
+            root.render(React.createElement(React.StrictMode, null,
+                React.createElement(Harness, { reportWhileRendering: { type: 'userDataConflict', resolved: true } })))
+        })
+        await send(userDataLoaded)
+
+        // StrictMode mounted, unmounted and mounted the table again: one mount, nothing lost
+        expect(effectLog).toEqual(['viewMounted', 'userDataConflict', 'filtersApplied', 'fetch filters'])
+        await act(async () => { root.unmount() })
+        expect(effectLog.slice(4)).toEqual(['viewUnmounted'])
+    })
+
+    it('reports the latest of debounced events once they pause, or as the table unmounts', async () => {
+        // The unmount is reported in a microtask
+        jest.useFakeTimers({ doNotFake: ['queueMicrotask'] })
+        try {
+            await send({ tag: 'searchQueryChanged', searchQuery: 'am' })
+            await send({ tag: 'searchQueryChanged', searchQuery: 'amount' })
+            await act(async () => { jest.advanceTimersByTime(1000) })
+            await send({ tag: 'searchQueryChanged', searchQuery: 'date' })
+            await act(async () => { root.unmount() })
+        } finally {
+            jest.useRealTimers()
+        }
+
+        expect(effectLog.filter(entry => entry !== 'panelShown')).toEqual(['viewMounted', 'filterSearch', 'filterSearch', 'viewUnmounted'])
+    })
+
+    it('reports a response that arrives once its request was superseded as aborted', async () => {
+        await send(userDataLoaded)
+        await send({ tag: 'refreshRequested' })
+        await act(async () => { fetches[0].resolve(rows(1)) })
+        await act(async () => { root.unmount() })
+
+        expect(effectLog.filter(entry => entry.startsWith('fetch'))).toEqual(['fetch filters', 'fetch refresh', 'fetch aborted'])
+    })
+
+    it('reports what was reported as the table unmounted in the same batch', async () => {
+        await act(async () => {
+            latest.report({ type: 'shareLinkCreated', from: 'filterForm' })
+            root.unmount()
+        })
+
+        expect(effectLog).toEqual(['viewMounted', 'shareLinkCreated', 'viewUnmounted'])
+    })
+
+    it('does no analytics work without a handler', async () => {
+        await act(async () => { root.unmount() })
+        effectLog = []
+        root = createRoot(document.createElement('div'))
+        await act(async () => { root.render(React.createElement(Harness, { analytics: false })) })
+        const before = renders
+        await act(async () => { latest.report({ type: 'shareLinkCreated', from: 'filterForm' }) })
+
+        expect(renders).toBe(before)
+        await act(async () => { root.unmount() })
+        expect(effectLog).toEqual([])
+    })
+
+    it('drops a debounced event cancelled before it was reported', async () => {
+        // The unmount is reported in a microtask
+        jest.useFakeTimers({ doNotFake: ['queueMicrotask'] })
+        try {
+            await send({ tag: 'searchQueryChanged', searchQuery: 'amou' })
+            await send({ tag: 'searchQueryChanged', searchQuery: '' })
+            await act(async () => { jest.advanceTimersByTime(1000) })
+            await act(async () => { root.unmount() })
+        } finally {
+            jest.useRealTimers()
+        }
+
+        expect(effectLog).not.toContain('filterSearch')
     })
 })

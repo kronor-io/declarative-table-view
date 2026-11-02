@@ -75,6 +75,8 @@ export interface ActionAPI {
 // Definition for a single action button.
 export interface ActionDefinition {
     label: string; // Button label
+    /** Names the action in analytics events. Defaults to the label, which may change with wording. */
+    id?: string;
     onClick: (api: ActionAPI) => void | Promise<void>; // Handler invoked on click
     icon?: string; // Optional PrimeReact icon class (e.g. 'pi pi-cog')
     /** Optional PrimeReact Button badge value. */

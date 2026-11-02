@@ -21,6 +21,8 @@ import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
 import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, flattenFieldQueries, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type RequestHeaders } from './framework/data';
+import { analyticsError, type DTVAnalytics } from './framework/analytics';
+import { AnalyticsContext, startSpan, viewDefinition } from './framework/analytics-emitter';
 import type { DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilterStateById, useAppState, type AppStateEnv, type Panel } from './framework/state';
 import * as State from './framework/state';
@@ -31,7 +33,7 @@ import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
-import { decodeFilterState } from './framework/filter-form-state';
+import { decodeFilterState, encodeFilterState } from './framework/filter-form-state';
 import { viewMigrationContext } from './framework/user-data';
 import { currentDefinitionRevision, migrateFilterState } from './framework/view-migrations';
 import { Runtime } from './framework/runtime';
@@ -101,6 +103,12 @@ export interface AppProps {
         * before it is sent to the AI provider.
      */
     modifyAiFilterPrompt?: ModifyAiFilterPromptFn;
+
+    /**
+     * Optional analytics: receives an event for what users do in the table, how long its
+     * requests take, and what fails. See `DTVAnalyticsEvent`.
+     */
+    analytics?: DTVAnalytics;
 
     /** Optional user data integration hooks. */
     userData?: {
@@ -203,6 +211,7 @@ function App({
     rowClassFunction,
     rowsPerPageOptions = DEFAULT_ROWS_PER_PAGE_OPTIONS,
     userData,
+    analytics,
     modifyAiFilterPrompt,
     apiRef
 }: AppProps) {
@@ -231,7 +240,7 @@ function App({
     const viewsById = useMemo(() => new Map(views.map(view => [view.id, view] as const)), [views]);
 
     // Determine the initial view and filter state (shared param precedence) BEFORE initializing app state
-    const initialFromUrl = useMemo((): { viewId: string; filterState: FilterState } | undefined => {
+    const initialFromUrl = useMemo((): { viewId: string; filterState: FilterState; synced: boolean; definitionRevision: number } | undefined => {
         const shared = getFilterFromUrl();
         if (!shared) return undefined;
         // Links from before views were named in them are for the first view.
@@ -247,7 +256,12 @@ function App({
         const state = view.migrations === undefined
             ? shared.state
             : migrateFilterState(view.migrations, shared.definitionRevision, shared.state);
-        return { viewId: view.id, filterState: decodeFilterState(state, view.filterGroups).state };
+        return {
+            viewId: view.id,
+            filterState: decodeFilterState(state, view.filterGroups).state,
+            synced: shared.synced,
+            definitionRevision: shared.definitionRevision
+        };
     }, [views, viewsById]);
     const initialFilterStateFromUrl = initialFromUrl?.filterState;
 
@@ -271,20 +285,30 @@ function App({
     const appStateEnv = useMemo((): AppStateEnv => ({
         filterGroups: viewId => viewsById.get(viewId)?.filterGroups ?? [],
         rowsPerPageOptions,
-        orderableFields: viewId => orderableFieldsByViewId.get(viewId) ?? []
-    }), [orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
+        orderableFields: viewId => orderableFieldsByViewId.get(viewId) ?? [],
+        definition: viewId => viewDefinition(viewsById.get(viewId) ?? { id: viewId }),
+        snapshotDiff: viewId => migrationsByViewId[viewId]?.snapshotDiff ?? null
+    }), [migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
 
     // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
-    // `userDataManager` is only used by the effects, once rendering is done.
-    const [state, dispatch] = useAppState(
+    // `userDataManager` is only used by the effects, once rendering is done. `report` reports
+    // analytics events of the selected view, for components and the user data.
+    const [state, dispatch, report] = useAppState(
         appStateEnv,
         {
             viewId: initialFromUrl?.viewId ?? views[0].id,
             rowsPerPage: rowsPerPageOptions[0] ?? DEFAULT_ROWS_PER_PAGE,
-            initialFilterState: initialFilterStateFromUrl
+            initialFilterState: initialFilterStateFromUrl,
+            initialFilterStateSource: initialFromUrl && {
+                trigger: initialFromUrl.synced ? 'url' : 'link',
+                definitionRevision: initialFromUrl.definitionRevision
+            },
+            popout: isOverlay
         },
         {
-            fetchRows: (query, signal) => {
+            // Called as a method, so a handler may use `this`
+            onEvent: analytics && (event => analytics.onEvent(event)),
+            fetchRows: ({ query }, signal) => {
                 const view = viewsById.get(query.viewId);
                 if (!view) return Promise.reject(new Error(`Unknown view: ${query.viewId}`));
                 return fetchData({
@@ -343,7 +367,7 @@ function App({
         }
     }, [userData?.onLoad, userData?.onSave, migrationsByViewId])
 
-    const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions);
+    const userDataManager = useUserDataManager(filterGroupsByViewId, selectedView.id, userDataManagerOptions, report);
 
     const syncFilterStateToUrlWithOverride = userDataManager.preferences.syncFilterStateToUrlOverride ?? syncFilterStateToUrl
     const closeFilterPanelOnApply = userDataManager.preferences.closeFilterPanelOnApply === true
@@ -396,7 +420,7 @@ function App({
 
     const setSelectedRows = useCallback((rows: readonly unknown[]) => dispatch({ tag: 'rowsSelected', rows }), [dispatch]);
 
-    const applyFilterState = useCallback((filters: FilterState) => dispatch({ tag: 'filtersApplied', filters }), [dispatch]);
+    const setFilterStateByAI = useCallback((filters: FilterState) => dispatch({ tag: 'draftChanged', filters, by: 'aiAssistant' }), [dispatch]);
 
     // The `applyFilters` handed to cell renderers, noRowsComponents, row
     // expansion renderers and actions. Runtime code sets a value with
@@ -404,7 +428,7 @@ function App({
     // state) and then calls `applyFilters`. Messages are handled in the order
     // they are sent, so the draft applied is the one just set, not the one this
     // render captured.
-    const applyFilters = useCallback(() => dispatch({ tag: 'draftApplied' }), [dispatch]);
+    const applyFilters = useCallback(() => dispatch({ tag: 'draftApplied', trigger: 'api' }), [dispatch]);
 
     const dtvApi = useRef<DTVAPI>({
         fetchData: refresh,
@@ -444,8 +468,18 @@ function App({
         const nextAppliedFilterState = setFilterStateById(appliedFilterState, filterId, initialFilterState);
 
         setFilterState(nextDraftFilterState);
-        applyFilterState(nextAppliedFilterState);
-    }, [applyFilterState, appliedFilterState, filterSchemaById, filterState, setFilterState]);
+        dispatch({ tag: 'filtersApplied', filters: nextAppliedFilterState, trigger: 'pillRemoved' });
+    }, [appliedFilterState, dispatch, filterSchemaById, filterState, setFilterState]);
+
+    const applySavedFilter = useCallback((filter: SavedFilter) => {
+        dispatch({ tag: 'filtersApplied', filters: filter.state, trigger: 'savedFilter', savedFilter: { id: filter.id, name: filter.name } });
+    }, [dispatch]);
+
+    const { setHiddenColumns: persistHiddenColumns } = userDataManager;
+    const setHiddenColumns = useCallback((viewId: string, hiddenColumns: string[]) => {
+        report({ type: 'hiddenColumnsChanged', hiddenColumns });
+        return persistHiddenColumns(viewId, hiddenColumns);
+    }, [persistHiddenColumns, report]);
 
     const rowSelectionWithInternalHandler = useMemo(() => {
         if (!rowSelection) return undefined;
@@ -546,11 +580,12 @@ function App({
     const handleSaveFilter = async (state: FilterState) => {
         const name = prompt('Enter a name for this filter:');
         if (!name) return;
-        await userDataManager.createFilter({
+        const saved = await userDataManager.createFilter({
             view: selectedView.id,
             name,
             state: state
         })
+        report({ type: 'savedFilterSaved', savedFilterId: saved.id, name, created: true, filters: encodeFilterState(state, selectedView.filterGroups) });
     };
 
     // Update an existing filter
@@ -562,7 +597,9 @@ function App({
             defaultFocus: 'reject',
             acceptClassName: 'p-button-danger',
             accept: async () => {
-                await userDataManager.updateFilter(selectedView.id, filter.id, { state })
+                if (await userDataManager.updateFilter(selectedView.id, filter.id, { state })) {
+                    report({ type: 'savedFilterSaved', savedFilterId: filter.id, name: filter.name, created: false, filters: encodeFilterState(state, selectedView.filterGroups) });
+                }
             },
             reject: () => {
                 // User cancelled - no action needed
@@ -572,7 +609,9 @@ function App({
 
     // Delete a saved filter
     const handleDeleteFilter = async (filterId: string) => {
-        await userDataManager.deleteFilter(selectedView.id, filterId)
+        if (await userDataManager.deleteFilter(selectedView.id, filterId)) {
+            report({ type: 'savedFilterDeleted', savedFilterId: filterId });
+        }
     };
 
     // Share current filter state
@@ -580,6 +619,7 @@ function App({
         try {
             const shareableUrl = createShareableUrl(selectedView, filterState);
             await copyToClipboard(shareableUrl);
+            report({ type: 'shareLinkCreated', from: 'filterForm' });
 
             toast.current?.show({
                 severity: 'success',
@@ -603,6 +643,7 @@ function App({
         try {
             const shareableUrl = createShareableUrl(selectedView, filterState);
             await copyToClipboard(shareableUrl);
+            report({ type: 'shareLinkCreated', from: 'savedFilter' });
 
             toast.current?.show({
                 severity: 'success',
@@ -628,7 +669,7 @@ function App({
         }
     };
 
-    const loadLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
+    const fetchLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
         const rowExpansion = selectedView.rowExpansion;
         const lazyRowExpansionQuery = lazyRowExpansionQueryFor(selectedView);
         // The expanded row is one on screen: it is fetched with the query that showed it
@@ -661,9 +702,21 @@ function App({
         return flattenFieldQueries(row as Record<string, unknown>, rowExpansion.data);
     }, [client, selectedView, shownPage]);
 
+    const loadLazyRowExpansionData = useCallback(async (args: { row: Record<string, unknown>; rowKey: string | number }) => {
+        const end = startSpan();
+        try {
+            const data = await fetchLazyRowExpansionData(args);
+            report({ type: 'rowExpansionLoad', ...end(), outcome: 'succeeded' });
+            return data;
+        } catch (error) {
+            report({ type: 'rowExpansionLoad', ...end(), outcome: 'failed', error: analyticsError(error) });
+            throw error;
+        }
+    }, [fetchLazyRowExpansionData, report]);
+
     // When filter is loaded, set filter state
     const handleFilterLoad = (filterState: FilterState) => {
-        setFilterState(filterState);
+        dispatch({ tag: 'draftChanged', filters: filterState, by: 'savedFilter' });
     };
 
     const handleNextPage = () => dispatch({ tag: 'nextPageRequested' });
@@ -671,7 +724,8 @@ function App({
 
     const handleRowsPerPageChange = (value: number) => dispatch({ tag: 'rowsPerPageChanged', rowsPerPage: value });
 
-    return (
+    // Components deep in the table report events through the context
+    const table = (
         <div className='tw:p-2 tw:relative' style={{ height: '100%' }}>  {/* tw:relative is for loading overlay */}
             <Toast ref={toast} />
             <ConfirmDialog />
@@ -806,7 +860,7 @@ function App({
                         <div className="tw:mb-6">
                             <AIAssistantForm
                                 filterState={filterState}
-                                setFilterState={setFilterState}
+                                setFilterState={setFilterStateByAI}
                                 selectedView={selectedView}
                                 aiIntegration={aiIntegration}
                                 toast={toast}
@@ -821,7 +875,7 @@ function App({
                     savedFilters={userDataManager.savedFilters}
                     onFilterDelete={handleDeleteFilter}
                     onFilterLoad={handleFilterLoad}
-                    onFilterApply={applyFilterState}
+                    onFilterApply={applySavedFilter}
                     onFilterShare={handleShareSavedFilter}
                     visible={showSavedFilterList}
                     filterGroups={selectedView.filterGroups}
@@ -834,7 +888,7 @@ function App({
                     currentView={{ id: selectedView.id, title: selectedView.title }}
                     viewData={userDataManager.viewData}
                     columnDefinitions={selectedView.columnDefinitions}
-                    onSetHiddenColumns={userDataManager.setHiddenColumns}
+                    onSetHiddenColumns={setHiddenColumns}
                     onSetSyncFilterStateToUserData={userDataManager.setSyncFilterStateToUserData}
                     onSetSyncOrderingToUserData={userDataManager.setSyncOrderingToUserData}
                 />
@@ -853,12 +907,12 @@ function App({
                             onFilterGroupExpandedChange={(groupName, expanded) => {
                                 dispatch({ tag: 'filterGroupExpandedChanged', groupName, expanded });
                             }}
-                            onSubmit={() => {
+                            onSubmit={trigger => {
                                 // `FilterForm` is fully controlled by
                                 // `state.filterState`, so submitting is exactly
                                 // the draft-to-applied promotion `applyFilters`
                                 // performs.
-                                applyFilters();
+                                dispatch({ tag: 'draftApplied', trigger });
                                 if (closeFilterPanelOnApply) {
                                     setFilterFormVisible(false);
                                 }
@@ -938,12 +992,14 @@ function App({
                         rowClassFunction={rowClassFunction}
                         rowsPerPageOptions={rowsPerPageOptions}
                         modifyAiFilterPrompt={modifyAiFilterPrompt}
+                        analytics={analytics}
                     />
                 </div>,
                 document.body
             )}
         </div>
     );
+    return <AnalyticsContext.Provider value={report}>{table}</AnalyticsContext.Provider>;
 }
 
 export default App;

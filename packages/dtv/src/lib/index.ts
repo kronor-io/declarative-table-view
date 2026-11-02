@@ -13,6 +13,9 @@ export { getViewRootFieldName, getViewStaticArgs } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
 export type { ViewProjection, FilterProjection, ColumnProjection, ControlProjection } from '../framework/view-projection';
 export type { ViewMigration, ViewMigrationChain } from '../framework/view-migrations';
+// Read events reported for older revisions of a definition in terms of its latest one.
+export { currentDefinitionRevision, latestFilterId, migrateFilterState } from '../framework/view-migrations';
+export type { UndecodedFilterState } from '../framework/user-data-undecoded';
 // Used by `dtv definitions`, which loads them from the project's own copy of the package.
 export { projectView, projectionsEqual } from '../framework/view-projection';
 export { checkMigration } from '../framework/view-migrations';
@@ -42,6 +45,22 @@ export type {
     UserDataSaveCallback
 } from '../framework/user-data-manager';
 export type { ActionDefinition, ActionAPI, ActionUserDataAPI } from '../framework/actions';
+export type {
+    DTVAnalytics,
+    DTVAnalyticsEvent,
+    DTVAnalyticsEventBase,
+    DTVAnalyticsEventPayload,
+    DTVAnalyticsEventType,
+    DTVAnalyticsSpan,
+    DTVAnalyticsError,
+    DTVAnalyticsPanel,
+    DTVAnalyticsResets,
+    DTVAnalyticsRetainedView,
+    DTVAnalyticsUserDataError,
+    FiltersAppliedTrigger,
+    FetchReason
+} from '../framework/analytics';
+export type { FetchErrorInfo, FetchErrorKind } from '../framework/fetch-error';
 export type {
     HasuraFilterObject,
     HasuraOperator,

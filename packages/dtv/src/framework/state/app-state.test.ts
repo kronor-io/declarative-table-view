@@ -3,7 +3,7 @@ import { describe, it, expect } from '@jest/globals'
 import type { FetchDataResult } from '../data'
 import * as FilterValue from '../filterValue'
 import {
-    currentQuery, hasNextPage, hasPreviousPage, initAppState, isLoading, pendingRequest, shownPage, updateAppState,
+    currentQuery, hasNextPage, hasPreviousPage, initAppState, initialCommands, isLoading, pendingRequest, shownPage, updateAppState,
     type AppState, type AppStateEnv, type AppStateInit, type Command, type FilterState, type DataRequest, type Msg, type RequestId, type ViewUserData
 } from '.'
 import type { FilterGroups } from '../filters'
@@ -12,7 +12,9 @@ import type { ViewId } from '../view'
 const env: AppStateEnv = {
     filterGroups: () => [],
     rowsPerPageOptions: [2, 3, 50],
-    orderableFields: () => ['id', 'amount']
+    orderableFields: () => ['id', 'amount'],
+    definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
+    snapshotDiff: () => null
 }
 
 const emailFilter = (email: string): FilterState =>
@@ -57,6 +59,8 @@ function run(initial: AppState, steps: readonly Step[]) {
     let model = initial
     const requests: DataRequest[] = []
     const commands: Command[] = []
+    // Analytics events, apart from the commands that change data
+    const tracked: Array<Extract<Command, { tag: 'track' }>> = []
     const observe = () => {
         const request = pendingRequest(model.table)
         if (request && requests.at(-1)?.id !== request.id) requests.push(request)
@@ -67,10 +71,13 @@ function run(initial: AppState, steps: readonly Step[]) {
         const msg = typeof step === 'function' ? step(model) : step
         const [next, emitted] = updateAppState(env, model, msg)
         model = next
-        commands.push(...emitted)
+        for (const command of emitted) {
+            if (command.tag === 'track') tracked.push(command)
+            else commands.push(command)
+        }
         observe()
     }
-    return { model, requests, commands }
+    return { model, requests, commands, tracked }
 }
 
 /** Runs a program on a table that just mounted. */
@@ -180,7 +187,7 @@ describe('hydration', () => {
     it('settles with the filters the user applies while hydrating', () => {
         const { model, requests } = start(
             userDataArrives(),
-            { tag: 'filtersApplied', filters: emailFilter('typed') },
+            { tag: 'filtersApplied', filters: emailFilter('typed'), trigger: 'api' },
             loaded({ persistedFilterState: emailFilter('remote') })
         )
 
@@ -202,7 +209,7 @@ describe('the draft', () => {
             answer(rows(1)),
             { tag: 'draftChanged', filters: emailFilter('first') },
             { tag: 'draftChanged', filters: emailFilter('second') },
-            { tag: 'draftApplied' }
+            { tag: 'draftApplied', trigger: 'submit' }
         )
 
         expect(requests.map(r => emailOf(r.query.filters))).toEqual([undefined, 'second'])
@@ -212,7 +219,7 @@ describe('the draft', () => {
         const { model } = start(
             loaded(),
             { tag: 'draftChanged', filters: emailFilter('editing') },
-            { tag: 'filtersApplied', filters: emailFilter('saved filter') }
+            { tag: 'filtersApplied', filters: emailFilter('saved filter'), trigger: 'api' }
         )
 
         expect(emailOf(model.filterState)).toBe('editing')
@@ -227,8 +234,8 @@ describe('responses', () => {
 
         const { model } = run(first, [
             { tag: 'rowsArrived', requestId: firstId, rows: rows(1, 2) },
-            { tag: 'filtersApplied', filters: emailFilter('a') },
-            { tag: 'filtersApplied', filters: emailFilter('b') },
+            { tag: 'filtersApplied', filters: emailFilter('a'), trigger: 'api' },
+            { tag: 'filtersApplied', filters: emailFilter('b'), trigger: 'api' },
             // The response to 'a' arrives after 'b' was asked for
             { tag: 'rowsArrived', requestId: (firstId + 1) as RequestId, rows: rows(9) }
         ])
@@ -239,7 +246,7 @@ describe('responses', () => {
     })
 
     it('shows the rows with the query they answer', () => {
-        const { model } = start(loaded(), { tag: 'filtersApplied', filters: emailFilter('a') }, answer(rows(1)))
+        const { model } = start(loaded(), { tag: 'filtersApplied', filters: emailFilter('a'), trigger: 'api' }, answer(rows(1)))
 
         expect(isLoading(model.table)).toBe(false)
         expect(emailOf(shownPage(model.table)?.query.filters)).toBe('a')
@@ -376,9 +383,9 @@ describe('persisting filter state', () => {
     it('persists what the user applies, but not what is already persisted', () => {
         const { commands } = start(
             loaded({ persistedFilterState: emailFilter('restored') }),
-            { tag: 'filtersApplied', filters: emailFilter('restored') },
-            { tag: 'filtersApplied', filters: emailFilter('new') },
-            { tag: 'filtersApplied', filters: emailFilter('new') }
+            { tag: 'filtersApplied', filters: emailFilter('restored'), trigger: 'api' },
+            { tag: 'filtersApplied', filters: emailFilter('new'), trigger: 'api' },
+            { tag: 'filtersApplied', filters: emailFilter('new'), trigger: 'api' }
         )
 
         expect(commands.map(c => c.tag === 'persistFilterState' ? emailOf(c.filters) : c.tag)).toEqual(['new'])
@@ -391,7 +398,7 @@ describe('persisting filter state', () => {
     })
 
     it('does not persist when syncing is off', () => {
-        const { commands } = start(userDataArrives({ syncFilterState: false }), { tag: 'filtersApplied', filters: emailFilter('a') })
+        const { commands } = start(userDataArrives({ syncFilterState: false }), { tag: 'filtersApplied', filters: emailFilter('a'), trigger: 'api' })
 
         expect(commands).toEqual([])
     })
@@ -616,5 +623,167 @@ describe('what the types rule out', () => {
         void madeUp
         void notNarrowed
         expect(model.table.tag).toBe('hydrating')
+    })
+})
+
+describe('analytics', () => {
+    const encodedEmail = (email: string) => ({ email: { type: 'leaf', value: { type: 'value', value: email } } })
+    const events = (tracked: ReturnType<typeof run>['tracked']) => tracked.map(command => command.event)
+
+    it('reports how a view opens: from persisted filters, its initial ones, a shared link, or its own URL', () => {
+        const restored = start(loaded({ persistedFilterState: emailFilter('persisted') }))
+        const initial = start(loaded())
+        const link = run(initAppState(env, options({
+            initialFilterState: emailFilter('link'),
+            initialFilterStateSource: { trigger: 'link', definitionRevision: 3 }
+        })), [loaded()])
+        const reload = run(initAppState(env, options({
+            initialFilterState: emailFilter('synced'),
+            initialFilterStateSource: { trigger: 'url', definitionRevision: 3 }
+        })), [loaded()])
+
+        expect(events(restored.tracked)).toEqual([
+            { type: 'filtersApplied', trigger: 'restored', filters: encodedEmail('persisted'), aiAssisted: false }
+        ])
+        expect(events(initial.tracked)).toEqual([{ type: 'filtersApplied', trigger: 'initial', filters: {}, aiAssisted: false }])
+        expect(events(link.tracked)).toEqual([
+            { type: 'filtersApplied', trigger: 'link', filters: encodedEmail('link'), aiAssisted: false, link: { definitionRevision: 3 } }
+        ])
+        expect(events(reload.tracked).map(event => event.type === 'filtersApplied' && event.trigger)).toEqual(['url'])
+    })
+
+    it('reports nothing while the filters to open with are not known', () => {
+        expect(start(userDataArrives()).tracked).toEqual([])
+    })
+
+    it('reports applied filters with what applied them', () => {
+        const savedFilter = { id: 'saved-1', name: 'Mine' }
+        const { tracked } = start(
+            loaded(),
+            { tag: 'draftChanged', filters: emailFilter('typed') },
+            { tag: 'draftApplied', trigger: 'submit' },
+            { tag: 'filtersApplied', filters: emailFilter('saved'), trigger: 'savedFilter', savedFilter }
+        )
+
+        expect(events(tracked).slice(1)).toEqual([
+            { type: 'filtersApplied', trigger: 'submit', filters: encodedEmail('typed'), aiAssisted: false },
+            { type: 'filtersApplied', trigger: 'savedFilter', filters: encodedEmail('saved'), aiAssisted: false, savedFilter }
+        ])
+    })
+
+    it('says the AI assistant filled the draft, until filters are applied or a saved filter replaces it', () => {
+        const { tracked } = start(
+            loaded(),
+            { tag: 'draftChanged', filters: emailFilter('from ai'), by: 'aiAssistant' },
+            { tag: 'draftChanged', filters: emailFilter('edited') },
+            { tag: 'draftApplied', trigger: 'submit' },
+            { tag: 'draftApplied', trigger: 'submit' },
+            { tag: 'draftChanged', filters: emailFilter('from ai'), by: 'aiAssistant' },
+            { tag: 'draftChanged', filters: emailFilter('saved'), by: 'savedFilter' },
+            { tag: 'draftApplied', trigger: 'submit' }
+        )
+
+        // Edited, it is still the assistant's; replaced by a saved filter, it is not
+        expect(events(tracked).slice(1).map(event => event.type === 'filtersApplied' && event.aiAssisted)).toEqual([true, false, false])
+    })
+
+    it('tells each request why it was made', () => {
+        const { requests } = start(
+            loaded(),
+            answer(rows(1, 2)),
+            { tag: 'nextPageRequested' },
+            answer(rows(3, 4)),
+            { tag: 'previousPageRequested' },
+            answer(rows(1, 2)),
+            { tag: 'orderingChanged', ordering: { field: 'amount', direction: 'DESC' } },
+            answer(rows(2, 1)),
+            { tag: 'rowsPerPageChanged', rowsPerPage: 3 },
+            answer(rows(2, 1)),
+            { tag: 'refreshRequested' },
+            answer(rows(2, 1)),
+            loaded({ rowsPerPage: 50 })
+        )
+
+        expect(requests.map(request => request.reason)).toEqual([
+            'filters', 'nextPage', 'previousPage', 'ordering', 'rowsPerPage', 'refresh', 'userData'
+        ])
+    })
+
+    it('reports sorting and rows per page the user chose', () => {
+        const ordering = { field: 'amount', direction: 'ASC' } as const
+        const { tracked } = start(
+            loaded(),
+            { tag: 'orderingChanged', ordering },
+            { tag: 'orderingChanged', ordering },
+            { tag: 'rowsPerPageChanged', rowsPerPage: 3 }
+        )
+
+        expect(events(tracked).slice(1)).toEqual([
+            { type: 'orderingChanged', ordering },
+            { type: 'rowsPerPageChanged', rowsPerPage: 3 }
+        ])
+    })
+
+    it('reports panels shown and hidden, not repeated requests for the panel on screen', () => {
+        const { tracked } = start(
+            { tag: 'panelToggled', panel: 'filters' },
+            { tag: 'filterPanelShown', shown: true },
+            { tag: 'panelToggled', panel: 'savedFilters' },
+            { tag: 'filterPanelShown', shown: false },
+            { tag: 'aiAssistantToggled' },
+            { tag: 'popoutShown', shown: true },
+            { tag: 'popoutShown', shown: true }
+        )
+
+        expect(events(tracked)).toEqual([
+            { type: 'panelShown', panel: 'filters', shown: true },
+            // One panel at a time: showing another hides the one shown
+            { type: 'panelShown', panel: 'filters', shown: false },
+            { type: 'panelShown', panel: 'savedFilters', shown: true },
+            { type: 'panelShown', panel: 'aiAssistant', shown: true },
+            { type: 'panelShown', panel: 'popout', shown: true }
+        ])
+    })
+
+    it('reports a switch of views as an event of the new one', () => {
+        const { tracked } = start(loaded(), { tag: 'viewSelected', viewId: 'refunds' })
+
+        expect(tracked.at(-1)).toEqual({ tag: 'track', viewId: 'refunds', event: { type: 'viewSelected', previousViewId: 'payments' } })
+    })
+
+    it('reports that the table mounted, and a view whose filters changed without a snapshot', () => {
+        const diff = { changed: ['amount'], added: ['merchant'], removed: [] }
+        const stale: AppStateEnv = { ...env, snapshotDiff: viewId => viewId === 'refunds' ? diff : null }
+
+        expect(initialCommands(stale, options({ popout: true }))).toEqual([
+            { tag: 'track', viewId: 'payments', event: { type: 'viewMounted', popout: true } }
+        ])
+        expect(initialCommands(stale, options({ viewId: 'refunds' })).map(command => command.tag === 'track' && command.event)).toEqual([
+            { type: 'viewMounted', popout: false },
+            { type: 'filtersChangedSinceSnapshot', ...diff }
+        ])
+        const [, switched] = updateAppState(stale, initAppState(stale, options()), { tag: 'viewSelected', viewId: 'refunds' })
+        expect(switched.map(command => command.tag === 'track' && command.event.type)).toEqual(['viewSelected', 'filtersChangedSinceSnapshot'])
+    })
+
+    it('reports what components report as events of the selected view', () => {
+        const event = { type: 'rowExpansionToggled', expanded: true } as const
+        const { tracked } = start(loaded(), { tag: 'viewSelected', viewId: 'refunds' }, { tag: 'reported', event })
+
+        expect(tracked.at(-1)).toEqual({ tag: 'track', viewId: 'refunds', event })
+    })
+
+    it('reports a search through the filters once typing pauses, and none cleared before', () => {
+        const { tracked, commands } = start(
+            { tag: 'searchQueryChanged', searchQuery: 'amo ' },
+            { tag: 'searchQueryChanged', searchQuery: '' }
+        )
+
+        expect(tracked).toEqual([
+            // Searching shows the filters
+            { tag: 'track', viewId: 'payments', event: { type: 'panelShown', panel: 'filters', shown: true } },
+            { tag: 'track', viewId: 'payments', event: { type: 'filterSearch', query: 'amo' }, debounce: { key: 'filterSearch', ms: 1000 } }
+        ])
+        expect(commands).toEqual([{ tag: 'cancelTrack', key: 'filterSearch' }])
     })
 })

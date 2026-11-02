@@ -11,7 +11,7 @@ interface SavedFilterListProps {
     savedFilters: SavedFilter[];
     onFilterDelete: (filterId: string) => void;
     onFilterLoad: (filterState: FilterState) => void;
-    onFilterApply: (filterState: FilterState) => void;
+    onFilterApply: (filter: SavedFilter) => void;
     onFilterShare: (filterState: FilterState) => void;
     visible: boolean;
     filterGroups: FilterGroups;
@@ -89,7 +89,7 @@ export default function SavedFilterList({ savedFilters, onFilterDelete, onFilter
                                     label="Use"
                                     onClick={() => {
                                         onFilterLoad(filter.state);
-                                        onFilterApply(filter.state);
+                                        onFilterApply(filter);
                                     }}
                                     className="p-button"
                                 />

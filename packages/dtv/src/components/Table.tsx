@@ -15,6 +15,7 @@ import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow, simplifyRows } from '../framework/rows';
 import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
 import type { DataOrdering } from '../framework/data-ordering';
+import { useTrack } from '../framework/analytics-emitter';
 
 export type RowSelectionResetFn = () => void;
 export type RowExpansionApi = {
@@ -297,7 +298,24 @@ function Table({
         });
     }, [getRowExpansionData, rowExpansion]);
 
+    const track = useTrack();
+    // The rows expanded as the user sees them: what a toggle reports is read from here, at the
+    // time of the click, not from a render's copy
+    const expandedRowsRef = React.useRef(expandedRows);
+    React.useLayoutEffect(() => {
+        expandedRowsRef.current = expandedRows;
+    });
+    const isExpanded = React.useCallback(
+        (rowData: TableDataRow) => expandedRowsRef.current.some(expandedRow => isSameRow(expandedRow, rowData)),
+        [isSameRow]
+    );
+    /** Reports that the user expanded or collapsed `rowData`, when that changes it. */
+    const reportToggle = React.useCallback((rowData: TableDataRow, expanded: boolean) => {
+        if (isExpanded(rowData) !== expanded) track({ type: 'rowExpansionToggled', expanded });
+    }, [isExpanded, track]);
+
     const toggleExpandedRow = React.useCallback((rowData: TableDataRow) => {
+        reportToggle(rowData, !isExpanded(rowData));
         setExpandedRows(currentExpandedRows => {
             const isExpanded = currentExpandedRows.some(expandedRow => isSameRow(expandedRow, rowData));
             if (isExpanded) {
@@ -311,7 +329,7 @@ function Table({
             }
             return [...currentExpandedRows, rowData];
         });
-    }, [ensureLazyRowExpansionData, isSameRow, rowExpansion?.mode]);
+    }, [ensureLazyRowExpansionData, isExpanded, isSameRow, reportToggle, rowExpansion?.mode]);
 
     // Expose row selection reset function (only when enabled)
     useEffect(() => {
@@ -384,6 +402,7 @@ function Table({
             data: getRowExpansionData(rowData),
             state: renderState,
             collapse: () => {
+                reportToggle(rowData, false);
                 setExpandedRows(currentExpandedRows => currentExpandedRows.filter(expandedRow => !isSameRow(expandedRow, rowData)));
             },
             toggle: () => toggleExpandedRow(rowData),
@@ -410,6 +429,10 @@ function Table({
             expandedRows={rowExpansion ? expandedRows : undefined}
             onRowToggle={rowExpansion ? (e: any) => {
                 const nextExpandedRows = Array.isArray(e.data) ? e.data as TableDataRow[] : [];
+                // PrimeReact toggles one row per call
+                const toggled = [...nextExpandedRows, ...expandedRowsRef.current]
+                    .find(row => nextExpandedRows.some(next => isSameRow(next, row)) !== expandedRowsRef.current.some(shown => isSameRow(shown, row)));
+                if (toggled) reportToggle(toggled, nextExpandedRows.some(next => isSameRow(next, toggled)));
                 nextExpandedRows
                     .filter(rowData => !expandedRows.some(expandedRow => isSameRow(expandedRow, rowData)))
                     .forEach(ensureLazyRowExpansionData);

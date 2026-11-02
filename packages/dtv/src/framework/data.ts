@@ -5,6 +5,7 @@ import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework
 import { FilterState } from './state';
 import { isOrderDirection, type OrderDirection } from './order-direction';
 import type { DataOrdering } from './data-ordering';
+import { FetchError, fetchErrorFromClientError } from './fetch-error';
 
 export type FlattenedDataRow = Record<ColumnId, Record<string, unknown>>;
 
@@ -43,7 +44,14 @@ export function resolveHeadersMiddleware(requestHeaders?: RequestHeaders): Reque
             return request;
         }
         const merged = new Headers(request.headers);
-        new Headers(await resolveRequestHeaders(requestHeaders)).forEach((value, key) => {
+        let resolved: HeadersInit;
+        try {
+            resolved = await resolveRequestHeaders(requestHeaders);
+        } catch (error) {
+            // The host's code failed, not the network
+            throw new FetchError({ kind: 'internal', message: `requestHeaders failed: ${error instanceof Error ? error.message : String(error)}` }, { cause: error });
+        }
+        new Headers(resolved).forEach((value, key) => {
             merged.set(key, value);
         });
         return { ...request, headers: Object.fromEntries(merged.entries()) };
@@ -277,36 +285,51 @@ export const fetchData = async ({
      */
     signal?: AbortSignal;
 }): Promise<FetchDataResult> => {
-    try {
-        const variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor, ordering);
-
-        // Auth headers are applied by the client's resolveHeadersMiddleware.
-        const response = await client.request({ document: query, variables, signal });
-
-        // The response may have arrived just before the request was aborted; discard it
+    // Failures reject with a FetchError that says what kind they are, so a failed request
+    // is never mistaken for one that found no rows. Aborts reject with the signal's
+    // AbortError, whatever error the fetch implementation raised, so callers can skip
+    // response handling.
+    const internal = (error: unknown) => {
         signal?.throwIfAborted();
+        return error instanceof FetchError
+            ? error
+            : new FetchError({ kind: 'internal', message: error instanceof Error ? error.message : String(error) }, { cause: error });
+    };
 
-        const rootFieldName = getViewRootFieldName(view);
+    let variables: ReturnType<typeof buildGraphQLQueryVariables>;
+    try {
+        variables = buildGraphQLQueryVariables(view, filterState, rowLimit, cursor, ordering);
+    } catch (error) {
+        throw internal(error);
+    }
 
-        if (!hasKey(response, rootFieldName)) {
-            console.error('Error fetching data, unexpected response format:', response);
-            return { rows: [], flattenedRows: [] };
-        }
+    let response: unknown;
+    try {
+        // Auth headers are applied by the client's resolveHeadersMiddleware.
+        response = await client.request({ document: query, variables, signal });
+    } catch (error) {
+        signal?.throwIfAborted();
+        throw fetchErrorFromClientError(error);
+    }
 
-        const rowsFetched = response[rootFieldName];
+    // The response may have arrived just before the request was aborted; discard it
+    signal?.throwIfAborted();
 
+    const rootFieldName = getViewRootFieldName(view);
+    if (!hasKey(response, rootFieldName)) {
+        // The response is the cause: logged with the error, it shows what arrived instead
+        throw new FetchError({ kind: 'unexpectedResponse', message: `The response has no rows at "${rootFieldName}"` }, { cause: response });
+    }
+
+    const rowsFetched = response[rootFieldName] as Record<string, unknown>[];
+    try {
         // Flatten the data before returning
         return {
-            rows: rowsFetched as Record<string, unknown>[],
-            flattenedRows: flattenFields(rowsFetched as Record<string, unknown>[], view.columnDefinitions)
-        }
+            rows: rowsFetched,
+            flattenedRows: flattenFields(rowsFetched, view.columnDefinitions)
+        };
     } catch (error) {
-        // Don't log aborts as they're expected when cancelling requests. Re-throw the
-        // signal's AbortError, whatever error the fetch implementation raised, so
-        // callers can skip response handling.
-        signal?.throwIfAborted();
-        console.error('Error fetching data:', error);
-        return { rows: [], flattenedRows: [] };
+        throw internal(error);
     }
 };
 

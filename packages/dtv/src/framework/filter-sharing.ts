@@ -15,6 +15,8 @@ export type SharedFilterState = {
     view: ViewId | null;
     definitionRevision: number;
     state: UndecodedFilterState;
+    /** Written by the table itself, keeping its URL in sync (`syncFilterStateToUrl`), not shared. */
+    synced: boolean;
 };
 
 /**
@@ -23,12 +25,13 @@ export type SharedFilterState = {
 /** What sharing needs of a view. */
 export type SharedView = Pick<View, 'id' | 'filterGroups' | 'migrations'>;
 
-export function encodeSharedFilterState(view: SharedView, filterState: FilterState): string {
+export function encodeSharedFilterState(view: SharedView, filterState: FilterState, options: { synced?: boolean } = {}): string {
     try {
         const shared = {
             view: view.id,
             rev: currentDefinitionRevision(view.migrations),
-            state: encodeFilterState(filterState, view.filterGroups)
+            state: encodeFilterState(filterState, view.filterGroups),
+            ...(options.synced ? { synced: true } : {})
         };
         const jsonString = JSON.stringify(shared);
         // Convert to base64 and make it URL-safe
@@ -66,9 +69,10 @@ export function decodeSharedFilterState(encodedState: string): SharedFilterState
 
     // A bare filter state has filter ids for keys and filter states (objects) for values,
     // so it never has a string `view` and a numeric `rev`.
+    // Links made elsewhere (by hand, by another app) are not marked: they count as shared.
     const envelope = isRecord(json) && typeof json.view === 'string' && typeof json.rev === 'number'
-        ? { view: json.view, definitionRevision: json.rev, state: json.state }
-        : { view: null, definitionRevision: BASELINE_DEFINITION_REVISION, state: json };
+        ? { view: json.view, definitionRevision: json.rev, state: json.state, synced: json.synced === true }
+        : { view: null, definitionRevision: BASELINE_DEFINITION_REVISION, state: json, synced: false };
     const { result } = decode(undecodedFilterState, envelope.state);
     if (Result.isFailure(result)) {
         throw new Error(`Failed to decode filter state: ${result.error.path}: ${result.error.message}`);
@@ -95,7 +99,7 @@ export function createShareableUrl(view: SharedView, filterState: FilterState): 
 
 export function setFilterInUrl(view: SharedView, filterState: FilterState): void {
     const url = new URL(window.location.href);
-    url.searchParams.set(FILTER_PARAM, encodeSharedFilterState(view, filterState));
+    url.searchParams.set(FILTER_PARAM, encodeSharedFilterState(view, filterState, { synced: true }));
     window.history.replaceState({}, '', url);
 }
 

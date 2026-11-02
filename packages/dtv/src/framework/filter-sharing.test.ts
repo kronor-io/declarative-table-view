@@ -170,6 +170,7 @@ describe('filter-sharing', () => {
             expect(decoded).toEqual({
                 view: null,
                 definitionRevision: 1,
+                synced: false,
                 state: {
                     'name-filter': { type: 'leaf', value: { type: 'value', value: 'test' } },
                     'legacy-filter': { type: 'leaf', value: { type: 'legacy', raw: 'raw' } }
@@ -185,6 +186,13 @@ describe('filter-sharing', () => {
 
             expect(decoded.view).toBeNull();
             expect(Object.keys(decoded.state)).toEqual(['view', 'state']);
+        });
+    });
+
+    describe('a URL the table keeps in sync', () => {
+        it('is told apart from a shared link', () => {
+            expect(decodeSharedFilterState(encodeSharedFilterState({ id: 'view-a', filterGroups }, mockFilterState, { synced: true })).synced).toBe(true);
+            expect(decodeSharedFilterState(encodeSharedFilterState({ id: 'view-a', filterGroups }, mockFilterState)).synced).toBe(false);
         });
     });
 });

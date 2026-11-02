@@ -433,6 +433,30 @@ export function migrateViewData(chain: ViewMigrationChain, data: UndecodedViewDa
         )
 }
 
+/** How a view's filters differ from its latest snapshot, when `dtv definitions snapshot` was not run for a change. */
+export type SnapshotDiff = {
+    /** In both, with another definition: their stored state is reset. */
+    readonly changed: readonly FilterId[];
+    /** Only in the view; nothing was stored for them. */
+    readonly added: readonly FilterId[];
+    /** Only in the snapshot; their stored state is kept, as for any filter the view lacks. */
+    readonly removed: readonly FilterId[];
+};
+
+export function filtersChangedSinceSnapshot(latest: ViewProjection, live: ViewProjection): SnapshotDiff {
+    return {
+        changed: Object.keys(live.filters).filter(filterId =>
+            latest.filters[filterId] !== undefined && !projectionsEqual(latest.filters[filterId], live.filters[filterId])
+        ),
+        added: Object.keys(live.filters).filter(filterId => latest.filters[filterId] === undefined),
+        removed: Object.keys(latest.filters).filter(filterId => live.filters[filterId] === undefined)
+    }
+}
+
+export function isSnapshotDiffEmpty(diff: SnapshotDiff): boolean {
+    return diff.changed.length === 0 && diff.added.length === 0 && diff.removed.length === 0
+}
+
 /**
  * Drops the stored state of filters whose definition differs from the chain's latest
  * snapshot: the definition changed and no migration was generated for it yet, so the
@@ -443,9 +467,7 @@ export function resetFiltersChangedSinceSnapshot(
     live: ViewProjection,
     data: UndecodedViewData
 ): ViewDataMigration {
-    const changed = Object.keys(live.filters).filter(filterId =>
-        latest.filters[filterId] !== undefined && !projectionsEqual(latest.filters[filterId], live.filters[filterId])
-    )
+    const { changed } = filtersChangedSinceSnapshot(latest, live)
     if (changed.length === 0) return { data, resets: noResets() }
 
     const dropChanged = (state: UndecodedFilterState): FilterStateMigration => ({
@@ -483,6 +505,33 @@ export function migrateFilterState(chain: ViewMigrationChain, revision: number, 
         definitionRevision: revision
     }
     return migrateViewData(chain, asViewData).data.persistedFilterState ?? {}
+}
+
+/**
+ * The id the filter `filterId` of `revision` has in the chain's latest revision, following
+ * renames; `null` when it was dropped since, or the latest revision has no such filter. A
+ * filter that was reset keeps its id: what was stored for it may have meant something else.
+ */
+export function latestFilterId(chain: ViewMigrationChain, revision: number, filterId: FilterId): FilterId | null {
+    let id: FilterId | null = filterId
+    for (const migration of chain.migrations) {
+        if (migration.from.revision < revision) continue
+        for (const op of migration.ops) {
+            if (id === null) return null
+            switch (op.kind) {
+                case 'renameFilter':
+                case 'custom':
+                    if (op.from === id) id = op.to
+                    break
+                case 'drop':
+                    if (op.filterId === id) id = null
+                    break
+                default:
+                    break
+            }
+        }
+    }
+    return id !== null && chain.latest.filters[id] !== undefined ? id : null
 }
 
 /** The definition ids older snapshots had, latest first, other than the latest's. */

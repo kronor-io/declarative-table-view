@@ -26,6 +26,8 @@ import { errorMessage, externalLoadFailed, externalSaveFailed, localStorageFaile
 import { Result } from './result'
 import { createSerialQueue } from './serial-queue'
 import { cachedValue } from './cached-value'
+import type { DTVAnalyticsEventPayload, DTVAnalyticsUserDataError } from './analytics'
+import { startSpan } from './analytics-emitter'
 import { readUserDataJson, USER_DATA_LOCALSTORAGE_KEY, writeUserDataJson } from './user-data-storage'
 
 export { USER_DATA_LOCALSTORAGE_KEY }
@@ -36,6 +38,13 @@ export interface UserDataManager {
      * Useful for callers that need to await remote/user-provided hydration.
      */
     ready: Promise<void>
+
+    /**
+     * Sends the manager's analytics events to `track`, the ones that waited first. Until it is
+     * called they wait: a component may create managers it then does not use (StrictMode does),
+     * and those load too.
+     */
+    reportTo(track: (event: UserDataAnalyticsEvent) => void): void
 
     /**
      * Re-reads the user data another tab wrote to localStorage, so this tab works from
@@ -57,10 +66,12 @@ export interface UserDataManager {
 
     getSavedFilters(viewId: ViewId): SavedFilter[]
 
-    // Saved filter manager API (backed by user data)
-    createFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): Promise<void>
-    updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<void>
-    deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<void>
+    // Saved filter manager API (backed by user data). Each tells the user how it went. A change
+    // is kept locally when writing it fails, so each returns what it changed: the created
+    // filter, or whether the filter to update or delete was there.
+    createFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): Promise<SavedFilter>
+    updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<boolean>
+    deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<boolean>
 }
 
 // External callback errors are handled by showing toasts; we do not rethrow.
@@ -93,6 +104,16 @@ export type UserDataManagerOptions = {
     migrationsByViewId?: Record<ViewId, ViewMigrationContext>
 }
 
+/** The analytics events the user data manager reports. */
+export type UserDataAnalyticsEvent = Extract<
+    DTVAnalyticsEventPayload,
+    { readonly type: 'userDataLoad' | 'userDataSaveFailed' | 'userDataConflict' | 'userDataReadOnly' }
+>
+
+/** How the data was read, as `userDataLoad` reports it. */
+type LoadReport = Omit<Extract<UserDataAnalyticsEvent, { type: 'userDataLoad' }>, 'type' | 'startedAt' | 'durationMs'>
+type ReadOnlyEvent = Extract<UserDataAnalyticsEvent, { type: 'userDataReadOnly' }>
+
 /** Stored user data at a format revision this version cannot migrate from, e.g. one a newer version wrote. */
 type UnsupportedFormat = { kind: 'unsupportedFormat'; error: UserDataMigrationError }
 
@@ -114,6 +135,13 @@ export function createUserDataManager(
      * this manager has a schema for decoded against it. See `readUserData`.
      */
     const migrationsByViewId = options.migrationsByViewId ?? {}
+    // Analytics events, waiting for `reportTo`
+    let sink: ((event: UserDataAnalyticsEvent) => void) | null = null
+    const waiting: UserDataAnalyticsEvent[] = []
+    const track = (event: UserDataAnalyticsEvent): void => {
+        if (sink === null) waiting.push(event)
+        else sink(event)
+    }
     const read = (json: unknown): Result<UserDataDecodeError, UserDataRead> => readUserData(json, filterGroupsByViewId, migrationsByViewId)
 
     function decodeErrorMessage(error: UserDataDecodeError): string {
@@ -170,7 +198,7 @@ export function createUserDataManager(
     // not replaced by what this version makes of it.
     let readOnly = false
 
-    function becomeReadOnly(error: UserDataMigrationError): void {
+    function becomeReadOnly(error: UserDataMigrationError): ReadOnlyEvent {
         console.error('Failed to read user data:', userDataMigrationErrorToMessage(error), error)
         options.showToast({
             severity: 'error',
@@ -179,6 +207,7 @@ export function createUserDataManager(
             life: 5000
         })
         readOnly = true
+        return { type: 'userDataReadOnly', message: userDataMigrationErrorToMessage(error) }
     }
 
     /**
@@ -252,7 +281,7 @@ export function createUserDataManager(
         if (stored !== null && Result.isFailure(stored) && stored.error.kind === 'migrationFailed') {
             // A newer version wrote localStorage since this manager read it. Writing would
             // replace that data with what this version makes of it.
-            becomeReadOnly(stored.error.error)
+            track(becomeReadOnly(stored.error.error))
             return Result.success(cachedUserData.set(userData))
         }
         const storedData = stored !== null && Result.isSuccess(stored) ? stored.value : null
@@ -272,23 +301,40 @@ export function createUserDataManager(
         return Result.mapResult(() => persisted, Result.isFailure(remote) ? remote : local)
     }
 
+    function userDataAnalyticsError(error: UserDataManagerError): DTVAnalyticsUserDataError {
+        return { kind: error.kind, message: error.message }
+    }
+
+    function reportSaveFailure(error: UserDataManagerError): void {
+        track({ type: 'userDataSaveFailed', error: userDataAnalyticsError(error) })
+    }
+
     function reportFailure(result: Result<UserDataManagerError, unknown>): void {
         if (Result.isFailure(result)) {
+            reportSaveFailure(result.error)
             options.showToast(userDataManagerErrorToToast(result.error))
         }
     }
 
     /* Initial load: load, choose the source, migrate, persist once. */
 
-    async function synchronize(retryRejectedPush: boolean): Promise<void> {
+    /** Synchronizes, and reports how the load went. */
+    async function load(): Promise<void> {
+        const end = startSpan()
+        const loaded = await synchronize(true)
+        track('type' in loaded ? loaded : { type: 'userDataLoad', ...end(), ...loaded })
+    }
+
+    /** How the data was read, unless the manager became read-only. */
+    async function synchronize(retryRejectedPush: boolean): Promise<LoadReport | ReadOnlyEvent> {
         // Without a loader nothing is awaited, so local-only data is migrated and available
         // synchronously, as soon as the manager is created.
         const remote = options.load ? await loadRemote() : Result.success<UserDataRead | null, UserDataManagerError>(null)
         if (Result.isFailure(remote)) {
             if (remote.error.kind === 'unsupportedFormat') {
-                becomeReadOnly(remote.error.error)
+                const readOnlyEvent = becomeReadOnly(remote.error.error)
                 cachedUserData.set(defaultUserData())
-                return
+                return readOnlyEvent
             }
             options.showToast(userDataManagerErrorToToast(remote.error))
         }
@@ -297,15 +343,15 @@ export function createUserDataManager(
         const localRead = readLocal()
         if (Result.isFailure(localRead)) {
             if (localRead.error.kind === 'migrationFailed') {
-                becomeReadOnly(localRead.error.error)
+                const readOnlyEvent = becomeReadOnly(localRead.error.error)
                 cachedUserData.set(defaultUserData())
-                return
+                return readOnlyEvent
             }
             console.error('Failed to read user data:', decodeErrorMessage(localRead.error), localRead.error)
         }
         const local: UserDataRead = Result.isSuccess(localRead)
             ? localRead.value
-            : { userData: defaultUserData(), resets: [], migrated: false, issues: [] }
+            : { userData: defaultUserData(), resets: [], migrated: false, retained: [], issues: [] }
         // The remote copy is the source when it is at least as new (prefer remote on a tie).
         const remoteCopy = Result.isSuccess(remote) && remote.value !== null && remote.value.userData.revision >= local.userData.revision
             ? remote.value
@@ -332,9 +378,18 @@ export function createUserDataManager(
         // A failed push leaves the data in place: it is valid, only unsynced. Resetting to
         // defaults would make every later write start from revision 0 and be rejected.
         reportFailure(persisted)
+
+        return {
+            outcome: Result.isFailure(remote) ? 'failed' : 'succeeded',
+            source: remoteCopy === null ? 'local' : 'remote',
+            migrated: source.migrated,
+            resets: source.resets,
+            retainedViews: source.retained,
+            ...(Result.isFailure(remote) && remote.error.kind !== 'unsupportedFormat' ? { error: userDataAnalyticsError(remote.error) } : {})
+        }
     }
 
-    const ready: Promise<void> = synchronize(true)
+    const ready: Promise<void> = load()
 
     // Writes run one at a time, after the initial load, so they reach the remote in order
     // and a change made during the load is applied to the reconciled data.
@@ -358,7 +413,9 @@ export function createUserDataManager(
             if (remote.value.userData.revision < cachedUserData().revision) return attempt
 
             // The remote copy's retained views are carried along with it.
-            return persist(change(remote.value.userData), { bumpRevision: true, remote: true })
+            const retried = await persist(change(remote.value.userData), { bumpRevision: true, remote: true })
+            track({ type: 'userDataConflict', resolved: Result.isSuccess(retried) })
+            return retried
         })
     }
 
@@ -449,6 +506,7 @@ export function createUserDataManager(
         Result.match(
             {
                 whenError: (error) => {
+                    reportSaveFailure(error)
                     options.showToast({
                         severity: 'error',
                         summary: `Failed to ${verb} filter`,
@@ -478,7 +536,7 @@ export function createUserDataManager(
         })
     }
 
-    async function createFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): Promise<void> {
+    async function createFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'formatRevision'>): Promise<SavedFilter> {
         const savedFilter: SavedFilter = {
             ...filter,
             id: crypto.randomUUID(),
@@ -490,13 +548,14 @@ export function createUserDataManager(
             savedFilters: [...prevViewData.savedFilters.filter(filter => filter.id !== savedFilter.id), savedFilter]
         }))
         reportSavedFilterResult(result, filter.name, { verb: 'save', done: 'saved' })
+        return savedFilter
     }
 
-    async function updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<void> {
+    async function updateFilter(viewId: ViewId, savedFilterId: SavedFilterId, updates: Partial<Pick<SavedFilter, 'name' | 'state'>>): Promise<boolean> {
         const existingFilter = getSavedFilters(viewId).find(filter => filter.id === savedFilterId)
         if (existingFilter === undefined) {
             reportMissingSavedFilter(savedFilterId, 'update')
-            return
+            return false
         }
 
         const result = await updateViewData(viewId, prevViewData => ({
@@ -504,13 +563,14 @@ export function createUserDataManager(
             savedFilters: prevViewData.savedFilters.map(filter => filter.id === savedFilterId ? { ...filter, ...updates } : filter)
         }))
         reportSavedFilterResult(result, existingFilter.name, { verb: 'update', done: 'updated' })
+        return true
     }
 
-    async function deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<void> {
+    async function deleteFilter(viewId: ViewId, savedFilterId: SavedFilterId): Promise<boolean> {
         const existingFilter = getSavedFilters(viewId).find(filter => filter.id === savedFilterId)
         if (existingFilter === undefined) {
             reportMissingSavedFilter(savedFilterId, 'delete')
-            return
+            return false
         }
 
         const result = await updateViewData(viewId, prevViewData => ({
@@ -518,10 +578,17 @@ export function createUserDataManager(
             savedFilters: prevViewData.savedFilters.filter(filter => filter.id !== savedFilterId)
         }))
         reportSavedFilterResult(result, existingFilter.name, { verb: 'delete', done: 'deleted' })
+        return true
+    }
+
+    function reportTo(next: (event: UserDataAnalyticsEvent) => void): void {
+        sink = next
+        waiting.splice(0).forEach(next)
     }
 
     return {
         ready,
+        reportTo,
         refreshFromLocalStorage,
         getPreferences,
         updatePreferences,

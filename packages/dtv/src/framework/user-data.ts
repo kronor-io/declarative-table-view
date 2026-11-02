@@ -24,16 +24,19 @@ import {
 } from './user-data.migrations';
 import {
     currentDefinitionRevision,
+    filtersChangedSinceSnapshot,
+    isSnapshotDiffEmpty,
     mergeResets,
     migrateViewData,
     noResets,
     previousDefinitions,
     resetFiltersChangedSinceSnapshot,
     type MigrationResets,
+    type SnapshotDiff,
     type ViewDataMigration,
     type ViewMigrationChain
 } from './view-migrations';
-import { projectionsEqual, projectView, type ViewProjection } from './view-projection';
+import { projectView, type ViewProjection } from './view-projection';
 
 export {
     INITIAL_USERDATA_FORMAT_REVISION,
@@ -243,6 +246,8 @@ export type ViewMigrationContext = {
     chain: ViewMigrationChain;
     /** The projection of the live definition, to compare with the chain's latest snapshot. */
     live: ViewProjection;
+    /** How the view's filters differ from the latest snapshot; empty when it is up to date. */
+    snapshotDiff: SnapshotDiff;
 }
 
 /**
@@ -256,13 +261,21 @@ export function viewMigrationContext(view: View): ViewMigrationContext | undefin
     const chain = view.migrations
     if (chain === undefined) return undefined
     const live = projectView(view, chain.latest.definition, chain.latest.revision)
-    if (!projectionsEqual(live.filters, chain.latest.filters)) {
+    const snapshotDiff = filtersChangedSinceSnapshot(chain.latest, live)
+    if (!isSnapshotDiffEmpty(snapshotDiff)) {
         console.error(
             `View "${view.id}" differs from revision ${chain.latest.revision} of its definition "${chain.latest.definition}". ` +
             'Run `dtv definitions snapshot` to add a revision; until then, stored state of changed filters is reset.'
         )
     }
-    return { chain, live }
+    return { chain, live, snapshotDiff }
+}
+
+/** A view of this app whose stored data was kept as stored instead of read. */
+export type RetainedView = {
+    viewId: ViewId;
+    /** `newerRevision`: written for a revision of its definition this app does not know. */
+    reason: 'newerRevision' | 'decodeFailed';
 }
 
 export type ViewsDecoding = {
@@ -270,6 +283,8 @@ export type ViewsDecoding = {
     resets: ViewResets[];
     /** Whether view-level migrations changed any view's data. */
     migrated: boolean;
+    /** Views of this app kept as stored. Views it does not define are kept without being listed. */
+    retained: RetainedView[];
 }
 
 function withMigrationResets(viewId: ViewId, migration: MigrationResets, decoding: ViewResets | null): ViewResets | null {
@@ -292,6 +307,7 @@ export function decodeViews(
     const views: Record<ViewId, ViewData> = {}
     const retainedViews: Record<ViewId, UndecodedViewData> = {}
     const resets: ViewResets[] = []
+    const retained: RetainedView[] = []
     const handled = new Set<ViewId>()
     let migrated = false
 
@@ -312,6 +328,7 @@ export function decodeViews(
 
         if (stored.definitionRevision > currentDefinitionRevision(context?.chain)) {
             retainedViews[viewId] = stored
+            retained.push({ viewId, reason: 'newerRevision' })
             continue
         }
 
@@ -330,6 +347,7 @@ export function decodeViews(
         } catch (err) {
             console.error(`Failed to decode the user data of view "${viewId}"; it is kept as stored:`, err)
             retainedViews[viewId] = stored
+            retained.push({ viewId, reason: 'decodeFailed' })
         }
     }
 
@@ -346,7 +364,8 @@ export function decodeViews(
             formatRevision: data.formatRevision
         },
         resets,
-        migrated
+        migrated,
+        retained
     }
 }
 

@@ -8,6 +8,8 @@ import { View } from '../framework/view';
 import type { ShowToastFn } from '../framework/toast'
 import { FilterState, PaginationState } from '../framework/state';
 import type { DataOrdering } from '../framework/data-ordering';
+import { analyticsError } from '../framework/analytics';
+import { startSpan, useTrack } from '../framework/analytics-emitter';
 
 export interface ActionButtonsProps {
     actions: ActionDefinition[];
@@ -26,6 +28,7 @@ export interface ActionButtonsProps {
 
 export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, paginationState, rowsPerPage, ordering, userData }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
+    const track = useTrack();
     return (
         <>
             {actions.map((action, idx) => {
@@ -51,9 +54,13 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         ordering,
                         userData
                     };
+                    const end = startSpan();
+                    const span = { type: 'action', action: action.id ?? action.label, selectedRows: selectedRows.length } as const;
                     try {
                         await action.onClick(api);
+                        track({ ...span, ...end(), outcome: 'succeeded' });
                     } catch (e) {
+                        track({ ...span, ...end(), outcome: 'failed', error: analyticsError(e) });
                         console.error('Action handler error', e);
                         showToast({ severity: 'error', summary: 'Action Failed', detail: action.label, life: 3000 });
                     } finally {

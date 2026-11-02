@@ -1,3 +1,4 @@
+import type { FetchReason } from '../analytics';
 import type { FetchDataResult, PaginationCursor } from '../data';
 import type { DataOrdering } from '../data-ordering';
 import type { ViewId } from '../view';
@@ -37,6 +38,8 @@ export interface Query {
 export interface DataRequest {
     readonly id: RequestId;
     readonly query: Query;
+    /** What made the table ask for the rows. Reported, not acted on. */
+    readonly reason: FetchReason;
 }
 
 /** Rows and the query they answer. */

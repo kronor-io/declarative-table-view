@@ -8,6 +8,9 @@ import type { Toast } from 'primereact/toast';
 import { getAllFilters } from '../framework/view';
 
 // --- Shared prompt and serialization helpers ---
+/** Whether the AI filled the filters; it tells the user itself when not. */
+export type AIFilterResult = { readonly filled: true } | { readonly filled: false; readonly error: unknown };
+
 export interface AIApi {
     sendPrompt(
         filterGroups: FilterGroups,
@@ -18,7 +21,7 @@ export interface AIApi {
         options?: {
             modifyAiFilterPrompt?: ModifyAiFilterPromptFn
         }
-    ): Promise<void>;
+    ): Promise<AIFilterResult>;
 }
 
 export type ModifyAiFilterPromptFn = (
@@ -387,6 +390,7 @@ export const GeminiApi: AIApi = {
                 const mergedState = mergeAiStateWithCurrent(currentState, parsed, filterGroups);
 
                 setFormState(mergedState);
+                return { filled: true };
             } else {
                 const errorMessage = 'Could not parse FilterFormState from AI response. Check the console.';
                 if (toast?.current) {
@@ -399,6 +403,7 @@ export const GeminiApi: AIApi = {
                 } else {
                     console.warn(errorMessage);
                 }
+                return { filled: false, error: new Error(errorMessage) };
             }
         } catch (err) {
             console.error(err);
@@ -413,6 +418,7 @@ export const GeminiApi: AIApi = {
             } else {
                 console.warn(errorMessage);
             }
+            return { filled: false, error: err };
         }
     }
 };
@@ -427,6 +433,6 @@ export function generateFilterWithAI(
     options?: {
         modifyAiFilterPrompt?: ModifyAiFilterPromptFn
     }
-): Promise<void> {
+): Promise<AIFilterResult> {
     return apiImpl.sendPrompt(filterGroups, userPrompt, setFormState, aiIntegration, toast, options);
 }

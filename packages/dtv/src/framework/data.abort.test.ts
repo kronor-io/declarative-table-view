@@ -62,10 +62,18 @@ describe('fetchData abort', () => {
         await expect(fetch(client, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
     });
 
-    it('still answers empty on a failure that is not an abort', async () => {
+    it('rejects with a FetchError on a failure that is not an abort', async () => {
         const client: any = { request: jest.fn(async () => { throw new TypeError('Failed to fetch'); }) };
-        jest.spyOn(console, 'error').mockImplementation(() => {});
 
-        await expect(fetch(client, new AbortController().signal)).resolves.toEqual({ rows: [], flattenedRows: [] });
+        await expect(fetch(client, new AbortController().signal)).rejects.toMatchObject({
+            name: 'FetchError',
+            info: { kind: 'network', message: 'Failed to fetch' }
+        });
+    });
+
+    it('rejects with a FetchError when the response has no rows for the view', async () => {
+        const client: any = { request: jest.fn(async () => ({ somethingElse: [] })) };
+
+        await expect(fetch(client)).rejects.toMatchObject({ info: { kind: 'unexpectedResponse' } });
     });
 });

@@ -1,7 +1,11 @@
+import type { DTVAnalyticsEventPayload, FetchReason, FiltersAppliedTrigger, ReportedEvent } from '../analytics';
+import type { ViewDefinition } from '../analytics-emitter';
 import type { FetchDataResult } from '../data';
 import { dataOrderingsEqual, type DataOrdering } from '../data-ordering';
 import { createFilterDisplayState, type FilterDisplayState } from '../filter-display-state';
+import { encodeFilterState } from '../filter-form-state';
 import type { FilterGroups } from '../filters';
+import { isSnapshotDiffEmpty, type SnapshotDiff } from '../view-migrations';
 import type { ViewId } from '../view';
 import { createDefaultFilterState, filterStatesEqual, type FilterState } from './filter-state';
 import {
@@ -14,9 +18,10 @@ import {
  *
  * `updateAppState` is pure. Its effects leave it as data: the request the table waits on is
  * read off the state with `pendingRequest`, and writes to user data are returned as
- * `Command`s. `useAppState` runs both and feeds what comes back in as messages, in the order
- * they are sent: applying the draft right after changing it applies the changed draft,
- * whatever renders happen in between.
+ * `Command`s, and so are the analytics events transitions report (`track`). `useAppState`
+ * runs both and feeds what comes back in as messages, in the order they are sent: applying
+ * the draft right after changing it applies the changed draft, whatever renders happen in
+ * between.
  */
 
 /** What user data holds for the selected view. */
@@ -53,6 +58,10 @@ export interface AppState {
     readonly showPopout: boolean;
     /** The rows the user selected, flattened; empty when row selection is off. */
     readonly selectedRows: readonly unknown[];
+    /** The AI filter assistant filled the draft since filters were last applied. */
+    readonly aiAssistedDraft: boolean;
+    /** Where the filter state the table opened with came from, until the view settles. */
+    readonly initialFilterStateSource: AppStateInit['initialFilterStateSource'] | null;
 }
 
 /** What `updateAppState` reads but does not own. */
@@ -62,17 +71,31 @@ export interface AppStateEnv {
     readonly rowsPerPageOptions: readonly number[];
     /** The fields a view's rows can be ordered by. */
     readonly orderableFields: (viewId: ViewId) => readonly string[];
+    /** The definition a view's analytics events are reported for. */
+    readonly definition: (viewId: ViewId) => ViewDefinition;
+    /** How a view's filters differ from its latest definition snapshot; `null` without migrations. */
+    readonly snapshotDiff: (viewId: ViewId) => SnapshotDiff | null;
 }
+
+/** What applies filters by a message. The table opening with filters is told by the state. */
+export type ApplyTrigger = Extract<FiltersAppliedTrigger, 'submit' | 'reset' | 'pillRemoved' | 'savedFilter' | 'api'>;
+
+/** A saved filter, as applying it is reported. */
+export type SavedFilterRef = { readonly id: string; readonly name: string };
 
 export type Msg =
     /** User data of `viewId` changed: written here, by another tab, or loaded. */
     | { readonly tag: 'userDataChanged'; readonly viewId: ViewId; readonly userData: ViewUserData }
     | { readonly tag: 'viewSelected'; readonly viewId: ViewId }
-    | { readonly tag: 'draftChanged'; readonly filters: FilterState }
+    /**
+     * The draft changed: edited, unless `by` says it was filled by the AI filter assistant or
+     * replaced by a saved filter.
+     */
+    | { readonly tag: 'draftChanged'; readonly filters: FilterState; readonly by?: 'aiAssistant' | 'savedFilter' }
     /** Apply the draft as it is when this message is handled. */
-    | { readonly tag: 'draftApplied' }
+    | { readonly tag: 'draftApplied'; readonly trigger: Extract<ApplyTrigger, 'submit' | 'reset' | 'api'> }
     /** Apply `filters`, leaving the draft as it is. */
-    | { readonly tag: 'filtersApplied'; readonly filters: FilterState }
+    | { readonly tag: 'filtersApplied'; readonly filters: FilterState; readonly trigger: ApplyTrigger; readonly savedFilter?: SavedFilterRef }
     | { readonly tag: 'searchQueryChanged'; readonly searchQuery: string }
     | { readonly tag: 'filterGroupExpandedChanged'; readonly groupName: string; readonly expanded: boolean }
     | { readonly tag: 'orderingChanged'; readonly ordering: DataOrdering | null }
@@ -87,18 +110,31 @@ export type Msg =
     | { readonly tag: 'filterPanelShown'; readonly shown: boolean }
     | { readonly tag: 'aiAssistantToggled' }
     | { readonly tag: 'popoutShown'; readonly shown: boolean }
-    | { readonly tag: 'rowsSelected'; readonly rows: readonly unknown[] };
+    | { readonly tag: 'rowsSelected'; readonly rows: readonly unknown[] }
+    /** A component or the user data reported an analytics event, of the selected view. */
+    | { readonly tag: 'reported'; readonly event: ReportedEvent };
+
+/** Reports the latest of the events of `key` once `ms` passed without another one. */
+export type Debounce = { readonly key: string; readonly ms: number };
 
 export type Command =
     | { readonly tag: 'persistFilterState'; readonly viewId: ViewId; readonly filters: FilterState }
     | { readonly tag: 'persistRowsPerPage'; readonly viewId: ViewId; readonly rowsPerPage: number }
-    | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null };
+    | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null }
+    /** Report `event` as an analytics event of `viewId`. */
+    | { readonly tag: 'track'; readonly viewId: ViewId; readonly event: DTVAnalyticsEventPayload; readonly debounce?: Debounce }
+    /** Drop the event of `key` waiting for a pause. */
+    | { readonly tag: 'cancelTrack'; readonly key: string };
 
 export interface AppStateInit {
     readonly viewId: ViewId;
     readonly rowsPerPage: number;
     /** A filter state the page was opened with, e.g. a shared link. It wins over a persisted one. */
     readonly initialFilterState?: FilterState;
+    /** Where `initialFilterState` came from, and the revision of the view's definition it was written for. */
+    readonly initialFilterStateSource?: { readonly trigger: 'link' | 'url'; readonly definitionRevision: number };
+    /** The table is the popout of another one. */
+    readonly popout?: boolean;
 }
 
 /** A table that waits for the user data of its view: it starts with a `userDataChanged`. */
@@ -118,8 +154,15 @@ export function initAppState(env: AppStateEnv, init: AppStateInit): AppState {
         activePanel: null,
         showAIAssistant: false,
         showPopout: false,
-        selectedRows: []
+        selectedRows: [],
+        aiAssistedDraft: false,
+        initialFilterStateSource: init.initialFilterState === undefined ? null : init.initialFilterStateSource ?? null
     };
+}
+
+/** What a table does as it mounts, before any message: it reports that it did. */
+export function initialCommands(env: AppStateEnv, init: AppStateInit): Command[] {
+    return [track(init.viewId, { type: 'viewMounted', popout: init.popout === true }), ...changedFiltersEvents(env, init.viewId)];
 }
 
 export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [AppState, Command[]] {
@@ -152,8 +195,14 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                 : [];
 
             if (state.table.tag === 'hydrating') {
-                const filters = state.table.initialFilterState ?? hydratedFilterState(env, next.selectedViewId, msg.userData);
-                return [filters ? settle(env, next, filters) : next, commands];
+                const start = state.table.initialFilterState !== null
+                    ? { filters: state.table.initialFilterState, trigger: state.initialFilterStateSource?.trigger ?? 'link' }
+                    : hydratedFilterState(env, next.selectedViewId, msg.userData);
+                if (start === null) return [next, commands];
+                return [
+                    settle(env, { ...next, initialFilterStateSource: null }, start.filters),
+                    [...commands, filtersAppliedEvent(env, next, start.filters, start.trigger)]
+                ];
             }
 
             const query = currentQuery(state.table);
@@ -163,7 +212,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             // the filters on screen must not change under the user. Only rows per page and the
             // ordering apply.
             if (next.rowsPerPage === query.rowsPerPage && dataOrderingsEqual(current, query.ordering)) return [next, commands];
-            return [startRequest(next, queryFrom(next, query.filters), shownPage(state.table)), commands];
+            return [startRequest(next, queryFrom(next, query.filters), shownPage(state.table), 'userData'), commands];
         }
 
         case 'viewSelected': {
@@ -179,15 +228,22 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                 table: { tag: 'hydrating', initialFilterState: null },
                 filterState: createDefaultFilterState(filterGroups),
                 filterDisplayState: createFilterDisplayState(filterGroups, state.searchQuery),
-                selectedRows: []
-            }, []];
+                selectedRows: [],
+                aiAssistedDraft: false,
+                initialFilterStateSource: null
+            }, [track(msg.viewId, { type: 'viewSelected', previousViewId: state.selectedViewId }), ...changedFiltersEvents(env, msg.viewId)]];
         }
 
         case 'draftChanged':
-            return [{ ...state, filterState: msg.filters }, []];
+            return [{
+                ...state,
+                filterState: msg.filters,
+                // An edit keeps what the assistant filled in; a saved filter replaces all of it
+                aiAssistedDraft: msg.by === 'aiAssistant' || (msg.by !== 'savedFilter' && state.aiAssistedDraft)
+            }, []];
 
         case 'draftApplied':
-            return updateAppState(env, state, { tag: 'filtersApplied', filters: state.filterState });
+            return updateAppState(env, state, { tag: 'filtersApplied', filters: state.filterState, trigger: msg.trigger });
 
         case 'filtersApplied': {
             // Until the user data arrives, whether to persist is not known: the user's filters
@@ -196,25 +252,36 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             const persist = userData !== null && userData.syncFilterState
                 && !(userData.persistedFilterState !== null && filterStatesEqual(userData.persistedFilterState, msg.filters));
 
+            const applied: AppState = { ...state, aiAssistedDraft: false, initialFilterStateSource: null };
             const next: AppState = persist
-                ? { ...state, userData: { ...userData, persistedFilterState: msg.filters } }
-                : state;
-            const commands: Command[] = persist
-                ? [{ tag: 'persistFilterState', viewId: state.selectedViewId, filters: msg.filters }]
-                : [];
+                ? { ...applied, userData: { ...userData, persistedFilterState: msg.filters } }
+                : applied;
+            const commands: Command[] = [
+                filtersAppliedEvent(env, state, msg.filters, msg.trigger, msg.savedFilter),
+                ...(persist ? [{ tag: 'persistFilterState', viewId: state.selectedViewId, filters: msg.filters } as const] : [])
+            ];
 
             // Applying filters while hydrating settles the view with them: the user's choice wins
-            return [startRequest(next, queryFrom(next, msg.filters), shownPage(state.table)), commands];
+            return [startRequest(next, queryFrom(next, msg.filters), shownPage(state.table), 'filters'), commands];
         }
 
-        case 'searchQueryChanged':
-            return [{
+        case 'searchQueryChanged': {
+            const query = msg.searchQuery.trim();
+            const next: AppState = {
                 ...state,
                 searchQuery: msg.searchQuery,
                 filterDisplayState: createFilterDisplayState(env.filterGroups(state.selectedViewId), msg.searchQuery),
                 // Searching shows the filters it finds
                 activePanel: msg.searchQuery ? 'filters' : state.activePanel
-            }, []];
+            };
+            return [next, [
+                ...panelEvents(state, next),
+                // The search the user settled on, once typing pauses; none when it was cleared before
+                query === ''
+                    ? { tag: 'cancelTrack', key: filterSearchKey }
+                    : { ...track(state.selectedViewId, { type: 'filterSearch', query }), debounce: { key: filterSearchKey, ms: 1000 } }
+            ]];
+        }
 
         case 'filterGroupExpandedChanged':
             return [{ ...state, filterDisplayState: setFilterGroupExpanded(state.filterDisplayState, msg.groupName, msg.expanded) }, []];
@@ -228,10 +295,13 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                 orderingByViewId: { ...state.orderingByViewId, [state.selectedViewId]: msg.ordering }
             };
             // Until the user data arrives, whether to persist is not known
-            const commands: Command[] = state.userData !== null && state.userData.syncOrdering
-                ? [{ tag: 'persistOrdering', viewId: state.selectedViewId, ordering: msg.ordering }]
-                : [];
-            return [restartFromFirstPage(next, state), commands];
+            const commands: Command[] = [
+                track(state.selectedViewId, { type: 'orderingChanged', ordering: msg.ordering }),
+                ...(state.userData !== null && state.userData.syncOrdering
+                    ? [{ tag: 'persistOrdering', viewId: state.selectedViewId, ordering: msg.ordering } as const]
+                    : [])
+            ];
+            return [restartFromFirstPage(next, state, 'ordering'), commands];
         }
 
         case 'rowsPerPageChanged': {
@@ -239,8 +309,11 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
 
             const next: AppState = { ...state, rowsPerPage: msg.rowsPerPage };
             return [
-                restartFromFirstPage(next, state),
-                [{ tag: 'persistRowsPerPage', viewId: state.selectedViewId, rowsPerPage: msg.rowsPerPage }]
+                restartFromFirstPage(next, state, 'rowsPerPage'),
+                [
+                    track(state.selectedViewId, { type: 'rowsPerPageChanged', rowsPerPage: msg.rowsPerPage }),
+                    { tag: 'persistRowsPerPage', viewId: state.selectedViewId, rowsPerPage: msg.rowsPerPage }
+                ]
             ];
         }
 
@@ -252,7 +325,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             const cursor = nextPageCursor(page);
             if (cursor === null) return [state, []];
 
-            return [startPaging(state, { ...page.query, cursors: [...page.query.cursors, cursor] }, page), []];
+            return [startPaging(state, { ...page.query, cursors: [...page.query.cursors, cursor] }, page, 'nextPage'), []];
         }
 
         case 'previousPageRequested': {
@@ -262,14 +335,17 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             const previous: Query = { ...query, cursors: query.cursors.slice(0, -1) };
             const shown = shownPage(state.table);
             // Going back from the rows on screen moves to another page of them
-            return [shown?.query === query ? startPaging(state, previous, shown) : startRequest(state, previous, shown), []];
+            return [
+                shown?.query === query ? startPaging(state, previous, shown, 'previousPage') : startRequest(state, previous, shown, 'previousPage'),
+                []
+            ];
         }
 
         case 'refreshRequested': {
             const query = currentPageQuery(state.table);
             if (query === null) return [state, []];
 
-            return [startRequest(state, query, shownPage(state.table)), []];
+            return [startRequest(state, query, shownPage(state.table), 'refresh'), []];
         }
 
         case 'rowsArrived': {
@@ -277,24 +353,37 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             return [table === state.table ? state : { ...state, table }, []];
         }
 
-        case 'panelToggled':
-            return [{ ...state, activePanel: state.activePanel === msg.panel ? null : msg.panel }, []];
+        case 'panelToggled': {
+            const next: AppState = { ...state, activePanel: state.activePanel === msg.panel ? null : msg.panel };
+            return [next, panelEvents(state, next)];
+        }
 
         case 'filterPanelShown': {
-            if (msg.shown) return [{ ...state, activePanel: 'filters' }, []];
+            if (msg.shown === (state.activePanel === 'filters')) return [state, []];
             // Hiding the filters leaves another panel shown as it is
-            return [state.activePanel === 'filters' ? { ...state, activePanel: null } : state, []];
+            const next: AppState = { ...state, activePanel: msg.shown ? 'filters' : null };
+            return [next, panelEvents(state, next)];
         }
 
         case 'aiAssistantToggled':
-            return [{ ...state, showAIAssistant: !state.showAIAssistant }, []];
+            return [
+                { ...state, showAIAssistant: !state.showAIAssistant },
+                [track(state.selectedViewId, { type: 'panelShown', panel: 'aiAssistant', shown: !state.showAIAssistant })]
+            ];
 
         case 'popoutShown':
-            return [{ ...state, showPopout: msg.shown }, []];
+            if (msg.shown === state.showPopout) return [state, []];
+            return [
+                { ...state, showPopout: msg.shown },
+                [track(state.selectedViewId, { type: 'panelShown', panel: 'popout', shown: msg.shown })]
+            ];
 
         case 'rowsSelected':
             if (msg.rows.length === 0 && state.selectedRows.length === 0) return [state, []];
             return [{ ...state, selectedRows: msg.rows }, []];
+
+        case 'reported':
+            return [state, [track(state.selectedViewId, msg.event)]];
 
         default:
             return absurd(msg);
@@ -305,10 +394,58 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
  * The filter state a view starts from, or `null` while it cannot be known yet: syncing is on
  * and nothing is persisted locally, but the initial load may still bring a remote copy.
  */
-function hydratedFilterState(env: AppStateEnv, viewId: ViewId, userData: ViewUserData): FilterState | null {
-    if (!userData.syncFilterState) return createDefaultFilterState(env.filterGroups(viewId));
-    if (userData.persistedFilterState) return userData.persistedFilterState;
-    return userData.ready ? createDefaultFilterState(env.filterGroups(viewId)) : null;
+function hydratedFilterState(
+    env: AppStateEnv,
+    viewId: ViewId,
+    userData: ViewUserData
+): { filters: FilterState; trigger: 'restored' | 'initial' } | null {
+    const initial = () => ({ filters: createDefaultFilterState(env.filterGroups(viewId)), trigger: 'initial' as const });
+    if (!userData.syncFilterState) return initial();
+    if (userData.persistedFilterState) return { filters: userData.persistedFilterState, trigger: 'restored' };
+    return userData.ready ? initial() : null;
+}
+
+function track(viewId: ViewId, event: DTVAnalyticsEventPayload): Command & { tag: 'track' } {
+    return { tag: 'track', viewId, event };
+}
+
+const filterSearchKey = 'filterSearch';
+
+/** Reports the panel hidden and the one shown, one at a time as they are. */
+function panelEvents(previous: AppState, next: AppState): Command[] {
+    if (previous.activePanel === next.activePanel) return [];
+    return [
+        ...(previous.activePanel === null ? [] : [track(previous.selectedViewId, { type: 'panelShown', panel: previous.activePanel, shown: false })]),
+        ...(next.activePanel === null ? [] : [track(next.selectedViewId, { type: 'panelShown', panel: next.activePanel, shown: true })])
+    ];
+}
+
+/** Reports that a view's filters changed without a snapshot, when they did. */
+function changedFiltersEvents(env: AppStateEnv, viewId: ViewId): Command[] {
+    const diff = env.snapshotDiff(viewId);
+    return diff === null || isSnapshotDiffEmpty(diff) ? [] : [track(viewId, { type: 'filtersChangedSinceSnapshot', ...diff })];
+}
+
+/** Reports that `state`'s view applies `filters`. */
+function filtersAppliedEvent(
+    env: AppStateEnv,
+    state: AppState,
+    filters: FilterState,
+    trigger: FiltersAppliedTrigger,
+    savedFilter?: SavedFilterRef
+): Command {
+    const viewId = state.selectedViewId;
+    return track(viewId, {
+        type: 'filtersApplied',
+        trigger,
+        filters: encodeFilterState(filters, env.filterGroups(viewId)),
+        ...(savedFilter === undefined ? {} : { savedFilter }),
+        // Only the draft can have been filled by the assistant
+        aiAssisted: (trigger === 'submit' || trigger === 'api') && state.aiAssistedDraft,
+        ...((trigger === 'link' || trigger === 'url') && state.initialFilterStateSource
+            ? { link: { definitionRevision: state.initialFilterStateSource.definitionRevision } }
+            : {})
+    });
 }
 
 function viewUserDataEqual(left: ViewUserData, right: ViewUserData): boolean {
@@ -349,7 +486,7 @@ function persistedOrdering(env: AppStateEnv, state: AppState, userData: ViewUser
 function settle(env: AppStateEnv, state: AppState, filters: FilterState): AppState {
     const draftEdited = !filterStatesEqual(state.filterState, createDefaultFilterState(env.filterGroups(state.selectedViewId)));
     const filterState = draftEdited ? state.filterState : filters;
-    return startRequest({ ...state, filterState }, queryFrom(state, filters), null);
+    return startRequest({ ...state, filterState }, queryFrom(state, filters), null, 'filters');
 }
 
 /** A first-page query for the selected view, with the state's ordering and rows per page. */
@@ -364,22 +501,22 @@ function queryFrom(state: AppState, filters: FilterState): Query {
 }
 
 /** Asks for the first page again, with `next`'s settings and the filters `previous` showed. */
-function restartFromFirstPage(next: AppState, previous: AppState): AppState {
+function restartFromFirstPage(next: AppState, previous: AppState, reason: FetchReason): AppState {
     const query = currentQuery(previous.table);
     // Still hydrating: the settings apply once the view settles
     if (query === null) return next;
-    return startRequest(next, queryFrom(next, query.filters), shownPage(previous.table));
+    return startRequest(next, queryFrom(next, query.filters), shownPage(previous.table), reason);
 }
 
-function startRequest(state: AppState, query: Query, shown: Page | null): AppState {
+function startRequest(state: AppState, query: Query, shown: Page | null, reason: FetchReason): AppState {
     const id = nextRequestId(state.lastRequestId);
-    return { ...state, lastRequestId: id, table: { tag: 'loading', request: { id, query }, shown } };
+    return { ...state, lastRequestId: id, table: { tag: 'loading', request: { id, query, reason }, shown } };
 }
 
 /** Moves to `query`, another page of the `shown` rows. */
-function startPaging(state: AppState, query: Query, shown: Page): AppState {
+function startPaging(state: AppState, query: Query, shown: Page, reason: FetchReason): AppState {
     const id = nextRequestId(state.lastRequestId);
-    return { ...state, lastRequestId: id, table: { tag: 'paging', request: { id, query }, shown } };
+    return { ...state, lastRequestId: id, table: { tag: 'paging', request: { id, query, reason }, shown } };
 }
 
 function setFilterGroupExpanded(displayState: FilterDisplayState, groupName: string, expanded: boolean): FilterDisplayState {

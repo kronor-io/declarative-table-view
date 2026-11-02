@@ -145,6 +145,12 @@ Users' saved filters and settings are stored against a view's definition. `dtv d
 snapshots definitions and writes the migrations their stored data needs when they change;
 `dtv definitions check` fails CI when a change has none. See `docs/view-migrations.md`.
 
+## Analytics
+
+`analytics={{ onEvent }}` reports what users do in a table, how long its requests take, and
+what fails, as typed events for the app to store. `docs/analytics.md` describes every event and
+its fields, how events relate, and how to read old ones against a changed view definition.
+
 ## Release Process
 
 Releases are driven from the monorepo root, one package at a time. See the

@@ -5,14 +5,16 @@ import type { SavedFilter, SavedFilterId } from './saved-filters';
 import type { FilterState } from './state';
 import type { DataOrdering } from './data-ordering';
 import type { UserPreferences } from './user-data';
-import { createUserDataManager, type UserDataManager, type UserDataManagerOptions } from './user-data-manager';
+import { createUserDataManager, type UserDataAnalyticsEvent, type UserDataManager, type UserDataManagerOptions } from './user-data-manager';
 import { USER_DATA_LOCALSTORAGE_KEY } from './user-data-storage';
 import type { ViewId } from './view';
 
 export function useUserDataManager(
     filterGroupsByViewId: Record<ViewId, FilterGroups>,
     currentViewId: ViewId,
-    options: UserDataManagerOptions
+    options: UserDataManagerOptions,
+    /** Receives the analytics events of the manager in use. */
+    track?: (event: UserDataAnalyticsEvent) => void
 ) {
     const manager = useMemo(() => {
         return createUserDataManager(filterGroupsByViewId, options);
@@ -49,6 +51,11 @@ export function useUserDataManager(
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
     }, [manager, reread]);
+
+    // The manager in use reports its events; managers created and not used do not
+    useEffect(() => {
+        if (track) manager.reportTo(track)
+    }, [manager, track])
 
     // If the manager performs async loading, refresh once it completes.
     useEffect(() => {

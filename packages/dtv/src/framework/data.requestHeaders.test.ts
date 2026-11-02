@@ -51,4 +51,10 @@ describe('resolveHeadersMiddleware', () => {
         const out = await mw(input);
         expect(out).toBe(input);
     });
+
+    it('fails with an internal FetchError when the requestHeaders function throws', async () => {
+        const mw = resolveHeadersMiddleware(() => { throw new TypeError("Cannot read properties of undefined (reading 'token')"); });
+
+        await expect(mw(req())).rejects.toMatchObject({ name: 'FetchError', info: { kind: 'internal' } });
+    });
 });

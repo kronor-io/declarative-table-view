@@ -9,6 +9,8 @@ import {
     applySchema,
     applyToViewData,
     checkMigration,
+    filtersChangedSinceSnapshot,
+    latestFilterId,
     migrateFilterState,
     migrateViewData,
     previousDefinitions,
@@ -434,5 +436,36 @@ describe('the schema and state sides of every operation agree', () => {
         for (const filter of Object.values(rev1.filters)) {
             expect(projectFilter(expressionOf(filter))).toEqual(filter);
         }
+    });
+});
+
+describe('latestFilterId', () => {
+    const chain = defineViewMigrations(rev1, [complete]);
+
+    it('follows a filter through renames to the latest revision', () => {
+        expect(latestFilterId(chain, 1, 'amt')).toBe('amount');
+        expect(latestFilterId(chain, 1, 'status')).toBe('status');
+    });
+
+    it('has no id for a filter dropped since', () => {
+        expect(latestFilterId(chain, 1, 'legacy')).toBeNull();
+    });
+
+    it('starts from the revision the id is of', () => {
+        expect(latestFilterId(chain, 2, 'amount')).toBe('amount');
+        // rev2 has no `amt`: an id the revision did not have has none later
+        expect(latestFilterId(chain, 2, 'amt')).toBeNull();
+    });
+});
+
+describe('filtersChangedSinceSnapshot', () => {
+    it('tells the changed filters, whose stored state is reset, from those added and removed', () => {
+        // `merchant` renamed to `extra` and `amount` changed, without a snapshot
+        const { merchant, ...kept } = rev2.filters;
+        const live: ViewProjection = { ...rev2, filters: { ...kept, amount: { ...rev2.filters.amount, cmp: 'greaterThan' }, extra: merchant } };
+        const data = stored({ persistedFilterState: { amount: leaf(1), status: leaf(['paid']), merchant: leaf('m') } });
+
+        expect(filtersChangedSinceSnapshot(rev2, live)).toEqual({ changed: ['amount'], added: ['extra'], removed: ['merchant'] });
+        expect(resetFiltersChangedSinceSnapshot(rev2, live, data).resets.persistedFilterState).toEqual(['amount']);
     });
 });
