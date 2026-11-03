@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { DataTable, DataTableExportFunctionEvent } from 'primereact/datatable';
+import { DataTable, DataTableExportFunctionEvent, type DataTableSelectionMultipleChangeEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { getColumnOrderBy, type ColumnDefinition, type TableColumnDefinition } from '../framework/column-definition';
-import { NoRowsComponent, RowExpansionDefinition } from '../framework/view';
+import { NoRowsComponent, RowExpansionDefinition, type SimplifiedRow } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
 import { majorToMinor, minorToMajor } from '../framework/currency';
@@ -12,7 +12,7 @@ import { Mapping } from '../framework/cell-renderer-components/Mapping';
 import { Link } from '../framework/cell-renderer-components/Link';
 import { FilterState, getFilterStateById, setFilterStateById } from '../framework/state';
 import { FilterFormState } from '../framework/filter-form-state';
-import { simplifyRow, simplifyRows } from '../framework/rows';
+import { simplifyRow } from '../framework/rows';
 import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
 import type { DataOrdering } from '../framework/data-ordering';
 import { useTrack } from '../framework/analytics-emitter';
@@ -40,7 +40,8 @@ type TableDataRow = FlattenedDataRow & {
     [INTERNAL_ROW_INDEX]: number;
 };
 
-type TableProps = {
+// `Row` is what the rows' merged column data is (see `SimplifiedRow`), as the App's views say.
+type TableProps<Row> = {
     viewId: string;
     columns: ColumnDefinition[];
     hiddenColumnIds: string[];
@@ -56,19 +57,19 @@ type TableProps = {
     ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple';
-        onRowSelectionChange?: (rows: any[]) => void;
+        onRowSelectionChange?: (rows: Row[]) => void;
     };
 
     /** Optional callback invoked when row selection reset becomes available/unavailable. */
     onRowSelectionResetChange?: (resetFn: RowSelectionResetFn | null) => void;
     onRowExpansionApiChange?: (api: RowExpansionApi | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
-    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+    rowClassFunction?: (row: Row) => Record<string, boolean>;
     ordering?: DataOrdering | null;
     onOrderingChange?: (ordering: DataOrdering | null) => void;
 };
 
-function Table({
+function Table<Row extends object = SimplifiedRow>({
     viewId,
     columns,
     hiddenColumnIds,
@@ -88,7 +89,7 @@ function Table({
     onRowExpansionApiChange,
     ordering = null,
     onOrderingChange
-}: TableProps) {
+}: TableProps<Row>) {
     const hiddenSet = new Set(hiddenColumnIds);
     const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
         if (column.type !== 'tableColumn') return false;
@@ -191,7 +192,7 @@ function Table({
     }, [getRowIndex]);
 
     // Internal selection state only relevant if enabled
-    const [selectedRows, setSelectedRows] = useState<any[] | null>(null);
+    const [selectedRows, setSelectedRows] = useState<TableDataRow[] | null>(null);
     const [expandedRows, setExpandedRows] = useState<TableDataRow[]>([]);
     const [lazyRowExpansionState, setLazyRowExpansionState] = useState<Record<string, LazyRowExpansionState>>({});
     const lazyRowExpansionStateRef = React.useRef<Record<string, LazyRowExpansionState>>({});
@@ -346,10 +347,14 @@ function Table({
         };
     }, [selectionType, onRowSelectionResetChange]);
 
-    const handleSelectionChange = (rows: any[]) => {
+    // The one place the merged column data is taken to be a `Row`: SimplifiedRow is worked out
+    // from the same column queries simplifyRow merges.
+    const toRow = (rowData: TableDataRow) => simplifyRow(rowData) as Row;
+
+    const handleSelectionChange = (rows: TableDataRow[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
         setSelectedRows(rows);
-        rowSelection?.onRowSelectionChange?.(simplifyRows(rows));
+        rowSelection?.onRowSelectionChange?.(rows.map(toRow));
     };
 
     useEffect(() => {
@@ -388,26 +393,28 @@ function Table({
     const rowExpansionTemplate = (rowData: TableDataRow) => {
         if (!rowExpansion) return null;
 
-        const lazyEntry = rowExpansion.lazy ? getLazyRowExpansionEntry(rowData) : undefined;
-        const renderState = !rowExpansion.lazy
-            ? 'ready'
-            : !lazyEntry || lazyEntry.status === 'loading'
-                ? 'loading'
-                : lazyEntry.status === 'error'
-                    ? 'error'
-                    : 'ready';
-
-        return rowExpansion.render({
+        const props = {
             row: simplifyRow(rowData),
             data: getRowExpansionData(rowData),
-            state: renderState,
             collapse: () => {
                 reportToggle(rowData, false);
                 setExpandedRows(currentExpandedRows => currentExpandedRows.filter(expandedRow => !isSameRow(expandedRow, rowData)));
             },
             toggle: () => toggleExpandedRow(rowData),
             ...sharedRendererProps
-        });
+        };
+
+        if (!rowExpansion.lazy) {
+            return rowExpansion.render({ ...props, state: 'ready' });
+        }
+
+        const lazyEntry = getLazyRowExpansionEntry(rowData);
+        const renderState = !lazyEntry || lazyEntry.status === 'loading'
+            ? 'loading'
+            : lazyEntry.status === 'error'
+                ? 'error'
+                : 'ready';
+        return rowExpansion.render({ ...props, state: renderState });
     };
 
     return (
@@ -425,7 +432,7 @@ function Table({
             selectionPageOnly={true}
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
             selection={selectionType === 'multiple' ? selectedRows : null}
-            onSelectionChange={selectionType === 'multiple' ? (e: any) => handleSelectionChange(e.value) : undefined}
+            onSelectionChange={selectionType === 'multiple' ? (e: DataTableSelectionMultipleChangeEvent<TableDataRow[]>) => handleSelectionChange(e.value) : undefined}
             expandedRows={rowExpansion ? expandedRows : undefined}
             onRowToggle={rowExpansion ? (e: any) => {
                 const nextExpandedRows = Array.isArray(e.data) ? e.data as TableDataRow[] : [];
@@ -442,7 +449,7 @@ function Table({
                 setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
             } : undefined}
             rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
-            rowClassName={rowClassFunction ? (row: any) => rowClassFunction(simplifyRow(row)) : undefined}
+            rowClassName={rowClassFunction ? (row: TableDataRow) => rowClassFunction(toRow(row)) : undefined}
             sortMode="single"
             removableSort
             sortField={ordering?.field ?? undefined}

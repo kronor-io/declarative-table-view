@@ -6,7 +6,7 @@ checked against that row: field paths have to exist, controls have to be able to
 produce the type of the field they filter, and operators have to be ones Hasura
 offers for that type.
 
-`column()`, `virtualColumn()`, `fieldColumn()` and `filter()` all require
+`column()`, `virtualColumn()`, `fieldColumn()`, `rowExpansion()` and `filter()` all require
 `rowType`: a column or filter has to say which row it is built on. JSON views are unaffected (they are
 validated at runtime by the view parser, not by these types).
 
@@ -22,7 +22,7 @@ export const PaymentRequestsRowType = DTV.rowType<PaymentRequestsRow>();
 ```
 
 It also adds `rowType:` to the `DSL.column(...)`, `DSL.virtualColumn(...)`,
-`DSL.fieldColumn(...)` and `DSL.filter(...)` calls written inline in the view,
+`DSL.fieldColumn(...)`, `DSL.rowExpansion(...)` and `DSL.filter(...)` calls written inline in the view,
 so in practice the wiring is done for you. See
 [../typegen.md](../typegen.md). To write it by hand, `rowType<Row>()` produces
 the phantom value from any row type you already have.
@@ -102,6 +102,64 @@ accountColumn(InvoicesRowType, 'memo', 'Memo');
   checked to hold `Account` is accepted by a helper that renders
   `Account | null`, but a field checked to hold `Account | null` is rejected by
   one that renders `Account` or a `string`.
+
+## Row expansions
+
+```ts
+DSL.rowExpansion({
+    rowType: PaymentRequestsRowType,
+    mode: 'single',
+    lazy: true,
+    data: [arrayQuery({ field: 'attempts', selectionSet: [valueQuery({ field: 'state' })] })],
+    canExpand: ({ row }) => row.hasAttempts === true,
+    render: ({ data, state }) => (state === 'ready' ? data.attempts.length : 'Loading…'),
+});
+```
+
+`data` is checked against the row like a column's, and `render` and
+`canExpand` get it typed from it. A lazy expansion fetches its data when the row
+is opened, so until `state` is `'ready'` its fields can be missing (`Partial`),
+and in `canExpand`, which runs before anything is fetched, they always can.
+`row` is the row as the table has it (see below), with `unknown` fields.
+
+## Rows DTV hands out
+
+`DSL.view(...)` keeps the types of its columns, so `SimplifiedRow<typeof view>`
+is the row DTV hands out for it. `App` passes it to
+`rowSelection.onRowSelectionChange` and `rowClassFunction` for the views it is
+given:
+
+```ts
+const paymentRequestsView = DSL.view({ ..., columnDefinitions: [...] });
+type PaymentRequestRow = SimplifiedRow<typeof paymentRequestsView>;
+
+<App
+    views={[paymentRequestsView]}
+    rowSelection={{
+        rowSelectionType: 'multiple',
+        onRowSelectionChange: rows => setSelected(rows),   // PaymentRequestRow[]
+    }}
+/>
+```
+
+Such a row is every column's data merged into one object (`simplifyRow`), so
+it holds only what the columns select, not the whole row type: a field no
+column queries is a type error, as it would be `undefined` at run time. To
+read a field the table does not show, select it with a `virtualColumn()`. A
+`fieldColumn()` puts its field on the row typed as its renderer takes it.
+
+The types are kept only while nothing widens them: a view annotated as
+`View` (for example as the return type of a factory), parsed from JSON or
+built from columns that are not typed hands out `Record<string, unknown>`
+rows. A typed view with some untyped columns gets `Record<string, unknown>`
+merged in, so its other fields keep their types. Several views give a union of
+their rows. `View` on its own is `View<ColumnDefinition[]>`: any view, with no
+promise about its rows.
+
+A renderer for a JSON view (in a runtime) gets `unknown` data, since nothing
+checks what the JSON selects; it says what it reads, e.g.
+`CellRenderer<{ amount: number }>` or `RowExpansionRenderer<Data, true>` for a
+lazy expansion.
 
 ## Filters
 

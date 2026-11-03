@@ -77,7 +77,7 @@ describe('Cell Renderer Components', () => {
     });
 
     it('should allow creating Badge elements with typical PrimeReact Tag props', () => {
-        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+        const testCellRenderer: CellRenderer<{ status: string }> = ({ data, components, createElement }) => {
             const { Badge } = components;
 
             // Create a Badge using React.createElement (similar to JSX)
@@ -226,7 +226,7 @@ describe('Cell Renderer Components', () => {
     });
 
     it('should provide Mapping component to cell renderers', () => {
-        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+        const testCellRenderer: CellRenderer<{ status: string }> = ({ data, components, createElement }) => {
             const { Mapping } = components;
             const statusMap = { 'pending': 'Pending', 'approved': 'Approved', 'rejected': 'Rejected' };
             return createElement(Mapping, { value: data.status, map: statusMap });
@@ -259,7 +259,7 @@ describe('Cell Renderer Components', () => {
     });
 
     it('should provide DateTime component to cell renderers', () => {
-        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+        const testCellRenderer: CellRenderer<{ createdAt: string }> = ({ data, components, createElement }) => {
             const { DateTime } = components;
             return createElement(DateTime, { date: data.createdAt, options: { dateStyle: 'short' } });
         };
@@ -291,7 +291,7 @@ describe('Cell Renderer Components', () => {
     });
 
     it('should provide CurrencyAmount component to cell renderers', () => {
-        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+        const testCellRenderer: CellRenderer<{ amount: number; currency?: string }> = ({ data, components, createElement }) => {
             const { CurrencyAmount } = components;
             return createElement(CurrencyAmount, {
                 amount: data.amount,
@@ -327,7 +327,7 @@ describe('Cell Renderer Components', () => {
     });
 
     it('should provide Link component to cell renderers', () => {
-        const testCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+        const testCellRenderer: CellRenderer<{ linkText?: string; url?: string }> = ({ data, components, createElement }) => {
             const { Link } = components;
             return createElement(Link, {
                 text: data.linkText || 'Click here',

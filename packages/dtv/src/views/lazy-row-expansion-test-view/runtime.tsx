@@ -1,7 +1,10 @@
+import type { RowExpansionRenderer } from '../../framework/view';
 import { Runtime } from '../../framework/runtime';
 import { simpleTestViewRuntime } from '../simple-test-view/runtime';
 
-const detailsRowExpansion = ({ row, data, state, collapse, createElement, components: { FlexColumn, FlexRow } }: any) => {
+type DetailsData = { details?: { note?: string | null; owner?: string | null } | null; email?: string };
+
+const detailsRowExpansion: RowExpansionRenderer<DetailsData, true> = ({ row, data, state, collapse, createElement, components: { FlexColumn, FlexRow } }) => {
     if (state === 'loading') {
         return createElement('div', {
             className: 'tw:px-4 tw:py-3 tw:flex tw:items-center tw:gap-2 tw:text-slate-600',

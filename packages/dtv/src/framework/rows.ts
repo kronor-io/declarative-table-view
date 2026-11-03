@@ -4,22 +4,23 @@
 // We flatten a row by merging all cell objects into a single plain object.
 // Later keys overwrite earlier ones when duplicates occur.
 
-export type RawRow = Record<string, any>; // ColumnId -> cell data object
-export type SimplifiedRow = Record<string, any>;
+import type { SimplifiedRow } from './view';
+
+export type RawRow = Record<string, unknown>; // ColumnId -> cell data object
 
 /**
  * Flatten a single raw row (array of cell objects) into one object.
  * Duplicate keys are overwritten by the last occurrence (right-most cell wins).
  */
 export function simplifyRow(row: RawRow): SimplifiedRow {
-    return Object.values(row).reduce((acc: SimplifiedRow, cell: any) => {
+    return Object.values(row).reduce((acc: Record<string, unknown>, cell: unknown) => {
         if (cell && typeof cell === 'object') {
             for (const [k, v] of Object.entries(cell)) {
                 acc[k] = v;
             }
         }
         return acc;
-    }, {} as SimplifiedRow);
+    }, {});
 }
 
 /**

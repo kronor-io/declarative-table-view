@@ -14,7 +14,7 @@ export type SimpleTestData = {
 };
 
 // Email cell renderer that allows filtering by email
-const emailCellRenderer: CellRenderer = ({ data, updateFilterById, applyFilters }) => {
+const emailCellRenderer: CellRenderer<Pick<SimpleTestData, 'email'>> = ({ data, updateFilterById, applyFilters }) => {
     const handleEmailClick = () => {
         updateFilterById('email-eq', (currentFilter) => {
             return { ...currentFilter, value: FilterValue.value(data.email) };
@@ -34,7 +34,7 @@ const emailCellRenderer: CellRenderer = ({ data, updateFilterById, applyFilters 
 };
 
 // Amount cell renderer that demonstrates using the Badge component and FlexRow layout
-const amountCellRenderer: CellRenderer = ({ data, components, createElement }) => {
+const amountCellRenderer: CellRenderer<Pick<SimpleTestData, 'amount'>> = ({ data, components, createElement }) => {
     const { Badge, FlexRow } = components;
     const amount = data.amount;
 

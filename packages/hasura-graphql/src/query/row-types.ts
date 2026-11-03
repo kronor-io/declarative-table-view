@@ -241,14 +241,14 @@ export type DataFromFieldQueriesSafe<
     FieldQueries extends readonly FieldQuery[],
 > =
     HasWideTopLevelKeys<FieldQueries> extends true
-    ? Record<string, any>
+    ? Record<string, unknown>
     : DataFromFieldQueries<FieldQueries>;
 
 export type DataFromFieldQueriesForRowSafe<
     Row,
     FieldQueries extends readonly FieldQuery[],
 > = HasWideTopLevelKeys<FieldQueries> extends true
-    ? Record<string, any>
+    ? Record<string, unknown>
     : DataFromFieldQueriesForRow<Row, FieldQueries>;
 
 // ---------------------------------------------------------------------------

@@ -58,7 +58,7 @@ export type {
 export { fieldAlias, getOrderableFieldPaths, orderByIsSelectedField } from "@kronor/hasura-graphql";
 
 export type CellRendererProps<
-    Data extends Record<string, any> = Record<string, any>,
+    Data extends object = Record<string, unknown>,
 > = {
     data: Data;
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
@@ -91,7 +91,7 @@ export type CellRendererProps<
 // Intentionally bivariant so strongly-typed cell renderers remain assignable
 // to framework-level column containers (e.g. `ColumnDefinition[]`).
 export type CellRenderer<
-    Data extends Record<string, any> = Record<string, any>,
+    Data extends object = Record<string, unknown>,
 > = {
     bivarianceHack(props: CellRendererProps<Data>): ReactNode;
 }["bivarianceHack"];
@@ -102,7 +102,7 @@ export type ColumnId = string;
 
 export type TableColumnDefinition<
     FieldQueries extends readonly FieldQuery[] = readonly FieldQuery[],
-    CellData extends Record<string, any> = DataFromFieldQueriesSafe<FieldQueries>,
+    CellData extends object = DataFromFieldQueriesSafe<FieldQueries>,
 > = {
     type: "tableColumn";
     id: ColumnId;
@@ -116,10 +116,16 @@ export type TableColumnDefinition<
 // data-only column included in the GraphQL selection set but not rendered.
 export type VirtualColumnDefinition<
     FieldQueries extends readonly FieldQuery[] = readonly FieldQuery[],
+    Data extends object = DataFromFieldQueriesSafe<FieldQueries>,
 > = {
     type: "virtualColumn";
     id: ColumnId;
     data: FieldQueries;
+    /**
+     * Type only, never set: the data the column adds to its row, typed against the view's
+     * row type (see `SimplifiedRow`). A table column carries it in its cell renderer.
+     */
+    rowData?: Data;
 };
 
 export type ColumnDefinition = TableColumnDefinition | VirtualColumnDefinition;

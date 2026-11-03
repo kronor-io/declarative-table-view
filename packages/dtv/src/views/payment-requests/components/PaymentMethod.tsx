@@ -1,6 +1,6 @@
 import { FlexRow } from "../../../framework/cell-renderer-components/LayoutHelpers";
 
-type PaymentMethodEnum =
+export type PaymentMethodEnum =
     | "SWISH"
     | "MOBILEPAY"
     | "VIPPS"

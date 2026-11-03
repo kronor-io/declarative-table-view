@@ -981,13 +981,15 @@ export function parseViewJson(
             throw new Error('Runtime rowExpansion entry must define a canExpand function');
         }
 
-        rowExpansion = {
+        const rowExpansionBase = {
             data: rowExpansionData,
             render: rowExpansionEntry.render,
             canExpand: rowExpansionEntry.canExpand,
             mode: rowExpansionJson.mode as 'single' | 'multiple',
-            lazy: rowExpansionJson.lazy === true
         };
+        rowExpansion = rowExpansionJson.lazy === true
+            ? { ...rowExpansionBase, lazy: true as const }
+            : { ...rowExpansionBase, lazy: false as const };
     }
 
     // Optional staticConditions: validate it's an array of objects (shallow validation)

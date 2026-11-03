@@ -9,7 +9,7 @@ import type { Runtime } from '../framework/runtime'
 import type { UserDataJson } from '../framework/user-data'
 import type { Result } from '../framework/result'
 import { AIIntegration, ModifyAiFilterPromptFn } from '../components/aiAssistant'
-import type { View } from '../framework/view'
+import type { View, SimplifiedRow } from '../framework/view'
 import type { DTVAPI } from '../App'
 import type { RequestHeaders } from '../framework/data'
 
@@ -21,7 +21,7 @@ export type RenderTableViewUserDataOptions = {
     onSave?: (api: UserDataSaveAPI) => Promise<Result<string, void>>
 }
 
-export type RenderTableViewOptions = {
+export type RenderTableViewOptions<V extends View = View> = {
     graphqlHost: string
     /**
      * Headers sent with every GraphQL request. Pass a function (which may be
@@ -50,10 +50,10 @@ export type RenderTableViewOptions = {
     syncFilterStateToUrl?: boolean
     rowSelection?: {
         rowSelectionType: 'none' | 'multiple'
-        onRowSelectionChange?: (rows: any[]) => void
+        onRowSelectionChange?: (rows: SimplifiedRow<V>[]) => void
     }
     actions?: ActionDefinition[]
-    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>
+    rowClassFunction?: (row: SimplifiedRow<V>) => Record<string, boolean>
     rowsPerPageOptions?: number[]
 
     /** Optional imperative API ref to control the App instance (e.g. fetchData). */
@@ -71,12 +71,12 @@ export type RenderTableViewOptions = {
         }
         | {
             /** Already-parsed views (bypasses JSON parsing). */
-            views: View[]
+            views: V[]
             viewsJson?: never
         }
     )
 
-export function renderTableView(target: HTMLElement | string, options: RenderTableViewOptions) {
+export function renderTableView<V extends View = View>(target: HTMLElement | string, options: RenderTableViewOptions<V>) {
     const reactContainer = typeof target === 'string' ? document.getElementById(target) : target
     if (!reactContainer) throw new Error('Target element not found')
 

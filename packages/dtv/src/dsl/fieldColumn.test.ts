@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { fieldColumn, rowType, valueQuery, type FieldCellRendererProps } from './columns';
-import type { CellRendererProps } from '../framework/column-definition';
+import type { CellRendererProps, TableColumnDefinition } from '../framework/column-definition';
 
 type Account = { accountNr: string; accountName: string | null };
 type Row = {
@@ -10,7 +10,7 @@ type Row = {
 };
 const RowType = rowType<Row>();
 
-const render = (column: { cellRenderer: (props: CellRendererProps) => unknown }, data: Record<string, unknown>) =>
+const render = (column: TableColumnDefinition, data: Record<string, unknown>) =>
     column.cellRenderer({ data } as CellRendererProps);
 
 describe('dsl/fieldColumn', () => {

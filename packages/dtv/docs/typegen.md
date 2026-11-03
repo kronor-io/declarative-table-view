@@ -103,7 +103,7 @@ That file contains:
 
 The generator also edits the view module itself, as a convenience: it imports
 `<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)`,
-`DSL.virtualColumn(...)`, `DSL.fieldColumn(...)` and `DSL.filter(...)` calls
+`DSL.virtualColumn(...)`, `DSL.fieldColumn(...)`, `DSL.rowExpansion(...)` and `DSL.filter(...)` calls
 written inline in the `DSL.view({ ... })` argument that do not have one yet. Calls that already pass `rowType` are left alone, so
 re-running the generator is safe.
 

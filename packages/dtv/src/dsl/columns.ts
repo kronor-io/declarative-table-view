@@ -31,6 +31,7 @@ import {
 } from "../framework/column-definition";
 import type {
     ColumnFieldValue,
+    FieldColumnData,
     FieldColumnOrderBy,
     FieldColumnSelect,
     FieldSelection,
@@ -45,7 +46,7 @@ function tableColumn(args: {
     data: readonly FieldQuery[];
     footer?: TableColumnDefinitionFooter;
     orderBy?: string;
-    cellRenderer: CellRenderer<Record<string, any>>;
+    cellRenderer: CellRenderer;
 }): TableColumnDefinition {
     if (args.orderBy !== undefined && !orderByIsSelectedField(args.data, args.orderBy)) {
         throw new Error(`Column "${args.id}" orderBy "${args.orderBy}" must reference a scalar field selected by the column data`);
@@ -125,6 +126,9 @@ const readPath = (data: Record<string, unknown>, path: readonly string[]): unkno
  * list, each checked against it. `orderBy` names the field itself for a
  * scalar, or a scalar inside it for an object.
  *
+ * The column puts the field on the row DTV hands out (`SimplifiedRow`) with the type
+ * its renderer takes.
+ *
  * See ./columnTyping for how a helper's own field is checked.
  */
 export function fieldColumn<Row, const Field extends string, Value = ColumnFieldValue<Row, Field>>(
@@ -139,7 +143,8 @@ export function fieldColumn<Row, const Field extends string, Value = ColumnField
         orderBy?: NoInfer<FieldColumnOrderBy<Field, Value>>;
         cellRenderer: FieldCellRenderer<Value>;
     } & NoInfer<FieldColumnSelect<Value>>,
-): TableColumnDefinition {
+    // NoInfer: Value is decided by the arguments, never by where the column goes
+): TableColumnDefinition<readonly FieldQuery[], FieldColumnData<Row, Field, NoInfer<Value>>> {
     const field: string = args.field;
     const path = field.split('.');
     const leafField = path[path.length - 1];
@@ -179,7 +184,7 @@ export function virtualColumn<Row, const FieldQueries extends readonly FieldQuer
     rowType: Row;
     id: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
-}): VirtualColumnDefinition<FieldQueries> {
+}): VirtualColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>> {
     return {
         type: 'virtualColumn',
         id: args.id,

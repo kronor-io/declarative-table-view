@@ -1,5 +1,6 @@
 import { CellRenderer } from "../../framework/column-definition";
-import { PaymentMethod } from "./components/PaymentMethod";
+import type { RowExpansionRenderer } from "../../framework/view";
+import { PaymentMethod, type PaymentMethodEnum } from "./components/PaymentMethod";
 import { PaymentStatusTag } from './components/PaymentStatusTag';
 import { Runtime } from "../../framework/runtime";
 import * as FilterValue from "../../framework/filterValue";
@@ -7,16 +8,20 @@ import { TransformResult as TR } from '../../framework/filters';
 import type { QueryTransformContext, TransformResult } from '../../framework/filters';
 import { mapHasuraCustomOperatorInput } from '../../framework/native-runtime';
 
+// The view is JSON, so nothing checks what its columns select: each renderer says what it reads.
+type Customer = { name: string | null; email: string | null } | null;
+type Attempt = { state: string; createdAt: string; cardType: string };
+
 // Static runtime configuration for payment requests view
 export type PaymentRequestsRuntime = Runtime & {
     cellRenderers: {
-        transaction: CellRenderer;
-        merchant: CellRenderer;
-        placedAt: CellRenderer;
-        paymentProvider: CellRenderer;
-        initiatedBy: CellRenderer;
-        status: CellRenderer;
-        amount: CellRenderer;
+        transaction: CellRenderer<{ transactionId: string; waitToken: string }>;
+        merchant: CellRenderer<{ merchantId: 1 | 2 }>;
+        placedAt: CellRenderer<{ createdAt: string }>;
+        paymentProvider: CellRenderer<{ paymentProvider?: PaymentMethodEnum; attempts?: Attempt[] }>;
+        initiatedBy: CellRenderer<{ customer?: Customer }>;
+        status: CellRenderer<{ currentStatus: string }>;
+        amount: CellRenderer<{ currency: string; amount: number }>;
     };
     queryTransforms: {
         reference: {
@@ -38,7 +43,7 @@ export type PaymentRequestsRuntime = Runtime & {
     };
 };
 
-const rowExpansion = ({ row, data, collapse, createElement, components: { FlexColumn, FlexRow } }: any) => {
+const rowExpansion: RowExpansionRenderer<{ allAttempts?: Attempt[] }> = ({ row, data, collapse, createElement, components: { FlexColumn, FlexRow } }) => {
     return createElement('div', {
         'data-testid': `row-expansion-${row.id}`,
         className: 'tw:px-4 tw:py-3 tw:bg-slate-50',
@@ -59,7 +64,7 @@ const rowExpansion = ({ row, data, collapse, createElement, components: { FlexCo
                     ]
                 }),
                 ...[
-                    data.allAttempts?.map((attempt: any, index: number) => createElement('div', {
+                    data.allAttempts?.map((attempt, index) => createElement('div', {
                         key: `attempt-${index}`,
                         children: `Attempt ${index + 1}: state: ${attempt.state}, created at: ${attempt.createdAt}`
                     })) ?? []
@@ -88,7 +93,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
 
         // Payment Provider cell renderer
         paymentProvider: ({ data }) =>
-            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data.attempts?.[0]?.cardType} darkmode={false} />,
+            <PaymentMethod paymentMethod={data.paymentProvider} cardType={data.attempts?.[0]?.cardType ?? ''} darkmode={false} />,
 
         // Initiated By cell renderer
         initiatedBy: ({ data, updateFilterById, applyFilters, components: { FlexColumn, FlexRow } }) => {
@@ -136,7 +141,7 @@ export const paymentRequestsRuntime: PaymentRequestsRuntime = {
     rowExpansions: {
         attemptsRowExpansion: {
             render: rowExpansion,
-            canExpand: ({ data }) => Boolean(data.allAttempts?.length)
+            canExpand: ({ data }: { data: { allAttempts?: Attempt[] } }) => Boolean(data.allAttempts?.length)
         },
     },
 

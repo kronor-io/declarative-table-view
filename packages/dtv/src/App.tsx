@@ -28,7 +28,7 @@ import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilte
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getColumnOrderBy } from './framework/column-definition';
-import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View } from './framework/view';
+import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View, type SimplifiedRow } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -46,7 +46,11 @@ import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-man
 import type { Result } from './framework/result'
 import type { FilterId, FilterSchema } from './framework/filters'
 
-export interface AppProps {
+/*
+ * `V` is the type of the views, inferred from `views`, so that a selection callback gets their
+ * rows typed (see `SimplifiedRow`).
+ */
+export interface AppProps<V extends View = View> {
     graphqlHost: string;
     /**
      * Headers sent with every GraphQL request. Pass a function to have it
@@ -72,7 +76,7 @@ export interface AppProps {
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
      */
-    views?: View[];
+    views?: V[];
 
     /** JSON string containing array of view definitions (required if `views` is not provided). */
     viewsJson?: string;
@@ -87,12 +91,13 @@ export interface AppProps {
     rowSelection?: {
         /** Type of row selection. 'none' disables selection UI. 'multiple' enables checkbox multi-select. */
         rowSelectionType: 'none' | 'multiple';
-        /** Callback invoked whenever the row selection changes */
-        onRowSelectionChange?: (selectedRows: any[]) => void;
+        /** Callback invoked whenever the row selection changes, with the rows as `SimplifiedRow` describes them */
+        onRowSelectionChange?: (selectedRows: SimplifiedRow<V>[]) => void;
     };
     /** Optional array of custom action buttons rendered after built-in buttons in the menubar */
     actions?: ActionDefinition[];
-    rowClassFunction?: (row: Record<string, any>) => Record<string, boolean>;
+    /** CSS classes for a row, each set when its value is true. Gets the row as `SimplifiedRow` describes it. */
+    rowClassFunction?: (row: SimplifiedRow<V>) => Record<string, boolean>;
     rowsPerPageOptions?: number[]; // selectable page size options for pagination dropdown
 
     /** Optional imperative API for controlling the App instance. */
@@ -192,7 +197,7 @@ function lazyRowExpansionQueryFor(view: View): string | null {
     return query
 }
 
-function App({
+function App<V extends View = View>({
     graphqlHost,
     requestHeaders,
     aiIntegration,
@@ -214,7 +219,7 @@ function App({
     analytics,
     modifyAiFilterPrompt,
     apiRef
-}: AppProps) {
+}: AppProps<V>) {
     const views = useMemo(() => {
         if (viewsFromProps) {
             return viewsFromProps;
@@ -485,7 +490,7 @@ function App({
         if (!rowSelection) return undefined;
         return {
             ...rowSelection,
-            onRowSelectionChange: (rows: any[]) => {
+            onRowSelectionChange: (rows: SimplifiedRow<V>[]) => {
                 setSelectedRows(rows);
                 rowSelection.onRowSelectionChange?.(rows);
             }

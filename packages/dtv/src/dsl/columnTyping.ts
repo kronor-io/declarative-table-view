@@ -117,6 +117,19 @@ type ListElement<Value> = NonNullable<Value> extends readonly (infer Element)[] 
 /** The arguments a list selection takes besides its selection set. */
 type ListArguments = Pick<ArrayQuery, 'orderBy' | 'distinctOn' | 'limit' | 'where'>;
 
+/**
+ * The data a `fieldColumn` adds to its row (see `SimplifiedRow`): the field's value, typed as the
+ * renderer takes it, inside the objects on its path, each of them null when the row lets it be.
+ */
+export type FieldColumnData<Row, Path extends string, Value> =
+    Path extends `${infer Head}.${infer Tail}`
+        ? {
+            [K in Head]:
+                | FieldColumnData<NonNullable<Row[K & keyof Row]>, Tail, Value>
+                | ([Extract<Row[K & keyof Row], Nullish>] extends [never] ? never : null)
+        }
+        : { [K in Path]: Value };
+
 /** What `fieldColumn` can select inside its field, unchecked: see `FieldColumnSelect`. */
 export type FieldSelection =
     | { object: readonly Query[] }

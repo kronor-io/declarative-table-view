@@ -94,11 +94,11 @@ function ensureRowTypeImport(sourceText: string, sourceFile: ts.SourceFile, impo
 
 /**
  * DSL helpers that take a `rowType` for type checking against the view's row.
- * The column helpers sit directly in `columnDefinitions`; `filter` sits inside
- * the groups of `filterGroups`, so the whole view argument is searched rather
- * than one property of it.
+ * The column helpers sit directly in `columnDefinitions`, `rowExpansion` in
+ * `rowExpansion`; `filter` sits inside the groups of `filterGroups`, so the
+ * whole view argument is searched rather than one property of it.
  */
-const ROW_TYPED_HELPERS = new Set(['column', 'virtualColumn', 'fieldColumn', 'filter']);
+const ROW_TYPED_HELPERS = new Set(['column', 'virtualColumn', 'fieldColumn', 'rowExpansion', 'filter']);
 
 /** A `DSL.<helper>(...)` / `<ns>.DSL.<helper>(...)` call, however DTV was imported. */
 function getRowTypedHelperCall(

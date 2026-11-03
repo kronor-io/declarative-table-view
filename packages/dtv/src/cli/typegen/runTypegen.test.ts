@@ -83,6 +83,7 @@ export const view = DSL.view({
         DSL.virtualColumn({ id: 'amount', data: [{ field: 'amount' }] }),
         DSL.fieldColumn({ field: 'amount', name: 'Amount', cellRenderer: () => null })
     ],
+    rowExpansion: DSL.rowExpansion({ mode: 'single', data: [{ field: 'amount' }], canExpand: () => true, render: () => null }),
     filterGroups: [
         DSL.filterGroup({
             name: 'default',
@@ -121,9 +122,10 @@ export const view = DSL.view({
             // The columns, the filter inside a filterGroup() call, and the one
             // inside a plain group literal all get the row type, each written
             // at the indentation of the property it precedes.
-            expect(updatedView.match(/rowType: NewViewRowType/g)).toHaveLength(5);
+            expect(updatedView.match(/rowType: NewViewRowType/g)).toHaveLength(6);
             expect(updatedView).toContain("DSL.virtualColumn({ rowType: NewViewRowType, id: 'amount'");
             expect(updatedView).toContain("DSL.fieldColumn({ rowType: NewViewRowType, field: 'amount'");
+            expect(updatedView).toContain("DSL.rowExpansion({ rowType: NewViewRowType, mode: 'single'");
             expect(updatedView).toContain('DSL.filter({ rowType: NewViewRowType, id: \'amount\'');
             expect(updatedView).toContain([
                 '                DSL.filter({',

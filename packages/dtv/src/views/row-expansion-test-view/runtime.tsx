@@ -1,7 +1,10 @@
+import type { RowExpansionRenderer } from '../../framework/view';
 import { Runtime } from '../../framework/runtime';
 import { simpleTestViewRuntime } from '../simple-test-view/runtime';
 
-const detailsRowExpansion = ({ row, data, collapse, createElement, components: { FlexColumn, FlexRow } }: any) => {
+type DetailsData = { details?: { note?: string | null; owner?: string | null } | null; email?: string };
+
+const detailsRowExpansion: RowExpansionRenderer<DetailsData> = ({ row, data, collapse, createElement, components: { FlexColumn, FlexRow } }) => {
     return createElement('div', {
         className: 'tw:px-4 tw:py-3 tw:bg-slate-50',
         children: createElement(FlexColumn, {
@@ -42,7 +45,7 @@ export const rowExpansionTestViewRuntime: Runtime = {
     rowExpansions: {
         detailsRowExpansion: {
             render: detailsRowExpansion,
-            canExpand: ({ data }) => Boolean(data.details?.note)
+            canExpand: ({ data }: { data: DetailsData }) => Boolean(data.details?.note)
         }
     }
 };

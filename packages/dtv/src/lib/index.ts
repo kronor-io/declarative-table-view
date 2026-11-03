@@ -8,7 +8,7 @@ export type { AppProps, DTVAPI } from '../App';
 export type { AIIntegration, ModifyAiFilterPromptFn, RequestAiFilterFn } from '../components/aiAssistant';
 
 // Re-export selected framework types that are useful to consumers.
-export type { View } from '../framework/view';
+export type { View, SimplifiedRow } from '../framework/view';
 export { getViewRootFieldName, getViewStaticArgs } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
 export type { ViewProjection, FilterProjection, ColumnProjection, ControlProjection } from '../framework/view-projection';

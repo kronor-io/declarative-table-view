@@ -3,19 +3,20 @@ import { DateTime, FlexRow } from "../../framework/cell-renderer-components/Layo
 import { Runtime } from "../../framework/runtime";
 
 // Merchant cell renderer
-const merchantCellRenderer: CellRenderer = ({ data: { merchantId } }) =>
-    (({ 1: 'Boozt', 2: 'Boozt Dev' } as any)[merchantId]);
+const merchantNames: Record<number, string> = { 1: 'Boozt', 2: 'Boozt Dev' };
+const merchantCellRenderer: CellRenderer<{ merchantId: number }> = ({ data: { merchantId } }) =>
+    merchantNames[merchantId];
 
 // Date cell renderer
-const dateCellRenderer: CellRenderer = ({ data: { createdAt } }) =>
+const dateCellRenderer: CellRenderer<{ createdAt: string }> = ({ data: { createdAt } }) =>
     <DateTime date={createdAt} options={{ dateStyle: "long", timeStyle: "medium" }} />;
 
 // Idempotency key cell renderer
-const idempotencyKeyCellRenderer: CellRenderer = ({ data: { idempotencyKey } }) =>
+const idempotencyKeyCellRenderer: CellRenderer<{ idempotencyKey: string | null }> = ({ data: { idempotencyKey } }) =>
     <div className="tw:whitespace-pre-wrap">{idempotencyKey}</div>;
 
 // Namespace cell renderer
-const namespaceCellRenderer: CellRenderer = ({ data: { namespace } }) =>
+const namespaceCellRenderer: CellRenderer<{ namespace: string | null }> = ({ data: { namespace } }) =>
     <div className="tw:whitespace-pre-wrap">{namespace}</div>;
 
 // JSON cell renderer for request params
