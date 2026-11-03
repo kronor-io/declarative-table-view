@@ -99,4 +99,27 @@ test.describe('Row expansion', () => {
         await expect(page.getByText('Details for Test 30', { exact: true })).toBeVisible();
         await expect.poll(() => queries.filter(query => query.includes('details')).length).toBe(1);
     });
+
+    // A row cell keeps the toggle handler of the render it last changed in (PrimeReact memoizes
+    // cells). Rows expanded before new rows came still sat in that render, so expanding the row
+    // that took an expanded row's place on screen loaded nothing.
+    test('lazy row expansion loads a row that took the place of an expanded row', async ({ page }) => {
+        await page.route('**/v1/graphql', mockPaginationGraphQL);
+
+        await page.goto('/?test-view=lazy-row-expansion-test-view');
+
+        const table = page.getByRole('table');
+        const firstRow = table.getByRole('row').nth(1);
+        await expect(firstRow).toContainText('Test 30');
+
+        await firstRow.getByRole('button').first().click();
+        await expect(page.getByText('Details for Test 30', { exact: true })).toBeVisible();
+
+        await page.click('[data-testid="pagination-next"]');
+        await expect(firstRow).toContainText('Test 10');
+
+        await firstRow.getByRole('button').first().click();
+        await expect(page.getByText('Details for Test 10', { exact: true })).toBeVisible();
+        await expect(page.getByText('Loading details...', { exact: true })).not.toBeVisible();
+    });
 });

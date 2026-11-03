@@ -433,8 +433,11 @@ function Table({
                 const toggled = [...nextExpandedRows, ...expandedRowsRef.current]
                     .find(row => nextExpandedRows.some(next => isSameRow(next, row)) !== expandedRowsRef.current.some(shown => isSameRow(shown, row)));
                 if (toggled) reportToggle(toggled, nextExpandedRows.some(next => isSameRow(next, toggled)));
+                // From the ref, not this render: PrimeReact memoizes the row cells, so this handler
+                // can be from a render before new rows came, when another row at the same index
+                // was still expanded, and the row the user expands would then load nothing
                 nextExpandedRows
-                    .filter(rowData => !expandedRows.some(expandedRow => isSameRow(expandedRow, rowData)))
+                    .filter(rowData => !expandedRowsRef.current.some(expandedRow => isSameRow(expandedRow, rowData)))
                     .forEach(ensureLazyRowExpansionData);
                 setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
             } : undefined}
