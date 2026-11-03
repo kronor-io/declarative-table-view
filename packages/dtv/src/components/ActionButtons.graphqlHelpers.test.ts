@@ -164,8 +164,8 @@ describe('ActionAPI GraphQL helpers', () => {
 
         expect(capturedAst).toBeTruthy();
         expect(capturedAst.rootField.field).toContain('testCollection');
-        expect(capturedAliasedAst).toBeTruthy();
-        expect(capturedAliasedAst.rootField.field).toContain('testCollection');
+        expect(capturedAliasedAst.tag).toBe('success');
+        expect(capturedAliasedAst.value.rootField.field).toContain('testCollection');
         expect(capturedQuery).toBeTruthy();
         expect(capturedQuery).toContain('testCollection');
         expect(capturedVariables).toBeTruthy();

@@ -73,6 +73,7 @@ export type {
     GraphQLSelectionSet,
     GraphQLQueryAST,
 } from '../framework/graphql';
+export type { ColumnAliasedQueryError } from '../framework/graphql/query';
 export type { DataOrdering } from '../framework/data-ordering';
 export type { OrderDirection } from '../framework/order-direction';
 export {
@@ -95,7 +96,21 @@ export type { Query, ValueQuery, ObjectQuery, ArrayQuery, FieldAlias, OrderByCon
 export { buildGraphQLQueryVariables } from '../framework/data';
 export { hasuraCustomOperatorTransform, mapHasuraCustomOperatorInput } from '../framework/native-runtime';
 
-export type { Result, Failure, Success } from '../framework/result';
-export { isFailure, isSuccess, failure, success } from '../framework/result';
+export type { Failure, Success } from '../framework/result';
+// `Result` is both the type and the namespace of its functions (`Result.mapResult(...)`).
+export {
+    Result,
+    isFailure,
+    isSuccess,
+    failure,
+    success,
+    mapResult,
+    mapFailure,
+    bimap,
+    flatMap,
+    getOrElse,
+    match,
+    unwrapResult,
+} from '../framework/result';
 
 export * as DSL from '../dsl';

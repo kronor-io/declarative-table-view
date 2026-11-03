@@ -11,6 +11,7 @@ import {
     generateColumnAliasedSelectionSetFromColumns,
 } from "./graphql/query";
 import { ColumnDefinition, fieldAlias } from "./column-definition";
+import { failure, success, unwrapResult } from "./result";
 import { valueQuery, objectQuery, arrayQuery } from "../dsl/columns";
 
 describe("renderGraphQLQuery", () => {
@@ -389,7 +390,7 @@ describe("generateColumnAliasedGraphQLQueryAST", () => {
             },
         ];
 
-        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual([
+        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual(success([
             { field: 'id', alias: 'id' },
             {
                 field: 'customer',
@@ -401,9 +402,9 @@ describe("generateColumnAliasedGraphQLQueryAST", () => {
                 alias: 'latest-posts',
                 selections: [{ field: 'title' }],
             },
-        ]);
+        ]));
 
-        const ast = generateColumnAliasedGraphQLQueryAST('testRoot', columns, 'TestBoolExp', 'TestOrderBy', 'id');
+        const ast = unwrapResult(generateColumnAliasedGraphQLQueryAST('testRoot', columns, 'TestBoolExp', 'TestOrderBy', 'id'));
 
         expect(ast.selectionSet).toEqual([
             { field: 'id', alias: 'id' },
@@ -420,35 +421,41 @@ describe("generateColumnAliasedGraphQLQueryAST", () => {
         ]);
     });
 
-    it("uses only the first field query for columns with multiple field queries", () => {
+    it("fails, naming every column with several top-level queries, instead of picking one", () => {
         const columns: ColumnDefinition[] = [
+            {
+                type: 'tableColumn',
+                id: 'memo',
+                name: 'Memo',
+                data: [
+                    valueQuery({ field: 'id' }),
+                    valueQuery({ field: 'memo' }),
+                ],
+                cellRenderer: () => null,
+            },
+            { type: 'tableColumn', id: 'name', name: 'Name', data: [valueQuery({ field: 'name' })], cellRenderer: () => null },
             {
                 type: 'tableColumn',
                 id: 'fullName',
                 name: 'Full Name',
-                data: [
-                    valueQuery({ field: 'firstName' }),
-                    valueQuery({ field: 'lastName' }),
-                ],
+                data: [valueQuery({ field: 'firstName' }), valueQuery({ field: 'lastName' })],
                 cellRenderer: () => null,
             },
         ];
 
-        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual([
-            { field: 'firstName', alias: 'fullName' },
-        ]);
+        const error = { kind: 'severalTopLevelQueries', columnIds: ['memo', 'fullName'] };
+        expect(generateColumnAliasedSelectionSetFromColumns(columns)).toEqual(failure(error));
+        expect(generateColumnAliasedGraphQLQueryAST('testRoot', columns, 'TestBoolExp', 'TestOrderBy', 'id')).toEqual(failure(error));
+        expect(generateColumnAliasedGraphQLQuery('testRoot', columns, 'TestBoolExp', 'TestOrderBy', 'id')).toEqual(failure(error));
     });
 
-    it("renders the aliased query using only the first field query for each column", () => {
+    it("renders the aliased query with one selection per column", () => {
         const columns: ColumnDefinition[] = [
             {
                 type: 'tableColumn',
                 id: 'fullName',
                 name: 'Full Name',
-                data: [
-                    valueQuery({ field: 'firstName' }),
-                    valueQuery({ field: 'lastName' }),
-                ],
+                data: [valueQuery({ field: 'firstName' })],
                 cellRenderer: () => null,
             },
             {
@@ -460,10 +467,9 @@ describe("generateColumnAliasedGraphQLQueryAST", () => {
             },
         ];
 
-        const query = generateColumnAliasedGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'id');
+        const query = unwrapResult(generateColumnAliasedGraphQLQuery('users', columns, 'UserBoolExp', 'UserOrderBy', 'id'));
 
         expect(query).toContain('fullName: firstName');
-        expect(query).not.toContain('lastName');
         expect(query).toContain('posts: posts');
         expect(query).toMatch(/\bid\b/);
     });

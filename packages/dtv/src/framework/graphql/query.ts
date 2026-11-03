@@ -5,6 +5,7 @@
 // mapping and the cursor pagination contract (the `conditions` /
 // `paginationCondition` / `rowLimit` / `orderBy` variables).
 import { ColumnDefinition, FieldQuery } from '../column-definition';
+import { failure, mapResult, success, type Result } from '../result';
 import {
     buildSelectionSet,
     ensureSelectionPath,
@@ -16,46 +17,43 @@ import type {
     GraphQLArgument,
     GraphQLQueryAST,
     GraphQLSelectionSet,
-    SelectionSetInput,
 } from '@kronor/hasura-graphql';
-
-type SelectionSetFromColumnsOptions = {
-    getTopLevelAlias?: (column: ColumnDefinition) => string | undefined;
-    additionalFieldQueries?: readonly FieldQuery[];
-};
 
 function generateSelectionSetFromColumnsInternal(
     columns: ColumnDefinition[],
-    options?: SelectionSetFromColumnsOptions,
+    additionalFieldQueries?: readonly FieldQuery[],
 ): GraphQLSelectionSet {
-    // When aliasing at the top level, only the column's first field query can
-    // carry the column id as its alias.
-    const columnInputs: SelectionSetInput[] = columns.flatMap(column =>
-        (options?.getTopLevelAlias ? column.data.slice(0, 1) : column.data).map(fieldQuery => ({
-            fieldQuery,
-            alias: options?.getTopLevelAlias?.(column),
-        })),
-    );
-
-    const additionalInputs: SelectionSetInput[] = (options?.additionalFieldQueries ?? []).map(fieldQuery => ({
-        fieldQuery,
-    }));
-
-    return buildSelectionSet([...columnInputs, ...additionalInputs]);
+    const fieldQueries = [...columns.flatMap(column => column.data), ...(additionalFieldQueries ?? [])];
+    return buildSelectionSet(fieldQueries.map(fieldQuery => ({ fieldQuery })));
 }
 
 export function generateSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
     return generateSelectionSetFromColumnsInternal(columns);
 }
 
-function getColumnAliasedTopLevelAlias(column: ColumnDefinition): string {
-    return column.id;
-}
+/**
+ * Why a column-aliased query cannot be built: these columns have several
+ * top-level queries, so none of them alone is the column's value. Which one is
+ * the caller's to say; pass such a column with `data` narrowed to that query.
+ */
+export type ColumnAliasedQueryError = {
+    kind: 'severalTopLevelQueries';
+    columnIds: string[];
+};
 
-export function generateColumnAliasedSelectionSetFromColumns(columns: ColumnDefinition[]): GraphQLSelectionSet {
-    return generateSelectionSetFromColumnsInternal(columns, {
-        getTopLevelAlias: getColumnAliasedTopLevelAlias,
-    });
+/** One selection per column, aliased with the column id. */
+export function generateColumnAliasedSelectionSetFromColumns(
+    columns: ColumnDefinition[],
+): Result<ColumnAliasedQueryError, GraphQLSelectionSet> {
+    const columnIds = columns.filter(column => column.data.length > 1).map(column => column.id);
+    if (columnIds.length > 0) {
+        return failure({ kind: 'severalTopLevelQueries', columnIds });
+    }
+
+    return success(buildSelectionSet(columns.flatMap(column => column.data.map(fieldQuery => ({
+        fieldQuery,
+        alias: column.id,
+    })))));
 }
 
 function buildGraphQLQueryAST(
@@ -108,7 +106,7 @@ export function generateGraphQLQueryAST(
 ): GraphQLQueryAST {
     return buildGraphQLQueryAST(
         rootField,
-        generateSelectionSetFromColumnsInternal(columns, { additionalFieldQueries }),
+        generateSelectionSetFromColumnsInternal(columns, additionalFieldQueries),
         boolExpType,
         orderByType,
         paginationKey,
@@ -123,14 +121,10 @@ export function generateColumnAliasedGraphQLQueryAST(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
-): GraphQLQueryAST {
-    return buildGraphQLQueryAST(
-        rootField,
+): Result<ColumnAliasedQueryError, GraphQLQueryAST> {
+    return mapResult(
+        selectionSet => buildGraphQLQueryAST(rootField, selectionSet, boolExpType, orderByType, paginationKey, staticArgs),
         generateColumnAliasedSelectionSetFromColumns(columns),
-        boolExpType,
-        orderByType,
-        paginationKey,
-        staticArgs,
     );
 }
 
@@ -154,7 +148,9 @@ export function generateColumnAliasedGraphQLQuery(
     orderByType: string,
     paginationKey: string,
     staticArgs?: Record<string, unknown>,
-): string {
-    const ast = generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs);
-    return renderGraphQLQuery(ast);
+): Result<ColumnAliasedQueryError, string> {
+    return mapResult(
+        renderGraphQLQuery,
+        generateColumnAliasedGraphQLQueryAST(rootField, columns, boolExpType, orderByType, paginationKey, staticArgs),
+    );
 }

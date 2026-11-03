@@ -60,7 +60,11 @@ export interface ActionAPI {
     ordering: DataOrdering | null;
     /** Build a GraphQLQueryAST for an arbitrary rootField (usually the current view root field). */
     generateGraphQLQueryAST: typeof generateGraphQLQueryAST;
-    /** Build a GraphQLQueryAST with top-level selections aliased to column ids. */
+    /**
+     * Build a GraphQLQueryAST with top-level selections aliased to column ids. A column with
+     * several top-level queries has no single selection to alias: the result is then a failure
+     * naming those columns, and the caller narrows their `data` to the query it wants.
+     */
     generateColumnAliasedGraphQLQueryAST: typeof generateColumnAliasedGraphQLQueryAST;
     /** Render a GraphQLQueryAST to a string. */
     renderGraphQLQuery: typeof renderGraphQLQuery;
