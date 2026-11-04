@@ -109,9 +109,21 @@ export type ConditionOnlyTransform<Input = unknown, Row = any, Field extends Fil
     toQuery: (input: Input, context: QueryTransformContext<Row, Field>) => TransformConditionResult;
 };
 
+/**
+ * How a leaf's value reads outside the form, as in the applied-filter pills:
+ * the text after the field and the operator. `input` is the value the control
+ * holds, which is never empty here; `context.format` formats a value the way
+ * the leaf's control does by default, so a formatter can build on it.
+ */
+export type FilterValueFormatter<Input = unknown> = (input: Input, context: FilterValueFormatContext) => string;
+
+export type FilterValueFormatContext = {
+    format: (value: unknown) => string;
+};
+
 // Transform functions for filter expressions
 export type FilterTransform<Input = unknown, Row = any, Field extends FilterField = any> = {
-    toQuery?: (input: Input, context: QueryTransformContext<Row, Field>) => TransformResult;
+    toQuery: (input: Input, context: QueryTransformContext<Row, Field>) => TransformResult;
 };
 
 export type FilterControl =
@@ -138,20 +150,21 @@ export type FilterControl =
  * `fieldLabel` is what the applied-filter pill shows in place of the field
  * path. Without it a filter whose transform owns the query has no way to read
  * nicely in the pill except by putting a display string in `field`, which the
- * row-typed checks then have to reject.
+ * row-typed checks then have to reject. `formatValue` does the same for the
+ * value, which otherwise reads as the control shows it.
  */
 export type FilterExpr =
-    | { type: 'equals'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'notEquals'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'greaterThan'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'lessThan'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'greaterThanOrEqual'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'lessThanOrEqual'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'in'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'notIn'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'like'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'iLike'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
-    | { type: 'isNull'; field: FilterField; value: FilterControl; fieldLabel?: string; transform?: FilterTransform<any> }
+    | { type: 'equals'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'notEquals'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'greaterThan'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'lessThan'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'greaterThanOrEqual'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'lessThanOrEqual'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'in'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'notIn'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'like'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'iLike'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
+    | { type: 'isNull'; field: FilterField; value: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any>; transform?: FilterTransform<any> }
     | { type: 'and'; filters: FilterExpr[] }
     | { type: 'or'; filters: FilterExpr[] }
     | { type: 'not'; filter: FilterExpr };

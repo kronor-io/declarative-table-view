@@ -15,6 +15,7 @@ import { GraphQLClient } from 'graphql-request';
 import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { Autocomplete } from './Autocomplete';
+import { NUMBER_CONTROL_MAX_FRACTION_DIGITS } from './controlFormat';
 import { FilterDisplayState } from '../framework/filter-display-state';
 import { getAllFilters } from '../framework/view';
 
@@ -51,7 +52,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                     placeholder={control.placeholder}
                     value={value ?? null}
                     onValueChange={e => setValue(e.value)}
-                    maxFractionDigits={12}
+                    maxFractionDigits={NUMBER_CONTROL_MAX_FRACTION_DIGITS}
                 />
             )
         case 'date':

@@ -7,6 +7,7 @@ It is defined in `src/framework/runtime.ts`:
 export type Runtime = {
   cellRenderers: Record<string, CellRenderer | React.ComponentType<any>>;
   queryTransforms: Record<string, { toQuery: (input: any) => TransformResult }>;
+  valueFormatters?: Record<string, (input: any, context: { format: (value: unknown) => string }) => string>;
   noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;
   customFilterComponents: Record<string, React.ComponentType<any>>;
   initialValues: Record<string, any>;
@@ -19,6 +20,7 @@ export type Runtime = {
 |---------|---------|-----------------|------------|
 | `cellRenderers` | Render table cells | Column `cellRenderer` | `(props) => ReactNode` |
 | `queryTransforms` | Preprocess raw filter form values into GraphQL-ready values | Filter expression `transform` | `{ toQuery(input) => { value, operator?, ... } }` |
+| `valueFormatters` | Show a filter leaf's value in the applied-filter pills (optional) | Filter expression `formatValue` | `(input, { format }) => string` |
 | `noRowsComponents` | UI when a data query yields zero rows | View `noRowsComponent` | `(props) => ReactNode` |
 | `customFilterComponents` | Custom input widgets inside filter forms | Filter control `{ type: 'custom' }` | React component |
 | `initialValues` | Dynamic initial values resolved at parse time | Any `initialValue` field | any |

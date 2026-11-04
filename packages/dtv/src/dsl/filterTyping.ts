@@ -126,7 +126,7 @@ type ItemValueError<Path extends string, Value, Items> =
             : never
         : never;
 
-type ToQueryResult<Transform> = Transform extends { toQuery?: (input: any, context: any) => infer Result }
+type ToQueryResult<Transform> = Transform extends { toQuery: (input: any, context: any) => infer Result }
     ? Result
     : never;
 
@@ -144,17 +144,6 @@ type CustomOperatorTransformError<Leaf, Control> =
                 : "a 'customOperator' control needs a query transform that returns a condition"
             : "a 'customOperator' control needs a query transform"
         : never;
-
-/**
- * `toQuery` is optional on `FilterTransform` — which is what lets the leaf
- * builders tell an omitted transform from a real one, see
- * filterExpr's `IsTransformed` — so a transform object carrying nothing at all
- * type-checks while doing nothing at query time, and would take the checks
- * below down with it.
- */
-type EmptyTransformError<Leaf> = Leaf extends { transform: infer Transform }
-    ? 'toQuery' extends keyof Transform ? never : 'a transform needs a toQuery function'
-    : never;
 
 type OperatorError<Type extends FilterLeafOperator, Path extends string, Value> =
     LeafHasuraOperator[Type] extends keyof HasuraOperatorFor<Value>
@@ -253,7 +242,6 @@ type LeafErrors<Row, Leaf> =
             // transform is what hands those operators to Hasura.
             | OperatorListErrors<Row, Field, Control>
             | CustomOperatorTransformError<Leaf, Control>
-            | EmptyTransformError<Leaf>
             | (HasTransform<Leaf> extends true
                 ? never
                 : ControlErrors<Row, Type, Field, Control> | OperatorErrors<Row, Type, Field>)

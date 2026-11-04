@@ -20,13 +20,15 @@
  * checking more.
  */
 import type { FieldPath } from '@kronor/hasura-graphql';
-import type { FilterControl, FilterTransform } from '../framework/filters';
+import type { FilterControl, FilterTransform, FilterValueFormatter } from '../framework/filters';
 import type { FilterField } from '../framework/filters';
 import {
     FilterExpr,
     type FilterExprLeaf,
     type FilterExprLeafWithTransform,
-    type FilterRangeFor
+    type FilterRange,
+    type FilterRangeWithTransform,
+    type LeafBuilder
 } from './filterExpr';
 import type { ControlValue } from './filterControl';
 import type { FilterFieldForRow } from './filters';
@@ -65,6 +67,7 @@ type LeafBuilderForRow<Row, Type extends FilterLeafOperator> = {
             field: Field & WhenFieldKnown<Row, Field, ValidateOperatorForRow<Row, Type, Field>>;
             control: Control & WhenFieldKnown<Row, Field, ValidateControlForRow<Row, Type, Field, Control>>;
             fieldLabel?: string;
+            formatValue?: FilterValueFormatter<ControlValue<Control>>;
         }
     ): FilterExprLeaf<Type, Field & FilterField, Control>;
     <
@@ -78,6 +81,7 @@ type LeafBuilderForRow<Row, Type extends FilterLeafOperator> = {
             // so it is checked either way.
             control: Control & WhenFieldKnown<Row, Field, ValidateOperatorListForRow<Row, Field, Control>>;
             fieldLabel?: string;
+            formatValue?: FilterValueFormatter<ControlValue<Control>>;
         },
         transform: Transform
     ): FilterExprLeafWithTransform<Type, Field & FilterField, Control, Transform>;
@@ -90,8 +94,9 @@ type RangeBuilderForRow<Row> = {
             field: Field & WhenFieldKnown<Row, Field, ValidateOperatorForRow<Row, 'greaterThanOrEqual', Field>>;
             control: (options: { placeholder: string }) => Control & WhenFieldKnown<Row, Field, ValidateControlForRow<Row, 'greaterThanOrEqual', Field, Control>>;
             fieldLabel?: string;
+            formatValue?: FilterValueFormatter<ControlValue<Control>>;
         }
-    ): FilterRangeFor<Field & FilterField, Control, never>;
+    ): FilterRange<Field & FilterField, Control>;
     <
         const Field extends FilterFieldForRow<Row>,
         const Control extends FilterControl,
@@ -101,9 +106,10 @@ type RangeBuilderForRow<Row> = {
             field: Field;
             control: (options: { placeholder: string }) => Control;
             fieldLabel?: string;
+            formatValue?: FilterValueFormatter<ControlValue<Control>>;
         },
         transform: Transform
-    ): FilterRangeFor<Field & FilterField, Control, Transform>;
+    ): FilterRangeWithTransform<Field & FilterField, Control, Transform>;
 };
 
 export type FilterExprBuilderForRow<Row> = {
@@ -143,14 +149,15 @@ export function filterExprForRowType<Row>(_rowType: Row): FilterExprBuilderForRo
 export function filterExprForRowType<Row>(_rowType?: Row): FilterExprBuilderForRow<Row> {
     void _rowType;
 
-    type UntypedArgs = { field: FilterField; control: FilterControl; fieldLabel?: string };
-    type UntypedRangeArgs = { field: FilterField; control: (options: { placeholder: string }) => FilterControl; fieldLabel?: string };
+    type UntypedArgs = { field: FilterField; control: FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any> };
+    type UntypedRangeArgs = { field: FilterField; control: (options: { placeholder: string }) => FilterControl; fieldLabel?: string; formatValue?: FilterValueFormatter<any> };
 
     // Everything behaves as it does on FilterExpr; only the transform moves
-    // from a property to an argument.
-    const leafFor = (build: (args: UntypedArgs & { transform?: FilterTransform<any> }) => unknown) =>
+    // from a property to an argument. With and without one are separate
+    // overloads there, so each gets a call of its own.
+    const leafFor = (build: LeafBuilder<FilterLeafOperator>) =>
         (args: UntypedArgs, transform?: FilterTransform<any>) =>
-            build(transform ? { ...args, transform } : args);
+            transform ? build({ ...args, transform }) : build(args);
 
     return {
         equals: leafFor(FilterExpr.equals),
@@ -165,7 +172,7 @@ export function filterExprForRowType<Row>(_rowType?: Row): FilterExprBuilderForR
         iLike: leafFor(FilterExpr.iLike),
         isNull: leafFor(FilterExpr.isNull),
         range: (args: UntypedRangeArgs, transform?: FilterTransform<any>) =>
-            FilterExpr.range(transform ? { ...args, transform } : args),
+            transform ? FilterExpr.range({ ...args, transform }) : FilterExpr.range(args),
 
         field: {
             and: (...fields: string[]) => ({ and: [...fields] }),

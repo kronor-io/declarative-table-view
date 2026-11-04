@@ -323,6 +323,31 @@ FilterExpr.in({
 Without a `fieldLabel` the pill falls back to the field path, as before. A range
 gives the same label to both of its bounds.
 
+### How a value reads in the pill
+
+The pill shows the value the user picked, the way its control shows it — never
+what a transform sends to the query. `formatValue` replaces that format for one
+leaf, for a value only the filter knows how to read. Its `input` is typed by the
+control, like a transform's, and `context.format` is the control's own format
+to build on:
+
+```ts
+FilterExpr.equals({
+    field: 'amount',
+    control: FilterControl.number(),
+    formatValue: (input, { format }) => `${format(input)} SEK`,
+    //            input: number | null
+    transform: toCents
+});
+```
+
+Unlike a transform it changes nothing at query time, so the leaf stays checked.
+It is per leaf, so it works at any depth of an `and`/`or`/`not` tree, and a
+range gives it to both of its bounds. On a `customOperator` control the result
+replaces both the operator and the value. A formatter that throws falls back to
+the control's format. A JSON view references one from the runtime's
+`valueFormatters`.
+
 ### customOperator
 
 A `customOperator` control stores the chosen operator beside the value, and only

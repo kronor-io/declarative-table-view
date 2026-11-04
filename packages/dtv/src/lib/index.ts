@@ -29,7 +29,7 @@ export type { Runtime } from '../framework/runtime';
 export type { ColumnDefinition } from '../framework/column-definition';
 export type { FieldQuery } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
-export type { FilterSchema, FilterField, QueryTransformContext, SuggestionFetcher, TransformConditionResult } from '../framework/filters';
+export type { FilterSchema, FilterField, FilterValueFormatter, FilterValueFormatContext, QueryTransformContext, SuggestionFetcher, TransformConditionResult } from '../framework/filters';
 export { TransformResult } from '../framework/filters';
 export * as FilterValue from '../framework/filterValue';
 export { FilterExpr } from '../dsl/filterExpr';

@@ -1,9 +1,8 @@
 import type { FilterExpr, FilterField, FilterControl, FilterSchema, FilterId } from '../framework/filters';
-import { TransformResult } from '../framework/filters';
 import { FilterState } from '../framework/state';
 import { FilterFormState, isFilterEmpty, traverseFilterSchemaAndState } from '../framework/filter-form-state';
 import * as FilterValue from '../framework/filterValue';
-import { hasuraCustomOperatorTransform } from '../framework/graphql';
+import { formatControlValue } from './controlFormat';
 
 export interface FilterStatePillItem {
     filterId: FilterId;
@@ -11,7 +10,6 @@ export interface FilterStatePillItem {
 }
 
 type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
-type DateControl = Extract<FilterControl, { type: 'date' }>;
 
 function getFilterFieldDisplay(field: FilterField): string {
     if (typeof field === 'string') return field;
@@ -51,118 +49,23 @@ function getOperatorDisplay(exprType: FilterExpr['type']): string {
     }
 }
 
-function getFieldValueDisplay(value: unknown): string {
-    if (value instanceof Date) {
-        return new Intl.DateTimeFormat('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        }).format(value);
+// The leaf's own formatter when it has one, else the control's format.
+function formatLeafValue(schemaLeaf: LeafFilterExpr, controlValue: unknown): string {
+    const format = (value: unknown) => formatControlValue(schemaLeaf.value, value);
+    if (!schemaLeaf.formatValue) {
+        return format(controlValue);
     }
-    if (typeof value === 'string') {
-        return value.length > 128 ? `${value.substring(0, 128)}...` : value;
-    }
-    if (Array.isArray(value)) {
-        return value.map(v => getFieldValueDisplay(v)).join(', ');
-    }
-    if (typeof value === 'object' && value !== null) {
-        const obj = value as Record<string, unknown>;
-        if (typeof obj.label === 'string') {
-            return obj.label;
-        }
-        if ('value' in obj) {
-            return getFieldValueDisplay(obj.value);
-        }
-        return JSON.stringify(value);
-    }
-    return String(value);
-}
-
-// Same pattern as the Calendar in FilterForm (dateFormat 'yy-mm-dd', 24-hour time), in local time.
-function getDateControlValueDisplay(control: DateControl, value: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const date = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
-    if (!(control.showTime ?? true)) {
-        return date;
-    }
-    return `${date} ${pad(value.getHours())}:${pad(value.getMinutes())}`;
-}
-
-function getControlValueDisplay(control: FilterControl, controlValue: unknown): string {
-    if (controlValue && typeof controlValue === 'object') {
-        const obj = controlValue as Record<string, unknown>;
-        if (typeof obj.label === 'string') {
-            return obj.label;
-        }
-    }
-
-    if (control.type === 'date' && controlValue instanceof Date && !Number.isNaN(controlValue.getTime())) {
-        return getDateControlValueDisplay(control, controlValue);
-    }
-
-    if (control.type === 'dropdown') {
-        const item = control.items.find(item => item.value === controlValue);
-        return item ? item.label : getFieldValueDisplay(controlValue);
-    }
-
-    if (control.type === 'multiselect') {
-        if (!Array.isArray(controlValue)) {
-            return getFieldValueDisplay(controlValue);
-        }
-        return controlValue
-            .map(value => {
-                const item = control.items.find(item => item.value === value);
-                return item ? item.label : getFieldValueDisplay(value);
-            })
-            .join(', ');
-    }
-
-    return getFieldValueDisplay(controlValue);
-}
-
-function isEmptyLikeDisplayValue(value: unknown): boolean {
-    return (
-        value === undefined ||
-        value === null ||
-        value === '' ||
-        (Array.isArray(value) && value.length === 0)
-    );
-}
-
-function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): unknown {
-    const baseInput = FilterValue.valueOrNull(stateLeaf.value);
-
-    // A date transform returns what the query needs (an ISO string, the end of the day, ...),
-    // so show the picked date the way the control shows it.
-    if (schemaLeaf.value.type === 'customOperator' || schemaLeaf.value.type === 'date') {
-        return baseInput;
-    }
-
-    const transform = schemaLeaf.transform?.toQuery;
-    if (!transform) {
-        return baseInput;
-    }
-
     try {
-        const transformed = transform(baseInput, {
-            field: schemaLeaf.field,
-            FilterValue,
-            result: TransformResult,
-            transform: { hasuraCustomOperator: hasuraCustomOperatorTransform },
-        });
-        if ('condition' in transformed) {
-            return baseInput;
-        }
-
-        const transformedValue = FilterValue.valueOrNull(transformed.value);
-        if (isEmptyLikeDisplayValue(transformedValue)) {
-            return baseInput;
-        }
-
-        return transformedValue;
+        return schemaLeaf.formatValue(controlValue, { format });
     } catch {
-        return baseInput;
+        // A formatter that fails still leaves a readable pill.
+        return format(controlValue);
     }
+}
+
+// Long free-text values would stretch the pill.
+function truncateForPill(text: string): string {
+    return text.length > 128 ? `${text.substring(0, 128)}...` : text;
 }
 
 function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): string {
@@ -171,21 +74,19 @@ function formatLeaf(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { t
     }
 
     const field = `${schemaLeaf.fieldLabel ?? getFilterFieldDisplay(schemaLeaf.field)} `;
-    const displayValue = getLeafValueForDisplay(schemaLeaf, stateLeaf);
+    // The value the user picked, as the form shows it. A transform's toQuery
+    // output is what the query needs, not what the user chose, so it is never shown.
+    const controlValue = FilterValue.valueOrNull(stateLeaf.value);
+    const valueStr = truncateForPill(formatLeafValue(schemaLeaf, controlValue));
 
+    // A customOperator's value carries its own operator.
     if (schemaLeaf.value.type === 'customOperator') {
-        const valueObj = displayValue as { operator?: string; value?: FilterValue.FilterValue } | null;
-        const operatorValue = valueObj?.operator;
-        const operatorLabel = schemaLeaf.value.operators.find(o => o.value === operatorValue)?.label ?? String(operatorValue ?? '');
-        const controlValue = valueObj?.value ? FilterValue.valueOrNull(valueObj.value) : null;
-        const valueStr = getControlValueDisplay(schemaLeaf.value.valueControl, controlValue);
-        return `${field}${operatorLabel} ${valueStr}`.trim();
+        return `${field}${valueStr}`.trim();
     }
 
-    const operator = schemaLeaf.type === 'in' && Array.isArray(displayValue) && displayValue.length === 1
+    const operator = schemaLeaf.type === 'in' && Array.isArray(controlValue) && controlValue.length === 1
         ? getOperatorDisplay('equals')
         : getOperatorDisplay(schemaLeaf.type);
-    const valueStr = getControlValueDisplay(schemaLeaf.value, displayValue);
     return `${field}${operator} ${valueStr}`.trim();
 }
 

@@ -8,7 +8,7 @@ import { FilterGroups, TransformResult } from '../framework/filters';
 import * as FilterValue from '../framework/filterValue';
 
 describe('SavedFilterList', () => {
-    it('displays transformed values when a leaf has transform.toQuery', () => {
+    it('displays the picked value, not what transform.toQuery sends to the query', () => {
         const filterGroups: FilterGroups = [
             {
                 name: 'group',
@@ -67,7 +67,7 @@ describe('SavedFilterList', () => {
             />
         );
 
-        expect(html).toContain('amount = 15');
-        expect(html).not.toContain('amount = 10');
+        expect(html).toContain('amount = 10');
+        expect(html).not.toContain('amount = 15');
     });
 });

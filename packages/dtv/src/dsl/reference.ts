@@ -28,6 +28,10 @@ export function queryTransformRef(key: string): RuntimeReference {
     return runtimeRef('queryTransforms', key);
 }
 
+export function valueFormatterRef(key: string): RuntimeReference {
+    return runtimeRef('valueFormatters', key);
+}
+
 export function initialValueRef(key: string): RuntimeReference {
     return runtimeRef('initialValues', key);
 }

@@ -236,6 +236,36 @@ describe('getFilterStatePillItems', () => {
         ]);
     });
 
+    it('shows the entered value, not what the transform sends to the query', () => {
+        const filters: FilterSchema[] = [
+            {
+                id: 'card',
+                label: 'Card',
+                aiGenerated: false,
+                expression: {
+                    type: 'iLike',
+                    field: 'attempts.maskedCard',
+                    fieldLabel: 'Card',
+                    value: { type: 'text' },
+                    transform: {
+                        toQuery: (input: unknown) => TransformResult.value(`%${input}%`)
+                    }
+                }
+            }
+        ];
+
+        const items = getFilterStatePillItems(new Map([
+            ['card', { type: 'leaf' as const, value: FilterValue.value('1234') }]
+        ]), filters);
+
+        expect(items).toEqual([
+            {
+                filterId: 'card',
+                displayText: 'Card ilike 1234'
+            }
+        ]);
+    });
+
     it('shows the picked date, not the transformed query value, of a date control without time', () => {
         const filters: FilterSchema[] = [
             {
@@ -291,5 +321,71 @@ describe('getFilterStatePillItems', () => {
                 displayText: 'Created \u2264 2026-10-01 09:05'
             }
         ]);
+    });
+
+    it('shows a leaf\'s formatValue in place of the control\'s format, at any depth', () => {
+        const filters: FilterSchema[] = [
+            {
+                id: 'amount',
+                label: 'Amount',
+                aiGenerated: false,
+                expression: {
+                    type: 'or',
+                    filters: [
+                        {
+                            type: 'not',
+                            filter: {
+                                type: 'equals',
+                                field: 'amount',
+                                value: { type: 'number' },
+                                formatValue: (input, { format }) => `${format(input)} SEK`
+                            }
+                        },
+                        { type: 'equals', field: 'currency', value: { type: 'text' } }
+                    ]
+                }
+            }
+        ];
+
+        const items = getFilterStatePillItems(new Map([
+            ['amount', {
+                type: 'or' as const,
+                children: [
+                    { type: 'not' as const, child: { type: 'leaf' as const, value: FilterValue.value(1500) } },
+                    { type: 'leaf' as const, value: FilterValue.value('SEK') }
+                ]
+            }]
+        ]), filters);
+
+        expect(items).toEqual([
+            {
+                filterId: 'amount',
+                displayText: 'OR(NOT(amount = 1,500 SEK), currency = SEK)'
+            }
+        ]);
+    });
+
+    it('falls back to the control\'s format when formatValue throws', () => {
+        const filters: FilterSchema[] = [
+            {
+                id: 'amount',
+                label: 'Amount',
+                aiGenerated: false,
+                expression: {
+                    type: 'equals',
+                    field: 'amount',
+                    value: { type: 'number' },
+                    formatValue: () => {
+                        throw new Error('cannot format');
+                    }
+                }
+            }
+        ];
+
+        const items = getFilterStatePillItems(new Map([
+            ['amount', { type: 'leaf' as const, value: FilterValue.value(1500) }]
+        ]), filters);
+
+        expect(items).toEqual([{ filterId: 'amount', displayText: 'amount = 1,500' }]);
     });
 });

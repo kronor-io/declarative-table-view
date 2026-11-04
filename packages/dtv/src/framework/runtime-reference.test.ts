@@ -1,4 +1,4 @@
-import { parseRuntimeReference, parseColumnDefinitionJson } from './view-parser';
+import { parseRuntimeReference, parseColumnDefinitionJson, parseFilterExprJson } from './view-parser';
 import { Runtime } from './runtime';
 
 describe('RuntimeReference', () => {
@@ -24,7 +24,7 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseRuntimeReference(json);
-            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, rowExpansions, columnFooters, customFilterComponents, queryTransforms, initialValues, suggestionFetchers');
+            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, rowExpansions, columnFooters, customFilterComponents, queryTransforms, valueFormatters, initialValues, suggestionFetchers');
         });
 
         it('should validate that section is a string', () => {
@@ -200,6 +200,39 @@ describe('RuntimeReference', () => {
 
             // Verify the key exists in runtime
             expect(testRuntime.customFilterComponents[parsed.key as keyof typeof testRuntime.customFilterComponents]).toBeDefined();
+        });
+    });
+
+    describe('Filter leaf formatValue RuntimeReference', () => {
+        const formatCents = (input: unknown) => `${input} SEK`;
+        const runtime: Runtime = {
+            cellRenderers: {},
+            queryTransforms: {},
+            valueFormatters: { formatCents },
+            noRowsComponents: {},
+            customFilterComponents: {},
+            initialValues: {},
+            suggestionFetchers: {}
+        };
+
+        it('resolves a leaf\'s formatValue from valueFormatters', () => {
+            const expr = parseFilterExprJson({
+                type: 'equals',
+                field: 'amount',
+                value: { type: 'number' },
+                formatValue: { section: 'valueFormatters', key: 'formatCents' }
+            }, runtime, undefined);
+
+            expect(expr).toEqual({ type: 'equals', field: 'amount', value: { type: 'number' }, formatValue: formatCents });
+        });
+
+        it('requires formatValue to reference valueFormatters', () => {
+            expect(() => parseFilterExprJson({
+                type: 'equals',
+                field: 'amount',
+                value: { type: 'number' },
+                formatValue: { section: 'queryTransforms', key: 'formatCents' }
+            }, runtime, undefined)).toThrow('Invalid formatValue: section must be "valueFormatters"');
         });
     });
 });

@@ -11,7 +11,7 @@ import type { ViewMigrationChain } from './view-migrations';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'valueFormatters' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
     key: string;
 };
 
@@ -65,17 +65,17 @@ export type FilterFieldJson =
 
 // JSON Schema types for FilterExpr with transform as RuntimeReference
 export type FilterExprJson =
-    | { type: 'equals'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'notEquals'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'greaterThan'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'lessThan'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'greaterThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'lessThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'in'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'notIn'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'like'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'iLike'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
-    | { type: 'isNull'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; transform?: RuntimeReference }
+    | { type: 'equals'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'notEquals'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'greaterThan'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'lessThan'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'greaterThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'lessThanOrEqual'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'in'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'notIn'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'like'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'iLike'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
+    | { type: 'isNull'; field: FilterFieldJson; value: FilterControlJson; fieldLabel?: string; formatValue?: RuntimeReference; transform?: RuntimeReference }
     | { type: 'and'; filters: FilterExprJson[] }
     | { type: 'or'; filters: FilterExprJson[] }
     | { type: 'not'; filter: FilterExprJson };
@@ -171,7 +171,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'valueFormatters', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -604,6 +604,19 @@ export function parseFilterExprJson(
         );
 
         result.transform = transform;
+    }
+
+    if (expr.formatValue) {
+        const formatValueRef = parseRuntimeReference(expr.formatValue);
+        if (formatValueRef.section !== 'valueFormatters') {
+            throw new Error('Invalid formatValue: section must be "valueFormatters"');
+        }
+
+        result.formatValue = resolveRuntimeReference<any>(
+            formatValueRef,
+            externalRuntime,
+            builtInRuntime
+        );
     }
 
     if (value.type === 'customOperator' && !result.transform) {

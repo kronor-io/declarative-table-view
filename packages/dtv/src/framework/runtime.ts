@@ -1,7 +1,7 @@
 import React from "react";
 import { CellRenderer, TableColumnDefinitionFooter } from "./column-definition";
 import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
-import { QueryTransformContext, TransformResult, SuggestionFetcher } from "./filters";
+import { QueryTransformContext, TransformResult, SuggestionFetcher, FilterValueFormatter } from "./filters";
 import type { ViewMigrationChain } from "./view-migrations";
 
 // Use SuggestionFetcher alias from filters.ts; runtime suggestionFetchers return string arrays.
@@ -12,6 +12,8 @@ export type Runtime = {
     queryTransforms: Record<string, {
         toQuery: (input: any, context: QueryTransformContext) => TransformResult;
     }>;
+    // How a filter leaf's value reads in the applied-filter pills, referenced by a leaf's `formatValue`
+    valueFormatters?: Record<string, FilterValueFormatter<any>>;
     noRowsComponents: Record<string, NoRowsComponent>;
     rowExpansions?: Record<string, RowExpansionRuntimeEntry>;
     columnFooters?: Record<string, TableColumnDefinitionFooter>;

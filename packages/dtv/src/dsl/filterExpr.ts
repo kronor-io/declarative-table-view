@@ -3,14 +3,14 @@ import type {
     FilterControl,
     FilterExpr as FilterExprType,
     FilterField,
-    FilterTransform
+    FilterTransform,
+    FilterValueFormatter
 } from '../framework/filters';
 import { SUPPORTED_OPERATORS } from '../framework/filters';
 import type { ControlValue } from './filterControl';
 import type { FilterLeafOperator } from './filterTyping';
-import type { IsAny } from './typeErrors';
 
-export type { ConditionOnlyTransform, FilterField, FilterTransform };
+export type { ConditionOnlyTransform, FilterField, FilterTransform, FilterValueFormatter };
 export type FilterExpr = FilterExprType;
 
 /**
@@ -28,6 +28,8 @@ export type FilterExprLeaf<
     value: Control;
     /** Shown by the applied-filter pill in place of the field path. */
     fieldLabel?: string;
+    /** How the applied-filter pill shows the value, in place of the control's own format. */
+    formatValue?: FilterValueFormatter<ControlValue<Control>>;
 };
 
 /** A leaf whose value passes through a transform on its way to the query. */
@@ -38,60 +40,29 @@ export type FilterExprLeafWithTransform<
     Transform extends FilterTransform<any>
 > = FilterExprLeaf<Type, Field, Control> & { transform: Transform };
 
-type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+export type FilterRange<Field extends FilterField, Control extends FilterControl> = {
+    type: 'and';
+    filters: [
+        FilterExprLeaf<'greaterThanOrEqual', Field, Control>,
+        FilterExprLeaf<'lessThanOrEqual', Field, Control>
+    ];
+};
 
-/**
- * Whether a transform was actually passed.
- *
- * It cannot be read from the presence of the property, because a transform's
- * `input` is typed by making `Transform` a parameter constrained to
- * `FilterTransform<ControlValue<Control>>` — a parameter's constraint is the
- * only thing that contextually types a callback parameter, and an intersection
- * member is not. So when the property is omitted, `Transform` lands on that
- * constraint rather than on nothing.
- *
- * The constraint is distinguishable, though: its `toQuery` is optional and its
- * input is *exactly* `ControlValue<Control>`. Every real transform differs —
- * an inline object literal has a required `toQuery`, and one annotated
- * `FilterTransform` or `FilterTransform<any>` has a wider input.
- *
- * Getting this wrong in the permissive direction would silently exempt leaves
- * from the checks in ./filterTyping, so filterExpr.transformDetection.test.ts
- * pins down every way a transform can arrive.
- */
-export type IsTransformed<Transform, Control> = Transform extends { toQuery?: (input: infer Input, ...rest: never[]) => any }
-    ? undefined extends Transform['toQuery']
-        ? IsAny<Input> extends true
-            ? true
-            : Exactly<Input, ControlValue<Control>> extends true ? false : true
-        : true
-    : true;
-
-export type FilterExprLeafFor<
-    Type extends FilterLeafOperator,
+export type FilterRangeWithTransform<
     Field extends FilterField,
     Control extends FilterControl,
-    Transform
-> = IsTransformed<Transform, Control> extends true
-    ? FilterExprLeafWithTransform<Type, Field, Control, Extract<Transform, FilterTransform<any>>>
-    : FilterExprLeaf<Type, Field, Control>;
-
-export type FilterRangeFor<
-    Field extends FilterField,
-    Control extends FilterControl,
-    Transform
+    Transform extends FilterTransform<any>
 > = {
     type: 'and';
     filters: [
-        FilterExprLeafFor<'greaterThanOrEqual', Field, Control, Transform>,
-        FilterExprLeafFor<'lessThanOrEqual', Field, Control, Transform>
+        FilterExprLeafWithTransform<'greaterThanOrEqual', Field, Control, Transform>,
+        FilterExprLeafWithTransform<'lessThanOrEqual', Field, Control, Transform>
     ];
 };
 
 export type LeafArgs<
     Field extends FilterField,
-    Control extends FilterControl,
-    Transform extends FilterTransform<any>
+    Control extends FilterControl
 > = {
     field: Field;
     control: Control;
@@ -101,49 +72,95 @@ export type LeafArgs<
      * whoever is reading the pill.
      */
     fieldLabel?: string;
-    transform?: Transform;
+    /**
+     * How the applied-filter pill shows the value, in place of the control's
+     * own format — for a value only the filter knows how to read.
+     */
+    formatValue?: FilterValueFormatter<ControlValue<Control>>;
 };
 
-/** One implementation for the eleven leaf operators. */
-function leaf<Type extends FilterLeafOperator>(type: Type) {
-    return <
+type RangeArgs<
+    Field extends FilterField,
+    Control extends FilterControl
+> = {
+    field: Field;
+    control: (options: { placeholder: string }) => Control;
+    fieldLabel?: string;
+    formatValue?: FilterValueFormatter<ControlValue<Control>>;
+};
+
+/**
+ * The `transform` of the overloads without one: a transform no one can write,
+ * rather than `undefined`. A transform with the wrong `input` then fails both
+ * overloads at its `toQuery`, so TypeScript reports the error there instead of
+ * on the builder's name.
+ */
+type NoTransform = { toQuery: never };
+
+/**
+ * A leaf builder, with or without a transform.
+ *
+ * Whether a transform was passed decides the leaf's type — a leaf carrying one
+ * is exempt from the control and operator checks in ./filterTyping — so each
+ * case has an overload of its own. The transform's `input` is typed by its
+ * constraint, which is why `Transform` is a type parameter at all; one
+ * signature with an optional `transform` would leave `Transform` on that
+ * constraint when it is omitted, and an omitted transform would have to be
+ * told apart from a passed one by its type. Here it never has to be: without a
+ * transform there is no `Transform`.
+ */
+export type LeafBuilder<Type extends FilterLeafOperator> = {
+    <const Field extends FilterField, const Control extends FilterControl>(
+        args: LeafArgs<Field, Control> & { transform?: NoTransform }
+    ): FilterExprLeaf<Type, Field, Control>;
+    <
         const Field extends FilterField,
         const Control extends FilterControl,
         const Transform extends FilterTransform<ControlValue<Control>, unknown, Field>
-    >(args: LeafArgs<Field, Control, Transform>): FilterExprLeafFor<Type, Field, Control, Transform> => ({
+    >(
+        args: LeafArgs<Field, Control> & { transform: Transform }
+    ): FilterExprLeafWithTransform<Type, Field, Control, Transform>;
+};
+
+/** One implementation for the eleven leaf operators. */
+function leaf<Type extends FilterLeafOperator>(type: Type): LeafBuilder<Type> {
+    return ((args: LeafArgs<FilterField, FilterControl> & { transform?: FilterTransform<any> }) => ({
         type,
         field: args.field,
         value: args.control,
         ...(args.fieldLabel !== undefined && { fieldLabel: args.fieldLabel }),
+        ...(args.formatValue && { formatValue: args.formatValue }),
         ...(args.transform && { transform: args.transform })
-    }) as FilterExprLeafFor<Type, Field, Control, Transform>;
+    })) as LeafBuilder<Type>;
 }
 
+// The same split as LeafBuilder.
+function range<const Field extends FilterField, const Control extends FilterControl>(
+    args: RangeArgs<Field, Control> & { transform?: NoTransform }
+): FilterRange<Field, Control>;
 function range<
     const Field extends FilterField,
     const Control extends FilterControl,
     const Transform extends FilterTransform<ControlValue<Control>, unknown, Field>
->(args: {
-    field: Field;
-    control: (options: { placeholder: string }) => Control;
-    fieldLabel?: string;
-    transform?: Transform;
-}): FilterRangeFor<Field, Control, Transform> {
+>(
+    args: RangeArgs<Field, Control> & { transform: Transform }
+): FilterRangeWithTransform<Field, Control, Transform>;
+function range(args: RangeArgs<FilterField, FilterControl> & { transform?: FilterTransform<any> }): FilterExprType {
     const from = args.control({ placeholder: 'from' });
     const to = args.control({ placeholder: 'to' });
-    const { field, fieldLabel, transform } = args;
+    const { field, fieldLabel, formatValue, transform } = args;
 
     const bounds = transform
         ? [
-            FilterExpr.greaterThanOrEqual({ field, control: from, fieldLabel, transform }),
-            FilterExpr.lessThanOrEqual({ field, control: to, fieldLabel, transform })
+            FilterExpr.greaterThanOrEqual({ field, control: from, fieldLabel, formatValue, transform }),
+            FilterExpr.lessThanOrEqual({ field, control: to, fieldLabel, formatValue, transform })
         ]
         : [
-            FilterExpr.greaterThanOrEqual({ field, control: from, fieldLabel }),
-            FilterExpr.lessThanOrEqual({ field, control: to, fieldLabel })
+            FilterExpr.greaterThanOrEqual({ field, control: from, fieldLabel, formatValue }),
+            FilterExpr.lessThanOrEqual({ field, control: to, fieldLabel, formatValue })
         ];
 
-    return { type: 'and', filters: bounds } as unknown as FilterRangeFor<Field, Control, Transform>;
+    return { type: 'and', filters: bounds };
 }
 
 // Helper functions for building FilterExpr values
@@ -162,12 +179,13 @@ export const FilterExpr = {
 
     // Condition-only helper for filters that are transformed into a full Hasura condition.
     // Internally uses a leaf expr type, but the operator mapping is bypassed because the transform returns { condition }.
-    computedCondition: <const Control extends FilterControl, const Transform extends ConditionOnlyTransform<ControlValue<Control>>>(args: { control: Control; fieldLabel?: string; transform: Transform }): FilterExprLeafWithTransform<'equals', { or: [] }, Control, Transform> =>
+    computedCondition: <const Control extends FilterControl, const Transform extends ConditionOnlyTransform<ControlValue<Control>>>(args: { control: Control; fieldLabel?: string; formatValue?: FilterValueFormatter<ControlValue<Control>>; transform: Transform }): FilterExprLeafWithTransform<'equals', { or: [] }, Control, Transform> =>
         ({
             type: 'equals', // The operator here is a dummy value since the transform will produce the actual condition.
             field: { or: [] },
             value: args.control,
             ...(args.fieldLabel !== undefined && { fieldLabel: args.fieldLabel }),
+            ...(args.formatValue && { formatValue: args.formatValue }),
             transform: args.transform
         }),
 
