@@ -11,6 +11,7 @@ export interface FilterStatePillItem {
 }
 
 type LeafFilterExpr = Extract<FilterExpr, { field: FilterField; value: FilterControl }>;
+type DateControl = Extract<FilterControl, { type: 'date' }>;
 
 function getFilterFieldDisplay(field: FilterField): string {
     if (typeof field === 'string') return field;
@@ -77,12 +78,26 @@ function getFieldValueDisplay(value: unknown): string {
     return String(value);
 }
 
+// Same pattern as the Calendar in FilterForm (dateFormat 'yy-mm-dd', 24-hour time), in local time.
+function getDateControlValueDisplay(control: DateControl, value: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const date = `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    if (!(control.showTime ?? true)) {
+        return date;
+    }
+    return `${date} ${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
 function getControlValueDisplay(control: FilterControl, controlValue: unknown): string {
     if (controlValue && typeof controlValue === 'object') {
         const obj = controlValue as Record<string, unknown>;
         if (typeof obj.label === 'string') {
             return obj.label;
         }
+    }
+
+    if (control.type === 'date' && controlValue instanceof Date && !Number.isNaN(controlValue.getTime())) {
+        return getDateControlValueDisplay(control, controlValue);
     }
 
     if (control.type === 'dropdown') {
@@ -117,7 +132,9 @@ function isEmptyLikeDisplayValue(value: unknown): boolean {
 function getLeafValueForDisplay(schemaLeaf: LeafFilterExpr, stateLeaf: FilterFormState & { type: 'leaf' }): unknown {
     const baseInput = FilterValue.valueOrNull(stateLeaf.value);
 
-    if (schemaLeaf.value.type === 'customOperator') {
+    // A date transform returns what the query needs (an ISO string, the end of the day, ...),
+    // so show the picked date the way the control shows it.
+    if (schemaLeaf.value.type === 'customOperator' || schemaLeaf.value.type === 'date') {
         return baseInput;
     }
 

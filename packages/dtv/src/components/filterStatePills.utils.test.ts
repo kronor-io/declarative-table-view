@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from '@jest/globals';
 import type { FilterSchema } from '../framework/filters';
+import { TransformResult } from '../framework/filters';
 import * as FilterValue from '../framework/filterValue';
 import { getFilterStatePillItems } from './filterStatePills.utils';
 import { FilterControl } from '../dsl/filterControl';
@@ -231,6 +232,63 @@ describe('getFilterStatePillItems', () => {
             {
                 filterId: 'amount',
                 displayText: 'AND(Amount \u2265 10, Amount \u2264 20)'
+            }
+        ]);
+    });
+
+    it('shows the picked date, not the transformed query value, of a date control without time', () => {
+        const filters: FilterSchema[] = [
+            {
+                id: 'date',
+                label: 'Date',
+                aiGenerated: false,
+                expression: {
+                    type: 'greaterThanOrEqual',
+                    field: 'date',
+                    fieldLabel: 'Date',
+                    value: { type: 'date', showTime: false },
+                    transform: {
+                        toQuery: (input: unknown) => TransformResult.value((input as Date).toISOString())
+                    }
+                }
+            }
+        ];
+
+        const items = getFilterStatePillItems(new Map([
+            ['date', { type: 'leaf' as const, value: FilterValue.value(new Date(2026, 9, 1, 14, 30)) }]
+        ]), filters);
+
+        expect(items).toEqual([
+            {
+                filterId: 'date',
+                displayText: 'Date \u2265 2026-10-01'
+            }
+        ]);
+    });
+
+    it('shows the time of a date control with time, which is the default', () => {
+        const filters: FilterSchema[] = [
+            {
+                id: 'createdAt',
+                label: 'Created',
+                aiGenerated: false,
+                expression: {
+                    type: 'lessThanOrEqual',
+                    field: 'createdAt',
+                    fieldLabel: 'Created',
+                    value: { type: 'date' }
+                }
+            }
+        ];
+
+        const items = getFilterStatePillItems(new Map([
+            ['createdAt', { type: 'leaf' as const, value: FilterValue.value(new Date(2026, 9, 1, 9, 5)) }]
+        ]), filters);
+
+        expect(items).toEqual([
+            {
+                filterId: 'createdAt',
+                displayText: 'Created \u2264 2026-10-01 09:05'
             }
         ]);
     });
