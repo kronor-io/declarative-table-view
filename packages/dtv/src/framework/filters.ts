@@ -126,13 +126,21 @@ export type FilterTransform<Input = unknown, Row = any, Field extends FilterFiel
     toQuery: (input: Input, context: QueryTransformContext<Row, Field>) => TransformResult;
 };
 
+/**
+ * An operator of a `customOperator` control. `takesValue: false` marks one
+ * that filters without a value (`is empty`): the form hides the value control
+ * for it, and the filter counts as set although its value is empty. The
+ * filter's own transform builds its condition; `hasuraCustomOperator` does not.
+ */
+export type CustomOperatorOption = { label: string; value: string; takesValue?: boolean };
+
 export type FilterControl =
     | { type: 'text'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'number'; label?: string; placeholder?: string; initialValue?: any }
     | { type: 'date'; label?: string; placeholder?: string; initialValue?: any, showTime?: boolean }
     | { type: 'dropdown'; label?: string; items: { label: string; value: any }[]; filterable?: boolean; initialValue?: any }
     | { type: 'multiselect'; label?: string; items: { label: string; value: any }[], filterable?: boolean; initialValue?: any }
-    | { type: 'customOperator'; label?: string; operators: { label: string; value: string }[]; valueControl: FilterControl; initialValue?: any }
+    | { type: 'customOperator'; label?: string; operators: CustomOperatorOption[]; valueControl: FilterControl; initialValue?: any }
     | {
         type: 'autocomplete';
         label?: string;
@@ -184,6 +192,17 @@ export const SUPPORTED_OPERATORS = [
     { label: 'ilike', value: '_ilike' },
     { label: 'is null', value: '_isNull' }
 ];
+
+// False only for an operator marked `takesValue: false`; an operator the control does not list takes one.
+export function customOperatorTakesValue(operators: readonly CustomOperatorOption[], operator: unknown): boolean {
+    return operators.find(option => option.value === operator)?.takesValue !== false;
+}
+
+// The operator a new filter starts with: the first one that takes a value, so an
+// untouched filter never filters by `is empty`.
+export function defaultCustomOperator(operators: readonly CustomOperatorOption[]): string | undefined {
+    return (operators.find(option => option.takesValue !== false) ?? operators[0])?.value;
+}
 
 export type SuggestionItem = { label: string };
 

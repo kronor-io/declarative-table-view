@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { FilterControl as FrameworkFilterControl, SuggestionFetcher, SuggestionItem } from '../framework/filters';
+import type { CustomOperatorOption, FilterControl as FrameworkFilterControl, SuggestionFetcher, SuggestionItem } from '../framework/filters';
 import type * as FilterValue from '../framework/filterValue';
 import type { MutableTuple } from './filterTyping';
 
@@ -40,7 +40,7 @@ export type MultiselectControl<Items extends readonly ItemControlItem[]> = Omit<
 };
 
 export type CustomOperatorControl<
-    Operators extends readonly { label: string; value: string }[],
+    Operators extends readonly CustomOperatorOption[],
     ValueControl extends FrameworkFilterControl
 > = Omit<ControlOfType<'customOperator'>, 'operators' | 'valueControl'> & {
     operators: MutableTuple<Operators>;
@@ -69,7 +69,7 @@ export const FilterControl = {
     multiselect: <const Items extends readonly ItemControlItem[]>(options: { label?: string; items: Items, filterable?: boolean; initialValue?: ControlValue<MultiselectControl<Items>> }): MultiselectControl<Items> =>
         ({ type: 'multiselect', ...options, items: [...options.items] }),
     customOperator: <
-        const Operators extends readonly { label: string; value: string }[],
+        const Operators extends readonly CustomOperatorOption[],
         const ValueControl extends FrameworkFilterControl
     >(options: { label?: string; operators: Operators; valueControl: ValueControl; initialValue?: ControlValue<ValueControl> }): CustomOperatorControl<Operators, ValueControl> =>
         ({ type: 'customOperator', ...options, operators: [...options.operators] }),

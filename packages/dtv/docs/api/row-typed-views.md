@@ -367,6 +367,23 @@ Annotate a hand-written one `ConditionOnlyTransform` — a transform typed
 `FilterTransform` may return either, which is not enough. A transform object
 with no `toQuery` at all is rejected too; it would do nothing at query time.
 
+An operator marked `takesValue: false` filters without a value, as `is empty`
+does. The form hides the value control while it is chosen, the filter counts as
+set with an empty value, and the pill reads `Comment is empty`. A new filter
+starts with the first operator that takes a value. The filter's own transform
+gets `{ operator, value }` with an empty `value` and builds the condition;
+`hasuraCustomOperator` has no condition for an empty value.
+
+```ts
+FilterControl.customOperator({
+    operators: [
+        { label: 'contains', value: 'contains' },
+        { label: 'is empty', value: 'isEmpty', takesValue: false }
+    ],
+    valueControl: FilterControl.text()
+});
+```
+
 ### Row-scoped builders
 
 `FilterExpr` accepts any field name and is checked when the expression reaches

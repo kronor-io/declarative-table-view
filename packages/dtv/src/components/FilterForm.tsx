@@ -1,5 +1,5 @@
 import type { FilterExpr, FilterSchema, FilterId, FilterGroups, FilterGroup } from '../framework/filters';
-import { FilterControl } from '../framework/filters';
+import { FilterControl, customOperatorTakesValue, defaultCustomOperator } from '../framework/filters';
 import { SavedFilter } from '../framework/saved-filters';
 import { FilterFormState, isFilterEmpty } from '../framework/filter-form-state';
 import * as FilterValue from '../framework/filterValue';
@@ -96,7 +96,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                 />
             );
         case 'customOperator': {
-            const operator = value?.operator ?? control.operators[0]?.value;
+            const operator = value?.operator ?? defaultCustomOperator(control.operators);
             const innerValueOrDefault = FilterValue.valueOrNull(value?.value ?? FilterValue.empty) ?? '';
             return (
                 <div className="tw:flex tw:gap-2">
@@ -104,12 +104,18 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                         className="tw:min-w-[90px]"
                         value={operator}
                         options={control.operators}
-                        onChange={e => setValue({ operator: e.value, value: value?.value ?? FilterValue.empty })}
+                        // An operator without a value (`is empty`) drops the value typed for another one.
+                        onChange={e => setValue({
+                            operator: e.value,
+                            value: customOperatorTakesValue(control.operators, e.value)
+                                ? value?.value ?? FilterValue.empty
+                                : FilterValue.empty
+                        })}
                         optionLabel="label"
                         optionValue="value"
                         placeholder="operator"
                     />
-                    <div className="tw:flex-1">
+                    {customOperatorTakesValue(control.operators, operator) && <div className="tw:flex-1">
                         {renderInput(
                             control.valueControl,
                             innerValueOrDefault,
@@ -127,7 +133,7 @@ function renderInput(control: FilterControl, value: any, setValue: (v: unknown) 
                             },
                             graphqlClient
                         )}
-                    </div>
+                    </div>}
                 </div>
             );
         }

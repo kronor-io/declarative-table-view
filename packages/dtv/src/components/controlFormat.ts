@@ -40,7 +40,10 @@ export function formatControlValue(control: FilterControl, value: unknown): stri
         case 'customOperator': {
             const { operator, value: innerValue } = (value ?? {}) as { operator?: string; value?: FilterValue.FilterValue };
             const operatorLabel = control.operators.find(o => o.value === operator)?.label ?? String(operator ?? '');
-            const innerDisplay = formatControlValue(control.valueControl, innerValue ? FilterValue.valueOrNull(innerValue) : null);
+            // An operator without a value (`is empty`) reads as its label alone.
+            const innerDisplay = innerValue && FilterValue.isValue(innerValue)
+                ? formatControlValue(control.valueControl, innerValue.value)
+                : '';
             return `${operatorLabel} ${innerDisplay}`.trim();
         }
         case 'autocomplete': {

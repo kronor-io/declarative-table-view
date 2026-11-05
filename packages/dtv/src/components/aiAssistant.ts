@@ -1,5 +1,6 @@
 // src/components/aiAssistant.ts
-import type { FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
+import type { CustomOperatorOption, FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
+import { customOperatorTakesValue, defaultCustomOperator } from '../framework/filters';
 import type { FilterFormState } from '../framework/filter-form-state';
 import { buildInitialFormState, createDefaultFilterState, FormStateInitMode, FilterState } from '../framework/state';
 import * as FilterValue from '../framework/filterValue';
@@ -188,16 +189,24 @@ function mergeAiStateWithCurrent(currentState: FilterState, aiStateObject: Recor
     return newState;
 }
 
-function normalizeCustomOperatorValue(operator: string | undefined, rawValue: unknown): FilterValue.FilterValue {
+function normalizeCustomOperatorValue(
+    operators: readonly CustomOperatorOption[],
+    operator: string | undefined,
+    rawValue: unknown
+): FilterValue.FilterValue {
     if (typeof rawValue === 'object' && rawValue !== null && !Array.isArray(rawValue)) {
         const record = rawValue as { operator?: unknown; value?: unknown };
         if (typeof record.operator === 'string' && 'value' in record) {
-            return normalizeCustomOperatorValue(record.operator, record.value);
+            return normalizeCustomOperatorValue(operators, record.operator, record.value);
         }
     }
 
     if (!operator) {
         return FilterValue.empty;
+    }
+
+    if (!customOperatorTakesValue(operators, operator)) {
+        return FilterValue.value({ operator, value: FilterValue.empty });
     }
 
     if (rawValue === undefined || rawValue === '' || rawValue === null || (Array.isArray(rawValue) && rawValue.length === 0)) {
@@ -261,7 +270,7 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             );
 
             if (notEqualsOperator) {
-                const value = normalizeCustomOperatorValue(notEqualsOperator.value, childValue);
+                const value = normalizeCustomOperatorValue(control.operators, notEqualsOperator.value, childValue);
 
                 return {
                     ...currentState,
@@ -287,10 +296,10 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
 
         // Patch customOperator if AI returned a plain string
         if (control.type === 'customOperator') {
-            const defaultOperator = control.operators?.[0]?.value;
+            const defaultOperator = defaultCustomOperator(control.operators ?? []);
             return {
                 ...currentState,
-                value: normalizeCustomOperatorValue(defaultOperator, value)
+                value: normalizeCustomOperatorValue(control.operators ?? [], defaultOperator, value)
             };
         }
 

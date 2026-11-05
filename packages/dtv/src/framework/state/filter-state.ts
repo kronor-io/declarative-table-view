@@ -1,6 +1,6 @@
 import { FilterFormState } from "../filter-form-state";
 import * as FilterValue from "../filterValue";
-import { FilterGroups, FilterId, FilterExpr } from "../filters";
+import { FilterGroups, FilterId, FilterExpr, defaultCustomOperator } from "../filters";
 import { getAllFilters } from "../view";
 import { valuesEqual } from "../equality";
 
@@ -27,8 +27,7 @@ export function buildInitialFormState(expr: FilterExpr, mode: FormStateInitMode 
         // Leaf node – build initial value depending on control type
         if (expr.value.type === 'customOperator') {
             // For customOperator we store an object: { operator, value }
-            // Operator defaults to first provided operator value
-            const operator = expr.value.operators[0]?.value;
+            const operator = defaultCustomOperator(expr.value.operators);
 
             // Determine base initial value (NOT already wrapped):
             // - Empty mode => ''

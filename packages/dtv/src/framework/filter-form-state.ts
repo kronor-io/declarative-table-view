@@ -1,4 +1,4 @@
-import { FilterField, FilterControl, FilterExpr, FilterGroups, FilterId, isLeaf } from './filters';
+import { FilterField, FilterControl, FilterExpr, FilterGroups, FilterId, isLeaf, customOperatorTakesValue, type CustomOperatorOption } from './filters';
 import { getAllFilters } from './view';
 import { FilterState, buildInitialFormState, FormStateInitMode } from './state';
 import * as FilterValue from './filterValue';
@@ -152,14 +152,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function normalizeCustomOperatorLeafValue(value: unknown): FilterValue.FilterValue {
+function normalizeCustomOperatorLeafValue(value: unknown, operators: readonly CustomOperatorOption[]): FilterValue.FilterValue {
     // Canonical shape (in memory): { operator: string, value: FilterValue }
-    // Empty-ness is determined solely by the nested `value`.
+    // Empty-ness is determined by the nested `value`, unless the operator takes none.
     if (!isRecord(value)) return FilterValue.empty;
 
     const operator = value['operator'];
     const inner = value['value'];
     if (typeof operator !== 'string') return FilterValue.empty;
+    if (!customOperatorTakesValue(operators, operator)) {
+        return FilterValue.value({ operator, value: FilterValue.empty });
+    }
 
     // New form: inner is already a FilterValue
     const innerFilterValue = FilterValue.fromObject(inner);
@@ -177,7 +180,7 @@ function migrateLegacyLeafValue(value: unknown, schemaLeaf: LeafFilterExpr): Fil
     // Legacy leaves stored raw primitives; convert to ADT.
     // Preserve false/0; treat [] as empty (multiselect etc.).
     if (schemaLeaf.value.type === 'customOperator') {
-        return normalizeCustomOperatorLeafValue(value);
+        return normalizeCustomOperatorLeafValue(value, schemaLeaf.value.operators);
     }
 
     if (isEmptyLikePrimitive(value)) return FilterValue.empty;
@@ -188,7 +191,8 @@ function migrateLegacyLeafValue(value: unknown, schemaLeaf: LeafFilterExpr): Fil
 /**
  * Schema-aware emptiness check for a FilterFormState tree.
  * A leaf is considered empty when its primitive value is '' | null | [] (if array).
- * For customOperator controls we look at the nested `value` field inside { operator, value }.
+ * For customOperator controls we look at the nested `value` field inside { operator, value },
+ * unless the operator takes no value (`is empty`): such a leaf is set.
  */
 export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): boolean {
     return traverseFilterSchemaAndState<boolean>(schemaExpr, state, {
@@ -196,7 +200,8 @@ export function isFilterEmpty(state: FilterFormState, schemaExpr: FilterExpr): b
             if (FilterValue.isEmpty(stateLeaf.value)) return true;
             if (schemaLeaf.value.type === 'customOperator') {
                 const operatorAndValue = stateLeaf.value.value as { operator: string; value: FilterValue.FilterValue };
-                return FilterValue.isEmpty(operatorAndValue.value);
+                return customOperatorTakesValue(schemaLeaf.value.operators, operatorAndValue.operator)
+                    && FilterValue.isEmpty(operatorAndValue.value);
             }
             return false;
         },
@@ -260,7 +265,7 @@ export function serializeFilterFormStateMap(
 function decodeLeafValue(schemaLeaf: LeafFilterExpr, stored: UndecodedFilterValue): FilterValue.FilterValue {
     if (schemaLeaf.value.type === 'customOperator') {
         if (stored.type === 'empty') return FilterValue.empty;
-        const decoded = normalizeCustomOperatorLeafValue(stored.type === 'value' ? stored.value : stored.raw);
+        const decoded = normalizeCustomOperatorLeafValue(stored.type === 'value' ? stored.value : stored.raw, schemaLeaf.value.operators);
         if (FilterValue.isValue(decoded)) {
             const { operator } = decoded.value as { operator: string };
             if (!schemaLeaf.value.operators.some(option => option.value === operator)) {
