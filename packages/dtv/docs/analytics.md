@@ -556,6 +556,7 @@ failed lookup is reported, so one broken fetcher can report once per keystroke.
 | `nextPage`, `previousPage` | The user paged. |
 | `refresh` | The app asked for fresh rows (`DTVAPI.fetchData`, an action's `refetch`), e.g. after a mutation. |
 | `userData` | The rows per page or the sorting changed in the user's data, e.g. in another tab. |
+| `viewQuery` | The app changed what the view's rows are read with: its source, function arguments, `staticConditions` or `staticOrdering`, e.g. on a page that shows another record. The first page is requested. |
 
 ### `DTVAnalyticsPanel`
 

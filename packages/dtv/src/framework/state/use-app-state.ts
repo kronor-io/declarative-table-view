@@ -70,10 +70,14 @@ export function useAppState(
         (init): AppStateWithOutbox => ({ state: initAppState(env, init), outbox: withoutAnalytics(initialCommands(env, init), effects) })
     );
 
-    // The latest environment, effects and view. Their identity changing is no reason to fetch again.
+    // The latest environment, effects and view. Their identity changing is no reason to fetch again:
+    // a new environment is sent as a message, and the state decides whether it reads the selected
+    // view's rows differently.
     const latest = useRef({ env, effects, viewId: state.selectedViewId });
     useLayoutEffect(() => {
+        const envChanged = latest.current.env !== env;
         latest.current = { env, effects, viewId: state.selectedViewId };
+        if (envChanged) dispatch({ tag: 'envChanged' });
     });
 
     const [emitter] = useState(() => createAnalyticsEmitter(

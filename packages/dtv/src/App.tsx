@@ -28,7 +28,7 @@ import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilte
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getColumnOrderBy } from './framework/column-definition';
-import { getAllFilters, getViewRootFieldName, getViewStaticArgs, View, type SimplifiedRow } from './framework/view';
+import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, type SimplifiedRow } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -75,6 +75,9 @@ export interface AppProps<V extends View = View> {
     /**
      * Optional already-parsed views.
      * When provided, `viewsJson` is ignored and no JSON parsing occurs.
+     * When the selected view's source, function arguments, `staticConditions` or
+     * `staticOrdering` change, its first page is asked for again and the row selection is
+     * cleared; filters, ordering and rows per page stay.
      */
     views?: V[];
 
@@ -292,7 +295,11 @@ function App<V extends View = View>({
         rowsPerPageOptions,
         orderableFields: viewId => orderableFieldsByViewId.get(viewId) ?? [],
         definition: viewId => viewDefinition(viewsById.get(viewId) ?? { id: viewId }),
-        snapshotDiff: viewId => migrationsByViewId[viewId]?.snapshotDiff ?? null
+        snapshotDiff: viewId => migrationsByViewId[viewId]?.snapshotDiff ?? null,
+        viewQuery: viewId => {
+            const view = viewsById.get(viewId);
+            return view ? getViewQuery(view) : null;
+        }
     }), [migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
 
     // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
@@ -337,6 +344,10 @@ function App<V extends View = View>({
                         return;
                     case 'persistOrdering':
                         void userDataManager.setOrdering(command.viewId, command.ordering);
+                        return;
+                    case 'clearRowSelection':
+                        dtvApi.current.rowSelection.reset();
+                        rowSelection?.onRowSelectionChange?.([]);
                         return;
                 }
             }

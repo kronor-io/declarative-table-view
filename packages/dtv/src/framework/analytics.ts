@@ -87,7 +87,9 @@ export type FetchReason =
     /** The host asked for fresh rows, e.g. after a mutation. */
     | 'refresh'
     /** The rows per page or ordering changed in the user's data, e.g. in another tab. */
-    | 'userData';
+    | 'userData'
+    /** The host changed what the view's rows are read with, e.g. its static conditions. */
+    | 'viewQuery';
 
 /** A panel below the menu bar, or the popout. */
 export type DTVAnalyticsPanel = 'filters' | 'savedFilters' | 'preferences' | 'aiAssistant' | 'popout';

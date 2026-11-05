@@ -195,6 +195,17 @@ export function getViewStaticArgs(view: View): Record<string, unknown> | undefin
     return view.source.type === 'function' ? view.source.args : undefined;
 }
 
+/**
+ * What a view's rows are read with besides what the user picks: its source with the function
+ * arguments, its static conditions and its static ordering. The host may change them, e.g. to
+ * scope the view to another record.
+ */
+export type ViewQuery = Pick<View, 'source' | 'staticConditions' | 'staticOrdering'>;
+
+export function getViewQuery(view: View): ViewQuery {
+    return { source: view.source, staticConditions: view.staticConditions, staticOrdering: view.staticOrdering };
+}
+
 export function getAllFilters(filterGroups: FilterGroups): FilterSchema[] {
     return filterGroups.flatMap(group => group.filters);
 }

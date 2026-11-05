@@ -1,7 +1,7 @@
 import type { FetchReason } from '../analytics';
 import type { FetchDataResult, PaginationCursor } from '../data';
 import type { DataOrdering } from '../data-ordering';
-import type { ViewId } from '../view';
+import type { ViewId, ViewQuery } from '../view';
 import type { FilterState } from './filter-state';
 
 /*
@@ -27,6 +27,8 @@ export type Cursor = NonNullable<PaginationCursor>;
 /** Everything the rows of a request depend on. */
 export interface Query {
     readonly viewId: ViewId;
+    /** What the host had the view read with; `null` for a view the table does not have. */
+    readonly viewQuery: ViewQuery | null;
     readonly filters: FilterState;
     readonly ordering: DataOrdering | null;
     readonly rowsPerPage: number;

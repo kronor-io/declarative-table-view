@@ -14,7 +14,8 @@ const env: AppStateEnv = {
     rowsPerPageOptions: [2, 3, 50],
     orderableFields: () => ['id', 'amount'],
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
-    snapshotDiff: () => null
+    snapshotDiff: () => null,
+    viewQuery: () => null
 }
 
 const emailFilter = (email: string): FilterState =>
@@ -51,11 +52,11 @@ const rows = (...ids: number[]): FetchDataResult => ({
 type Step = Msg | ((model: AppState) => Msg)
 
 /**
- * Runs a program: the messages in order, each against the state the one before left. Records
- * what an interpreter would do: start every request that becomes pending (once), and run
- * every command.
+ * Runs a program: the messages in order, each against the state the one before left, in
+ * `runEnv`. Records what an interpreter would do: start every request that becomes pending
+ * (once), and run every command.
  */
-function run(initial: AppState, steps: readonly Step[]) {
+function run(initial: AppState, steps: readonly Step[], runEnv: AppStateEnv = env) {
     let model = initial
     const requests: DataRequest[] = []
     const commands: Command[] = []
@@ -69,7 +70,7 @@ function run(initial: AppState, steps: readonly Step[]) {
     observe()
     for (const step of steps) {
         const msg = typeof step === 'function' ? step(model) : step
-        const [next, emitted] = updateAppState(env, model, msg)
+        const [next, emitted] = updateAppState(runEnv, model, msg)
         model = next
         for (const command of emitted) {
             if (command.tag === 'track') tracked.push(command)
@@ -376,6 +377,78 @@ describe('pagination', () => {
         ])
 
         expect(requests.map(r => [r.query.cursors.length, r.query.rowsPerPage])).toEqual([[1, 2], [0, 3]])
+    })
+})
+
+describe('a change of what the view is read with', () => {
+    // The view as a page that shows an invoice scopes it to the invoice's lines
+    const linesOf = (invoiceId: string): AppStateEnv => ({
+        ...env,
+        viewQuery: () => ({
+            source: { type: 'collection', collectionName: 'invoiceLines' },
+            staticConditions: [{ kind: 'where', path: ['invoiceId'], operator: { _eq: invoiceId } }]
+        })
+    })
+    const onInvoice = (invoiceId: string, ...steps: Step[]) => run(initAppState(env, options()), steps, linesOf(invoiceId))
+    const envChanged: Msg = { tag: 'envChanged' }
+
+    it('asks for the first page again, with the filters, ordering and rows per page it had', () => {
+        const desc = { field: 'id', direction: 'DESC' } as const
+        const { model } = onInvoice('A',
+            loaded(),
+            { tag: 'filtersApplied', filters: emailFilter('a'), trigger: 'api' },
+            { tag: 'orderingChanged', ordering: desc },
+            answer(rows(1, 2)),
+            { tag: 'nextPageRequested' }, answer(rows(3, 4))
+        )
+
+        const { requests } = run(model, [envChanged], linesOf('B'))
+
+        expect(requests).toHaveLength(1)
+        expect(requests[0]).toMatchObject({
+            reason: 'viewQuery',
+            query: { viewQuery: linesOf('B').viewQuery('payments'), cursors: [], ordering: desc, rowsPerPage: 2 }
+        })
+        expect(emailOf(requests[0]?.query.filters)).toBe('a')
+    })
+
+    it('stays as it is when the view is read the same way, only built again', () => {
+        const { model } = onInvoice('A', loaded(), answer(rows(1)))
+
+        const same = run(model, [envChanged], linesOf('A'))
+
+        expect(same.requests).toEqual([])
+        expect(same.model).toBe(model)
+    })
+
+    it('ignores the response to the request it superseded', () => {
+        const { model: first } = onInvoice('A', loaded())
+        const firstId = pendingRequest(first.table)!.id
+
+        const { model } = run(first, [envChanged, { tag: 'rowsArrived', requestId: firstId, rows: rows(9) }], linesOf('B'))
+
+        expect(isLoading(model.table)).toBe(true)
+        expect(pendingRequest(model.table)?.query.viewQuery).toEqual(linesOf('B').viewQuery('payments'))
+    })
+
+    it('requests nothing more while hydrating: the view settles with what it is read with then', () => {
+        const { model } = onInvoice('A', userDataArrives())
+
+        const { requests } = run(model, [envChanged, loaded()], linesOf('B'))
+
+        expect(requests.map(r => r.query.viewQuery)).toEqual([linesOf('B').viewQuery('payments')])
+    })
+
+    it('clears the selection, and has the host clear it when rows were selected', () => {
+        const { model } = onInvoice('A', loaded(), answer(rows(1, 2)), { tag: 'rowsSelected', rows: [{ id: 1 }] })
+
+        const changed = run(model, [envChanged], linesOf('B'))
+
+        expect(changed.model.selectedRows).toEqual([])
+        expect(changed.commands).toEqual([{ tag: 'clearRowSelection' }])
+
+        const noneSelected = onInvoice('A', loaded(), answer(rows(1))).model
+        expect(run(noneSelected, [envChanged], linesOf('B')).commands).toEqual([])
     })
 })
 

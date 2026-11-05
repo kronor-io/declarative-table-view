@@ -2,11 +2,12 @@ import type { DTVAnalyticsEventPayload, FetchReason, FiltersAppliedTrigger, Repo
 import type { ViewDefinition } from '../analytics-emitter';
 import type { FetchDataResult } from '../data';
 import { dataOrderingsEqual, type DataOrdering } from '../data-ordering';
+import { valuesEqual } from '../equality';
 import { createFilterDisplayState, type FilterDisplayState } from '../filter-display-state';
 import { encodeFilterState } from '../filter-form-state';
 import type { FilterGroups } from '../filters';
 import { isSnapshotDiffEmpty, type SnapshotDiff } from '../view-migrations';
-import type { ViewId } from '../view';
+import type { ViewId, ViewQuery } from '../view';
 import { createDefaultFilterState, filterStatesEqual, type FilterState } from './filter-state';
 import {
     currentPageQuery, currentQuery, nextPageCursor, nextRequestId, noRequestId, receiveRows, shownPage,
@@ -75,6 +76,8 @@ export interface AppStateEnv {
     readonly definition: (viewId: ViewId) => ViewDefinition;
     /** How a view's filters differ from its latest definition snapshot; `null` without migrations. */
     readonly snapshotDiff: (viewId: ViewId) => SnapshotDiff | null;
+    /** What a view's rows are read with now; `null` for a view the table does not have. */
+    readonly viewQuery: (viewId: ViewId) => ViewQuery | null;
 }
 
 /** What applies filters by a message. The table opening with filters is told by the state. */
@@ -104,6 +107,11 @@ export type Msg =
     | { readonly tag: 'previousPageRequested' }
     /** Refetch the current page, e.g. after a mutation elsewhere. Hydrating, the view fetches once it settles. */
     | { readonly tag: 'refreshRequested' }
+    /**
+     * The environment changed: the host may have changed what the selected view's rows are read
+     * with. Hydrating, the view fetches with it once it settles.
+     */
+    | { readonly tag: 'envChanged' }
     | { readonly tag: 'rowsArrived'; readonly requestId: RequestId; readonly rows: FetchDataResult }
     /** Show `panel`, or hide it when it is the one shown. */
     | { readonly tag: 'panelToggled'; readonly panel: Panel }
@@ -121,6 +129,8 @@ export type Command =
     | { readonly tag: 'persistFilterState'; readonly viewId: ViewId; readonly filters: FilterState }
     | { readonly tag: 'persistRowsPerPage'; readonly viewId: ViewId; readonly rowsPerPage: number }
     | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null }
+    /** Clear the selection in the table, and tell the host no row is selected. */
+    | { readonly tag: 'clearRowSelection' }
     /** Report `event` as an analytics event of `viewId`. */
     | { readonly tag: 'track'; readonly viewId: ViewId; readonly event: DTVAnalyticsEventPayload; readonly debounce?: Debounce }
     /** Drop the event of `key` waiting for a pause. */
@@ -212,7 +222,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             // the filters on screen must not change under the user. Only rows per page and the
             // ordering apply.
             if (next.rowsPerPage === query.rowsPerPage && dataOrderingsEqual(current, query.ordering)) return [next, commands];
-            return [startRequest(next, queryFrom(next, query.filters), shownPage(state.table), 'userData'), commands];
+            return [startRequest(next, queryFrom(env, next, query.filters), shownPage(state.table), 'userData'), commands];
         }
 
         case 'viewSelected': {
@@ -262,7 +272,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             ];
 
             // Applying filters while hydrating settles the view with them: the user's choice wins
-            return [startRequest(next, queryFrom(next, msg.filters), shownPage(state.table), 'filters'), commands];
+            return [startRequest(next, queryFrom(env, next, msg.filters), shownPage(state.table), 'filters'), commands];
         }
 
         case 'searchQueryChanged': {
@@ -301,7 +311,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                     ? [{ tag: 'persistOrdering', viewId: state.selectedViewId, ordering: msg.ordering } as const]
                     : [])
             ];
-            return [restartFromFirstPage(next, state, 'ordering'), commands];
+            return [restartFromFirstPage(env, next, state, 'ordering'), commands];
         }
 
         case 'rowsPerPageChanged': {
@@ -309,7 +319,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
 
             const next: AppState = { ...state, rowsPerPage: msg.rowsPerPage };
             return [
-                restartFromFirstPage(next, state, 'rowsPerPage'),
+                restartFromFirstPage(env, next, state, 'rowsPerPage'),
                 [
                     track(state.selectedViewId, { type: 'rowsPerPageChanged', rowsPerPage: msg.rowsPerPage }),
                     { tag: 'persistRowsPerPage', viewId: state.selectedViewId, rowsPerPage: msg.rowsPerPage }
@@ -346,6 +356,20 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             if (query === null) return [state, []];
 
             return [startRequest(state, query, shownPage(state.table), 'refresh'), []];
+        }
+
+        case 'envChanged': {
+            const query = currentQuery(state.table);
+            if (query === null || valuesEqual(query.viewQuery, env.viewQuery(state.selectedViewId))) return [state, []];
+
+            // The rows on screen, and a request still on its way, are of another view query, a
+            // record the page showed before, say: the first page is asked for again, with the
+            // filters applied, and none of those rows stays selected
+            const next: AppState = { ...state, selectedRows: [] };
+            return [
+                restartFromFirstPage(env, next, state, 'viewQuery'),
+                state.selectedRows.length > 0 ? [{ tag: 'clearRowSelection' }] : []
+            ];
         }
 
         case 'rowsArrived': {
@@ -486,13 +510,14 @@ function persistedOrdering(env: AppStateEnv, state: AppState, userData: ViewUser
 function settle(env: AppStateEnv, state: AppState, filters: FilterState): AppState {
     const draftEdited = !filterStatesEqual(state.filterState, createDefaultFilterState(env.filterGroups(state.selectedViewId)));
     const filterState = draftEdited ? state.filterState : filters;
-    return startRequest({ ...state, filterState }, queryFrom(state, filters), null, 'filters');
+    return startRequest({ ...state, filterState }, queryFrom(env, state, filters), null, 'filters');
 }
 
-/** A first-page query for the selected view, with the state's ordering and rows per page. */
-function queryFrom(state: AppState, filters: FilterState): Query {
+/** A first-page query for the selected view as it is now, with the state's ordering and rows per page. */
+function queryFrom(env: AppStateEnv, state: AppState, filters: FilterState): Query {
     return {
         viewId: state.selectedViewId,
+        viewQuery: env.viewQuery(state.selectedViewId),
         filters,
         ordering: state.orderingByViewId[state.selectedViewId] ?? null,
         rowsPerPage: state.rowsPerPage,
@@ -501,11 +526,11 @@ function queryFrom(state: AppState, filters: FilterState): Query {
 }
 
 /** Asks for the first page again, with `next`'s settings and the filters `previous` showed. */
-function restartFromFirstPage(next: AppState, previous: AppState, reason: FetchReason): AppState {
+function restartFromFirstPage(env: AppStateEnv, next: AppState, previous: AppState, reason: FetchReason): AppState {
     const query = currentQuery(previous.table);
     // Still hydrating: the settings apply once the view settles
     if (query === null) return next;
-    return startRequest(next, queryFrom(next, query.filters), shownPage(previous.table), reason);
+    return startRequest(next, queryFrom(env, next, query.filters), shownPage(previous.table), reason);
 }
 
 function startRequest(state: AppState, query: Query, shown: Page | null, reason: FetchReason): AppState {

@@ -16,7 +16,8 @@ const env: AppStateEnv = {
     rowsPerPageOptions: [],
     orderableFields: () => [],
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
-    snapshotDiff: () => null
+    snapshotDiff: () => null,
+    viewQuery: () => null
 }
 
 const rows = (...ids: number[]): FetchDataResult => ({
@@ -56,8 +57,8 @@ const effects: AppStateEffects = {
 
 let renders = 0
 
-function Harness({ reportWhileRendering, analytics = true }: { reportWhileRendering?: ReportedEvent; analytics?: boolean }) {
-    const [model, dispatch, report] = useAppState(env, { viewId: 'payments', rowsPerPage: 2 }, analytics ? effects : { ...effects, onEvent: undefined })
+function Harness({ reportWhileRendering, analytics = true, appEnv = env }: { reportWhileRendering?: ReportedEvent; analytics?: boolean; appEnv?: AppStateEnv }) {
+    const [model, dispatch, report] = useAppState(appEnv, { viewId: 'payments', rowsPerPage: 2 }, analytics ? effects : { ...effects, onEvent: undefined })
     latest = { model, dispatch, report }
     renders += 1
     // As the user data manager does: it starts loading as it is created, during the first render
@@ -264,6 +265,27 @@ describe('useAppState', () => {
         expect(renders).toBe(before)
         await act(async () => { root.unmount() })
         expect(effectLog).toEqual([])
+    })
+
+    it('fetches again when a new environment reads the view differently, not when it is only new', async () => {
+        const linesOf = (invoiceId: string): AppStateEnv => ({
+            ...env,
+            viewQuery: () => ({
+                source: { type: 'collection', collectionName: 'invoiceLines' },
+                staticConditions: [{ kind: 'where', path: ['invoiceId'], operator: { _eq: invoiceId } }]
+            })
+        })
+        await act(async () => { root.render(React.createElement(Harness, { appEnv: linesOf('A') })) })
+        await send(userDataLoaded)
+        await act(async () => { fetches[0].resolve(rows(1)) })
+
+        await act(async () => { root.render(React.createElement(Harness, { appEnv: linesOf('A') })) })
+        expect(fetches).toHaveLength(1)
+
+        await act(async () => { root.render(React.createElement(Harness, { appEnv: linesOf('B') })) })
+        expect(effectLog.at(-1)).toBe('fetch viewQuery')
+        expect(fetches.at(-1)?.query.viewQuery).toEqual(linesOf('B').viewQuery('payments'))
+        await act(async () => { root.unmount() })
     })
 
     it('drops a debounced event cancelled before it was reported', async () => {

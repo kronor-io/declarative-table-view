@@ -34,7 +34,7 @@ Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 
 - `graphqlHost` / `requestHeaders`: GraphQL endpoint + HTTP headers. Pass `{}` when no custom headers are needed.
 - `aiIntegration`: AI provider used by the AI Filter Assistant. Either the built-in Gemini integration, `{ type: 'builtInGemini', geminiApiKey }`, or a custom provider (e.g. AWS Bedrock), `{ type: 'custom', requestAiFilter }`. The `requestAiFilter` function receives `{ prompt, filterGroups, userPrompt }` — where `prompt` is the fully-built prompt — and must return the model response: either the raw text containing a JSON object mapping filter IDs to `FilterFormState`, or that object already parsed.
-- `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime).
+- `viewsJson`: JSON string array of view definitions (each view.json parsed at runtime). `views` takes them already parsed instead. When the selected view's source, function arguments, `staticConditions` or `staticOrdering` change, the table asks for its first page again and clears the row selection; filters, ordering and rows per page stay.
 - `showViewsMenu`: Toggle the views dropdown menu (default: `false`).
 - `showViewTitle`: Toggle the view title heading (default: `false`).
 - `showCsvExportButton`: Toggle the "Export page to CSV" button (default: `false`). When enabled, current page rows are exported using PrimeReact's built-in DataTable CSV exporter.
