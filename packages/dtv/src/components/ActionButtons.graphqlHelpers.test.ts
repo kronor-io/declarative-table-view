@@ -38,10 +38,9 @@ let capturedAst: any = null;
 let capturedAliasedAst: any = null;
 let capturedQuery: string | null = null;
 let capturedVariables: any = null;
-let capturedPagination: any = null;
-let capturedRowsPerPage: number | null = null;
+let capturedShownRows: any = null;
+let capturedDraft: any = null;
 let capturedUserData: any = null;
-let capturedOrdering: any = null;
 
 const action = {
     label: 'Capture AST',
@@ -62,9 +61,8 @@ const action = {
         );
         capturedQuery = api.renderGraphQLQuery(capturedAst);
         capturedVariables = api.buildGraphQLQueryVariables(api.view, api.filterState, 5, null);
-        capturedPagination = api.getPaginationState();
-        capturedRowsPerPage = api.rowsPerPage;
-        capturedOrdering = api.ordering;
+        capturedShownRows = api.shownRows;
+        capturedDraft = api.filterState;
     }
 };
 
@@ -150,10 +148,9 @@ describe('ActionAPI GraphQL helpers', () => {
         capturedAliasedAst = null;
         capturedQuery = null;
         capturedVariables = null;
-        capturedPagination = null;
-        capturedRowsPerPage = null;
+        capturedShownRows = null;
+        capturedDraft = null;
         capturedUserData = null;
-        capturedOrdering = null;
         localStorage.clear();
     });
 
@@ -172,11 +169,12 @@ describe('ActionAPI GraphQL helpers', () => {
         expect(capturedVariables).toHaveProperty('conditions');
         expect(capturedVariables).toHaveProperty('paginationCondition');
         expect(capturedVariables).toHaveProperty('orderBy');
-        expect(capturedPagination).toBeTruthy();
-        expect(capturedPagination).toHaveProperty('page');
-        expect(capturedPagination).toHaveProperty('cursors');
-        expect(capturedRowsPerPage).toBe(20); // default from App rowsPerPage prop
-        expect(capturedOrdering).toBeNull(); // nothing sorted yet
+        expect(capturedShownRows).toMatchObject({
+            rowsPerPage: 20, // default from App rowsPerPage prop
+            ordering: null, // nothing sorted yet
+            cursors: [] // the first page
+        });
+        expect(capturedShownRows.view.id).toBe('test-view');
 
         await unmount();
     });
@@ -240,13 +238,30 @@ describe('ActionAPI GraphQL helpers', () => {
         await sortByColumn(container, 'Created');
         await clickAction(container);
 
-        expect(capturedOrdering).toEqual({ field: 'createdAt', direction: 'ASC' });
+        expect(capturedShownRows.ordering).toEqual({ field: 'createdAt', direction: 'ASC' });
 
         // Sorting the same column again flips the direction the action sees.
         await sortByColumn(container, 'Created');
         await clickAction(container);
 
-        expect(capturedOrdering).toEqual({ field: 'createdAt', direction: 'DESC' });
+        expect(capturedShownRows.ordering).toEqual({ field: 'createdAt', direction: 'DESC' });
+
+        await unmount();
+    });
+
+    it('gives actions the filters the rows on screen were asked for, apart from the draft', async () => {
+        const editDraft = {
+            label: 'Edit the draft',
+            onClick: (api: any) => api.setFilterState(new Map([['id', { type: 'leaf', value: { type: 'value', value: 7 } }]]))
+        };
+        const { container, unmount } = await renderApp({ actions: [editDraft, action] });
+
+        await clickAction(container, 0);
+        await clickAction(container, 1);
+
+        // The draft has the edit, and the rows on screen were not asked for with it
+        expect(capturedDraft.has('id')).toBe(true);
+        expect(capturedShownRows.filterState.has('id')).toBe(false);
 
         await unmount();
     });

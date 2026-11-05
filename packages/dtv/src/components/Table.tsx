@@ -17,7 +17,6 @@ import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
 import type { DataOrdering } from '../framework/data-ordering';
 import { useTrack } from '../framework/analytics-emitter';
 
-export type RowSelectionResetFn = () => void;
 export type RowExpansionApi = {
     reset: () => void;
     collapseAll: () => void;
@@ -55,13 +54,11 @@ type TableProps<Row> = {
     filterState: FilterState; // Current filter state
     applyFilters: () => void; // Applies the current (draft) filter state and refetches
     ref?: React.Ref<DataTable<any>>; // An outside ref to the DataTable instance
-    rowSelection?: {
-        rowSelectionType: 'none' | 'multiple';
-        onRowSelectionChange?: (rows: Row[]) => void;
-    };
-
-    /** Optional callback invoked when row selection reset becomes available/unavailable. */
-    onRowSelectionResetChange?: (resetFn: RowSelectionResetFn | null) => void;
+    /** 'none' disables selection UI. 'multiple' enables checkbox multi-select. */
+    rowSelectionType: 'none' | 'multiple';
+    /** The rows selected, as this table handed them to `onSelectedRowsChange`. */
+    selectedRows: readonly unknown[];
+    onSelectedRowsChange?: (rows: FlattenedDataRow[]) => void;
     onRowExpansionApiChange?: (api: RowExpansionApi | null) => void;
     // Row class callback, receives a simplified/flattened row object (merged cells)
     rowClassFunction?: (row: Row) => Record<string, boolean>;
@@ -83,9 +80,10 @@ function Table<Row extends object = SimplifiedRow>({
     filterState,
     applyFilters,
     ref,
-    rowSelection,
+    rowSelectionType: selectionType,
+    selectedRows,
+    onSelectedRowsChange,
     rowClassFunction,
-    onRowSelectionResetChange,
     onRowExpansionApiChange,
     ordering = null,
     onOrderingChange
@@ -191,12 +189,9 @@ function Table<Row extends object = SimplifiedRow>({
         return getRowIndex(leftRow) === getRowIndex(rightRow);
     }, [getRowIndex]);
 
-    // Internal selection state only relevant if enabled
-    const [selectedRows, setSelectedRows] = useState<TableDataRow[] | null>(null);
     const [expandedRows, setExpandedRows] = useState<TableDataRow[]>([]);
     const [lazyRowExpansionState, setLazyRowExpansionState] = useState<Record<string, LazyRowExpansionState>>({});
     const lazyRowExpansionStateRef = React.useRef<Record<string, LazyRowExpansionState>>({});
-    const selectionType = rowSelection?.rowSelectionType ?? 'none';
 
     const getRawRow = React.useCallback((rowData: TableDataRow) => {
         const rowIndex = getRowIndex(rowData);
@@ -229,8 +224,16 @@ function Table<Row extends object = SimplifiedRow>({
         return lazyRowExpansionState[String(rowKey)];
     }, [getRowExpansionKeyValue, lazyRowExpansionState]);
 
+    // The loader of the latest render. A toggle handler can be from a render before (see
+    // `expandedRowsRef`), whose loader would read the row with what the rows were read with then.
+    const loadLazyRowExpansionDataRef = React.useRef(loadLazyRowExpansionData);
+    React.useLayoutEffect(() => {
+        loadLazyRowExpansionDataRef.current = loadLazyRowExpansionData;
+    });
+
     const ensureLazyRowExpansionData = React.useCallback((rowData: TableDataRow) => {
-        if (!rowExpansion?.lazy || !loadLazyRowExpansionData) {
+        const load = loadLazyRowExpansionDataRef.current;
+        if (!rowExpansion?.lazy || !load) {
             return;
         }
 
@@ -254,7 +257,7 @@ function Table<Row extends object = SimplifiedRow>({
         lazyRowExpansionStateRef.current = loadingState;
         setLazyRowExpansionState(loadingState);
 
-        void loadLazyRowExpansionData({ row: rawRow, rowKey })
+        void load({ row: rawRow, rowKey })
             .then(expansionData => {
                 const loadedState: Record<string, LazyRowExpansionState> = {
                     ...lazyRowExpansionStateRef.current,
@@ -275,7 +278,7 @@ function Table<Row extends object = SimplifiedRow>({
                 lazyRowExpansionStateRef.current = errorState;
                 setLazyRowExpansionState(errorState);
             });
-    }, [getRawRow, getRowExpansionKeyValue, loadLazyRowExpansionData, rowExpansion?.lazy]);
+    }, [getRawRow, getRowExpansionKeyValue, rowExpansion?.lazy]);
 
     const getRowExpansionData = React.useCallback((rowData: TableDataRow) => {
         if (!rowExpansion) return {};
@@ -332,29 +335,13 @@ function Table<Row extends object = SimplifiedRow>({
         });
     }, [ensureLazyRowExpansionData, isExpanded, isSameRow, reportToggle, rowExpansion?.mode]);
 
-    // Expose row selection reset function (only when enabled)
-    useEffect(() => {
-        if (selectionType !== 'multiple') {
-            onRowSelectionResetChange?.(null);
-            return;
-        }
-
-        const resetFn: RowSelectionResetFn = () => setSelectedRows([]);
-        onRowSelectionResetChange?.(resetFn);
-
-        return () => {
-            onRowSelectionResetChange?.(null);
-        };
-    }, [selectionType, onRowSelectionResetChange]);
-
     // The one place the merged column data is taken to be a `Row`: SimplifiedRow is worked out
     // from the same column queries simplifyRow merges.
     const toRow = (rowData: TableDataRow) => simplifyRow(rowData) as Row;
 
     const handleSelectionChange = (rows: TableDataRow[]) => {
         if (selectionType === 'none') return; // ignore events if disabled
-        setSelectedRows(rows);
-        rowSelection?.onRowSelectionChange?.(rows.map(toRow));
+        onSelectedRowsChange?.(rows);
     };
 
     useEffect(() => {
@@ -431,7 +418,8 @@ function Table<Row extends object = SimplifiedRow>({
             exportFilename={viewId}
             selectionPageOnly={true}
             selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
-            selection={selectionType === 'multiple' ? selectedRows : null}
+            // The rows this table handed out, so PrimeReact finds them among the rows on screen
+            selection={selectionType === 'multiple' ? selectedRows as TableDataRow[] : null}
             onSelectionChange={selectionType === 'multiple' ? (e: DataTableSelectionMultipleChangeEvent<TableDataRow[]>) => handleSelectionChange(e.value) : undefined}
             expandedRows={rowExpansion ? expandedRows : undefined}
             onRowToggle={rowExpansion ? (e: any) => {

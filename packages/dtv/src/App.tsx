@@ -20,7 +20,8 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, flattenFieldQueries, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type RequestHeaders } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, type FlattenedDataRow, flattenFieldQueries, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type RequestHeaders } from './framework/data';
+import { simplifyRow } from './framework/rows';
 import { analyticsError, type DTVAnalytics } from './framework/analytics';
 import { AnalyticsContext, startSpan, viewDefinition } from './framework/analytics-emitter';
 import type { DataOrdering } from './framework/data-ordering';
@@ -28,7 +29,7 @@ import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilte
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getColumnOrderBy } from './framework/column-definition';
-import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, type SimplifiedRow } from './framework/view';
+import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, viewWithQuery, type SimplifiedRow } from './framework/view';
 import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
@@ -39,7 +40,7 @@ import { currentDefinitionRevision, migrateFilterState } from './framework/view-
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
-import { ActionDefinition, type ActionUserDataAPI } from './framework/actions';
+import { ActionDefinition, type ActionUserDataAPI, type ShownRows } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
 import type { ShowToastFn } from './framework/toast'
 import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
@@ -321,8 +322,10 @@ function App<V extends View = View>({
             // Called as a method, so a handler may use `this`
             onEvent: analytics && (event => analytics.onEvent(event)),
             fetchRows: ({ query }, signal) => {
-                const view = viewsById.get(query.viewId);
-                if (!view) return Promise.reject(new Error(`Unknown view: ${query.viewId}`));
+                const latestView = viewsById.get(query.viewId);
+                if (!latestView) return Promise.reject(new Error(`Unknown view: ${query.viewId}`));
+                // Read the way the query says, so the rows answer it
+                const view = viewWithQuery(latestView, query.viewQuery);
                 return fetchData({
                     client,
                     view,
@@ -345,8 +348,7 @@ function App<V extends View = View>({
                     case 'persistOrdering':
                         void userDataManager.setOrdering(command.viewId, command.ordering);
                         return;
-                    case 'clearRowSelection':
-                        dtvApi.current.rowSelection.reset();
+                    case 'notifyRowSelectionCleared':
                         rowSelection?.onRowSelectionChange?.([]);
                         return;
                 }
@@ -449,7 +451,7 @@ function App<V extends View = View>({
     const dtvApi = useRef<DTVAPI>({
         fetchData: refresh,
         rowSelection: {
-            reset: () => undefined
+            reset: () => setSelectedRows([])
         },
         rowExpansion: {
             reset: () => undefined,
@@ -457,13 +459,6 @@ function App<V extends View = View>({
             expandAll: () => undefined
         }
     });
-
-    const handleRowSelectionResetChange = useCallback((resetFn: (() => void) | null) => {
-        dtvApi.current.rowSelection.reset = () => {
-            setSelectedRows([]);
-            resetFn?.();
-        };
-    }, [setSelectedRows]);
 
     const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
         const collapseAll = () => api?.collapseAll();
@@ -497,15 +492,16 @@ function App<V extends View = View>({
         return persistHiddenColumns(viewId, hiddenColumns);
     }, [persistHiddenColumns, report]);
 
-    const rowSelectionWithInternalHandler = useMemo(() => {
-        if (!rowSelection) return undefined;
-        return {
-            ...rowSelection,
-            onRowSelectionChange: (rows: SimplifiedRow<V>[]) => {
-                setSelectedRows(rows);
-                rowSelection.onRowSelectionChange?.(rows);
-            }
-        };
+    // The state keeps the rows as the table handed them out, so the table finds them on screen.
+    // Actions and the host get them as `SimplifiedRow`s, which are worked out from the same
+    // column queries simplifyRow merges.
+    const selectedRows = useMemo(
+        () => state.selectedRows.map(row => simplifyRow(row as FlattenedDataRow) as SimplifiedRow<V>),
+        [state.selectedRows]
+    );
+    const handleSelectedRowsChange = useCallback((rows: FlattenedDataRow[]) => {
+        setSelectedRows(rows);
+        rowSelection?.onRowSelectionChange?.(rows.map(row => simplifyRow(row) as SimplifiedRow<V>));
     }, [rowSelection, setSelectedRows]);
 
     // Clear the selection if row selection gets disabled. Switching views clears it too
@@ -553,6 +549,20 @@ function App<V extends View = View>({
     const hasNextPage = State.hasNextPage(state.table);
     const hasPrevPage = State.hasPreviousPage(state.table);
     const paginationState = useMemo(() => State.paginationState(state.table, rowsPerPage), [rowsPerPage, state.table]);
+
+    // The rows on screen as actions see them: all of it read off the query they answer
+    const shownRowsForActions = useMemo((): ShownRows | null => {
+        const shownView = shownPage && viewsById.get(shownPage.query.viewId);
+        if (!shownPage || !shownView) return null;
+        const { query } = shownPage;
+        return {
+            view: viewWithQuery(shownView, query.viewQuery),
+            filterState: query.filters,
+            ordering: query.ordering,
+            rowsPerPage: query.rowsPerPage,
+            cursors: [...query.cursors]
+        };
+    }, [shownPage, viewsById]);
 
     const handleOrderingChange = useCallback((ordering: DataOrdering | null) => {
         dispatch({ tag: 'orderingChanged', ordering });
@@ -686,15 +696,19 @@ function App<V extends View = View>({
     };
 
     const fetchLazyRowExpansionData = useCallback(async ({ rowKey }: { row: Record<string, unknown>; rowKey: string | number }) => {
-        const rowExpansion = selectedView.rowExpansion;
-        const lazyRowExpansionQuery = lazyRowExpansionQueryFor(selectedView);
-        // The expanded row is one on screen: it is fetched with the query that showed it
-        if (!rowExpansion?.lazy || !lazyRowExpansionQuery || !shownPage) {
+        // The expanded row is one on screen: it is fetched with the query that showed it, the
+        // view query included, which the host may have changed since
+        const shownView = shownPage && viewsById.get(shownPage.query.viewId);
+        if (!shownPage || !shownView) return {};
+        const view = viewWithQuery(shownView, shownPage.query.viewQuery);
+        const rowExpansion = view.rowExpansion;
+        const lazyRowExpansionQuery = lazyRowExpansionQueryFor(view);
+        if (!rowExpansion?.lazy || !lazyRowExpansionQuery) {
             return {};
         }
 
-        const variables = buildGraphQLQueryVariables(selectedView, shownPage.query.filters, 1, null, shownPage.query.ordering);
-        const rowKeyCondition = hasuraFilterExpressionToObject(Hasura.condition(selectedView.paginationKey, { _eq: rowKey }));
+        const variables = buildGraphQLQueryVariables(view, shownPage.query.filters, 1, null, shownPage.query.ordering);
+        const rowKeyCondition = hasuraFilterExpressionToObject(Hasura.condition(view.paginationKey, { _eq: rowKey }));
         const hasBaseConditions = Object.keys(variables.conditions).length > 0;
 
         const response = await client.request(lazyRowExpansionQuery, {
@@ -707,7 +721,7 @@ function App<V extends View = View>({
         });
 
         const responseRoot = typeof response === 'object' && response !== null
-            ? (response as Record<string, unknown>)[getViewRootFieldName(selectedView)]
+            ? (response as Record<string, unknown>)[getViewRootFieldName(view)]
             : undefined;
         const row = Array.isArray(responseRoot) ? responseRoot[0] : undefined;
 
@@ -716,7 +730,7 @@ function App<V extends View = View>({
         }
 
         return flattenFieldQueries(row as Record<string, unknown>, rowExpansion.data);
-    }, [client, selectedView, shownPage]);
+    }, [client, shownPage, viewsById]);
 
     const loadLazyRowExpansionData = useCallback(async (args: { row: Record<string, unknown>; rowKey: string | number }) => {
         const end = startSpan();
@@ -832,15 +846,12 @@ function App<V extends View = View>({
                                 actions={actions}
                                 selectedView={selectedView}
                                 filterState={filterState}
-                                selectedRows={state.selectedRows}
+                                selectedRows={selectedRows}
                                 setFilterState={setFilterState}
                                 refetch={refresh}
                                 applyFilters={applyFilters}
                                 showToast={(opts) => toast.current?.show({ ...opts })}
-                                paginationState={paginationState}
-                                // What the rows on screen were fetched with, like the cursors
-                                rowsPerPage={shownPage?.query.rowsPerPage ?? rowsPerPage}
-                                ordering={shownPage ? shownPage.query.ordering : activeOrdering}
+                                shownRows={shownRowsForActions}
                                 userData={actionUserData}
                             />
                         </div>
@@ -963,9 +974,10 @@ function App<V extends View = View>({
                         setFilterState={setFilterState}
                         filterState={filterState}
                         applyFilters={applyFilters}
-                        rowSelection={rowSelectionWithInternalHandler}
+                        rowSelectionType={rowSelection?.rowSelectionType ?? 'none'}
+                        selectedRows={state.selectedRows}
+                        onSelectedRowsChange={handleSelectedRowsChange}
                         rowClassFunction={rowClassFunction}
-                        onRowSelectionResetChange={handleRowSelectionResetChange}
                         onRowExpansionApiChange={handleRowExpansionApiChange}
                         ordering={activeOrdering}
                         onOrderingChange={handleOrderingChange}

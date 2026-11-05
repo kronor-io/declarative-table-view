@@ -445,7 +445,7 @@ describe('a change of what the view is read with', () => {
         const changed = run(model, [envChanged], linesOf('B'))
 
         expect(changed.model.selectedRows).toEqual([])
-        expect(changed.commands).toEqual([{ tag: 'clearRowSelection' }])
+        expect(changed.commands).toEqual([{ tag: 'notifyRowSelectionCleared' }])
 
         const noneSelected = onInvoice('A', loaded(), answer(rows(1))).model
         expect(run(noneSelected, [envChanged], linesOf('B')).commands).toEqual([])
@@ -566,6 +566,16 @@ describe('switching views', () => {
 
         expect(requests.map(r => [r.query.viewId, emailOf(r.query.filters)])).toEqual([['payments', undefined], ['refunds', 'refunds']])
         expect(shownPage(model.table)).toBeNull()
+    })
+
+    it('tells the host the rows it had selected are not any more', () => {
+        const selected = start(loaded(), answer(rows(1)), { tag: 'rowsSelected', rows: [{ id: 1 }] }, { tag: 'viewSelected', viewId: 'refunds' })
+
+        expect(selected.model.selectedRows).toEqual([])
+        expect(selected.commands).toContainEqual({ tag: 'notifyRowSelectionCleared' })
+
+        const noneSelected = start(loaded(), answer(rows(1)), { tag: 'viewSelected', viewId: 'refunds' })
+        expect(noneSelected.commands).not.toContainEqual({ tag: 'notifyRowSelectionCleared' })
     })
 
     it('ignores user data sent for the view it left', () => {

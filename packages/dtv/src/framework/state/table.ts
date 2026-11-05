@@ -66,7 +66,7 @@ export type TableState =
     | { readonly tag: 'paging'; readonly request: DataRequest; readonly shown: Page }
     | { readonly tag: 'loaded'; readonly page: Page };
 
-/** Pagination as actions see it (see `ActionAPI.getPaginationState`). */
+/** Pagination of the rows on screen, as the pager shows it. */
 export interface PaginationState {
     page: number;
     cursors: PaginationCursor[];

@@ -44,7 +44,7 @@ export type {
     UserDataLoadCallback,
     UserDataSaveCallback
 } from '../framework/user-data-manager';
-export type { ActionDefinition, ActionAPI, ActionUserDataAPI } from '../framework/actions';
+export type { ActionDefinition, ActionAPI, ActionUserDataAPI, ShownRows } from '../framework/actions';
 export type {
     DTVAnalytics,
     DTVAnalyticsEvent,

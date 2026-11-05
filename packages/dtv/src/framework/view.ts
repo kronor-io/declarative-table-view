@@ -6,6 +6,7 @@ import { FilterState } from "./state";
 import { FilterFormState } from "./filter-form-state";
 import { HasuraFilterExpression, HasuraOrderBy } from "./graphql";
 import type { OrderDirection } from "./order-direction";
+import { valuesEqual } from "./equality";
 import type { ViewMigrationChain } from "./view-migrations";
 import type { Simplify, UnionToIntersection } from "./typelevel";
 
@@ -204,6 +205,16 @@ export type ViewQuery = Pick<View, 'source' | 'staticConditions' | 'staticOrderi
 
 export function getViewQuery(view: View): ViewQuery {
     return { source: view.source, staticConditions: view.staticConditions, staticOrdering: view.staticOrdering };
+}
+
+/**
+ * `view` as it reads its rows with `viewQuery`, the view query a request was made with, which
+ * the host may have changed since. The view itself while they are the same, so what is cached
+ * for it is used.
+ */
+export function viewWithQuery(view: View, viewQuery: ViewQuery | null): View {
+    if (viewQuery === null || valuesEqual(getViewQuery(view), viewQuery)) return view;
+    return { ...view, ...viewQuery } as View;
 }
 
 export function getAllFilters(filterGroups: FilterGroups): FilterSchema[] {

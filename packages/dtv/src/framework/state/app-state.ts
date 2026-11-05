@@ -57,7 +57,7 @@ export interface AppState {
     readonly activePanel: Panel | null;
     readonly showAIAssistant: boolean;
     readonly showPopout: boolean;
-    /** The rows the user selected, flattened; empty when row selection is off. */
+    /** The rows the user selected, as the table hands them out; empty when row selection is off. */
     readonly selectedRows: readonly unknown[];
     /** The AI filter assistant filled the draft since filters were last applied. */
     readonly aiAssistedDraft: boolean;
@@ -129,8 +129,8 @@ export type Command =
     | { readonly tag: 'persistFilterState'; readonly viewId: ViewId; readonly filters: FilterState }
     | { readonly tag: 'persistRowsPerPage'; readonly viewId: ViewId; readonly rowsPerPage: number }
     | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null }
-    /** Clear the selection in the table, and tell the host no row is selected. */
-    | { readonly tag: 'clearRowSelection' }
+    /** Tell the host that no row is selected any more: the table cleared the selection itself. */
+    | { readonly tag: 'notifyRowSelectionCleared' }
     /** Report `event` as an analytics event of `viewId`. */
     | { readonly tag: 'track'; readonly viewId: ViewId; readonly event: DTVAnalyticsEventPayload; readonly debounce?: Debounce }
     /** Drop the event of `key` waiting for a pause. */
@@ -241,7 +241,11 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
                 selectedRows: [],
                 aiAssistedDraft: false,
                 initialFilterStateSource: null
-            }, [track(msg.viewId, { type: 'viewSelected', previousViewId: state.selectedViewId }), ...changedFiltersEvents(env, msg.viewId)]];
+            }, [
+                track(msg.viewId, { type: 'viewSelected', previousViewId: state.selectedViewId }),
+                ...changedFiltersEvents(env, msg.viewId),
+                ...rowSelectionCleared(state)
+            ]];
         }
 
         case 'draftChanged':
@@ -366,10 +370,7 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
             // record the page showed before, say: the first page is asked for again, with the
             // filters applied, and none of those rows stays selected
             const next: AppState = { ...state, selectedRows: [] };
-            return [
-                restartFromFirstPage(env, next, state, 'viewQuery'),
-                state.selectedRows.length > 0 ? [{ tag: 'clearRowSelection' }] : []
-            ];
+            return [restartFromFirstPage(env, next, state, 'viewQuery'), rowSelectionCleared(state)];
         }
 
         case 'rowsArrived': {
@@ -427,6 +428,11 @@ function hydratedFilterState(
     if (!userData.syncFilterState) return initial();
     if (userData.persistedFilterState) return { filters: userData.persistedFilterState, trigger: 'restored' };
     return userData.ready ? initial() : null;
+}
+
+/** Tells the host the rows `state` has selected are not any more, when there are any. */
+function rowSelectionCleared(state: AppState): Command[] {
+    return state.selectedRows.length > 0 ? [{ tag: 'notifyRowSelectionCleared' }] : [];
 }
 
 function track(viewId: ViewId, event: DTVAnalyticsEventPayload): Command & { tag: 'track' } {

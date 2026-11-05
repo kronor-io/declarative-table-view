@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { Button } from 'primereact/button';
-import { ActionDefinition, ActionAPI, ActionUserDataAPI } from '../framework/actions';
+import { ActionDefinition, ActionAPI, ActionUserDataAPI, type ShownRows } from '../framework/actions';
 import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
 import { generateColumnAliasedGraphQLQueryAST } from '../framework/graphql/query';
 import { buildGraphQLQueryVariables } from '../framework/data';
 import { View } from '../framework/view';
 import type { ShowToastFn } from '../framework/toast'
-import { FilterState, PaginationState } from '../framework/state';
-import type { DataOrdering } from '../framework/data-ordering';
+import { FilterState } from '../framework/state';
 import { analyticsError } from '../framework/analytics';
 import { startSpan, useTrack } from '../framework/analytics-emitter';
 
@@ -20,13 +19,11 @@ export interface ActionButtonsProps {
     refetch: () => void;
     applyFilters: () => void;
     showToast: ShowToastFn;
-    paginationState: PaginationState;
-    rowsPerPage: number;
-    ordering: DataOrdering | null;
+    shownRows: ShownRows | null;
     userData: ActionUserDataAPI;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, paginationState, rowsPerPage, ordering, userData }: ActionButtonsProps) {
+export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, shownRows, userData }: ActionButtonsProps) {
     const [running, setRunning] = React.useState<Set<number>>(() => new Set());
     const track = useTrack();
     return (
@@ -49,9 +46,7 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         generateColumnAliasedGraphQLQueryAST,
                         renderGraphQLQuery,
                         buildGraphQLQueryVariables,
-                        getPaginationState: () => paginationState,
-                        rowsPerPage,
-                        ordering,
+                        shownRows,
                         userData
                     };
                     const end = startSpan();
