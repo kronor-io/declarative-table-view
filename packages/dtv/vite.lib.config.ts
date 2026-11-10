@@ -28,10 +28,11 @@ export default defineConfig({
         outDir: 'dist',
         emptyOutDir: false,
         rollupOptions: {
-            external: [
-                'react',
-                'react-dom'
-            ],
+            // React and every entry point of it, `react/jsx-runtime` included, come from the host.
+            // A bundled jsx-runtime would `require('react')` in development, which Rolldown cannot
+            // turn into an import of the external `react`: the host's dev build would fail with
+            // "Calling `require` for "react" in an environment that doesn't expose the `require` function".
+            external: [/^react(-dom)?(\/.*)?$/],
             output: {
                 globals: {
                     react: 'React',
