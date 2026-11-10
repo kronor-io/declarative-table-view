@@ -7,20 +7,19 @@ import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 import type { View } from './framework/view';
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 const fetchDataMock = jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] }));
 
 jest.mock('./framework/data', () => {
     return {
         fetchData: fetchDataMock,
-        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });

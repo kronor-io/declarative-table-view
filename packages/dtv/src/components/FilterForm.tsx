@@ -11,7 +11,7 @@ import { MultiSelect } from 'primereact/multiselect';
 import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
 import { ReactNode, useMemo } from 'react';
-import { GraphQLClient } from 'graphql-request';
+import type { GraphQLClient } from '../framework/graphql-client';
 import { Panel } from 'primereact/panel';
 import { createDefaultFilterState, FilterState, getFilterStateById, setFilterStateById, buildInitialFormState, FormStateInitMode } from '../framework/state';
 import { Autocomplete } from './Autocomplete';

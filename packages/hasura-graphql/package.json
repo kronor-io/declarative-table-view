@@ -36,7 +36,7 @@
         "prepack": "npm run build"
     },
     "dependencies": {
-        "graphql": "^16.14.2"
+        "graphql": "^17.1.0"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",

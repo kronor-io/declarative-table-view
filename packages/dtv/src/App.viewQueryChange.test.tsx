@@ -13,12 +13,10 @@ const requests: { document: string; variables: any }[] = [];
 let holdLinesOfB = false;
 
 // The lines of invoice B differ from those of A
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
-            // Rows are asked for with `{ document, variables }`, a lazy row expansion with both apart
-            request: jest.fn(async (request: string | { document: string; variables: any }, expansionVariables?: any) => {
-                const { document, variables } = typeof request === 'string' ? { document: request, variables: expansionVariables } : request;
+        createGraphQLClient: jest.fn(() => ({
+            request: jest.fn(async (document: string, variables: any) => {
                 requests.push({ document, variables });
                 const isB = JSON.stringify(variables.conditions).includes('"B"');
                 if (isB && holdLinesOfB) return new Promise(() => undefined);
@@ -26,7 +24,7 @@ jest.mock('graphql-request', () => {
             })
         }))
     };
-}, { virtual: true });
+});
 
 import App from './App';
 import { waitUntil } from './test/waitUntil';

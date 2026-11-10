@@ -1,11 +1,11 @@
-import { GraphQLClient, type RequestMiddleware } from 'graphql-request';
 import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
 import { getViewRootFieldName, View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework/column-definition';
 import { FilterState } from './state';
 import { isOrderDirection, type OrderDirection } from './order-direction';
 import type { DataOrdering } from './data-ordering';
-import { FetchError, fetchErrorFromClientError } from './fetch-error';
+import { FetchError, toFetchError } from './fetch-error';
+import type { GraphQLClient } from './graphql-client';
 
 export type FlattenedDataRow = Record<ColumnId, Record<string, unknown>>;
 
@@ -15,49 +15,6 @@ export interface FetchDataResult {
 }
 
 export type PaginationCursor = Record<string, unknown> | null;
-
-// Headers sent with every GraphQL request. A function is re-evaluated (and
-// awaited) before each request, so a host can hand back a freshly-refreshed
-// short-lived token — synchronously from a cache, or asynchronously by calling
-// a refresh endpoint (see resolveHeadersMiddleware).
-export type RequestHeaders = HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
-
-async function resolveRequestHeaders(requestHeaders: RequestHeaders): Promise<HeadersInit> {
-    return typeof requestHeaders === 'function' ? requestHeaders() : requestHeaders;
-}
-
-// A request middleware that resolves `requestHeaders` (awaiting it when it is an
-// async function) and merges the result onto the outgoing request.
-//
-// It is installed on the GraphQLClient itself rather than at individual call
-// sites, so it covers EVERY request the client makes uniformly — table fetches,
-// lazy row expansion, and the filter suggestion/autocomplete fetchers that call
-// `client.request` directly — each with a freshly-resolved token. That is what
-// lets a host keep a short-lived token fresh proactively: it resolves (and, if
-// needed, refreshes) the token immediately before each request. A token
-// refreshed ahead of expiry never produces an auth error, so there is
-// deliberately no reactive retry; a genuinely dead session surfaces as a normal
-// GraphQL error for the host to handle (e.g. reload to login).
-export function resolveHeadersMiddleware(requestHeaders?: RequestHeaders): RequestMiddleware {
-    return async (request) => {
-        if (requestHeaders === undefined) {
-            return request;
-        }
-        const merged = new Headers(request.headers);
-        let resolved: HeadersInit;
-        try {
-            resolved = await resolveRequestHeaders(requestHeaders);
-        } catch (error) {
-            // The host's code failed, not the network
-            throw new FetchError({ kind: 'internal', message: `requestHeaders failed: ${error instanceof Error ? error.message : String(error)}` }, { cause: error });
-        }
-        new Headers(resolved).forEach((value, key) => {
-            merged.set(key, value);
-        });
-        return { ...request, headers: Object.fromEntries(merged.entries()) };
-    };
-}
-
 
 function splitFieldPath(field: string): string[] {
     return field.split('.').filter(Boolean);
@@ -305,11 +262,11 @@ export const fetchData = async ({
 
     let response: unknown;
     try {
-        // Auth headers are applied by the client's resolveHeadersMiddleware.
-        response = await client.request({ document: query, variables, signal });
+        // The client applies the host's request headers
+        response = await client.request(query, variables, { signal });
     } catch (error) {
         signal?.throwIfAborted();
-        throw fetchErrorFromClientError(error);
+        throw toFetchError(error);
     }
 
     // The response may have arrived just before the request was aborted; discard it

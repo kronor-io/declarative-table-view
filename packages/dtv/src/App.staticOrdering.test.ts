@@ -9,16 +9,16 @@ import { PrimeReactProvider } from 'primereact/api';
 
 const requests: { query: string; variables: any }[] = [];
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
-            request: jest.fn(async ({ document, variables }: { document: string; variables: any }) => {
+        createGraphQLClient: jest.fn(() => ({
+            request: jest.fn(async (document: string, variables: any) => {
                 requests.push({ query: document, variables });
                 return { testCollection: [] };
             })
         }))
     };
-}, { virtual: true });
+});
 
 import App from './App';
 import { waitUntil } from './test/waitUntil';

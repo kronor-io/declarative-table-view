@@ -6,22 +6,21 @@ import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
-import { GraphQLClient } from 'graphql-request';
+import { createGraphQLClient } from './framework/graphql-client';
 import type { View } from './framework/view';
 
-// Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App.
-jest.mock('graphql-request', () => {
+// Mock the GraphQL client BEFORE importing App.
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 jest.mock('./framework/data', () => {
     return {
         fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
-        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });
@@ -81,11 +80,9 @@ describe('App views prop', () => {
             );
         });
 
-        await waitUntil(() => jest.mocked(GraphQLClient).mock.calls.length > 0, { description: 'the GraphQL client to be constructed' });
+        await waitUntil(() => jest.mocked(createGraphQLClient).mock.calls.length > 0, { description: 'the GraphQL client to be constructed' });
 
-        expect(GraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', {
-            requestMiddleware: expect.any(Function)
-        });
+        expect(createGraphQLClient).toHaveBeenCalledWith('http://example.com/graphql', { Authorization: 'Bearer token' });
         expect(parseViewJson).not.toHaveBeenCalled();
 
         // Basic smoke check: view title is rendered somewhere when showViewTitle is true

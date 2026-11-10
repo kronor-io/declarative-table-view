@@ -52,36 +52,35 @@ const timeoutMessage = /statement timeout|canceling statement|query timed out/i;
 // Chrome, Firefox, Safari and Node
 const networkFailure = /failed to fetch|networkerror|load failed|fetch failed|network request failed/i;
 
+/** The parts of a GraphQL error read here. */
 type GraphQLErrorLike = { message?: unknown; extensions?: { code?: unknown } };
 
-/** The parts of graphql-request's `ClientError` read here, without depending on its class. */
-type ClientErrorLike = { response: { status: number; errors?: readonly GraphQLErrorLike[] } };
-
-function isClientErrorLike(error: unknown): error is ClientErrorLike {
-    if (typeof error !== 'object' || error === null || !('response' in error)) return false;
-    const { response } = error as { response: unknown };
-    return typeof response === 'object' && response !== null && typeof (response as { status?: unknown }).status === 'number';
-}
+// An entry of a response's `errors`, which arrive unchecked from the server
+const asGraphQLError = (error: unknown): GraphQLErrorLike => {
+    if (typeof error !== 'object' || error === null) return {};
+    const { message, extensions } = error as { message?: unknown; extensions?: unknown };
+    return { message, extensions: typeof extensions === 'object' && extensions !== null ? extensions as { code?: unknown } : undefined };
+};
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
-/** Tells what kind of failure an error the GraphQL client raised is. */
-export function fetchErrorFromClientError(error: unknown): FetchError {
-    if (error instanceof FetchError) return error;
+/** Tells what kind of failure a response with a status other than success, or with GraphQL errors, is. */
+export function fetchErrorFromResponse(status: number, errors: readonly unknown[], options?: { cause?: unknown }): FetchError {
+    const graphQLErrors = errors.map(asGraphQLError);
+    const messages = graphQLErrors.map(graphQLError => typeof graphQLError.message === 'string' ? graphQLError.message : '').filter(Boolean);
+    const codes = graphQLErrors.flatMap(graphQLError => typeof graphQLError.extensions?.code === 'string' ? [graphQLError.extensions.code] : []);
+    const message = messages.length > 0 ? messages.join('; ') : `HTTP ${status}`;
+    const kind: FetchErrorKind =
+        status === 504 || messages.some(text => timeoutMessage.test(text)) ? 'timeout'
+            : status === 401 || status === 403 || codes.some(code => unauthorizedCodes.has(code)) ? 'unauthorized'
+                : errors.length > 0 ? 'graphql'
+                    : 'http';
+    return new FetchError({ kind, message, status, ...(codes.length > 0 ? { codes } : {}) }, options);
+}
 
-    if (isClientErrorLike(error)) {
-        const { status } = error.response;
-        const errors = error.response.errors ?? [];
-        const messages = errors.map(graphQLError => typeof graphQLError.message === 'string' ? graphQLError.message : '').filter(Boolean);
-        const codes = errors.flatMap(graphQLError => typeof graphQLError.extensions?.code === 'string' ? [graphQLError.extensions.code] : []);
-        const message = messages.length > 0 ? messages.join('; ') : `HTTP ${status}`;
-        const kind: FetchErrorKind =
-            status === 504 || messages.some(text => timeoutMessage.test(text)) ? 'timeout'
-                : status === 401 || status === 403 || codes.some(code => unauthorizedCodes.has(code)) ? 'unauthorized'
-                    : errors.length > 0 ? 'graphql'
-                        : 'http';
-        return new FetchError({ kind, message, status, ...(codes.length > 0 ? { codes } : {}) }, { cause: error });
-    }
+/** Tells what kind of failure an error a request rejected with is, keeping a `FetchError` as it is. */
+export function toFetchError(error: unknown): FetchError {
+    if (error instanceof FetchError) return error;
 
     // fetch rejects with a TypeError when no response arrives, saying so in each browser's words;
     // other TypeErrors are code that failed

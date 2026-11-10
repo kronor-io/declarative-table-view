@@ -23,13 +23,13 @@ function buildFetchDataResult() {
     return { rows, flattenedRows } as any;
 }
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 const fetchCalls: any[] = [];
 const fetchDataMock = jest.fn(async (arg: any) => {

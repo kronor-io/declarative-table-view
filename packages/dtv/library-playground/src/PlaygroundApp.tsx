@@ -5,8 +5,7 @@ import { useRef } from 'react';
 import { Button } from 'primereact/button';
 import { runtime } from './runtime';
 
-// Relative paths cause GraphQLClient to throw (it internally constructs a URL).
-// Resolve to an absolute URL based on current origin to avoid "Failed to construct 'URL'" errors.
+// The mock GraphQL endpoint, as an absolute URL on the current origin.
 const MOCK_GRAPHQL_PATH = '/playground-graphql';
 const ABSOLUTE_GRAPHQL_HOST = typeof window !== 'undefined'
     ? `${window.location.origin}${MOCK_GRAPHQL_PATH}`

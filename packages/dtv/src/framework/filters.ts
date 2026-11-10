@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { GraphQLClient } from 'graphql-request';
+import type { GraphQLClient } from './graphql-client';
 import type { FieldPath } from '@kronor/hasura-graphql';
 import { HasuraFilterExpression } from './graphql';
 import * as FilterValue from './filterValue';

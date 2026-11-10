@@ -10,19 +10,18 @@ import App from './App';
 import { USER_DATA_LOCALSTORAGE_KEY } from './framework/user-data-manager';
 import { failure } from './framework/result';
 
-// Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App internals.
-jest.mock('graphql-request', () => {
+// Mock the GraphQL client BEFORE importing App.
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 jest.mock('./framework/data', () => {
     return {
         fetchData: jest.fn(async () => ({ rows: [] as Record<string, unknown>[], flattenedRows: [] as any[] })),
-        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import type { DTVAnalyticsEvent, DTVAnalyticsEventPayload, ReportedEvent } from '../analytics';
 import { createAnalyticsEmitter, newInstanceId, startSpan } from '../analytics-emitter';
 import type { FetchDataResult } from '../data';
-import { fetchErrorFromClientError } from '../fetch-error';
+import { toFetchError } from '../fetch-error';
 import { initAppState, initialCommands, updateAppState, type AppState, type AppStateEnv, type AppStateInit, type Command, type Msg } from './app-state';
 import { nextPageCursor, noRows, pendingRequest, type DataRequest } from './table';
 
@@ -220,7 +220,7 @@ export function useAppState(
                     emitter.emit(query.viewId, { ...span, ...end(), outcome: 'aborted' });
                     return;
                 }
-                emitter.emit(query.viewId, { ...span, ...end(), outcome: 'failed', error: fetchErrorFromClientError(error).info });
+                emitter.emit(query.viewId, { ...span, ...end(), outcome: 'failed', error: toFetchError(error).info });
                 // Any other failure, an abort from elsewhere included, must not leave the
                 // table waiting for rows forever: it shows none
                 console.error('Error fetching data:', error);

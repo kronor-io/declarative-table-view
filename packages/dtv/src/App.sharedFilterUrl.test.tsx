@@ -10,9 +10,9 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
-jest.mock('graphql-request', () => ({
-    GraphQLClient: jest.fn().mockImplementation(() => ({ request: jest.fn(async () => ({})) }))
-}), { virtual: true });
+jest.mock('./framework/graphql-client', () => ({
+    createGraphQLClient: jest.fn(() => ({ request: jest.fn(async () => ({})) }))
+}));
 
 type FetchDataArgs = Parameters<typeof fetchData>[0];
 

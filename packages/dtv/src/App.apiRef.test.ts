@@ -15,14 +15,14 @@ function buildFetchDataResult() {
 
 const graphqlRequestMock = jest.fn(async () => ({}));
 
-// Mock ESM-only graphql-request with a virtual CommonJS-compatible stub BEFORE importing App.
-jest.mock('graphql-request', () => {
+// Mock the GraphQL client BEFORE importing App.
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: (...args: any[]) => (graphqlRequestMock as any)(...args)
         }))
     };
-}, { virtual: true });
+});
 
 const fetchDataMock = jest.fn(async () => buildFetchDataResult());
 jest.mock('./framework/data', () => {

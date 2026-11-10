@@ -10,13 +10,13 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrimeReactProvider } from 'primereact/api';
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 const oneRow = (): FetchDataResult => ({ rows: [{ id: 1 }], flattenedRows: [{ id: { id: 1 } }] });
 const fetchDataMock = jest.fn<(args: Parameters<typeof fetchData>[0]) => Promise<FetchDataResult>>(async () => oneRow());

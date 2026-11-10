@@ -1,4 +1,4 @@
-import { GraphQLClient } from "graphql-request";
+import type { GraphQLClient } from "../framework/graphql-client";
 import { AutoComplete } from "primereact/autocomplete";
 import { useCallback, useState } from "react";
 import { SuggestionFetcher, SuggestionItem } from "../framework/filters";

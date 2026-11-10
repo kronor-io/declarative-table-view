@@ -11,7 +11,7 @@ describe('fetchData staticConditions merging', () => {
         request: jest.fn()
     };
     let capturedVariables: any = null;
-    const requestSpy = mockClient.request.mockImplementation(({ variables }: { variables: any }) => {
+    const requestSpy = mockClient.request.mockImplementation((_document: string, variables: any) => {
         capturedVariables = variables;
         return Promise.resolve({ testCollection: [] });
     });

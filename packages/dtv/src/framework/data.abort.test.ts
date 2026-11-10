@@ -33,7 +33,7 @@ describe('fetchData abort', () => {
         const controller = new AbortController();
 
         await expect(fetch(client, controller.signal)).resolves.toMatchObject({ rows: [{ id: 1 }] });
-        expect(client.request).toHaveBeenCalledWith(expect.objectContaining({ signal: controller.signal }));
+        expect(client.request).toHaveBeenCalledWith(expect.any(String), expect.any(Object), { signal: controller.signal });
     });
 
     it('discards a response that arrives after the request was aborted', async () => {

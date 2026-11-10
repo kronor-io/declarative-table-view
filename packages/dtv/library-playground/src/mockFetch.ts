@@ -38,7 +38,7 @@ export function installFetchMock(graphqlHost: string) {
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString();
-        // Support both relative and fully-qualified URLs produced by graphql-request
+        // Support both relative and fully-qualified GraphQL URLs
         const matchesGraphql = url === graphqlHost || url.endsWith(graphqlHost);
         if (matchesGraphql) {
             try {

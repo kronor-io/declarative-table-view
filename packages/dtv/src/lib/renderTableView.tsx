@@ -11,7 +11,7 @@ import type { Result } from '../framework/result'
 import { AIIntegration, ModifyAiFilterPromptFn } from '../components/aiAssistant'
 import type { View, SimplifiedRow } from '../framework/view'
 import type { DTVAPI } from '../App'
-import type { RequestHeaders } from '../framework/data'
+import type { RequestHeaders } from '../framework/graphql-client'
 
 export type RenderTableViewUserDataOptions = {
     /** Optional async loader invoked when the user-data manager is created. */
@@ -27,8 +27,8 @@ export type RenderTableViewOptions<V extends View = View> = {
      * Headers sent with every GraphQL request. Pass a function (which may be
      * async) to have it resolved and awaited before each request — e.g. to
      * return a short-lived bearer token, refreshing it proactively against an
-     * endpoint when it is near expiry. See `resolveHeadersMiddleware` in
-     * framework/data.ts.
+     * endpoint when it is near expiry. See `createGraphQLClient` in
+     * framework/graphql-client.ts.
      */
     requestHeaders: RequestHeaders
     /**

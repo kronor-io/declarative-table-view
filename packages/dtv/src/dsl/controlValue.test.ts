@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import type { GraphQLClient } from 'graphql-request';
+import type { GraphQLClient } from '../framework/graphql-client';
 import { FilterControl, type ControlValue } from './filterControl';
 import { FilterExpr } from './filterExpr';
 import { PhoneNumberFilter } from '../components/PhoneNumberFilter';

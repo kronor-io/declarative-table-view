@@ -9,13 +9,13 @@ import type { View } from './framework/view';
 import type { CellRenderer } from './framework/column-definition';
 import * as FilterValue from './framework/filterValue';
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 type FetchDataArgs = { filterState: Map<string, unknown> };
 type FetchDataResult = { rows: Record<string, unknown>[]; flattenedRows: any[] };
@@ -25,7 +25,6 @@ const fetchDataMock = jest.fn<(args: FetchDataArgs) => Promise<FetchDataResult>>
 jest.mock('./framework/data', () => {
     return {
         fetchData: fetchDataMock,
-        resolveHeadersMiddleware: () => (request: unknown) => request,
         getPaginationOrderFieldQueries: jest.fn(() => [])
     };
 });

@@ -66,6 +66,7 @@ export type {
     FetchReason
 } from '../framework/analytics';
 export type { FetchErrorInfo, FetchErrorKind } from '../framework/fetch-error';
+export type { GraphQLClient, GraphQLVariables, RequestHeaders } from '../framework/graphql-client';
 export type {
     HasuraFilterObject,
     HasuraOperator,

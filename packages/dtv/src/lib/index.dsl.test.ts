@@ -1,13 +1,13 @@
 import { describe, it, expect } from '@jest/globals';
 
-// Mock ESM-only graphql-request before importing lib entry (which re-exports App).
-jest.mock('graphql-request', () => {
+// Mock the GraphQL client before importing lib entry (which re-exports App).
+jest.mock('../framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
+        createGraphQLClient: jest.fn(() => ({
             request: jest.fn(async () => ({}))
         }))
     };
-}, { virtual: true });
+});
 
 import * as API from './index';
 

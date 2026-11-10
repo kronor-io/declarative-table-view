@@ -26,6 +26,8 @@ export type Runtime = {
 | `initialValues` | Dynamic initial values resolved at parse time | Any `initialValue` field | any |
 | `suggestionFetchers` | Async suggestion providers for autocomplete filter controls | Autocomplete FilterControl `suggestionFetcher` | `(query: string, client: GraphQLClient) => Promise<{ label: string; value: any }[]>` |
 
+The `client` is the table's own, sending the host's `requestHeaders` with every request. `client.request(document, variables?, { signal }?)` resolves to the response's `data` and rejects with a `FetchError` when the response has GraphQL errors or a status other than success. Import its type with `import type { GraphQLClient } from '@kronor/dtv'`.
+
 ## Resolution Precedence
 When parsing a view JSON, runtime references are resolved via:
 1. External runtime passed to the <ViewRenderer /> (if any)

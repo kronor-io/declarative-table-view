@@ -11,16 +11,16 @@ import { PrimeReactProvider } from 'primereact/api';
 // on the server at the same time.
 const pending: { document: string; respond: () => void }[] = [];
 
-jest.mock('graphql-request', () => {
+jest.mock('./framework/graphql-client', () => {
     return {
-        GraphQLClient: jest.fn().mockImplementation(() => ({
-            request: jest.fn(({ document }: { document: string }) => new Promise(resolve => {
+        createGraphQLClient: jest.fn(() => ({
+            request: jest.fn((document: string) => new Promise(resolve => {
                 const collectionName = document.includes('firstCollection') ? 'firstCollection' : 'secondCollection';
                 pending.push({ document, respond: () => resolve({ [collectionName]: [{ id: `${collectionName}-row` }] }) });
             }))
         }))
     };
-}, { virtual: true });
+});
 
 import App from './App';
 import { waitUntil } from './test/waitUntil';

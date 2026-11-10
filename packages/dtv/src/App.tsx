@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { GraphQLClient } from 'graphql-request';
 import Table, { type RowExpansionApi } from './components/Table';
 import { nativeRuntime } from './framework/native-runtime';
 import FilterForm from './components/FilterForm';
@@ -20,7 +19,8 @@ import SavedFilterList from './components/SavedFilterList';
 import UserPreferencesPanel from './components/UserPreferencesPanel';
 import FilterStatePills from './components/FilterStatePills';
 import { getFilterStatePillItems } from './components/filterStatePills.utils';
-import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, type FlattenedDataRow, flattenFieldQueries, getPaginationOrderFieldQueries, resolveHeadersMiddleware, type RequestHeaders } from './framework/data';
+import { buildGraphQLQueryVariables, fetchData, type FetchDataResult, type FlattenedDataRow, flattenFieldQueries, getPaginationOrderFieldQueries } from './framework/data';
+import { createGraphQLClient, type RequestHeaders } from './framework/graphql-client';
 import { simplifyRow } from './framework/rows';
 import { analyticsError, type DTVAnalytics } from './framework/analytics';
 import { AnalyticsContext, startSpan, viewDefinition } from './framework/analytics-emitter';
@@ -59,8 +59,8 @@ export interface AppProps<V extends View = View> {
      * resolved (and awaited) before each request — useful for a short-lived
      * bearer token. The function may be async, so a host that tracks its
      * token's expiry can refresh it proactively (e.g. against an endpoint)
-     * before the request is sent. See `resolveHeadersMiddleware` in
-     * framework/data.ts.
+     * before the request is sent. See `createGraphQLClient` in
+     * framework/graphql-client.ts.
      */
     requestHeaders: RequestHeaders;
     /**
@@ -283,12 +283,11 @@ function App<V extends View = View>({
     }, [views, viewsById]);
     const initialFilterStateFromUrl = initialFromUrl?.filterState;
 
-    // Resolve `requestHeaders` (which may be an async function) before every
-    // request via a client-level middleware, so it covers all requests — table
-    // fetches, lazy row expansion, and suggestion fetchers that use this client
-    // directly. See resolveHeadersMiddleware.
+    // The client resolves `requestHeaders` (which may be an async function) before
+    // every request, so it covers all requests — table fetches, lazy row expansion,
+    // and suggestion fetchers that use this client directly. See createGraphQLClient.
     const client = useMemo(
-        () => new GraphQLClient(graphqlHost, { requestMiddleware: resolveHeadersMiddleware(requestHeaders) }),
+        () => createGraphQLClient(graphqlHost, requestHeaders),
         [graphqlHost, requestHeaders]
     );
 

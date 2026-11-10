@@ -528,7 +528,7 @@ failed lookup is reported, so one broken fetcher can report once per keystroke.
 | `error` | [`DTVAnalyticsError`](#dtvanalyticserror) | What it threw. |
 
 ```json
-{ "type": "suggestionsFailed", "error": { "name": "ClientError", "message": "field 'vendors' not found in type: 'query_root'" } }
+{ "type": "suggestionsFailed", "error": { "name": "FetchError", "message": "field 'vendors' not found in type: 'query_root'" } }
 ```
 
 ## Shared types
@@ -646,7 +646,7 @@ The type is exported as `UndecodedFilterState`.
 { name: string; message: string }
 ```
 
-An error's `name` (`TypeError`, `ClientError`, …) and `message`. What is thrown that is not an
+An error's `name` (`TypeError`, `FetchError`, …) and `message`. What is thrown that is not an
 `Error` has the name `Error` and itself as the message.
 
 ### `DTVAnalyticsResets`
