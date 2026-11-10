@@ -4,7 +4,8 @@
     "type": "module",
     "workspaces": [
         "packages/hasura-graphql",
-        "packages/dtv"
+        "packages/dtv",
+        "packages/dtv-analytics"
     ],
     "engines": {
         "node": ">=22 <24"

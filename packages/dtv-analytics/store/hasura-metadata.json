@@ -1,0 +1,876 @@
+{
+    "version": 3,
+    "sources": [
+        {
+            "name": "store",
+            "kind": "postgres",
+            "configuration": {
+                "connection_info": {
+                    "database_url": {
+                        "from_env": "HASURA_GRAPHQL_DATABASE_URL"
+                    }
+                }
+            },
+            "customization": {
+                "naming_convention": "graphql-default"
+            },
+            "tables": [
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "event"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "impersonator",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "impersonator_id": "id"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "definitionOf",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "definition"
+                                    },
+                                    "column_mapping": {
+                                        "definition": "name"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "array_relationships": [
+                        {
+                            "name": "filterUses",
+                            "using": {
+                                "foreign_key_constraint_on": {
+                                    "table": {
+                                        "schema": "public",
+                                        "name": "filter_use"
+                                    },
+                                    "column": "event_id"
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "filter_use"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "event",
+                            "using": {
+                                "foreign_key_constraint_on": "event_id"
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "definition"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "app_user"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "user_data"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "current_user_data"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "user_view_data"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "array_relationships": [
+                        {
+                            "name": "savedFilters",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "saved_filter"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "user_id",
+                                        "revision": "revision",
+                                        "view_id": "view_id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "saved_filter"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "unreadable_user_data"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "fetch_job"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "coverage"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "instance"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "definition_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "period_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "period_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "event_type_count"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "daily_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "breakdown_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "duration_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "filter_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "column_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "filter_set_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "user_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "current_user_view_data"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "array_relationships": [
+                        {
+                            "name": "savedFilters",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "saved_filter"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "user_id",
+                                        "revision": "revision",
+                                        "view_id": "view_id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "saved_filter_stats_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "saved_filter_summary_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "error_group_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "daily_count_row"
+                    },
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "table": {
+                        "schema": "public",
+                        "name": "error_event"
+                    },
+                    "object_relationships": [
+                        {
+                            "name": "user",
+                            "using": {
+                                "manual_configuration": {
+                                    "remote_table": {
+                                        "schema": "public",
+                                        "name": "app_user"
+                                    },
+                                    "column_mapping": {
+                                        "user_id": "id"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "select_permissions": [
+                        {
+                            "role": "analyst",
+                            "permission": {
+                                "columns": "*",
+                                "filter": {},
+                                "allow_aggregations": true
+                            }
+                        }
+                    ]
+                }
+            ],
+            "functions": [
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "definition_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "period_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "missing_periods"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "activity_daily"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "breakdown"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "fetch_durations"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "filter_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "column_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "slow_filter_sets"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "user_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "saved_filter_stats"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "saved_filter_summary"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "saved_filter_breakdown"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "error_groups"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                },
+                {
+                    "function": {
+                        "schema": "public",
+                        "name": "errors_daily"
+                    },
+                    "configuration": {
+                        "exposed_as": "query"
+                    },
+                    "permissions": [
+                        {
+                            "role": "analyst"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

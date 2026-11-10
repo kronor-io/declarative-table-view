@@ -1,0 +1,246 @@
+/* The app's own layout; the tables and controls are DTV's and PrimeReact's, with their theme. */
+
+:root {
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --surface: #ffffff;
+    --background: #f9fafb;
+    --accent: #4f46e5;
+    --warning: #92400e;
+    --warning-surface: #fffbeb;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text);
+}
+
+body {
+    margin: 0;
+    background: var(--background);
+}
+
+.app-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.app-header nav {
+    display: flex;
+    gap: 12px;
+}
+
+.app-header nav a {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.app-header nav a[aria-current='page'] {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.app-header .source {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.period {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+main {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.tile .label {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.tile .value {
+    font-size: 24px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.missing {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: var(--warning);
+    background: var(--warning-surface);
+}
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    /* A table wider than the screen scrolls in its panel, not the page */
+    overflow-x: auto;
+}
+
+/* DTV's styles reset headings: the app sets its own */
+.panel h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.connect {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.connect label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.error {
+    color: #b91c1c;
+}
+
+table.plain {
+    border-collapse: collapse;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+}
+
+table.plain th,
+table.plain td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+    .app-header,
+    main {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+.page-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.page-title h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.panel > .chart-grid + .chart-grid,
+.panel > .dtv + .chart-grid,
+.panel > .chart-grid + .chart-card,
+.panel > .dtv + .chart-card {
+    margin-top: 16px;
+}
+
+/* Charts side by side where there is room, one per row on a phone */
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    gap: 16px;
+}
+
+.chart-card {
+    margin: 0;
+    min-width: 0;
+}
+
+.chart-card figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.chart-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.chart-note {
+    margin: 2px 0 8px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.chart-table {
+    max-height: 320px;
+    overflow: auto;
+    font-size: 13px;
+}
+
+.chart-empty {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.link-button {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.unused-filters {
+    margin-top: 8px;
+    line-height: 1.6;
+}
+
+.panel > .chart-card + .dtv {
+    margin-top: 16px;
+}

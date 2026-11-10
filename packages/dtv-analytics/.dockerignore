@@ -1,0 +1,4 @@
+server/dist-newstyle
+node_modules
+src
+test
