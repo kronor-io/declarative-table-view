@@ -44,6 +44,7 @@ let capturedUserData: any = null;
 
 const action = {
     label: 'Capture AST',
+    id: 'capture-ast',
     onClick: (api: any) => {
         capturedAst = api.generateGraphQLQueryAST(
             getViewRootFieldName(api.view),
@@ -199,6 +200,7 @@ describe('ActionAPI GraphQL helpers', () => {
 
         const captureUserDataAction = {
             label: 'Capture user data',
+            id: 'capture-user-data',
             onClick: (api: any) => {
                 capturedUserData = {
                     preferences: api.userData.preferences,
@@ -252,6 +254,7 @@ describe('ActionAPI GraphQL helpers', () => {
     it('gives actions the filters the rows on screen were asked for, apart from the draft', async () => {
         const editDraft = {
             label: 'Edit the draft',
+            id: 'edit-draft',
             onClick: (api: any) => api.setFilterState(new Map([['id', { type: 'leaf', value: { type: 'value', value: 7 } }]]))
         };
         const { container, unmount } = await renderApp({ actions: [editDraft, action] });

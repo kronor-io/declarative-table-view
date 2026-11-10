@@ -1,77 +1,24 @@
-import * as React from 'react';
 import { Button } from 'primereact/button';
-import { ActionDefinition, ActionAPI, ActionUserDataAPI, type ShownRows } from '../framework/actions';
-import { generateGraphQLQueryAST, renderGraphQLQuery } from '../framework/graphql';
-import { generateColumnAliasedGraphQLQueryAST } from '../framework/graphql/query';
-import { buildGraphQLQueryVariables } from '../framework/data';
-import { View } from '../framework/view';
-import type { ShowToastFn } from '../framework/toast'
-import { FilterState } from '../framework/state';
-import { analyticsError } from '../framework/analytics';
-import { startSpan, useTrack } from '../framework/analytics-emitter';
+import type { ActionDefinition } from '../framework/actions';
 
 export interface ActionButtonsProps {
     actions: ActionDefinition[];
-    selectedView: View;
-    filterState: FilterState;
-    selectedRows: readonly unknown[];
-    setFilterState: (next: FilterState) => void;
-    refetch: () => void;
-    applyFilters: () => void;
-    showToast: ShowToastFn;
-    shownRows: ShownRows | null;
-    userData: ActionUserDataAPI;
+    /** Whether the action with this id is running: its button shows it, and cannot be clicked. */
+    isRunning: (id: string) => boolean;
+    onClick: (id: string) => void;
 }
 
-export function ActionButtons({ actions, selectedView, filterState, selectedRows, setFilterState, refetch, applyFilters, showToast, shownRows, userData }: ActionButtonsProps) {
-    const [running, setRunning] = React.useState<Set<number>>(() => new Set());
-    const track = useTrack();
+export function ActionButtons({ actions, isRunning, onClick }: ActionButtonsProps) {
     return (
         <>
             {actions.map((action, idx) => {
-                const isRunning = running.has(idx);
-                const handleClick = async () => {
-                    if (isRunning) return;
-                    setRunning(prev => new Set(prev).add(idx));
-                    const api: ActionAPI = {
-                        view: selectedView,
-                        filterState,
-                        // A copy: an action changing it must not change the table's selection
-                        selectedRows: [...selectedRows],
-                        setFilterState,
-                        refetch,
-                        applyFilters,
-                        showToast,
-                        generateGraphQLQueryAST,
-                        generateColumnAliasedGraphQLQueryAST,
-                        renderGraphQLQuery,
-                        buildGraphQLQueryVariables,
-                        shownRows,
-                        userData
-                    };
-                    const end = startSpan();
-                    const span = { type: 'action', action: action.id ?? action.label, selectedRows: selectedRows.length } as const;
-                    try {
-                        await action.onClick(api);
-                        track({ ...span, ...end(), outcome: 'succeeded' });
-                    } catch (e) {
-                        track({ ...span, ...end(), outcome: 'failed', error: analyticsError(e) });
-                        console.error('Action handler error', e);
-                        showToast({ severity: 'error', summary: 'Action Failed', detail: action.label, life: 3000 });
-                    } finally {
-                        setRunning(prev => {
-                            const next = new Set(prev);
-                            next.delete(idx);
-                            return next;
-                        });
-                    }
-                };
+                const running = isRunning(action.id);
                 return (
                     <Button
-                        key={`custom-action-${idx}`}
+                        key={action.id}
                         type="button"
                         icon={action.icon}
-                        loading={isRunning}
+                        loading={running}
                         badge={action.badge}
                         badgeClassName={action.badgeClassName}
                         severity={action.severity}
@@ -79,9 +26,9 @@ export function ActionButtons({ actions, selectedView, filterState, selectedRows
                         style={action.style}
                         outlined={action.outlined !== false}
                         size={action.size === 'normal' ? undefined : 'small'}
-                        disabled={action.disabled || isRunning}
-                        label={isRunning ? `${action.label}...` : action.label}
-                        onClick={handleClick}
+                        disabled={action.disabled || running}
+                        label={running ? `${action.label}...` : action.label}
+                        onClick={() => onClick(action.id)}
                         data-testid={`dtv-action-${idx}`}
                     />
                 );

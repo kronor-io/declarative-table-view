@@ -41,6 +41,12 @@ Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
 - `showPopoutButton`: Toggle the Popout button that opens the table view in a fullscreen overlay (default: `true`). Set to `false` to suppress this UI in embedded contexts.
 - `externalRuntime`: Provide a runtime override for cell renderers / query transforms.
 - `syncFilterStateToUrl`: Persist applied filter state into the `dtv-filter-state` URL param (default: `false`).
+- `actions`: Buttons added to the toolbar after the built-in ones (`ActionDefinition[]`). An action's `onClick` gets an `ActionAPI`: the view, the draft filter state, the selected rows, the rows on screen (`shownRows`), `setFilterState`/`applyFilters`/`refetch`, `showToast`, query builders and user data. While its promise is pending, the button shows the action running and cannot be clicked again. Each action has an `id`, unique among the table's actions: analytics name the action by it, and `apiRef.current.runAction` finds it by it.
+- `apiRef`: A React ref that DTV sets to its imperative API (`DTVAPI`) while the table is mounted:
+  - `fetchData()`: asks for the page the user is on again, e.g. after a mutation elsewhere.
+  - `rowSelection.reset()`: clears the row selection.
+  - `rowExpansion.collapseAll()` / `expandAll()` / `reset()`: collapses or expands the rows on the current page; `reset` collapses them.
+  - `runAction(id)`: runs the action with that `id` as a click on its button would, for a host that starts an action from a control of its own, e.g. with the toolbar hidden. The button shows it running, a run while it is running or disabled does nothing, and it reports the same analytics and failure toast. Does nothing, with a warning, for an id no action has.
 
 Example:
 ```ts
@@ -75,6 +81,7 @@ React and ReactDOM 19 are peer dependencies; ensure they are installed in the ho
 - **AI Integration:** The AI assistant (see `src/components/AIAssistantForm.tsx` and `src/components/aiAssistant.ts`) can generate filters, which must set `aiGenerated: true`.
 - **View Registration:** Each view (e.g., `paymentRequest.tsx`) exports a `View` object with a `filterSchema`, `columnDefinitions`, and a GraphQL query.
 - **Type Safety:** All filter and view schemas are strongly typed. When adding new filters, always specify all required fields.
+- **App State Before Effects:** The table's state and its effects live in `src/framework/state/app-state.ts`: messages, pure transitions, and the commands `useAppState` runs (requests, user data writes, analytics, toolbar actions). Before adding a `useEffect`, `useLayoutEffect`, ref or `useState` to `App.tsx` for table behaviour, consider a message and a command instead. Transitions are tested as plain functions in `app-state.test.ts`, messages are handled in the order they are sent, and `useAppState` already hands commands the values of the latest render, which is what refs in `App.tsx` usually work around. `DTVAPI.runAction` is an example: a first version kept the running actions in refs and set the API in a layout effect, and as `actionRequested`/`actionEnded` and a `runAction` command it needs neither. Effects in `App.tsx` are for what the state cannot own, such as the DOM.
 
 ## Integration & Data Flow
 - Data is fetched via GraphQL using `graphql-request` (see `src/framework/data.ts`).

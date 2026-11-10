@@ -1,4 +1,4 @@
-import type { DTVAnalyticsEventPayload, FetchReason, FiltersAppliedTrigger, ReportedEvent } from '../analytics';
+import type { DTVAnalyticsError, DTVAnalyticsEventPayload, DTVAnalyticsSpan, FetchReason, FiltersAppliedTrigger, ReportedEvent } from '../analytics';
 import type { ViewDefinition } from '../analytics-emitter';
 import type { FetchDataResult } from '../data';
 import { dataOrderingsEqual, type DataOrdering } from '../data-ordering';
@@ -19,10 +19,10 @@ import {
  *
  * `updateAppState` is pure. Its effects leave it as data: the request the table waits on is
  * read off the state with `pendingRequest`, and writes to user data are returned as
- * `Command`s, and so are the analytics events transitions report (`track`). `useAppState`
- * runs both and feeds what comes back in as messages, in the order they are sent: applying
- * the draft right after changing it applies the changed draft, whatever renders happen in
- * between.
+ * `Command`s, and so are the analytics events transitions report (`track`) and the toolbar
+ * actions to run. `useAppState` runs both and feeds what comes back in as messages, in the
+ * order they are sent: applying the draft right after changing it applies the changed draft,
+ * whatever renders happen in between.
  */
 
 /** What user data holds for the selected view. */
@@ -59,6 +59,8 @@ export interface AppState {
     readonly showPopout: boolean;
     /** The rows the user selected, as the table hands them out; empty when row selection is off. */
     readonly selectedRows: readonly unknown[];
+    /** The toolbar actions running, by id, with how many rows were selected when each started. */
+    readonly runningActions: ReadonlyMap<string, { readonly selectedRows: number }>;
     /** The AI filter assistant filled the draft since filters were last applied. */
     readonly aiAssistedDraft: boolean;
     /** Where the filter state the table opened with came from, until the view settles. */
@@ -78,6 +80,8 @@ export interface AppStateEnv {
     readonly snapshotDiff: (viewId: ViewId) => SnapshotDiff | null;
     /** What a view's rows are read with now; `null` for a view the table does not have. */
     readonly viewQuery: (viewId: ViewId) => ViewQuery | null;
+    /** The toolbar action with this id; `null` for an id no action has. */
+    readonly action: (id: string) => { readonly disabled: boolean } | null;
 }
 
 /** What applies filters by a message. The table opening with filters is told by the state. */
@@ -119,6 +123,16 @@ export type Msg =
     | { readonly tag: 'aiAssistantToggled' }
     | { readonly tag: 'popoutShown'; readonly shown: boolean }
     | { readonly tag: 'rowsSelected'; readonly rows: readonly unknown[] }
+    /** Run the toolbar action with this id: its button was clicked, or the host asked (`DTVAPI.runAction`). */
+    | { readonly tag: 'actionRequested'; readonly id: string }
+    /** The run of an action ended: its promise settled, or it threw. */
+    | {
+        readonly tag: 'actionEnded';
+        readonly id: string;
+        readonly span: DTVAnalyticsSpan;
+        readonly outcome: 'succeeded' | 'failed';
+        readonly error?: DTVAnalyticsError;
+    }
     /** A component or the user data reported an analytics event, of the selected view. */
     | { readonly tag: 'reported'; readonly event: ReportedEvent };
 
@@ -131,6 +145,10 @@ export type Command =
     | { readonly tag: 'persistOrdering'; readonly viewId: ViewId; readonly ordering: DataOrdering | null }
     /** Tell the host that no row is selected any more: the table cleared the selection itself. */
     | { readonly tag: 'notifyRowSelectionCleared' }
+    /** Call the `onClick` of the action with this id, and send `actionEnded` once it ends. */
+    | { readonly tag: 'runAction'; readonly id: string }
+    /** Warn the host that it asked to run an action no action has the id of. */
+    | { readonly tag: 'warnUnknownAction'; readonly id: string }
     /** Report `event` as an analytics event of `viewId`. */
     | { readonly tag: 'track'; readonly viewId: ViewId; readonly event: DTVAnalyticsEventPayload; readonly debounce?: Debounce }
     /** Drop the event of `key` waiting for a pause. */
@@ -165,6 +183,7 @@ export function initAppState(env: AppStateEnv, init: AppStateInit): AppState {
         showAIAssistant: false,
         showPopout: false,
         selectedRows: [],
+        runningActions: new Map(),
         aiAssistedDraft: false,
         initialFilterStateSource: init.initialFilterState === undefined ? null : init.initialFilterStateSource ?? null
     };
@@ -406,6 +425,34 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
         case 'rowsSelected':
             if (msg.rows.length === 0 && state.selectedRows.length === 0) return [state, []];
             return [{ ...state, selectedRows: msg.rows }, []];
+
+        case 'actionRequested': {
+            const action = env.action(msg.id);
+            if (action === null) return [state, [{ tag: 'warnUnknownAction', id: msg.id }]];
+            // As its button: a disabled action cannot be clicked, and a running one is not run again
+            if (action.disabled || state.runningActions.has(msg.id)) return [state, []];
+
+            return [
+                { ...state, runningActions: new Map(state.runningActions).set(msg.id, { selectedRows: state.selectedRows.length }) },
+                [{ tag: 'runAction', id: msg.id }]
+            ];
+        }
+
+        case 'actionEnded': {
+            const running = state.runningActions.get(msg.id);
+            if (running === undefined) return [state, []];
+
+            const runningActions = new Map(state.runningActions);
+            runningActions.delete(msg.id);
+            return [{ ...state, runningActions }, [track(state.selectedViewId, {
+                type: 'action',
+                ...msg.span,
+                action: msg.id,
+                selectedRows: running.selectedRows,
+                outcome: msg.outcome,
+                ...(msg.error === undefined ? {} : { error: msg.error })
+            })]];
+        }
 
         case 'reported':
             return [state, [track(state.selectedViewId, msg.event)]];

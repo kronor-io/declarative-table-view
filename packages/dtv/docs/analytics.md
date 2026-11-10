@@ -414,12 +414,13 @@ When the stored data is in a format this version cannot read, the table reports
 
 #### `action`
 
-An action button's `onClick` ended: its promise settled, or it threw.
+An action's `onClick` ended: its promise settled, or it threw. It was started by a click on its
+button, or by `DTVAPI.runAction`.
 
 | Field | Type | |
 |---|---|---|
-| `action` | string | The action's `id`, or its label when it has none. Give actions an `id`: labels change with wording. |
-| `selectedRows` | number | The rows selected when it was clicked. |
+| `action` | string | The action's `id`. |
+| `selectedRows` | number | The rows selected when it started. |
 | `outcome` | `'succeeded'` \| `'failed'` | `failed`: it threw or rejected. |
 | `error` | [`DTVAnalyticsError`](#dtvanalyticserror), *optional* | When `failed`: what it threw. |
 
@@ -761,7 +762,7 @@ per record share a definition and its migrations.
 - The preferences other than hidden columns: syncing filters or sorting to user data, syncing
   filters to the URL, closing the filter panel on apply.
 - The table's API: `DTVAPI.rowSelection`, `rowExpansion` (its `fetchData` is a `fetch` with
-  `reason: 'refresh'`).
+  `reason: 'refresh'`, and its `runAction` an `action`).
 - The sorting, rows per page and filters a view opens with are not changes: they are on the
   `fetch` and the `filtersApplied` it names.
 

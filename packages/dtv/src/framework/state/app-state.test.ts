@@ -15,7 +15,8 @@ const env: AppStateEnv = {
     orderableFields: () => ['id', 'amount'],
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
     snapshotDiff: () => null,
-    viewQuery: () => null
+    viewQuery: () => null,
+    action: id => (id === 'export' ? { disabled: false } : id === 'archive' ? { disabled: true } : null)
 }
 
 const emailFilter = (email: string): FilterState =>
@@ -684,6 +685,59 @@ describe('the UI around the table', () => {
         const state = send(initial(), { tag: 'rowsSelected', rows: [{ id: 1 }] }, { tag: 'viewSelected', viewId: 'refunds' })
 
         expect(state.selectedRows).toEqual([])
+    })
+})
+
+describe('toolbar actions', () => {
+    const span = { startedAt: 1, durationMs: 2 }
+    const requested = (id: string): Msg => ({ tag: 'actionRequested', id })
+    const ended = (id: string): Msg => ({ tag: 'actionEnded', id, span, outcome: 'succeeded' })
+
+    it('runs a requested action, and marks it running until it ends', () => {
+        const running = start(loaded(), requested('export'))
+        expect(running.commands).toEqual([{ tag: 'runAction', id: 'export' }])
+        expect(running.model.runningActions.has('export')).toBe(true)
+
+        const { model } = run(running.model, [ended('export')])
+        expect(model.runningActions.has('export')).toBe(false)
+    })
+
+    it('runs a running action again only once it ended, as its button cannot be clicked meanwhile', () => {
+        const { commands } = start(loaded(), requested('export'), requested('export'), ended('export'), requested('export'))
+
+        expect(commands).toEqual([{ tag: 'runAction', id: 'export' }, { tag: 'runAction', id: 'export' }])
+    })
+
+    it('does not run a disabled action', () => {
+        const { commands, model } = start(loaded(), requested('archive'))
+
+        expect(commands).toEqual([])
+        expect(model.runningActions.size).toBe(0)
+    })
+
+    it('warns about an id no action has, and runs nothing', () => {
+        // `toString` is no action either, though every object has it
+        const { commands } = start(loaded(), requested('Export'), requested('toString'))
+
+        expect(commands).toEqual([{ tag: 'warnUnknownAction', id: 'Export' }, { tag: 'warnUnknownAction', id: 'toString' }])
+    })
+
+    it('reports a run as it ends, with how many rows were selected when it started', () => {
+        const { tracked } = start(
+            loaded(),
+            { tag: 'rowsSelected', rows: [{ id: 1 }, { id: 2 }] },
+            requested('export'),
+            { tag: 'rowsSelected', rows: [] },
+            { tag: 'actionEnded', id: 'export', span, outcome: 'failed', error: { name: 'Error', message: 'boom' } },
+            // An end without a run reports nothing
+            ended('export')
+        )
+
+        expect(tracked.filter(command => command.event.type === 'action')).toEqual([{
+            tag: 'track',
+            viewId: 'payments',
+            event: { type: 'action', ...span, action: 'export', selectedRows: 2, outcome: 'failed', error: { name: 'Error', message: 'boom' } }
+        }])
     })
 })
 

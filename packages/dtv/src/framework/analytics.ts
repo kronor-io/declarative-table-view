@@ -187,7 +187,7 @@ export type DTVAnalyticsEventPayload =
     })
     | (DTVAnalyticsSpan & {
         readonly type: 'action';
-        /** The action's `id`, or its label. */
+        /** The action's `id`. */
         readonly action: string;
         readonly selectedRows: number;
         readonly outcome: 'succeeded' | 'failed';

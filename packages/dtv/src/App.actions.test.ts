@@ -78,7 +78,7 @@ describe('App action button disabled while running', () => {
             viewsJson,
             externalRuntime: runtime as any,
             syncFilterStateToUrl: false,
-            actions: [{ label: 'Async Action', icon: 'pi pi-play', onClick: asyncAction }]
+            actions: [{ label: 'Async Action', id: 'async-action', icon: 'pi pi-play', onClick: asyncAction }]
         });
         const root = createRoot(container);
 
@@ -172,7 +172,7 @@ describe('App action button disabled while running', () => {
             viewsJson,
             externalRuntime: runtime as any,
             syncFilterStateToUrl: false,
-            actions: [{ label: 'Toast Action', onClick: actionWithCustomToast as any }]
+            actions: [{ label: 'Toast Action', id: 'toast-action', onClick: actionWithCustomToast as any }]
         });
         const root = createRoot(container);
 

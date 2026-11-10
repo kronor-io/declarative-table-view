@@ -30,7 +30,8 @@ import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import { getColumnOrderBy } from './framework/column-definition';
 import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, viewWithQuery, type SimplifiedRow } from './framework/view';
-import { generateGraphQLQuery, Hasura, hasuraFilterExpressionToObject } from './framework/graphql';
+import { generateGraphQLQuery, generateGraphQLQueryAST, Hasura, hasuraFilterExpressionToObject, renderGraphQLQuery } from './framework/graphql';
+import { generateColumnAliasedGraphQLQueryAST } from './framework/graphql/query';
 import { SavedFilter } from './framework/saved-filters';
 import { useUserDataManager } from './framework/useUserDataManager';
 import type { UserDataJson } from './framework/user-data';
@@ -40,7 +41,7 @@ import { currentDefinitionRevision, migrateFilterState } from './framework/view-
 import { Runtime } from './framework/runtime';
 import { getFilterFromUrl, clearFilterFromUrl, createShareableUrl, copyToClipboard, setFilterInUrl } from './framework/filter-sharing';
 import { DataTable } from 'primereact/datatable';
-import { ActionDefinition, type ActionUserDataAPI, type ShownRows } from './framework/actions';
+import { ActionDefinition, type ActionAPI, type ActionUserDataAPI, type ShownRows } from './framework/actions';
 import ActionButtons from './components/ActionButtons';
 import type { ShowToastFn } from './framework/toast'
 import type { UserDataLoadAPI, UserDataSaveAPI } from './framework/user-data-manager'
@@ -148,6 +149,14 @@ export type DTVAPI = {
         collapseAll: () => void;
         expandAll: () => void;
     };
+
+    /**
+     * Runs the action of `actions` with this `id` as a click on its button would: the button
+     * shows it running, a run while it is running or disabled does nothing, and it reports the
+     * same analytics and failure toast. For a host that starts an action from a control of its
+     * own, e.g. with the toolbar hidden. Does nothing, with a warning, for an id no action has.
+     */
+    runAction: (id: string) => void;
 };
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -291,6 +300,14 @@ function App<V extends View = View>({
         })
     ] as const)), [views]);
 
+    // What the state reads of the actions. Hosts often pass a new array on each render: a new
+    // environment, and its `envChanged`, only when an action came, went or was disabled.
+    const actionStatesKey = JSON.stringify(actions.map(action => [action.id, action.disabled === true]));
+    const actionStates = useMemo(
+        () => new Map((JSON.parse(actionStatesKey) as [string, boolean][]).map(([id, disabled]) => [id, { disabled }])),
+        [actionStatesKey]
+    );
+
     const appStateEnv = useMemo((): AppStateEnv => ({
         filterGroups: viewId => viewsById.get(viewId)?.filterGroups ?? [],
         rowsPerPageOptions,
@@ -300,10 +317,13 @@ function App<V extends View = View>({
         viewQuery: viewId => {
             const view = viewsById.get(viewId);
             return view ? getViewQuery(view) : null;
-        }
-    }), [migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
+        },
+        action: id => actionStates.get(id) ?? null
+    }), [actionStates, migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
 
     // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
+    // Table behaviour goes there as messages and commands before it becomes an effect or a ref
+    // here (README, "App State Before Effects").
     // `userDataManager` is only used by the effects, once rendering is done. `report` reports
     // analytics events of the selected view, for components and the user data.
     const [state, dispatch, report] = useAppState(
@@ -350,6 +370,12 @@ function App<V extends View = View>({
                         return;
                     case 'notifyRowSelectionCleared':
                         rowSelection?.onRowSelectionChange?.([]);
+                        return;
+                    case 'runAction':
+                        runAction(command.id);
+                        return;
+                    case 'warnUnknownAction':
+                        console.warn(`There is no action with id "${command.id}" to run`);
                         return;
                 }
             }
@@ -457,7 +483,8 @@ function App<V extends View = View>({
             reset: () => undefined,
             collapseAll: () => undefined,
             expandAll: () => undefined
-        }
+        },
+        runAction: id => dispatch({ tag: 'actionRequested', id })
     });
 
     const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
@@ -563,6 +590,50 @@ function App<V extends View = View>({
             cursors: [...query.cursors]
         };
     }, [shownPage, viewsById]);
+
+    // Runs an action the state started (see `actionRequested`), with what is on screen now
+    function runAction(id: string) {
+        const end = startSpan();
+        const ended = (outcome: 'succeeded' | 'failed', error?: unknown) => dispatch({
+            tag: 'actionEnded',
+            id,
+            span: end(),
+            outcome,
+            ...(error === undefined ? {} : { error: analyticsError(error) })
+        });
+        const action = actions.find(candidate => candidate.id === id);
+        if (!action) {
+            ended('failed', new Error(`There is no action with id "${id}" to run`));
+            return;
+        }
+
+        const api: ActionAPI = {
+            view: selectedView,
+            filterState,
+            // A copy: an action changing it must not change the table's selection
+            selectedRows: [...selectedRows],
+            setFilterState,
+            refetch: refresh,
+            applyFilters,
+            showToast: opts => toast.current?.show({ ...opts }),
+            generateGraphQLQueryAST,
+            generateColumnAliasedGraphQLQueryAST,
+            renderGraphQLQuery,
+            buildGraphQLQueryVariables,
+            shownRows: shownRowsForActions,
+            userData: actionUserData
+        };
+        // A handler that throws fails as one whose promise rejects
+        new Promise<void>(resolve => resolve(action.onClick(api))).then(
+            () => ended('succeeded'),
+            (error: unknown) => {
+                console.error('Action handler error', error);
+                toast.current?.show({ severity: 'error', summary: 'Action Failed', detail: action.label, life: 3000 });
+                ended('failed', error);
+            }
+        );
+    }
+
 
     const handleOrderingChange = useCallback((ordering: DataOrdering | null) => {
         dispatch({ tag: 'orderingChanged', ordering });
@@ -844,15 +915,8 @@ function App<V extends View = View>({
                             }
                             <ActionButtons
                                 actions={actions}
-                                selectedView={selectedView}
-                                filterState={filterState}
-                                selectedRows={selectedRows}
-                                setFilterState={setFilterState}
-                                refetch={refresh}
-                                applyFilters={applyFilters}
-                                showToast={(opts) => toast.current?.show({ ...opts })}
-                                shownRows={shownRowsForActions}
-                                userData={actionUserData}
+                                isRunning={id => state.runningActions.has(id)}
+                                onClick={id => dispatch({ tag: 'actionRequested', id })}
                             />
                         </div>
                     }

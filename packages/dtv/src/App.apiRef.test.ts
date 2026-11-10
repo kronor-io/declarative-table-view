@@ -226,6 +226,7 @@ describe('App apiRef', () => {
             syncFilterStateToUrl: false,
             actions: [{
                 label: 'Apply',
+                id: 'apply',
                 onClick: (api: any) => { applyFiltersFromAction = () => api.applyFilters(); }
             }]
         } as any);

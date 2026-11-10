@@ -17,7 +17,8 @@ const env: AppStateEnv = {
     orderableFields: () => [],
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
     snapshotDiff: () => null,
-    viewQuery: () => null
+    viewQuery: () => null,
+    action: () => null
 }
 
 const rows = (...ids: number[]): FetchDataResult => ({
