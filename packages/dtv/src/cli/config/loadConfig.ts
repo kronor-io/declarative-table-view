@@ -59,17 +59,18 @@ async function importConfig(abs: string): Promise<Record<string, unknown>> {
 
             await fs.writeFile(tmpFile, transpiled.outputText, 'utf8');
             try {
-                const tmpUrl = pathToFileURL(tmpFile).href;
-                const mod = await import(`${tmpUrl}?t=${Date.now()}`);
+                // The file name is new on every run, so the import is never served from cache
+                const mod = await import(pathToFileURL(tmpFile).href);
                 return (mod.default ?? (mod as any).config ?? mod) as unknown;
             } finally {
                 await fs.unlink(tmpFile).catch(() => undefined);
             }
         }
 
-        // JS/MJS/CJS (or any Node-supported module) can be imported directly.
-        // Cache-bust import to allow repeated runs.
-        const mod = await import(`${url}?t=${Date.now()}`);
+        // JS/MJS/CJS (or any Node-supported module) can be imported directly. The CLI loads
+        // its config once per process, so the import needs no cache-busting query (which
+        // Jest 30.5's module loader would also take for part of the file name).
+        const mod = await import(url);
         return (mod.default ?? (mod as any).config ?? mod) as unknown;
     })();
 
@@ -132,7 +133,8 @@ export async function loadDefinitionsConfig(configPath: string): Promise<DtvDefi
         throw new Error(
             `Failed to load ${configPath}: ${err instanceof Error ? err.message : String(err)}\n` +
             'If it fails for want of what only typegen needs (e.g. a secret for the schema), make `schema` a function: ' +
-            'it is called by `dtv typegen` only.'
+            'it is called by `dtv typegen` only.',
+            { cause: err }
         );
     }
     validateScan(cfg);

@@ -352,7 +352,7 @@ export function parseColumnDefinitionJson(
                 try {
                     return parseFieldQueryJson(item);
                 } catch (error) {
-                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
                 }
             });
             if (typeof obj.orderBy === 'string' && !orderByIsSelectedField(parsedData, obj.orderBy)) {
@@ -379,7 +379,7 @@ export function parseColumnDefinitionJson(
                 try {
                     return parseFieldQueryJson(item);
                 } catch (error) {
-                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
                 }
             });
             return {
@@ -719,7 +719,7 @@ export function parseFilterFieldSchemaJson(
         try {
             expression = parseFilterExprJson(f.expression, builtInRuntime, externalRuntime);
         } catch (error) {
-            throw new Error(`Invalid filter[${index}] expression: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Invalid filter[${index}] expression: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
         }
 
         return {
@@ -865,7 +865,7 @@ export function parseViewJson(
         try {
             columnJson = parseColumnDefinitionJson(col, builtInRuntime, externalRuntime);
         } catch (error) {
-            throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Invalid column[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
         }
 
         switch (columnJson.type) {
@@ -906,7 +906,7 @@ export function parseViewJson(
     try {
         filterGroups = parseFilterFieldSchemaJson(view.filterSchema, builtInRuntime, externalRuntime);
     } catch (error) {
-        throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Invalid filterSchema: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
     }
 
     // Parse optional noRowsComponent with runtime resolution
@@ -974,7 +974,7 @@ export function parseViewJson(
             try {
                 return parseFieldQueryJson(item);
             } catch (error) {
-                throw new Error(`Invalid rowExpansion.data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                throw new Error(`Invalid rowExpansion.data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
             }
         });
 

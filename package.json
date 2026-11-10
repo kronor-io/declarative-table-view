@@ -18,18 +18,19 @@
         "test-unit:all": "npm run test-unit --workspaces --if-present && npm run test-unit:cli --workspaces --if-present",
         "test": "npm run test --workspace @kronor/dtv",
         "dev": "npm run dev --workspace @kronor/dtv",
-        "prepare": "husky install",
+        "prepare": "husky",
         "test-unit": "npm run test-unit --workspaces --if-present",
         "release": "node scripts/release.mjs"
     },
     "devDependencies": {
-        "@eslint/js": "^9.21.0",
-        "eslint": "^9.21.0",
-        "eslint-plugin-react-hooks": "^5.1.0",
-        "eslint-plugin-react-refresh": "^0.4.19",
-        "globals": "^15.15.0",
-        "husky": "^8.0.3",
-        "rimraf": "^5.0.5",
-        "typescript-eslint": "^8.24.1"
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.14.0",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "eslint-plugin-react-refresh": "^0.5.7",
+        "globals": "^17.14.0",
+        "husky": "^9.1.7",
+        "rimraf": "^6.1.4",
+        "typescript": "~5.9.3",
+        "typescript-eslint": "^8.72.2"
     }
 }

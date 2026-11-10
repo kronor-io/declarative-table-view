@@ -41,7 +41,7 @@ export function encodeSharedFilterState(view: SharedView, filterState: FilterSta
             .replace(/=/g, '');
     } catch (error) {
         console.error('Failed to encode filter state:', error);
-        throw new Error('Failed to encode filter state');
+        throw new Error('Failed to encode filter state', { cause: error });
     }
 }
 
@@ -64,7 +64,7 @@ export function decodeSharedFilterState(encodedState: string): SharedFilterState
         json = base64ToJson(encodedState);
     } catch (error) {
         console.error('Failed to decode filter state:', error);
-        throw new Error('Failed to decode filter state');
+        throw new Error('Failed to decode filter state', { cause: error });
     }
 
     // A bare filter state has filter ids for keys and filter states (objects) for values,
@@ -93,7 +93,7 @@ export function createShareableUrl(view: SharedView, filterState: FilterState): 
         return url.toString();
     } catch (error) {
         console.error('Failed to create shareable URL:', error);
-        throw new Error('Failed to create shareable URL');
+        throw new Error('Failed to create shareable URL', { cause: error });
     }
 }
 
@@ -124,7 +124,7 @@ export async function copyToClipboard(text: string): Promise<void> {
         }
     } catch (error) {
         console.error('Failed to copy to clipboard:', error);
-        throw new Error('Failed to copy to clipboard');
+        throw new Error('Failed to copy to clipboard', { cause: error });
     }
 }
 

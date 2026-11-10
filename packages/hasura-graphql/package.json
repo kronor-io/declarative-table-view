@@ -42,8 +42,8 @@
         "@types/jest": "^30.0.0",
         "@types/node": "^22.15.21",
         "jest": "^30.0.3",
-        "rimraf": "^5.0.5",
+        "rimraf": "^6.1.4",
         "ts-jest": "^29.4.0",
-        "typescript": "~5.7.2"
+        "typescript": "~5.9.3"
     }
 }
