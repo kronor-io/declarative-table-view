@@ -38,6 +38,11 @@ export { CellRenderer } from '../dsl/cellRenderer';
 export { FilterTransform } from '../dsl/filterTransform';
 export { rowType } from '../dsl/columns';
 export type { UserDataJson } from '../framework/user-data';
+// Reading stored user data outside a table, e.g. to analyse what users keep in it.
+export { decodeUserData } from '../framework/user-data';
+export { CURRENT_USERDATA_FORMAT_REVISION } from '../framework/user-data.migrations';
+export type { UserDataDecodeError, UserDataDecoding } from '../framework/user-data';
+export type { UndecodedViewData, UndecodedSavedFilter, UserDataWithUndecodedViews } from '../framework/user-data-undecoded';
 export type {
     UserDataLoadAPI,
     UserDataSaveAPI,
