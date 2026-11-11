@@ -76,6 +76,39 @@ describe('generateOps', () => {
         ]);
     });
 
+    it('wraps what is stored in a list where a filter takes several of the values it took one of', () => {
+        const dropdown: FilterProjection = { kind: 'leaf', cmp: 'equals', field: 'status', control: { type: 'dropdown' } };
+        const multiselect: FilterProjection = { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } };
+        const autocomplete = (multiple: boolean, cmp = multiple ? 'in' : 'equals'): FilterProjection =>
+            ({ kind: 'leaf', cmp, field: 'merchant', control: { type: 'autocomplete', multiple } });
+
+        expect(generateOps(projection(1, { status: dropdown }), projection(2, { status: multiselect }))).toEqual([{
+            code: "m.wrapInList('status')",
+            comments: [
+                '"status" takes several values now: a value stored for it becomes a list of that value.',
+                "To start it over instead: m.reset('status')"
+            ],
+            todo: false
+        }]);
+        expect(codes(projection(1, { merchant: autocomplete(false) }), projection(2, { merchant: autocomplete(true) }))).toEqual(["m.wrapInList('merchant')"]);
+        expect(codes(
+            projection(1, { status: { ...dropdown, cmp: 'notEquals' } }),
+            projection(2, { status: { ...multiselect, cmp: 'notIn' } })
+        )).toEqual(["m.wrapInList('status')"]);
+        // A dropdown already compared with `in` (its items are lists)
+        expect(codes(projection(1, { status: { ...dropdown, cmp: 'in' } }), projection(2, { status: multiselect }))).toEqual(["m.wrapInList('status')"]);
+    });
+
+    it('resets a filter that takes a list on another field, by another comparison, or one value where it took several', () => {
+        const dropdown: FilterProjection = { kind: 'leaf', cmp: 'equals', field: 'status', control: { type: 'dropdown' } };
+        const multiselect: FilterProjection = { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } };
+
+        expect(codes(projection(1, { status: dropdown }), projection(2, { status: { ...multiselect, field: 'state' } }))).toEqual(["m.reset('status')"]);
+        expect(codes(projection(1, { status: dropdown }), projection(2, { status: { ...multiselect, cmp: 'notIn' } }))).toEqual(["m.reset('status')"]);
+        expect(codes(projection(1, { status: text('status') }), projection(2, { status: multiselect }))).toEqual(["m.reset('status')"]);
+        expect(codes(projection(1, { status: multiselect }), projection(2, { status: dropdown }))).toEqual(["m.reset('status')"]);
+    });
+
     it('asks whether a filter on another field still means the same', () => {
         const [op] = generateOps(projection(1, { amount: text('amount') }), projection(2, { amount: text('amountMinor') }));
         expect(op.todo).toBe(true);
@@ -130,9 +163,15 @@ describe('rendering', () => {
     });
 
     it('does not ask about the values of a filter that is reset anyway', () => {
+        const from: ViewProjection = { ...projection(1, { voided: { kind: 'leaf', cmp: 'in', field: 'voided', control: { type: 'multiselect' } } }), items: { voided: [true, false] } };
+        const to: ViewProjection = { ...projection(2, { voided: { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } } }), items: { voided: [1, 0] } };
+        expect(codes(from, to)).toEqual(["m.reset('voided')"]);
+    });
+
+    it('asks about the values of a filter whose stored value is wrapped in a list', () => {
         const from: ViewProjection = { ...projection(1, { voided: { kind: 'leaf', cmp: 'equals', field: 'voided', control: { type: 'dropdown' } } }), items: { voided: [true, false] } };
         const to: ViewProjection = { ...projection(2, { voided: { kind: 'leaf', cmp: 'in', field: 'voided', control: { type: 'multiselect' } } }), items: { voided: [1, 0] } };
-        expect(codes(from, to)).toEqual(["m.reset('voided')"]);
+        expect(codes(from, to)).toEqual(["m.wrapInList('voided')", "m.todo('voided', 'its items no longer have true, false')"]);
     });
 
     it('writes projections as TypeScript literals', () => {

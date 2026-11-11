@@ -65,6 +65,19 @@ export type UndecodedFilterFormStateFor<F> =
 
 type StateOf<P extends ViewProjection, Id extends keyof P['filters']> = UndecodedFilterFormStateFor<P['filters'][Id]>
 
+type OneValueControl = { type: 'dropdown' } | { type: 'autocomplete'; multiple: false }
+type ListControl = { type: 'multiselect' } | { type: 'autocomplete'; multiple: true }
+/** The comparison of a filter taking one value, and of the same filter taking a list of them. */
+type ListComparison<One, List> = Same<One, List> extends true ? true : [One, List] extends ['equals', 'in'] | ['notEquals', 'notIn'] ? true : false
+
+/** Whether the filter `F` became `T` by taking a list of the values it took one of, on the same field. */
+export type WrapsInList<F, T> =
+    F extends { kind: 'leaf'; cmp: infer FromCmp; field: infer FromField; control: OneValueControl }
+        ? T extends { kind: 'leaf'; cmp: infer ToCmp; field: infer ToField; control: ListControl }
+            ? Same<FromField, ToField> extends true ? ListComparison<FromCmp, ToCmp> : false
+            : false
+        : false
+
 /** A value a filter's items offer, when the snapshot has them; any value otherwise. */
 export type ItemValueOf<P extends ViewProjection, Id extends string> =
     P extends { items: infer Items } ? (Id extends keyof Items ? (Items[Id] extends readonly (infer V)[] ? V : Json) : Json) : Json
@@ -107,6 +120,15 @@ export interface MigrationBuilder<From extends ViewProjection, To extends ViewPr
         map: { [O in Exclude<OperatorsOf<From['filters'][Id]>, OperatorsOf<To['filters'][Id]>>]: OperatorsOf<To['filters'][Id]> | null }
     ): MigrationOp
 
+    /**
+     * The filter takes several values where it took one, on the same field: a dropdown became
+     * a multiselect, or an autocomplete `multiple` (comparing with `in` where it compared with
+     * `equals`). A value stored for it becomes a list of that value.
+     */
+    wrapInList<Id extends FilterIdOf<From> & FilterIdOf<To>>(
+        id: Id & Check<WrapsInList<From['filters'][Id], To['filters'][Id]>, `wrapInList: "${Id}" did not go from one value to a list of them on the same field; use custom() or reset()`>
+    ): MigrationOp
+
     /** Turn what is stored for `from` into a state of `to`, or `RESET`. */
     custom<A extends FilterIdOf<From>, B extends FilterIdOf<To>>(
         from: A,
@@ -136,6 +158,7 @@ const untypedBuilder = {
     drop: (filterId: string): MigrationOp => ({ kind: 'drop', filterId }),
     mapValues: (filterId: string, map: (value: Json) => Json | typeof DROP): MigrationOp => ({ kind: 'mapValues', filterId, map }),
     mapOperators: (filterId: string, map: Record<string, string | null>): MigrationOp => ({ kind: 'mapOperators', filterId, map }),
+    wrapInList: (filterId: string): MigrationOp => ({ kind: 'wrapInList', filterId }),
     custom: (from: string, to: string, migrate: (state: UndecodedFilterFormState) => UndecodedFilterFormState | typeof RESET): MigrationOp =>
         ({ kind: 'custom', from, to, migrate }),
     renameColumn: (from: string, to: string): MigrationOp => ({ kind: 'renameColumn', from, to }),

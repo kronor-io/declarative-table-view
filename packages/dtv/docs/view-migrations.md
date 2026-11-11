@@ -126,7 +126,8 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 | Filter removed and exactly one added with the same definition, matching no other | `m.renameFilter(old, new)` |
 | Filters removed and added with the same definition, but not one to one | `m.todo` for each removed one (rename or drop) |
 | Filter removed and one added that its stored state fits, after a change | `m.todo` (`custom` rename, or drop) |
-| Filter gained/lost parts, or its control changed type | `m.reset(id)` |
+| Filter takes a list of the values it took one of, on the same field (dropdown to multiselect, autocomplete to `multiple`; `equals` to `in`) | `m.wrapInList(id)` |
+| Filter gained/lost parts, or its control changed type otherwise | `m.reset(id)` |
 | Filter's comparison or field changed | `m.todo` (keep or reset) |
 | Custom operators added / removed | `m.mapOperators(id, {})` / `m.todo` (map them) |
 | Column removed, none added / some added | `m.dropColumn(id)` / `m.todo` (rename or drop) |
@@ -142,6 +143,7 @@ writes `m.todo(…)` with the candidates in comments. **A `todo` does not type-c
 | `m.drop(id)` | The filter was removed. |
 | `m.mapValues(id, value => …)` | Stored values change, e.g. renamed enum values. Lists are mapped element by element; return `DROP` to remove one. Users are told about removed values. Where the snapshots have the filter's items, `value` is one of the older items (other stored values are left as they are) and the result has to be one of the newer ones (checked by the types, and by running it). |
 | `m.mapOperators(id, { old: 'new' \| null })` | Custom operators were removed (checked: every removed one is mapped). `null` clears what used it; users are told. |
+| `m.wrapInList(id)` | The filter takes several values where it took one, on the same field (checked: a dropdown or single autocomplete became a multiselect or `multiple` one, comparing with `in` where it compared with `equals`). A stored value becomes a list of that value. |
 | `m.custom(from, to, state => … \| RESET)` | Anything else; `state` is typed by both snapshots. |
 | `m.renameColumn(from, to)`, `m.dropColumn(id)`, `m.resetSort(id)` | Columns. A stored sort by what a dropped column, or one given `resetSort`, sorted by is reset. |
 
@@ -181,6 +183,11 @@ are named in a notice.
   error is logged and the stored state of the changed filters is reset rather than misread. Columns
   are not compared at runtime (an instance may show a column only with some arguments); `check` does.
 - Shared links carry the view and revision they were made for, and are migrated too.
+- A stored value that does not fit its filter's control after migrating — a list for a dropdown, a
+  record for a number — resets that filter rather than breaking the filter form. Users are told
+  where it was persisted or in a saved filter. One value where the control takes several (a multiselect, an autocomplete with `multiple`)
+  is read as a list of it, as `m.wrapInList` does. That covers data no migration reaches: data
+  written before a view's first snapshot, and links built by hand, which are read as revision 1.
 
 ## Known limits
 

@@ -234,6 +234,30 @@ describe('scenarios: filters change', () => {
         expect(result.written.views.payments.persistedFilterState).toEqual({ reference: stored });
     });
 
+    it('a dropdown turned into a multiselect: what is stored becomes a list of it, unreported', async () => {
+        await snapshotted(filters.dropdown('status'));
+        await changeFilters(filters.multiselect('status'));
+
+        expect((await project.snapshot()).todos).toBe(0);
+        expect(await project.read(V2)).toContain("    m.wrapInList('status'),");
+        expect(await project.check()).toEqual({ problems: [], warnings: [] });
+        expect(project.typeErrors()).toEqual([]);
+
+        const result = await read({ persistedFilterState: { status: leaf('PAID') }, savedFilters: [{ name: 'Paid', state: { status: leaf('PAID') } }] });
+        expect(result.resets).toEqual([]);
+        expect(result.userData.views.payments.persistedFilterState?.get('status')).toEqual(decoded(['PAID']));
+        expect(result.written.views.payments.savedFilters[0].state).toEqual({ status: leaf(['PAID']) });
+    });
+
+    it('a multiselect that was a dropdown before the first snapshot: one value stored for it is read as a list of it', async () => {
+        await snapshotted(filters.multiselect('status'));
+
+        const result = await read({ persistedFilterState: { status: leaf('PAID') }, savedFilters: [{ name: 'Paid', state: { status: leaf('PAID') } }] });
+        expect(result.resets).toEqual([]);
+        expect(result.userData.views.payments.persistedFilterState?.get('status')).toEqual(decoded(['PAID']));
+        expect(result.userData.views.payments.savedFilters[0].state.get('status')).toEqual(decoded(['PAID']));
+    });
+
     it('a date range gaining a bound: its stored state no longer fits; reset and reported', async () => {
         await snapshotted(filters.dateRange('created', 'createdAt'));
         await changeFilters(filters.dateRange('created', 'createdAt').replace(

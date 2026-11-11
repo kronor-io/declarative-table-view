@@ -79,6 +79,23 @@ function compareFilters(from: FilterProjection, to: FilterProjection, change: Fi
     }
 }
 
+const takesOneValue = (control: ControlProjection) => control.type === 'dropdown' || (control.type === 'autocomplete' && !control.multiple);
+const takesList = (control: ControlProjection) => control.type === 'multiselect' || (control.type === 'autocomplete' && control.multiple);
+/** The comparison of a filter taking one value, by the comparison of the same filter taking a list of them. */
+const LIST_COMPARISONS = new Map([['equals', 'in'], ['notEquals', 'notIn']]);
+
+/**
+ * Whether `to` takes a list of the values `from` took one of, on the same field (a dropdown
+ * became a multiselect): what is stored for it carries over as a list of one value. As the
+ * DSL's `WrapsInList`.
+ */
+function wrapsInList(from: FilterProjection, to: FilterProjection): boolean {
+    return from.kind === 'leaf' && to.kind === 'leaf'
+        && takesOneValue(from.control) && takesList(to.control)
+        && deepEqual(from.field, to.field)
+        && (from.cmp === to.cmp || LIST_COMPARISONS.get(from.cmp) === to.cmp);
+}
+
 function operatorsOf(filter: FilterProjection): string[] {
     switch (filter.kind) {
         case 'leaf':
@@ -173,6 +190,13 @@ export function generateOps(from: ViewProjection, to: ViewProjection): Generated
         const change: FilterChange = { structure: null, operatorsChanged: false, meaning: [] };
         compareFilters(from.filters[filterId], toFilter, change);
 
+        if (change.structure !== null && wrapsInList(from.filters[filterId], toFilter)) {
+            ops.push(op(`m.wrapInList(${quote(filterId)})`, [
+                `"${filterId}" takes several values now: a value stored for it becomes a list of that value.`,
+                `To start it over instead: m.reset(${quote(filterId)})`
+            ]));
+            continue;
+        }
         if (change.structure !== null) {
             reset.add(filterId);
             ops.push(op(`m.reset(${quote(filterId)})`, [

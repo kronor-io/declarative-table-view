@@ -42,6 +42,8 @@ export const filters = {
         `{ id: ${literal(id)}, label: ${literal(id)}, aiGenerated: false, expression: { type: 'and', filters: [` +
         `{ type: 'greaterThanOrEqual', field: ${literal(field)}, value: { type: 'date' } }, ` +
         `{ type: 'lessThanOrEqual', field: ${literal(field)}, value: { type: 'date' } }] } }`,
+    dropdown: (id: string, field = id, items: string[] = ['PAID', 'OPEN']): FilterSource =>
+        `{ id: ${literal(id)}, label: ${literal(id)}, aiGenerated: false, expression: { type: 'equals', field: ${literal(field)}, value: { type: 'dropdown', items: ${literal(items.map(item => ({ label: item, value: item })))} } } }`,
     multiselect: (id: string, field = id, items: string[] = ['PAID', 'OPEN']): FilterSource =>
         `{ id: ${literal(id)}, label: ${literal(id)}, aiGenerated: false, expression: { type: 'in', field: ${literal(field)}, value: { type: 'multiselect', items: ${literal(items.map(item => ({ label: item, value: item })))} } } }`,
     customOperator: (id: string, field = id, operators: string[] = ['contains', 'equals']): FilterSource =>

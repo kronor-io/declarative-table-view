@@ -262,6 +262,59 @@ export function serializeFilterFormStateMap(
     return encodeFilterState(state, filterGroups);
 }
 
+/** Whether the control takes a list of values rather than one. */
+function takesList(control: FilterControl): boolean {
+    return control.type === 'multiselect' || (control.type === 'autocomplete' && control.multiple === true);
+}
+
+function doesNotFit(stored: unknown, control: FilterControl): Error {
+    return new Error(`Stored value ${JSON.stringify(stored)} does not fit a ${control.type}${takesList(control) ? ' that takes several values' : ''}`);
+}
+
+/**
+ * The stored value in the shape `control` renders. The controls take what they are given,
+ * and one of the wrong shape (one id for a multiselect) breaks the whole filter form, not
+ * only its filter: a value that does not fit throws, and the filter is reset.
+ *
+ * One value where the control takes several becomes a list of it, which is what the
+ * migration `wrapInList` does: a dropdown that became a multiselect keeps what users stored
+ * for it, also where no migration reaches (data written before the view's first snapshot,
+ * links built by hand, which are read as revision 1).
+ */
+function fitToControl(control: FilterControl, value: FilterValue.FilterValue): FilterValue.FilterValue {
+    if (!FilterValue.isValue(value) || value.value === null) return value;
+    const stored: unknown = value.value;
+    const isRecordOrList = typeof stored === 'object';
+
+    switch (control.type) {
+        case 'multiselect':
+        case 'autocomplete':
+            if (takesList(control)) {
+                if (stored === '') return FilterValue.empty;
+                return Array.isArray(stored) ? value : FilterValue.value([stored]);
+            }
+            if (Array.isArray(stored)) throw doesNotFit(stored, control);
+            return value;
+        case 'dropdown':
+            // A list is one value only of a dropdown whose items are lists.
+            if (Array.isArray(stored) && !control.items.some(item => Array.isArray(item.value))) throw doesNotFit(stored, control);
+            return value;
+        case 'text':
+        case 'number':
+            if (isRecordOrList) throw doesNotFit(stored, control);
+            return value;
+        case 'date':
+            if (typeof stored !== 'string') throw doesNotFit(stored, control);
+            return value;
+        case 'customOperator': {
+            const { operator, value: operand } = stored as { operator: string; value: FilterValue.FilterValue };
+            return FilterValue.value({ operator, value: fitToControl(control.valueControl, operand) });
+        }
+        case 'custom':
+            return value;
+    }
+}
+
 function decodeLeafValue(schemaLeaf: LeafFilterExpr, stored: UndecodedFilterValue): FilterValue.FilterValue {
     if (schemaLeaf.value.type === 'customOperator') {
         if (stored.type === 'empty') return FilterValue.empty;
@@ -272,12 +325,12 @@ function decodeLeafValue(schemaLeaf: LeafFilterExpr, stored: UndecodedFilterValu
                 throw new Error(`Operator "${operator}" is not one of the filter's operators`);
             }
         }
-        return decoded;
+        return fitToControl(schemaLeaf.value, decoded);
     }
 
-    const value = stored.type === 'legacy'
+    const value = fitToControl(schemaLeaf.value, stored.type === 'legacy'
         ? migrateLegacyLeafValue(stored.raw, schemaLeaf)
-        : stored.type === 'empty' ? FilterValue.empty : FilterValue.value(stored.value);
+        : stored.type === 'empty' ? FilterValue.empty : FilterValue.value(stored.value));
 
     if (schemaLeaf.value.type === 'date' && FilterValue.isValue(value) && typeof value.value === 'string') {
         const date = new Date(value.value);
@@ -291,8 +344,8 @@ function decodeLeafValue(schemaLeaf: LeafFilterExpr, stored: UndecodedFilterValu
  * Decodes a single filter's stored state using its schema expression. Throws when the
  * stored tree's shape no longer matches the schema (the expression gained, lost or
  * reordered children since the state was written) or a value is not one the schema
- * allows. Callers catch and fall back to a schema-derived initial state; see
- * `decodeFilterState`.
+ * allows, or does not fit its control (see `fitToControl`). Callers catch and fall back
+ * to a schema-derived initial state; see `decodeFilterState`.
  */
 function decodeFilterFormState(expression: FilterExpr, stored: UndecodedFilterFormState): FilterFormState {
     switch (stored.type) {

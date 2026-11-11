@@ -469,3 +469,75 @@ describe('filtersChangedSinceSnapshot', () => {
         expect(resetFiltersChangedSinceSnapshot(rev2, live, data).resets.persistedFilterState).toEqual(['amount']);
     });
 });
+
+describe('wrapInList', () => {
+    const oneValue = {
+        definition: 'orders',
+        revision: 1,
+        filters: {
+            status: { kind: 'leaf', cmp: 'equals', field: 'status', control: { type: 'dropdown' } },
+            reference: { kind: 'leaf', cmp: 'equals', field: 'reference', control: { type: 'text' } }
+        },
+        columns: {},
+        items: { status: ['PAID', 'OPEN'] }
+    } as const satisfies ViewProjection;
+    const lists = {
+        definition: 'orders',
+        revision: 2,
+        filters: {
+            status: { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } },
+            reference: oneValue.filters.reference
+        },
+        columns: {},
+        items: { status: ['PAID', 'OPEN'] }
+    } as const satisfies ViewProjection;
+    const migration = defineMigration(oneValue, lists, m => [m.wrapInList('status')]);
+
+    it('covers the filter for check, and leaves its items to be compared', () => {
+        expect(checkMigration(migration)).toEqual([]);
+
+        const fewerItems = { ...lists, items: { status: ['PAID'] } } as const satisfies ViewProjection;
+        expect(checkMigration(defineMigration(oneValue, fewerItems, m => [m.wrapInList('status')])).map(problem => problem.message)).toEqual([
+            'migration of "orders" to revision 2: filter "status" no longer has the items "OPEN"; map them with mapValues, or reset it'
+        ]);
+    });
+
+    it('turns a stored value into a list of it, in persisted state and saved filters, without reporting it', () => {
+        const migrated = applyToViewData(migration, stored({
+            persistedFilterState: { status: leaf('PAID'), reference: leaf('ABC') },
+            savedFilters: [{
+                id: 'sf',
+                name: 'Paid',
+                view: 'orders',
+                createdAt: '2026-01-01T00:00:00.000Z',
+                formatRevision: '',
+                state: { status: { type: 'leaf', value: { type: 'legacy', raw: 'PAID' } } }
+            }]
+        }));
+
+        expect(migrated.data.persistedFilterState).toEqual({ status: leaf(['PAID']), reference: leaf('ABC') });
+        expect(migrated.data.savedFilters[0].state).toEqual({ status: { type: 'leaf', value: { type: 'legacy', raw: ['PAID'] } } });
+        expect(migrated.resets).toEqual({ persistedFilterState: [], savedFilters: [] });
+    });
+
+    it('leaves lists and empty values as they are', () => {
+        const migrated = applyToViewData(migration, stored({ persistedFilterState: { status: leaf(['PAID', 'OPEN']), reference: empty } }));
+        expect(migrated.data.persistedFilterState).toEqual({ status: leaf(['PAID', 'OPEN']), reference: empty });
+
+        for (const nothing of [empty, leaf(null), leaf(''), { type: 'leaf', value: { type: 'legacy', raw: '' } } as const]) {
+            expect(applyToViewData(migration, stored({ persistedFilterState: { status: nothing } })).data.persistedFilterState).toEqual({ status: nothing });
+        }
+    });
+
+    it('gives states that fit the newer snapshot', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const groups = filterGroupsOf(migration.ops.reduce((projection, op) => applySchema(op, projection, lists), oneValue as ViewProjection));
+
+        for (const state of statesOf(oneValue.filters.status)) {
+            const migrated = applyToViewData(migration, stored({ persistedFilterState: { status: state } }));
+            expect(decodeFilterState(migrated.data.persistedFilterState ?? {}, groups).resetFilterIds).toEqual([]);
+        }
+        expect(warn).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+});

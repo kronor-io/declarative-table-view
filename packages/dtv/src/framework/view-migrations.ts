@@ -30,6 +30,8 @@ export type MigrationOp =
     | { readonly kind: 'drop'; readonly filterId: FilterId }
     | { readonly kind: 'mapValues'; readonly filterId: FilterId; readonly map: (value: Json) => Json | typeof DROP }
     | { readonly kind: 'mapOperators'; readonly filterId: FilterId; readonly map: Readonly<Record<string, string | null>> }
+    /** The filter takes several values where it took one: a value stored for it becomes a list of that value. */
+    | { readonly kind: 'wrapInList'; readonly filterId: FilterId }
     | {
         readonly kind: 'custom';
         readonly from: FilterId;
@@ -138,6 +140,7 @@ function applyToFiltersAndColumns(op: MigrationOp, projection: ViewProjection, t
             return filters[op.from] === undefined ? projection : withFilters({ ...omit(filters, op.from), [op.to]: filters[op.from] })
         case 'keep':
         case 'reset':
+        case 'wrapInList':
             return withFilters(takeFromTo(op.filterId))
         case 'drop':
             return withFilters(omit(filters, op.filterId))
@@ -278,6 +281,20 @@ function mapValue(value: UndecodedFilterValue, map: (value: Json) => Json | type
     return value.type === 'value' ? { type: 'value', value: mapped } : { type: 'legacy', raw: mapped }
 }
 
+const isOneValue = (stored: Json) => stored !== null && stored !== '' && !Array.isArray(stored)
+
+/** One stored value as a list of it; a list, or no value, is left as it is. */
+function wrapInList(value: UndecodedFilterValue): UndecodedFilterValue {
+    switch (value.type) {
+        case 'empty':
+            return value
+        case 'value':
+            return isOneValue(value.value) ? { type: 'value', value: [value.value] } : value
+        case 'legacy':
+            return isOneValue(value.raw) ? { type: 'legacy', raw: [value.raw] } : value
+    }
+}
+
 function mapOperator(value: UndecodedFilterValue, map: Readonly<Record<string, string | null>>): UndecodedFilterValue {
     if (value.type === 'empty') return value
     const operatorAndValue = value.type === 'value' ? value.value : value.raw
@@ -323,6 +340,8 @@ function applyToFilterState(op: MigrationOp, from: ViewProjection, to: ViewProje
             // A value mapped away is lost to the user as much as a reset filter is: they are told.
             return { state: { ...state, [op.filterId]: after }, reset: lostValues(before, after) ? [...reset, op.filterId] : reset }
         }
+        case 'wrapInList':
+            return has(op.filterId) ? { state: { ...state, [op.filterId]: mapLeaves(state[op.filterId], wrapInList) }, reset } : { state, reset }
         case 'custom': {
             if (!has(op.from)) return { state, reset }
             const rest = omit(state, op.from)

@@ -148,6 +148,57 @@ describe('defineMigration typing', () => {
         defineMigration(withBooleans, withoutItems, m => [m.mapValues('voided', value => value ? 'yes' : 'no')]);
     });
 
+    it('wraps in a list only a filter that takes several of the values it took one of, on the same field', () => {
+        const oneValue = {
+            definition: 'orders',
+            revision: 1,
+            filters: {
+                status: { kind: 'leaf', cmp: 'equals', field: 'status', control: { type: 'dropdown' } },
+                excluded: { kind: 'leaf', cmp: 'notEquals', field: 'status', control: { type: 'dropdown' } },
+                merchant: { kind: 'leaf', cmp: 'equals', field: 'merchant', control: { type: 'autocomplete', multiple: false } },
+                moved: { kind: 'leaf', cmp: 'equals', field: 'moved', control: { type: 'dropdown' } },
+                inverted: { kind: 'leaf', cmp: 'equals', field: 'inverted', control: { type: 'dropdown' } },
+                reference: { kind: 'leaf', cmp: 'equals', field: 'reference', control: { type: 'text' } },
+                types: { kind: 'leaf', cmp: 'in', field: 'types', control: { type: 'multiselect' } }
+            },
+            columns: {}
+        } as const satisfies ViewProjection;
+        const lists = {
+            definition: 'orders',
+            revision: 2,
+            filters: {
+                status: { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } },
+                excluded: { kind: 'leaf', cmp: 'notIn', field: 'status', control: { type: 'multiselect' } },
+                merchant: { kind: 'leaf', cmp: 'in', field: 'merchant', control: { type: 'autocomplete', multiple: true } },
+                moved: { kind: 'leaf', cmp: 'in', field: 'movedTo', control: { type: 'multiselect' } },
+                inverted: { kind: 'leaf', cmp: 'notIn', field: 'inverted', control: { type: 'multiselect' } },
+                reference: { kind: 'leaf', cmp: 'in', field: 'reference', control: { type: 'multiselect' } },
+                types: { kind: 'leaf', cmp: 'equals', field: 'types', control: { type: 'dropdown' } }
+            },
+            columns: {}
+        } as const satisfies ViewProjection;
+
+        const migration = defineMigration(oneValue, lists, m => [
+            m.wrapInList('status'),
+            m.wrapInList('excluded'),
+            m.wrapInList('merchant'),
+            // @ts-expect-error another field
+            m.wrapInList('moved'),
+            // @ts-expect-error `equals` became `notIn`
+            m.wrapInList('inverted'),
+            // @ts-expect-error a text filter does not take one of the values a multiselect takes
+            m.wrapInList('reference'),
+            // @ts-expect-error a list became one value
+            m.wrapInList('types')
+        ]);
+
+        expect(migration.ops.slice(0, 3)).toEqual([
+            { kind: 'wrapInList', filterId: 'status' },
+            { kind: 'wrapInList', filterId: 'excluded' },
+            { kind: 'wrapInList', filterId: 'merchant' }
+        ]);
+    });
+
     it('chains migrations that follow on from each other, and throws on ones that do not', () => {
         const migration = defineMigration(rev1, rev2, m => [m.renameFilter('amt', 'amount')]);
 

@@ -1,9 +1,12 @@
+import { afterAll, beforeEach, jest } from '@jest/globals';
 import {
+    decodeFilterState,
     serializeFilterFormStateMap,
     parseFilterFormState,
 } from './filter-form-state';
 import * as FilterValue from './filterValue';
-import type { FilterGroups } from './filters';
+import type { FilterControl, FilterExpr, FilterGroups } from './filters';
+import type { UndecodedFilterState } from './user-data-undecoded';
 import { FilterState } from './state';
 
 function expectLeafValue(node: unknown): FilterValue.FilterValue {
@@ -255,6 +258,93 @@ describe('filter-form-state', () => {
             const dateValue = expectFilterValueValue(expectLeafValue(dateFilter));
             expect(dateValue).toBeInstanceOf(Date);
             expect((dateValue as Date).toISOString()).toBe('2023-01-01T00:00:00.000Z');
+        });
+    });
+
+    describe('stored values that do not fit their control', () => {
+        const suggestionFetcher = (() => Promise.resolve([])) as never;
+        const leafOf = (cmp: 'equals' | 'in', value: FilterControl): FilterExpr => ({ type: cmp, field: 'field', value });
+        const filters: Record<string, FilterExpr> = {
+            multiselect: leafOf('in', { type: 'multiselect', items: [{ label: 'Card', value: 68 }, { label: 'Invoice', value: 69 }] }),
+            autocompleteMultiple: leafOf('in', { type: 'autocomplete', multiple: true, suggestionFetcher }),
+            autocomplete: leafOf('equals', { type: 'autocomplete', suggestionFetcher }),
+            dropdown: leafOf('equals', { type: 'dropdown', items: [{ label: 'Card', value: 68 }] }),
+            dropdownOfLists: leafOf('equals', { type: 'dropdown', items: [{ label: 'Cards', value: [68, 70] }] }),
+            text: leafOf('equals', { type: 'text' }),
+            number: leafOf('equals', { type: 'number' }),
+            date: leafOf('equals', { type: 'date' }),
+            custom: leafOf('equals', { type: 'custom', component: () => null }),
+            operatorOverList: leafOf('in', {
+                type: 'customOperator',
+                operators: [{ label: 'in', value: '_in' }],
+                valueControl: { type: 'multiselect', items: [] }
+            }),
+            operatorOverText: leafOf('equals', {
+                type: 'customOperator',
+                operators: [{ label: 'equals', value: '_eq' }],
+                valueControl: { type: 'text' }
+            })
+        };
+        const groups: FilterGroups = [{
+            name: 'default',
+            label: null,
+            filters: Object.entries(filters).map(([id, expression]) => ({ id, label: id, aiGenerated: false, expression }))
+        }];
+        const value = (stored: unknown) => ({ type: 'leaf', value: { type: 'value', value: stored } }) as UndecodedFilterState[string];
+        const legacy = (raw: unknown) => ({ type: 'leaf', value: { type: 'legacy', raw } }) as UndecodedFilterState[string];
+
+        function decodeOne(filterId: string, stored: UndecodedFilterState[string]) {
+            const decoded = decodeFilterState({ [filterId]: stored }, groups);
+            return { state: decoded.state.get(filterId), reset: decoded.resetFilterIds };
+        }
+
+        const warn = jest.spyOn(console, 'warn');
+        beforeEach(() => {
+            warn.mockReset();
+            warn.mockImplementation(() => undefined);
+        });
+        afterAll(() => {
+            warn.mockRestore();
+        });
+
+        it('reads one value as a list of it where the control takes several, as stored by a dropdown that became a multiselect', () => {
+            expect(decodeOne('multiselect', value(68))).toEqual({ state: { type: 'leaf', value: FilterValue.value([68]) }, reset: [] });
+            expect(decodeOne('multiselect', legacy(68))).toEqual({ state: { type: 'leaf', value: FilterValue.value([68]) }, reset: [] });
+            expect(decodeOne('autocompleteMultiple', value({ id: 7, label: 'Acme' })))
+                .toEqual({ state: { type: 'leaf', value: FilterValue.value([{ id: 7, label: 'Acme' }]) }, reset: [] });
+            expect(decodeOne('operatorOverList', value({ operator: '_in', value: { type: 'value', value: 68 } })))
+                .toEqual({ state: { type: 'leaf', value: FilterValue.value({ operator: '_in', value: FilterValue.value([68]) }) }, reset: [] });
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('leaves lists, and values that fit, as they are', () => {
+            expect(decodeOne('multiselect', value([68, 69])).state).toEqual({ type: 'leaf', value: FilterValue.value([68, 69]) });
+            expect(decodeOne('multiselect', value('')).state).toEqual({ type: 'leaf', value: FilterValue.empty });
+            expect(decodeOne('dropdown', value(68)).state).toEqual({ type: 'leaf', value: FilterValue.value(68) });
+            expect(decodeOne('dropdownOfLists', value([68, 70])).state).toEqual({ type: 'leaf', value: FilterValue.value([68, 70]) });
+            expect(decodeOne('autocomplete', value({ id: 7 })).state).toEqual({ type: 'leaf', value: FilterValue.value({ id: 7 }) });
+            expect(decodeOne('text', value(12)).state).toEqual({ type: 'leaf', value: FilterValue.value(12) });
+            expect(decodeOne('number', value('12')).state).toEqual({ type: 'leaf', value: FilterValue.value('12') });
+            expect(decodeOne('custom', value({ anything: [1] })).state).toEqual({ type: 'leaf', value: FilterValue.value({ anything: [1] }) });
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['dropdown', value([68, 69])],
+            ['autocomplete', value([{ id: 7 }])],
+            ['text', value(['a'])],
+            ['number', legacy({ amount: 1 })],
+            ['date', value(1767225600000)],
+            ['operatorOverText', value({ operator: '_eq', value: { type: 'value', value: ['a', 'b'] } })]
+        ])('resets a %s filter whose stored value does not fit it, and tells which', (filterId, stored) => {
+            const decoded = decodeFilterState({ [filterId]: stored, multiselect: value([68]) }, groups);
+
+            // As if nothing was stored for it
+            expect(decoded.state.get(filterId)).toEqual(decodeFilterState({}, groups).state.get(filterId));
+            expect(decoded.resetFilterIds).toEqual([filterId]);
+            // The other filters are read as stored
+            expect(decoded.state.get('multiselect')).toEqual({ type: 'leaf', value: FilterValue.value([68]) });
+            expect(warn).toHaveBeenCalledTimes(1);
         });
     });
 });
