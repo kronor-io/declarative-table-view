@@ -1,4 +1,5 @@
 import { PhoneNumberFilter } from '../../components/PhoneNumberFilter';
+import { isQueryablePhoneNumber } from '../../components/phoneNumber';
 import NoRowsExtendDateRange from '../../views/payment-requests/components/NoRowsExtendDateRange';
 import { Runtime } from '../runtime';
 import { CellRenderer, FieldQuery, TableColumnDefinition } from '../column-definition';
@@ -89,7 +90,17 @@ export const filterTransforms = {
         }
     },
 
-    hasuraCustomOperator: hasuraCustomOperatorTransform
+    hasuraCustomOperator: hasuraCustomOperatorTransform,
+
+    // Drops phone values too short to cast, such as a bare "+46" saved by older PhoneNumberFilter versions.
+    phoneNumber: {
+        toQuery: (input: unknown) => {
+            if (typeof input !== 'string' || !isQueryablePhoneNumber(input)) {
+                return TransformResult.empty();
+            }
+            return TransformResult.value(input.trim());
+        }
+    }
 } satisfies Record<string, FilterTransform>
 
 export const nativeRuntime: NativeRuntime = {

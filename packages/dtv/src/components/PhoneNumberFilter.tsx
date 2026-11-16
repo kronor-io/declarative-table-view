@@ -18,7 +18,7 @@ export function PhoneNumberFilter({ value, onChange }: PhoneNumberFilterProps) {
         setPrevValue(incoming);
         if (incoming !== phoneFilterValue(selectedCode, number)) {
             const split = splitCountryCode(incoming);
-            setSelectedCode(split.code ?? selectedCode);
+            setSelectedCode(split.code ?? DEFAULT_CODE);
             setNumber(split.number);
         }
     }
@@ -30,7 +30,7 @@ export function PhoneNumberFilter({ value, onChange }: PhoneNumberFilterProps) {
         onChange?.(phoneFilterValue(e.value, number));
     };
     const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const typed = splitCountryCode(e.target.value);
+        const typed = splitCountryCode(e.target.value.trimStart());
         const code = typed.code ?? selectedCode;
         setSelectedCode(code);
         setNumber(typed.number);

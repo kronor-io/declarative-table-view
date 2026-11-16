@@ -41,8 +41,25 @@ export function splitCountryCode(value: string): { code: string | null; number: 
     return code ? { code, number: value.slice(code.length) } : { code: null, number: value };
 }
 
-// A country code on its own is not a phone number; send no filter until a digit is typed.
+// libphonenumber rejects a national number shorter than 2 digits.
+const MIN_NATIONAL_DIGITS = 2;
+// For a code we can't split off, require an E.164-plausible length instead.
+const MIN_INTERNATIONAL_DIGITS = 8;
+
+const countDigits = (s: string) => s.replace(/\D/g, '').length;
+
+// Whether a filter value is long enough to cast to a phone number; anything shorter fails the whole query.
+export function isQueryablePhoneNumber(value: string): boolean {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('+')) return countDigits(trimmed) >= MIN_NATIONAL_DIGITS;
+    const split = splitCountryCode(trimmed);
+    return split.code !== null
+        ? countDigits(split.number) >= MIN_NATIONAL_DIGITS
+        : countDigits(trimmed) >= MIN_INTERNATIONAL_DIGITS;
+}
+
 export function phoneFilterValue(code: string, number: string): string {
-    if (!/\d/.test(number)) return '';
-    return number.trim().startsWith('+') ? number : `${code}${number}`;
+    const trimmed = number.trim();
+    const candidate = trimmed.startsWith('+') ? trimmed : `${code}${trimmed}`;
+    return isQueryablePhoneNumber(candidate) ? candidate : '';
 }
