@@ -1,6 +1,6 @@
 {
     "name": "@kronor/dtv",
-    "version": "13.0.2",
+    "version": "13.0.3",
     "description": "Schema-driven, declarative table views with advanced filtering, data fetching and AI-assisted filter generation.",
     "repository": {
         "type": "git",
