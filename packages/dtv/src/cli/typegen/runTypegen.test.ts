@@ -14,6 +14,10 @@ jest.mock('fast-glob', () => ({
 
 import { runTypegen } from './runTypegen';
 
+// What the views' columns are sorted by is checked in ./orderingCheck.test.ts and in the
+// reporting tests; here no column is sorted, and the views are not loaded with Vite.
+const unsorted = async () => ({ columnsOf: () => ({}), close: async () => undefined });
+
 describe('cli/typegen/runTypegen', () => {
     afterEach(() => {
         jest.restoreAllMocks();
@@ -107,9 +111,7 @@ export const view = DSL.view({
 });
 `, 'utf8');
 
-            await runTypegen({
-                configPath
-            });
+            await runTypegen({ configPath, loadColumnOrdering: unsorted });
 
             const generated = await fs.readFile(generatedPath, 'utf8');
             const updatedView = await fs.readFile(viewPath, 'utf8');
@@ -134,7 +136,7 @@ export const view = DSL.view({
             ].join('\n'));
             expect(updatedView).toContain("import { NewViewRowType } from './new-view.typegen';\n\nexport const view");
             // Patching is idempotent.
-            await runTypegen({ configPath });
+            await runTypegen({ configPath, loadColumnOrdering: unsorted });
             expect(await fs.readFile(viewPath, 'utf8')).toEqual(updatedView);
         } finally {
             (globalThis as any).fetch = originalFetch;
@@ -229,9 +231,7 @@ export const view = DSL.view({
 });
 `, 'utf8');
 
-            await runTypegen({
-                configPath
-            });
+            await runTypegen({ configPath, loadColumnOrdering: unsorted });
 
             const generated = await fs.readFile(generatedPath, 'utf8');
 

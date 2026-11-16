@@ -14,13 +14,18 @@ jest.mock('fast-glob', () => ({
 
 import { runTypegen } from './runTypegen';
 
+// What the views' columns are sorted by is checked in ./orderingCheck.test.ts and in the
+// reporting tests; here no column is sorted, and the views are not loaded with Vite.
+const unsorted = async () => ({ columnsOf: () => ({}), close: async () => undefined });
+
 // A view that produces no types leaves whatever is committed in place, so the
 // row type it describes goes stale while the run still reports success. Each
 // way that can happen is reported here.
 
 const schema = buildSchema(`
+    scalar jsonb
     type Query { paymentRequests: [PaymentRequest!]! }
-    type PaymentRequest { id: ID!  amount: Int! }
+    type PaymentRequest { id: ID!  amount: Int!  metadata: jsonb }
 `);
 const introspection = graphqlSync({ schema, source: getIntrospectionQuery({ descriptions: true }) });
 
@@ -82,7 +87,7 @@ describe('cli/typegen reporting', () => {
         try {
             await withFetch(async () => {
                 // Nothing to generate, so the run has no views at all.
-                await expect(runTypegen({ configPath })).rejects.toThrow('No views found');
+                await expect(runTypegen({ configPath, loadColumnOrdering: unsorted })).rejects.toThrow('No views found');
             });
 
             const warnings = warn.mock.calls.map(call => String(call[0]));
@@ -114,7 +119,7 @@ export const view = DSL.view({
 
         try {
             await withFetch(async () => {
-                await runTypegen({ configPath });
+                await runTypegen({ configPath, loadColumnOrdering: unsorted });
             });
 
             // The view looks covered, so its silence would read as success.
@@ -149,7 +154,7 @@ export const view = DSL.view({
 
         try {
             await withFetch(async () => {
-                await runTypegen({ configPath });
+                await runTypegen({ configPath, loadColumnOrdering: unsorted });
             });
 
             // Opting out is fair, but the count has to add up either way.
@@ -167,7 +172,7 @@ export const view = DSL.view({
         jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
         try {
-            await withFetch(() => runTypegen({ configPath }));
+            await withFetch(() => runTypegen({ configPath, loadColumnOrdering: unsorted }));
             expect(log.mock.calls.map(call => String(call[0]))).toContain('Generated types for 1 of 1 view(s).');
         } finally {
             await fs.rm(root, { recursive: true, force: true });
@@ -181,7 +186,7 @@ export const view = DSL.view({
 
         try {
             await withFetch(async () => {
-                await runTypegen({ configPath });
+                await runTypegen({ configPath, loadColumnOrdering: unsorted });
 
                 // Stand in for anything that can throw mid-generation. The run
                 // used to swallow it, report success, and leave the committed
@@ -190,7 +195,7 @@ export const view = DSL.view({
                 await fs.mkdir(generated);
 
                 log.mockClear();
-                await expect(runTypegen({ configPath })).rejects.toThrow(/payments: .*EISDIR|payments: /);
+                await expect(runTypegen({ configPath, loadColumnOrdering: unsorted })).rejects.toThrow(/payments: .*EISDIR|payments: /);
                 expect(log.mock.calls.map(call => String(call[0]))).toContain('Generated types for 0 of 1 view(s).');
             });
         } finally {
@@ -205,7 +210,7 @@ export const view = DSL.view({
 
         try {
             await withFetch(async () => {
-                await runTypegen({ configPath });
+                await runTypegen({ configPath, loadColumnOrdering: unsorted });
                 await fs.access(generated);
 
                 // The columns move out to a helper, so nothing in the view
@@ -222,12 +227,52 @@ export const view = DSL.view({
 `, 'utf8');
 
                 warn.mockClear();
-                await runTypegen({ configPath });
+                await runTypegen({ configPath, loadColumnOrdering: unsorted });
 
                 const warnings = warn.mock.calls.map(call => String(call[0]));
                 expect(warnings.some(line => line.includes('Removed') && line.includes('payments'))).toBe(true);
                 await expect(fs.access(generated)).rejects.toThrow();
             });
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+    it('fails, naming the column, when a column is sorted by a JSON field, and still writes the types', async () => {
+        const { root, configPath, generated } = await project(inlineView(`'payments'`));
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const close = jest.fn(async () => undefined);
+
+        try {
+            await withFetch(async () => {
+                await expect(runTypegen({
+                    configPath,
+                    loadColumnOrdering: async () => ({
+                        columnsOf: () => ({ id: { orderBy: 'id' }, metadata: { orderBy: 'metadata' }, amount: { orderBy: null } }),
+                        close
+                    })
+                })).rejects.toThrow('- payments: column "metadata" sorts by "metadata" (jsonb)');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            await expect(fs.access(generated)).resolves.toBeUndefined();
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('warns about the views whose columns it could not check', async () => {
+        const { root, configPath } = await project(inlineView(`'payments'`));
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        try {
+            await withFetch(() => runTypegen({
+                configPath,
+                loadColumnOrdering: async () => ({ columnsOf: () => undefined, close: async () => undefined })
+            }));
+
+            const warnings = warn.mock.calls.map(call => String(call[0]));
+            expect(warnings.some(line => line.includes('did not check') && line.includes('"payments"'))).toBe(true);
         } finally {
             await fs.rm(root, { recursive: true, force: true });
         }

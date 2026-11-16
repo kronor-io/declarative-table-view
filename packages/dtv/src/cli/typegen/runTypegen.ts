@@ -14,12 +14,21 @@ import {
     toPascalCase,
     unwrapCollectionElementType,
 } from '@kronor/hasura-graphql/typegen';
+import {
+    describeUnorderableColumns,
+    findUnorderableColumns,
+    loadColumnOrdering,
+    type ColumnOrdering,
+    type ColumnsOrdering,
+} from './orderingCheck.js';
 
 type RunTypegenArgs = {
     configPath: string;
     onlyViewId?: string;
     debugScan?: boolean;
     debugScanFile?: string;
+    /** Loads the views to check what their columns are sorted by; the project's Vite by default. */
+    loadColumnOrdering?: (configPath: string) => Promise<ColumnOrdering>;
 };
 
 async function writeFileEnsuringDir(filePath: string, content: string) {
@@ -799,10 +808,35 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
         console.log(`Generated types for ${written.length} of ${viewRows.length} view(s).`);
     }
 
+    // After the types are written: the view modules import them.
+    const ordering = await (args.loadColumnOrdering ?? loadColumnOrdering)(args.configPath);
+    const checked: { viewId: string; rowTypeName: string; columns: ColumnsOrdering }[] = [];
+    const unchecked: string[] = [];
+    try {
+        for (const v of viewRows) {
+            const columns = ordering.columnsOf(v.viewId);
+            if (columns === undefined) unchecked.push(v.viewId);
+            else checked.push({ viewId: v.viewId, rowTypeName: v.rowTypeName, columns });
+        }
+    } finally {
+        await ordering.close();
+    }
+    if (unchecked.length) {
+        console.warn(`Warning: did not check what the columns of ${unchecked.map(id => JSON.stringify(id)).join(', ')} are sorted by — \`dtv definitions check\` says why they cannot be built.`);
+    }
+    const unorderable = findUnorderableColumns(schema, checked);
+
+    const errors: string[] = [];
     if (failed.length) {
         const lines = ['Type generation failed for:'];
         for (const f of failed) lines.push(`- ${f.viewId}: ${f.message}`);
         lines.push('Their committed generated types are unchanged and may now be stale.');
-        throw new Error(lines.join('\n'));
+        errors.push(lines.join('\n'));
+    }
+    if (unorderable.length) {
+        errors.push(describeUnorderableColumns(unorderable));
+    }
+    if (errors.length) {
+        throw new Error(errors.join('\n\n'));
     }
 }
