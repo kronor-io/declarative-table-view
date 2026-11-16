@@ -20,6 +20,7 @@ import {
 } from './view-migrations';
 import { itemValues, projectFilter, projectView, type ControlProjection, type FilterProjection, type ViewProjection } from './view-projection';
 import type { View } from './view';
+import * as Orderable from './orderable';
 
 const leaf = (value: unknown): UndecodedFilterFormState => ({ type: 'leaf', value: { type: 'value', value: value as never } });
 const empty: UndecodedFilterFormState = { type: 'leaf', value: { type: 'empty' } };
@@ -100,6 +101,7 @@ describe('view projections', () => {
             }],
             columnDefinitions: [
                 { type: 'tableColumn', id: 'id', name: 'ID', data: [{ type: 'valueQuery', field: 'id' }], cellRenderer: () => null },
+                { type: 'tableColumn', id: 'roles', name: 'Roles', data: [{ type: 'valueQuery', field: 'roles' }], orderBy: Orderable.notOrderable, cellRenderer: () => null },
                 { type: 'virtualColumn', id: 'hidden', data: [{ type: 'valueQuery', field: 'x' }] }
             ]
         } as unknown as View;
@@ -108,7 +110,7 @@ describe('view projections', () => {
             definition: 'payments',
             revision: 3,
             filters: { status: { kind: 'leaf', cmp: 'in', field: 'status', control: { type: 'multiselect' } } },
-            columns: { id: { orderBy: 'id' } },
+            columns: { id: { orderBy: 'id' }, roles: { orderBy: null } },
             items: { status: ['PAID'] }
         });
     });

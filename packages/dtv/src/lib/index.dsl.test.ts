@@ -19,6 +19,7 @@ describe('lib exports', () => {
         expect(typeof DTV.runtimeRef).toBe('function');
         expect(typeof DTV.filter).toBe('function');
         expect(typeof DTV.view).toBe('function');
+        expect(DTV.Orderable.notOrderable).toEqual({ type: 'notOrderable' });
         expect(typeof DTV.CellRenderer.text).toBe('function');
         expect(typeof DTV.CellRenderer.json).toBe('function');
     });
@@ -30,6 +31,7 @@ describe('lib exports', () => {
 
     it('exposes framework filterExpr helpers', () => {
         expect(typeof API.FilterExpr.equals).toBe('function');
+        expect(API.Orderable.isNotOrderable(API.Orderable.notOrderable)).toBe(true);
         expect(typeof API.FilterExpr.and).toBe('function');
         expect(Array.isArray(API.FilterExpr.allOperators)).toBe(true);
     });

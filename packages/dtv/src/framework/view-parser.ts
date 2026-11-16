@@ -1,7 +1,8 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import { orderByIsSelectedField, type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type TableColumnDefinitionFooter } from './column-definition';
+import { type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type TableColumnDefinitionFooter } from './column-definition';
+import * as Orderable from './orderable';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
 import type { Runtime } from './runtime';
@@ -105,7 +106,8 @@ export type TableColumnDefinitionJson = {
     data: FieldQueryJson[];
     name: string;
     footer?: RuntimeReference;
-    orderBy?: string;
+    // A field to sort by, or { "type": "notOrderable" } for a column that cannot be sorted
+    orderBy?: string | Orderable.NotOrderable;
     cellRenderer: RuntimeReference;
 };
 
@@ -319,8 +321,8 @@ export function parseColumnDefinitionJson(
             if (!obj.cellRenderer) {
                 throw new Error('Invalid JSON: "cellRenderer" field is required for tableColumn');
             }
-            if (obj.orderBy !== undefined && typeof obj.orderBy !== 'string') {
-                throw new Error('Invalid JSON: "orderBy" field must be a string for tableColumn when provided');
+            if (obj.orderBy !== undefined && typeof obj.orderBy !== 'string' && !Orderable.isNotOrderable(obj.orderBy)) {
+                throw new Error('Invalid JSON: "orderBy" field must be a string or { "type": "notOrderable" } for tableColumn when provided');
             }
             let footer: RuntimeReference | undefined;
             if (obj.footer !== undefined) {
@@ -355,16 +357,17 @@ export function parseColumnDefinitionJson(
                     throw new Error(`Invalid data[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
                 }
             });
-            if (typeof obj.orderBy === 'string' && !orderByIsSelectedField(parsedData, obj.orderBy)) {
+            if (typeof obj.orderBy === 'string' && !Orderable.orderByIsSelectedField(parsedData, obj.orderBy)) {
                 throw new Error(`Invalid JSON: "orderBy" field must reference a scalar field selected by "data" for tableColumn`);
             }
+            const orderBy = Orderable.isNotOrderable(obj.orderBy) ? Orderable.notOrderable : obj.orderBy;
             return {
                 type: 'tableColumn',
                 id: obj.id,
                 data: parsedData,
                 name: obj.name,
                 ...(footer !== undefined ? { footer } : {}),
-                ...(obj.orderBy !== undefined ? { orderBy: obj.orderBy } : {}),
+                ...(orderBy !== undefined ? { orderBy } : {}),
                 cellRenderer
             };
         }

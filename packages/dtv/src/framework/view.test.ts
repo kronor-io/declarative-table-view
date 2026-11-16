@@ -1,4 +1,5 @@
 import { parseColumnDefinitionJson, parseFilterFieldSchemaJson, parseViewJson } from './view-parser';
+import * as Orderable from './orderable';
 import { Runtime } from './runtime';
 import * as FilterValue from './filterValue';
 
@@ -115,6 +116,43 @@ describe('parseColumnDefinitionJson', () => {
                 footer: { section: 'columnFooters', key: 'total' },
                 cellRenderer: { section: 'cellRenderers', key: 'amount' }
             });
+        });
+
+        it('should parse a notOrderable column orderBy', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'roles',
+                data: [{ type: 'valueQuery', field: 'roles' }],
+                name: 'Roles',
+                orderBy: { type: 'notOrderable' },
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            const result = parseColumnDefinitionJson(json, testRuntime, undefined);
+
+            expect(result).toEqual({
+                type: 'tableColumn',
+                id: 'roles',
+                data: [{ type: 'valueQuery', field: 'roles' }],
+                name: 'Roles',
+                orderBy: Orderable.notOrderable,
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            });
+        });
+
+        it('should throw error for a column orderBy object other than notOrderable', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'roles',
+                data: [{ type: 'valueQuery', field: 'roles' }],
+                name: 'Roles',
+                orderBy: { type: 'unsortable' },
+                cellRenderer: { section: 'cellRenderers', key: 'name' }
+            };
+
+            expect(() => {
+                parseColumnDefinitionJson(json, testRuntime, undefined);
+            }).toThrow('Invalid JSON: "orderBy" field must be a string or { "type": "notOrderable" } for tableColumn when provided');
         });
 
         it('should throw error when column orderBy is not selected by data', () => {
@@ -817,7 +855,7 @@ describe('parseColumnDefinitionJson', () => {
 
             expect(() => {
                 parseColumnDefinitionJson(json, testRuntime, undefined);
-            }).toThrow('Invalid JSON: "orderBy" field must be a string for tableColumn when provided');
+            }).toThrow('Invalid JSON: "orderBy" field must be a string or { "type": "notOrderable" } for tableColumn when provided');
         });
     });
 

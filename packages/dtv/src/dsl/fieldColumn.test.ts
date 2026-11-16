@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { fieldColumn, rowType, valueQuery, type FieldCellRendererProps } from './columns';
+import { column, fieldColumn, Orderable, rowType, valueQuery, type FieldCellRendererProps } from './columns';
 import type { CellRendererProps, TableColumnDefinition } from '../framework/column-definition';
 
 type Account = { accountNr: string; accountName: string | null };
@@ -68,6 +68,27 @@ describe('dsl/fieldColumn', () => {
             limit: 3,
         }]);
         expect(render(column, { lines: [{ sku: 'a' }, { sku: 'b' }] })).toBe('a, b');
+    });
+
+    it('takes notOrderable for a scalar field, as column() does', () => {
+        const posted = fieldColumn({
+            rowType: RowType,
+            field: 'posted',
+            name: 'Posted',
+            orderBy: Orderable.notOrderable,
+            cellRenderer: ({ value }) => (value ? 'yes' : 'no'),
+        });
+        const postedColumn = column({
+            rowType: RowType,
+            id: 'posted',
+            name: 'Posted',
+            data: [valueQuery({ field: 'posted' })],
+            orderBy: Orderable.notOrderable,
+            cellRenderer: ({ data }) => (data.posted ? 'yes' : 'no'),
+        });
+
+        expect(Orderable.getColumnOrderBy(posted)).toBeUndefined();
+        expect(postedColumn.orderBy).toBe(Orderable.notOrderable);
     });
 
     it('rejects an orderBy the column does not select, as column() does', () => {

@@ -1,4 +1,4 @@
-import { getColumnOrderBy } from './column-definition';
+import * as Orderable from './orderable';
 import type { Json } from './decoder';
 import type { FilterControl, FilterExpr } from './filters';
 import { getAllFilters, type View } from './view';
@@ -127,7 +127,7 @@ export function projectView(view: View, definition: string, revision: number): V
         filters: Object.fromEntries(filters.map(filter => [filter.id, projectFilter(filter.expression)])),
         columns: Object.fromEntries(
             view.columnDefinitions.flatMap(column => column.type === 'tableColumn'
-                ? [[column.id, { orderBy: getColumnOrderBy(column) ?? null }]]
+                ? [[column.id, { orderBy: Orderable.getColumnOrderBy(column) ?? null }]]
                 : [])
         ),
         ...(Object.keys(items).length > 0 ? { items } : {})

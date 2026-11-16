@@ -13,15 +13,9 @@ import type { ColumnProps } from "primereact/column";
 import type { FilterState } from "./state";
 import type { FilterFormState } from "./filter-form-state";
 import type { FilterId } from "./filters";
+import type * as Orderable from "./orderable";
 import type { FieldQuery } from "@kronor/hasura-graphql";
-import {
-    getFieldQueriesOrderBy,
-    orderByIsSelectedField,
-} from "@kronor/hasura-graphql";
-import type {
-    DataFromFieldQueriesSafe,
-    OrderableFieldPath,
-} from "@kronor/hasura-graphql";
+import type { DataFromFieldQueriesSafe } from "@kronor/hasura-graphql";
 
 // The query AST and its row-typed derivations are shared with other
 // declarative, GraphQL-driven UIs; only the table/rendering layer lives here.
@@ -33,7 +27,6 @@ export type {
     ArrayQuery,
     Query,
     FieldQuery,
-    OrderableFieldPath,
     DataFromQuery,
     DataFromFieldQuery,
     DataFromSelectionSet,
@@ -55,7 +48,7 @@ export type {
     ValidateFieldQueriesForRow,
 } from "@kronor/hasura-graphql";
 
-export { fieldAlias, getOrderableFieldPaths, orderByIsSelectedField } from "@kronor/hasura-graphql";
+export { fieldAlias } from "@kronor/hasura-graphql";
 
 export type CellRendererProps<
     Data extends object = Record<string, unknown>,
@@ -109,7 +102,9 @@ export type TableColumnDefinition<
     data: FieldQueries;
     name: string; // column display name
     footer?: TableColumnDefinitionFooter;
-    orderBy?: OrderableFieldPath<FieldQueries>; // GraphQL field to order by when the header is sorted
+    // GraphQL field to order by when the header is sorted, or `Orderable.notOrderable` for a
+    // column that cannot be sorted. Left out, it is the column's field when its data is a single scalar.
+    orderBy?: Orderable.OrderableFieldPath<FieldQueries> | Orderable.NotOrderable;
     cellRenderer: CellRenderer<CellData>;
 };
 
@@ -129,15 +124,3 @@ export type VirtualColumnDefinition<
 };
 
 export type ColumnDefinition = TableColumnDefinition | VirtualColumnDefinition;
-
-export function getColumnOrderBy(column: TableColumnDefinition): string | undefined {
-    if (column.orderBy !== undefined) {
-        if (!orderByIsSelectedField(column.data, column.orderBy)) {
-            throw new Error(`Column "${column.id}" orderBy "${column.orderBy}" must reference a scalar field selected by the column data`);
-        }
-
-        return column.orderBy;
-    }
-
-    return getFieldQueriesOrderBy(column.data);
-}

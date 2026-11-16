@@ -32,6 +32,7 @@ export type { FilterState } from '../framework/state';
 export type { CustomOperatorOption, FilterSchema, FilterField, FilterValueFormatter, FilterValueFormatContext, QueryTransformContext, SuggestionFetcher, TransformConditionResult } from '../framework/filters';
 export { TransformResult } from '../framework/filters';
 export * as FilterValue from '../framework/filterValue';
+export * as Orderable from '../framework/orderable';
 export { FilterExpr } from '../dsl/filterExpr';
 export { FilterControl } from '../dsl/filterControl';
 export { CellRenderer } from '../dsl/cellRenderer';

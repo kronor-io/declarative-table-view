@@ -28,7 +28,7 @@ import type { DataOrdering } from './framework/data-ordering';
 import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilterStateById, useAppState, type AppStateEnv, type Panel } from './framework/state';
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
-import { getColumnOrderBy } from './framework/column-definition';
+import * as Orderable from './framework/orderable';
 import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, viewWithQuery, type SimplifiedRow } from './framework/view';
 import { generateGraphQLQuery, generateGraphQLQueryAST, Hasura, hasuraFilterExpressionToObject, renderGraphQLQuery } from './framework/graphql';
 import { generateColumnAliasedGraphQLQueryAST } from './framework/graphql/query';
@@ -294,7 +294,7 @@ function App<V extends View = View>({
     const orderableFieldsByViewId = useMemo(() => new Map(views.map(view => [
         view.id,
         view.columnDefinitions.flatMap(column => {
-            const orderBy = column.type === 'tableColumn' ? getColumnOrderBy(column) : undefined;
+            const orderBy = column.type === 'tableColumn' ? Orderable.getColumnOrderBy(column) : undefined;
             return orderBy === undefined ? [] : [orderBy];
         })
     ] as const)), [views]);

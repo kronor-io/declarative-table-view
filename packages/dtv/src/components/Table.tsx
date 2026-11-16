@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { DataTable, DataTableExportFunctionEvent, type DataTableSelectionMultipleChangeEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
-import { getColumnOrderBy, type ColumnDefinition, type TableColumnDefinition } from '../framework/column-definition';
+import type { ColumnDefinition, TableColumnDefinition } from '../framework/column-definition';
+import * as Orderable from '../framework/orderable';
 import { NoRowsComponent, RowExpansionDefinition, type SimplifiedRow } from '../framework/view';
 import { FlexRow, FlexColumn, DateTime } from '../framework/cell-renderer-components/LayoutHelpers';
 import { CurrencyAmount } from '../framework/cell-renderer-components/CurrencyAmount';
@@ -450,7 +451,7 @@ function Table<Row extends object = SimplifiedRow>({
             {rowExpansion && <Column expander={(rowData: TableDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
             {renderableColumns
                 .map(column => {
-                    const orderBy = getColumnOrderBy(column);
+                    const orderBy = Orderable.getColumnOrderBy(column);
 
                     return (
                         <Column

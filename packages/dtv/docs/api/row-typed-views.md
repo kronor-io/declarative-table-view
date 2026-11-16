@@ -94,6 +94,8 @@ accountColumn(InvoicesRowType, 'memo', 'Memo');
   (`orderBy: 'memo'`), or a scalar inside it for an object
   (`orderBy: 'arAccount.accountNr'`); a list cannot be ordered by. The path has
   to be one the selection includes, which is checked when the column is built.
+  `orderBy: Orderable.notOrderable` keeps a scalar field's column from being sorted by it,
+  as `column` does for a single `valueQuery`.
 - **Forwarding.** The field has to be a literal path, or a field branded as
   above. A plain `string`, or a helper's own `Field` that nothing has checked, is
   rejected, since nothing could check it. A helper that takes the field from its

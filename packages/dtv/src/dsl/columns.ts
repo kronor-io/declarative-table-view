@@ -25,10 +25,9 @@ import {
     type VirtualColumnDefinition,
     type CellRenderer,
     type CellRendererProps,
-    type OrderableFieldPath,
     type TableColumnDefinitionFooter,
-    orderByIsSelectedField,
 } from "../framework/column-definition";
+import * as Orderable from "../framework/orderable";
 import type {
     ColumnFieldValue,
     FieldColumnData,
@@ -40,15 +39,22 @@ import type {
 
 export { valueQuery, objectQuery, arrayQuery, rowType } from "@kronor/hasura-graphql";
 
+/**
+ * `orderBy: Orderable.notOrderable` declares a column that cannot be sorted. Without it, a
+ * column whose data is a single scalar field is sorted by that field — also when sorting by
+ * it is useless, as for a JSON field.
+ */
+export * as Orderable from "../framework/orderable";
+
 function tableColumn(args: {
     id: string;
     name: string;
     data: readonly FieldQuery[];
     footer?: TableColumnDefinitionFooter;
-    orderBy?: string;
+    orderBy?: string | Orderable.NotOrderable;
     cellRenderer: CellRenderer;
 }): TableColumnDefinition {
-    if (args.orderBy !== undefined && !orderByIsSelectedField(args.data, args.orderBy)) {
+    if (typeof args.orderBy === 'string' && !Orderable.orderByIsSelectedField(args.data, args.orderBy)) {
         throw new Error(`Column "${args.id}" orderBy "${args.orderBy}" must reference a scalar field selected by the column data`);
     }
 
@@ -74,7 +80,7 @@ export function column<Row, const FieldQueries extends readonly FieldQuery[]>(ar
     name: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
     footer?: TableColumnDefinitionFooter;
-    orderBy?: OrderableFieldPath<FieldQueries>;
+    orderBy?: Orderable.OrderableFieldPath<FieldQueries> | Orderable.NotOrderable;
     cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 }): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
 export function column(args: Parameters<typeof tableColumn>[0] & { rowType: unknown }): TableColumnDefinition {
@@ -124,7 +130,8 @@ const readPath = (data: Record<string, unknown>, path: readonly string[]): unkno
  * selected inside the field follows from that type: nothing for a scalar,
  * `select: { object: [...] }` for an object, `select: { list: [...] }` for a
  * list, each checked against it. `orderBy` names the field itself for a
- * scalar, or a scalar inside it for an object.
+ * scalar, or a scalar inside it for an object; `Orderable.notOrderable` keeps a scalar
+ * field's column from being sorted by it.
  *
  * The column puts the field on the row DTV hands out (`SimplifiedRow`) with the type
  * its renderer takes.
@@ -140,7 +147,7 @@ export function fieldColumn<Row, const Field extends string, Value = ColumnField
         id?: string;
         name: string;
         footer?: TableColumnDefinitionFooter;
-        orderBy?: NoInfer<FieldColumnOrderBy<Field, Value>>;
+        orderBy?: NoInfer<FieldColumnOrderBy<Field, Value>> | Orderable.NotOrderable;
         cellRenderer: FieldCellRenderer<Value>;
     } & NoInfer<FieldColumnSelect<Value>>,
     // NoInfer: Value is decided by the arguments, never by where the column goes

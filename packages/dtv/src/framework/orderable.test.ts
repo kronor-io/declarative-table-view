@@ -1,8 +1,9 @@
-import { getColumnOrderBy, type TableColumnDefinition } from './column-definition';
+import type { TableColumnDefinition } from './column-definition';
+import * as Orderable from './orderable';
 
 const cellRenderer = () => null;
 
-describe('getColumnOrderBy', () => {
+describe('Orderable.getColumnOrderBy', () => {
     it('uses explicit orderBy when provided', () => {
         const column: TableColumnDefinition = {
             type: 'tableColumn',
@@ -13,7 +14,7 @@ describe('getColumnOrderBy', () => {
             cellRenderer
         };
 
-        expect(getColumnOrderBy(column)).toBe('sortValue');
+        expect(Orderable.getColumnOrderBy(column)).toBe('sortValue');
     });
 
     it('preserves explicit dotted orderBy paths', () => {
@@ -34,7 +35,7 @@ describe('getColumnOrderBy', () => {
             cellRenderer
         };
 
-        expect(getColumnOrderBy(column)).toBe('customer.profile.status');
+        expect(Orderable.getColumnOrderBy(column)).toBe('customer.profile.status');
     });
 
     it('throws for explicit orderBy paths not selected by column data', () => {
@@ -47,7 +48,7 @@ describe('getColumnOrderBy', () => {
             cellRenderer
         };
 
-        expect(() => getColumnOrderBy(column))
+        expect(() => Orderable.getColumnOrderBy(column))
             .toThrow('Column "display" orderBy "sortValue" must reference a scalar field selected by the column data');
     });
 
@@ -60,7 +61,33 @@ describe('getColumnOrderBy', () => {
             cellRenderer
         };
 
-        expect(getColumnOrderBy(column)).toBe('email');
+        expect(Orderable.getColumnOrderBy(column)).toBe('email');
+    });
+
+    it('does not order a single scalar value query by its field with notOrderable', () => {
+        const column: TableColumnDefinition = {
+            type: 'tableColumn',
+            id: 'roles',
+            name: 'Roles',
+            orderBy: Orderable.notOrderable,
+            data: [{ type: 'valueQuery', field: 'roles' }],
+            cellRenderer
+        };
+
+        expect(Orderable.getColumnOrderBy(column)).toBeUndefined();
+    });
+
+    it('recognises notOrderable by its tag, as a copy that went through JSON', () => {
+        const column: TableColumnDefinition = {
+            type: 'tableColumn',
+            id: 'roles',
+            name: 'Roles',
+            orderBy: JSON.parse(JSON.stringify(Orderable.notOrderable)),
+            data: [{ type: 'valueQuery', field: 'roles' }],
+            cellRenderer
+        };
+
+        expect(Orderable.getColumnOrderBy(column)).toBeUndefined();
     });
 
     it('does not infer orderBy for columns with multiple field queries', () => {
@@ -75,6 +102,6 @@ describe('getColumnOrderBy', () => {
             cellRenderer
         };
 
-        expect(getColumnOrderBy(column)).toBeUndefined();
+        expect(Orderable.getColumnOrderBy(column)).toBeUndefined();
     });
 });
