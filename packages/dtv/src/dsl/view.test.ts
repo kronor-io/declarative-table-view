@@ -43,18 +43,18 @@ describe('dsl/view', () => {
         expect(view(input)).toBe(input);
     });
 
-    it('preserves column footers', () => {
-        const footer = 'Total';
+    it('preserves column footer renderers', () => {
+        const footerRenderer = () => 'Total';
         const definition = column({
             rowType: Row,
             id: 'amount',
             name: 'Amount',
             data: [valueQuery({ field: 'amount' })],
-            footer,
+            footerRenderer,
             cellRenderer: () => null
         });
 
-        expect(definition.footer).toBe(footer);
+        expect(definition.footerRenderer).toBe(footerRenderer);
     });
 
     it('throws when columnDefinitions has duplicate ids', () => {

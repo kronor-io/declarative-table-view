@@ -26,6 +26,8 @@ export type CellRendererProps = {
   createElement: typeof React.createElement;
   components: { Badge; FlexRow; FlexColumn; Mapping; DateTime; CurrencyAmount; Link; };
   currency: { majorToMinor: (major: number, code: string, locale?: string) => number; minorToMajor: (minor: number, code: string, locale?: string) => number };
+  aggregates: Record<string, AggregateState>;
+  columnDefinition: TableColumnDefinition;
 };
 ```
 
@@ -43,6 +45,17 @@ export type CellRendererProps = {
   - `CurrencyAmount` — currency formatting with `Intl.NumberFormat`
   - (prop) `currency` — helpers for unit conversion (major/minor units)
   - `Link` — styled anchor element
+- `aggregates`: The states of the view's aggregates the column declares (its `aggregates`), by name; empty for a column that declares none. See [../aggregates.md](../aggregates.md).
+- `columnDefinition`: The column being rendered.
+
+## Footers
+
+A column's footer is rendered by its `footerRenderer`, which gets the same props as a cell
+renderer apart from `data` and the filter functions: `aggregates`, `createElement`,
+`components`, `currency` and `columnDefinition`. A static footer is a renderer that ignores
+them (`footerRenderer: () => 'Total'`). In a JSON view, `footerRenderer` references the
+runtime's `footerRenderers` section. DTV 14 removed `footer`, PrimeReact's prop, which DTV
+passed through unchanged.
 
 ## Creating a Cell Renderer
 ```tsx

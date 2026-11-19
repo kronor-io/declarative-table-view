@@ -6,6 +6,7 @@ It is defined in `src/framework/runtime.ts`:
 ```ts
 export type Runtime = {
   cellRenderers: Record<string, CellRenderer | React.ComponentType<any>>;
+  footerRenderers?: Record<string, FooterRenderer>;
   queryTransforms: Record<string, { toQuery: (input: any) => TransformResult }>;
   valueFormatters?: Record<string, (input: any, context: { format: (value: unknown) => string }) => string>;
   noRowsComponents: Record<string, NoRowsComponent | React.ComponentType<any>>;
@@ -19,6 +20,7 @@ export type Runtime = {
 | Section | Purpose | Reference Usage | Value Type |
 |---------|---------|-----------------|------------|
 | `cellRenderers` | Render table cells | Column `cellRenderer` | `(props) => ReactNode` |
+| `footerRenderers` | Render column footers (optional) | Column `footerRenderer` | `(props) => ReactNode` |
 | `queryTransforms` | Preprocess raw filter form values into GraphQL-ready values | Filter expression `transform` | `{ toQuery(input) => { value, operator?, ... } }` |
 | `valueFormatters` | Show a filter leaf's value in the applied-filter pills (optional) | Filter expression `formatValue` | `(input, { format }) => string` |
 | `noRowsComponents` | UI when a data query yields zero rows | View `noRowsComponent` | `(props) => ReactNode` |

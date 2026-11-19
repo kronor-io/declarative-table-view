@@ -121,7 +121,8 @@ DSL.column({
 `DSL.fieldColumn` takes `aggregates` and `footerRenderer` too. `DSL.view` throws when a column
 reads an aggregate that the view does not have under that name.
 
-`footerRenderer` takes the place of the static `footer`, which still works as before.
+A static footer is a `footerRenderer` too, one that ignores `aggregates`:
+`footerRenderer: () => 'Total'`. DTV 14 removed `footer`.
 
 ### In the host
 

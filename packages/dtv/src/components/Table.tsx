@@ -491,7 +491,7 @@ function Table<Row extends object = SimplifiedRow>({
                                         currency: sharedRendererProps.currency,
                                         columnDefinition: column
                                     })
-                                    : column.footer}
+                                    : undefined}
                                 sortable={orderBy !== undefined}
                                 sortField={orderBy}
                                 body={column.aggregates === undefined

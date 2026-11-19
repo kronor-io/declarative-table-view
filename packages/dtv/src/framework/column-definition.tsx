@@ -9,7 +9,6 @@ import { majorToMinor, minorToMajor } from "./currency";
 import { Mapping } from "./cell-renderer-components/Mapping";
 import { Link } from "./cell-renderer-components/Link";
 import { Tag } from "primereact/tag";
-import type { ColumnProps } from "primereact/column";
 import type { FilterState } from "./state";
 import type { FilterFormState } from "./filter-form-state";
 import type { FilterId } from "./filters";
@@ -98,8 +97,6 @@ export type CellRenderer<
     bivarianceHack(props: CellRendererProps<Data, Aggregates>): ReactNode;
 }["bivarianceHack"];
 
-export type TableColumnDefinitionFooter = ColumnProps["footer"];
-
 /** What a footer renderer gets: the states of the aggregates its column declares. */
 export type FooterRendererProps<
     Aggregates extends object = AggregateStates,
@@ -123,14 +120,12 @@ export type TableColumnDefinition<
     id: ColumnId;
     data: FieldQueries;
     name: string; // column display name
-    /** A static footer. A footer showing aggregates is a `footerRenderer`. */
-    footer?: TableColumnDefinitionFooter;
     /**
      * The view's aggregates the column reads, by the names the view gives them. Its cell
      * and footer renderers get their states as `aggregates`.
      */
     aggregates?: Aggregates;
-    /** Renders the column's footer. Takes the place of `footer`. */
+    /** Renders the column's footer: static content, or the aggregates the column reads. */
     footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
     // GraphQL field to order by when the header is sorted, or `Orderable.notOrderable` for a
     // column that cannot be sorted. Left out, it is the column's field when its data is a single scalar.

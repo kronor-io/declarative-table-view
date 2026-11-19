@@ -1,7 +1,7 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import { type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type FooterRenderer, type Query, type TableColumnDefinitionFooter } from './column-definition';
+import { type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type FooterRenderer, type Query } from './column-definition';
 import { assertValidAggregates, type AggregateDefinition, type AggregateDefinitions } from './aggregates';
 import * as Orderable from './orderable';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
@@ -13,7 +13,7 @@ import type { ViewMigrationChain } from './view-migrations';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'footerRenderers' | 'customFilterComponents' | 'queryTransforms' | 'valueFormatters' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'footerRenderers' | 'customFilterComponents' | 'queryTransforms' | 'valueFormatters' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
     key: string;
 };
 
@@ -106,10 +106,9 @@ export type TableColumnDefinitionJson = {
     id: string;
     data: FieldQueryJson[];
     name: string;
-    footer?: RuntimeReference;
     /** Names of the view's aggregates the column reads. */
     aggregates?: string[];
-    /** Renders the footer with the aggregates the column reads (section "footerRenderers"). */
+    /** Renders the column's footer (section "footerRenderers"). */
     footerRenderer?: RuntimeReference;
     // A field to sort by, or { "type": "notOrderable" } for a column that cannot be sorted
     orderBy?: string | Orderable.NotOrderable;
@@ -189,7 +188,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'footerRenderers', 'customFilterComponents', 'queryTransforms', 'valueFormatters', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'footerRenderers', 'customFilterComponents', 'queryTransforms', 'valueFormatters', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -340,18 +339,8 @@ export function parseColumnDefinitionJson(
             if (obj.orderBy !== undefined && typeof obj.orderBy !== 'string' && !Orderable.isNotOrderable(obj.orderBy)) {
                 throw new Error('Invalid JSON: "orderBy" field must be a string or { "type": "notOrderable" } for tableColumn when provided');
             }
-            let footer: RuntimeReference | undefined;
             if (obj.footer !== undefined) {
-                footer = parseRuntimeReference(obj.footer);
-                if (footer.section !== 'columnFooters') {
-                    throw new Error('Invalid footer: section must be "columnFooters"');
-                }
-                const externalFooterKeys = externalRuntime ? Object.keys(externalRuntime.columnFooters || {}) : [];
-                const builtInFooterKeys = Object.keys(builtInRuntime.columnFooters || {});
-                const allFooterKeys = [...new Set([...externalFooterKeys, ...builtInFooterKeys])];
-                if (!allFooterKeys.includes(footer.key)) {
-                    throw new Error(`Invalid footer reference: "${footer.key}". Valid keys are: ${allFooterKeys.join(', ')}`);
-                }
+                throw new Error('Invalid JSON: "footer" was removed in DTV 14; use "footerRenderer" with a runtime reference to section "footerRenderers"');
             }
             let aggregates: string[] | undefined;
             if (obj.aggregates !== undefined) {
@@ -403,7 +392,6 @@ export function parseColumnDefinitionJson(
                 id: obj.id,
                 data: parsedData,
                 name: obj.name,
-                ...(footer !== undefined ? { footer } : {}),
                 ...(aggregates !== undefined ? { aggregates } : {}),
                 ...(footerRenderer !== undefined ? { footerRenderer } : {}),
                 ...(orderBy !== undefined ? { orderBy } : {}),
@@ -936,13 +924,6 @@ export function parseViewJson(
                     externalRuntime,
                     builtInRuntime
                 );
-                const footer = columnJson.footer !== undefined
-                    ? resolveRuntimeReference<TableColumnDefinitionFooter>(
-                        columnJson.footer,
-                        externalRuntime,
-                        builtInRuntime
-                    )
-                    : undefined;
                 const footerRenderer = columnJson.footerRenderer !== undefined
                     ? resolveRuntimeReference<FooterRenderer>(columnJson.footerRenderer, externalRuntime, builtInRuntime)
                     : undefined;
@@ -960,7 +941,6 @@ export function parseViewJson(
                     id: columnJson.id,
                     data: columnJson.data,
                     name: columnJson.name,
-                    ...(footer !== undefined ? { footer } : {}),
                     ...(columnAggregates !== undefined ? { aggregates: columnAggregates } : {}),
                     ...(footerRenderer !== undefined ? { footerRenderer } : {}),
                     ...(columnJson.orderBy !== undefined ? { orderBy: columnJson.orderBy } : {}),

@@ -104,6 +104,16 @@ describe('DSL.aggregate typing', () => {
             // @ts-expect-error a column without aggregates gets none
             cellRenderer: ({ aggregates }) => aggregates.totals,
         }));
+
+        void (() => column({
+            rowType: OrderRowType,
+            id: 'id',
+            name: 'Id',
+            data: [valueQuery({ field: 'id' })],
+            // @ts-expect-error `footer` was removed: a static footer is a `footerRenderer` too
+            footer: 'Total',
+            cellRenderer: () => null,
+        }));
     });
 
     it('types the states the host gets by the view', () => {

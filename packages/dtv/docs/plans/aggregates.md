@@ -25,9 +25,12 @@ footers through a React context (`DtvFooterCellsProvider`). DTV should own that 
 - **Columns declare what they read.** A column passes the aggregate definitions it uses
   (`aggregates: { totals }`), which types its `footerRenderer` and `cellRenderer`. It gets
   only those at runtime. `DSL.view` checks that each one is the view's aggregate of that name.
-- **`footerRenderer` is new; `footer` stays as it is.** `footer` is PrimeReact's
-  `ColumnProps['footer']`, which can already be a function. Giving that function new
-  arguments would break existing footers.
+- **`footerRenderer` replaces `footer` (DTV 14).** `footer` was PrimeReact's
+  `ColumnProps['footer']`, passed through unchanged. A function `footer` already got
+  PrimeReact's options, so it could not take DTV's props as well. `footerRenderer` covers
+  every footer, a static one included (`() => 'Total'`), so `footer` and the runtime's
+  `columnFooters` are removed. A JSON view with `footer` fails to parse, with an error naming
+  `footerRenderer`.
 - **Types come from the schema.** Typegen emits `<View>Aggregate` (the
   `<root>_aggregate.aggregate` type, e.g. `orders_aggregate_fields`) and the
   `<View>AggregateType` phantom value, for views that declare `aggregates`. Deriving them
@@ -119,8 +122,11 @@ JSON views:
    Fail the view when the schema has no such field: the role cannot aggregate.
 8. **Docs and example.** `docs/aggregates.md`, the README, and an aggregate on the example
    payment-requests view.
-9. **Finance** (separate repo, after a release). Move CreditSale over, then the remaining 12
-   tables. Delete `useDtvQueryConditions` and `DtvFooterCellsProvider`.
+9. **Finance** (separate repo, after the 14.0.0 release). Move CreditSale over, then the
+   remaining 12 tables. Delete `useDtvQueryConditions` and `DtvFooterCellsProvider`. Of its
+   25 `footer:` uses (10 files), the `<DtvColumnFooter>` ones become aggregate
+   `footerRenderer`s. The `searchFooter(id)` ones in `billItemListDtv.tsx` become
+   `footerRenderer: () => searchFooter(id)`.
 
 ## Status (2026-11-19, branch `aggregates`)
 

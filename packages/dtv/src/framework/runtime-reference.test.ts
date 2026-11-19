@@ -24,7 +24,7 @@ describe('RuntimeReference', () => {
 
             expect(() => {
                 parseRuntimeReference(json);
-            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, rowExpansions, columnFooters, footerRenderers, customFilterComponents, queryTransforms, valueFormatters, initialValues, suggestionFetchers');
+            }).toThrow('Invalid RuntimeReference: "section" must be one of: cellRenderers, noRowsComponents, rowExpansions, footerRenderers, customFilterComponents, queryTransforms, valueFormatters, initialValues, suggestionFetchers');
         });
 
         it('should validate that section is a string', () => {

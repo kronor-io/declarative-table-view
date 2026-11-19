@@ -26,7 +26,6 @@ import {
     type CellRenderer,
     type CellRendererProps,
     type FooterRenderer,
-    type TableColumnDefinitionFooter,
 } from "../framework/column-definition";
 import type { AggregateDefinitions, AggregateStates } from "../framework/aggregates";
 import * as Orderable from "../framework/orderable";
@@ -52,7 +51,6 @@ function tableColumn(args: {
     id: string;
     name: string;
     data: readonly FieldQuery[];
-    footer?: TableColumnDefinitionFooter;
     aggregates?: AggregateDefinitions;
     footerRenderer?: FooterRenderer;
     orderBy?: string | Orderable.NotOrderable;
@@ -67,7 +65,6 @@ function tableColumn(args: {
         id: args.id,
         name: args.name,
         data: args.data,
-        ...(args.footer !== undefined ? { footer: args.footer } : {}),
         ...(args.aggregates !== undefined ? { aggregates: args.aggregates } : {}),
         ...(args.footerRenderer !== undefined ? { footerRenderer: args.footerRenderer } : {}),
         ...(args.orderBy !== undefined ? { orderBy: args.orderBy } : {}),
@@ -93,7 +90,6 @@ export function column<
     id: string;
     name: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
-    footer?: TableColumnDefinitionFooter;
     aggregates?: Aggregates;
     footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
     orderBy?: Orderable.OrderableFieldPath<FieldQueries> | Orderable.NotOrderable;
@@ -170,7 +166,6 @@ export function fieldColumn<
         field: Field & ValidateColumnFieldType<Row, Field, Value>;
         id?: string;
         name: string;
-        footer?: TableColumnDefinitionFooter;
         aggregates?: Aggregates;
         footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
         orderBy?: NoInfer<FieldColumnOrderBy<Field, Value>> | Orderable.NotOrderable;
@@ -201,7 +196,6 @@ export function fieldColumn<
         id: args.id ?? field,
         name: args.name,
         data: [query],
-        ...(args.footer !== undefined ? { footer: args.footer } : {}),
         ...(args.aggregates !== undefined ? { aggregates: args.aggregates } : {}),
         ...(args.footerRenderer !== undefined ? { footerRenderer: args.footerRenderer as FooterRenderer } : {}),
         ...(args.orderBy !== undefined ? { orderBy: args.orderBy } : {}),

@@ -19,7 +19,7 @@ describe('parseColumnDefinitionJson', () => {
                 canExpand: () => true
             }
         },
-        columnFooters: {
+        footerRenderers: {
             total: () => 'total'
         },
         customFilterComponents: {},
@@ -96,13 +96,13 @@ describe('parseColumnDefinitionJson', () => {
             });
         });
 
-        it('should parse a column footer runtime reference', () => {
+        it('should parse a column footer renderer runtime reference', () => {
             const json = {
                 type: 'tableColumn',
                 id: 'col',
                 data: [{ type: 'valueQuery', field: 'amount' }],
                 name: 'Amount',
-                footer: { section: 'columnFooters', key: 'total' },
+                footerRenderer: { section: 'footerRenderers', key: 'total' },
                 cellRenderer: { section: 'cellRenderers', key: 'amount' }
             };
 
@@ -113,9 +113,23 @@ describe('parseColumnDefinitionJson', () => {
                 id: 'col',
                 data: [{ type: 'valueQuery', field: 'amount' }],
                 name: 'Amount',
-                footer: { section: 'columnFooters', key: 'total' },
+                footerRenderer: { section: 'footerRenderers', key: 'total' },
                 cellRenderer: { section: 'cellRenderers', key: 'amount' }
             });
+        });
+
+        it('should reject a column footer, which footerRenderer replaced', () => {
+            const json = {
+                type: 'tableColumn',
+                id: 'col',
+                data: [{ type: 'valueQuery', field: 'amount' }],
+                name: 'Amount',
+                footer: { section: 'columnFooters', key: 'total' },
+                cellRenderer: { section: 'cellRenderers', key: 'amount' }
+            };
+
+            expect(() => parseColumnDefinitionJson(json, testRuntime, undefined))
+                .toThrow('"footer" was removed in DTV 14; use "footerRenderer"');
         });
 
         it('should parse a notOrderable column orderBy', () => {
@@ -1795,7 +1809,7 @@ describe('parseViewJson', () => {
         noRowsComponents: {
             noRowsExtendDateRange: mockNoRowsComponent
         },
-        columnFooters: {
+        footerRenderers: {
             total: mockColumnFooter
         },
         customFilterComponents: {},
@@ -1958,7 +1972,7 @@ describe('parseViewJson', () => {
             expect(result.noRowsComponent).toBe(mockNoRowsComponent);
         });
 
-        it('should resolve table column footers from runtime references', () => {
+        it('should resolve table column footer renderers from runtime references', () => {
             const validJson = {
                 title: 'Test View',
                 id: 'test-view',
@@ -1975,7 +1989,7 @@ describe('parseViewJson', () => {
                         id: 'amount',
                         data: [{ type: 'valueQuery', field: 'amount' }],
                         name: 'Amount',
-                        footer: { section: 'columnFooters', key: 'total' },
+                        footerRenderer: { section: 'footerRenderers', key: 'total' },
                         cellRenderer: { section: 'cellRenderers', key: 'number' }
                     }
                 ],
@@ -1990,7 +2004,7 @@ describe('parseViewJson', () => {
 
             expect(amountColumn.type).toBe('tableColumn');
             if (amountColumn.type === 'tableColumn') {
-                expect(amountColumn.footer).toBe(mockColumnFooter);
+                expect(amountColumn.footerRenderer).toBe(mockColumnFooter);
             }
         });
 
