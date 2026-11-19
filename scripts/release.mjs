@@ -28,7 +28,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
@@ -139,6 +139,28 @@ async function promptReleaseType() {
     });
 }
 
+// A @kronor/hasura-graphql version outside @kronor/dtv's range unlinks the workspace: npm
+// installs the published core into packages/dtv/node_modules, and dtv is built and tested
+// against that instead of the sources. The release commit's pre-commit hook then runs the e2e
+// tests against an app missing the core's new exports. So when the bump leaves such an install,
+// dtv's range moves to the new version in the same commit, and the install is done again.
+// Returns the files that changed besides the core's package.json and the lockfile.
+function keepDtvOnCore(version) {
+    if (packageKey !== 'hasura-graphql' || dryRun) return [];
+
+    const dtvDir = path.join(repoRoot, PACKAGES.dtv.dir);
+    const installedCopy = path.join(dtvDir, 'node_modules', '@kronor', 'hasura-graphql');
+    if (!existsSync(installedCopy)) return [];
+
+    run(`npm pkg set "dependencies.@kronor/hasura-graphql=^${version}"`, 'ACTION:dtv-dependency', dtvDir);
+    run('npm install', 'ACTION:npm-install');
+    if (existsSync(installedCopy)) {
+        console.error(`\n${PACKAGES.dtv.name} still installs its own @kronor/hasura-graphql after depending on ^${version}.`);
+        process.exit(1);
+    }
+    return [path.join(PACKAGES.dtv.dir, 'package.json')];
+}
+
 async function main() {
     log('START', `Beginning release process for ${target.name}`);
     ensureCleanGit();
@@ -160,12 +182,13 @@ async function main() {
 
     const version = dryRun ? '<dry>' : readPackageJson(packageDir).version;
     const tag = target.tag(version);
+    const dependents = keepDtvOnCore(version);
 
     // Commit only the files the bump touched, so an --allow-dirty release does
     // not sweep unrelated working-tree changes into the release commit.
     run(
         `git commit -m "release: ${target.name} ${version}" -- ` +
-        `"${path.join(target.dir, 'package.json')}" package-lock.json`,
+        [path.join(target.dir, 'package.json'), ...dependents, 'package-lock.json'].map(file => `"${file}"`).join(' '),
         'ACTION:git-commit'
     );
     run(`git tag -a ${tag} -m "${target.name} ${version}"`, 'ACTION:git-tag');
