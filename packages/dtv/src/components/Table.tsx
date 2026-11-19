@@ -16,6 +16,7 @@ import { FilterFormState } from '../framework/filter-form-state';
 import { simplifyRow } from '../framework/rows';
 import { flattenFieldQueries, type FlattenedDataRow } from '../framework/data';
 import type { DataOrdering } from '../framework/data-ordering';
+import type { AggregateStates } from '../framework/aggregates';
 import { useTrack } from '../framework/analytics-emitter';
 
 export type RowExpansionApi = {
@@ -65,7 +66,17 @@ type TableProps<Row> = {
     rowClassFunction?: (row: Row) => Record<string, boolean>;
     ordering?: DataOrdering | null;
     onOrderingChange?: (ordering: DataOrdering | null) => void;
+    /** The states of the view's aggregates, by name. Each column gets the ones it declares. */
+    aggregates?: AggregateStates;
 };
+
+const noAggregates: AggregateStates = {};
+
+/** The states of the aggregates `column` declares. */
+function columnAggregates(column: TableColumnDefinition, aggregates: AggregateStates): AggregateStates {
+    if (column.aggregates === undefined) return noAggregates;
+    return Object.fromEntries(Object.keys(column.aggregates).map(name => [name, aggregates[name] ?? { state: 'loading' }]));
+}
 
 function Table<Row extends object = SimplifiedRow>({
     viewId,
@@ -87,7 +98,8 @@ function Table<Row extends object = SimplifiedRow>({
     rowClassFunction,
     onRowExpansionApiChange,
     ordering = null,
-    onOrderingChange
+    onOrderingChange,
+    aggregates = noAggregates
 }: TableProps<Row>) {
     const hiddenSet = new Set(hiddenColumnIds);
     const renderableColumns: TableColumnDefinition[] = columns.filter((column): column is TableColumnDefinition => {
@@ -452,18 +464,28 @@ function Table<Row extends object = SimplifiedRow>({
             {renderableColumns
                 .map(column => {
                     const orderBy = Orderable.getColumnOrderBy(column);
+                    const aggregatesOfColumn = columnAggregates(column, aggregates);
 
                     return (
                         <Column
                             key={column.id}
                             field={column.id}
                             header={column.name}
-                            footer={column.footer}
+                            footer={column.footerRenderer
+                                ? column.footerRenderer({
+                                    aggregates: aggregatesOfColumn,
+                                    createElement: sharedRendererProps.createElement,
+                                    components: sharedRendererProps.components,
+                                    currency: sharedRendererProps.currency,
+                                    columnDefinition: column
+                                })
+                                : column.footer}
                             sortable={orderBy !== undefined}
                             sortField={orderBy}
                             body={(rowData: TableDataRow) => column.cellRenderer({
                                 data: rowData[column.id],
                                 ...sharedRendererProps,
+                                aggregates: aggregatesOfColumn,
                                 columnDefinition: column
                             })}
                         />

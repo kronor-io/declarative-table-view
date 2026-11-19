@@ -100,6 +100,9 @@ That file contains:
     - `<ViewIdPascal>Row` – the inferred row type for that view’s `collectionName`
     - `<ViewIdPascal>RowType` – a phantom value of that type, produced by `DSL.rowType<…>()`, which
       the DSL helpers take as `rowType`
+    - For a view with `aggregates`, also `<ViewIdPascal>Aggregate` – the type of its
+      `<root>_aggregate.aggregate` field – and `<ViewIdPascal>AggregateType`, which `DSL.aggregate`
+      takes as `aggregateType` (see [aggregates.md](aggregates.md))
 
 The generator also edits the view module itself, as a convenience: it imports
 `<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)`,

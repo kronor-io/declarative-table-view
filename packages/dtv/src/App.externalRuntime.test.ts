@@ -131,6 +131,7 @@ describe('External Runtime Integration', () => {
                     Link
                 },
                 currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n },
+                aggregates: {},
                 columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', id: 'id', name: 'ID', data: [], cellRenderer: () => null } as any)
             };
             expect(cellRenderer(mockProps)).toBe('Built-in Text Cell');
@@ -204,6 +205,7 @@ describe('External Runtime Integration', () => {
                     Link
                 },
                 currency: { majorToMinor: (n: number) => n, minorToMajor: (n: number) => n },
+                aggregates: {},
                 columnDefinition: firstCol.type === 'tableColumn' ? firstCol : ({ type: 'tableColumn', id: 'id', name: 'ID', data: [], cellRenderer: () => null } as any)
             };
             expect(cellRenderer(mockProps)).toBe('External Override');

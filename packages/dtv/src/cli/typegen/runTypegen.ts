@@ -2,7 +2,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import fg from 'fast-glob';
 import ts from 'typescript';
-import type { GraphQLNamedType } from 'graphql';
+import { getNamedType, isObjectType, type GraphQLNamedType, type GraphQLSchema } from 'graphql';
+import { defaultAggregateFieldName } from '@kronor/hasura-graphql';
 import { loadConfig, resolveSchema } from '../config/loadConfig.js';
 import type { DtvTypegenConfig, ScanDebugOptions, ViewInfo } from '../config/types.js';
 import {
@@ -43,8 +44,12 @@ function applyFileNamePattern(pattern: string, view: { viewId: string; rootField
         .replace(/\{collectionName\}/g, view.rootFieldName);
 }
 
-function hasRowTypeProp(obj: ts.ObjectLiteralExpression): boolean {
+function hasProp(obj: ts.ObjectLiteralExpression, propName: string): boolean {
     for (const p of obj.properties) {
+        if (ts.isShorthandPropertyAssignment(p)) {
+            if (p.name.text === propName) return true;
+            continue;
+        }
         if (!ts.isPropertyAssignment(p)) continue;
         const name = p.name;
         const key = ts.isIdentifier(name)
@@ -52,9 +57,38 @@ function hasRowTypeProp(obj: ts.ObjectLiteralExpression): boolean {
             : ts.isStringLiteral(name)
                 ? name.text
                 : null;
-        if (key === 'rowType') return true;
+        if (key === propName) return true;
     }
     return false;
+}
+
+function hasRowTypeProp(obj: ts.ObjectLiteralExpression): boolean {
+    return hasProp(obj, 'rowType');
+}
+
+/**
+ * The type of the `aggregate` field of a view's aggregate root field (`<root>_aggregate`, or
+ * `source.aggregateName`), e.g. `orders_aggregate_fields`. Throws when the schema has no such
+ * root field: the role typegen reads the schema as cannot aggregate the view's rows.
+ */
+function resolveAggregateFieldsType(
+    schema: GraphQLSchema,
+    view: { viewId: string; rootFieldName: string; aggregateName?: string }
+): GraphQLNamedType {
+    const fieldName = view.aggregateName ?? defaultAggregateFieldName(view.rootFieldName);
+    const field = schema.getQueryType()?.getFields()[fieldName];
+    if (!field) {
+        throw new Error(
+            `View "${view.viewId}" has aggregates, but Query has no "${fieldName}". `
+            + 'The role the schema is read as may not be allowed to aggregate it, or the schema names it otherwise (set source.aggregateName).'
+        );
+    }
+    const aggregateType = getNamedType(field.type);
+    const aggregateField = isObjectType(aggregateType) ? aggregateType.getFields()['aggregate'] : undefined;
+    if (!aggregateField) {
+        throw new Error(`View "${view.viewId}": "${fieldName}" has no "aggregate" field, so it is not a Hasura aggregate root field`);
+    }
+    return getNamedType(aggregateField.type);
 }
 
 function applyTextEdits(original: string, edits: Array<{ pos: number; insert: string }>): string {
@@ -441,11 +475,13 @@ export function findViewsInFile(
                         let collectionName: string | null = null;
                         let functionName: string | null = null;
                         let sourceType: string | null = null;
+                        let aggregateName: string | null = null;
 
                         if (sourceProp && ts.isPropertyAssignment(sourceProp) && ts.isObjectLiteralExpression(sourceProp.initializer)) {
                             sourceType = tryGetStringProp(sourceProp.initializer, 'type');
                             collectionName = tryGetStringProp(sourceProp.initializer, 'collectionName');
                             functionName = tryGetStringProp(sourceProp.initializer, 'functionName');
+                            aggregateName = tryGetStringProp(sourceProp.initializer, 'aggregateName');
                         }
 
                         const rootFieldName = sourceType === 'collection'
@@ -463,6 +499,7 @@ export function findViewsInFile(
                             views.push({
                                 viewId,
                                 rootFieldName,
+                                ...(aggregateName ? { aggregateName } : {}),
                                 sourceFile: fileName
                             });
                         }
@@ -763,10 +800,19 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
             }
             outputFiles.add(outFile);
 
+            // A view with aggregates gets their type too, from its aggregate root field
+            const aggregateFieldsType = viewArgObject3 && hasProp(viewArgObject3, 'aggregates')
+                ? resolveAggregateFieldsType(schema, v)
+                : null;
+            const emitted = aggregateFieldsType === null
+                ? reachable
+                : collectReachableTypes(schema, [root as GraphQLNamedType, aggregateFieldsType]);
+            const aggregateTypeName = `${toIdentifier(toPascalCase(v.viewId))}Aggregate`;
+
             const content = [
                 `import { DSL as DTV } from ${singleQuoteStringLiteral(dtvImport)};`,
                 '',
-                renderTsFromSchema(reachable, {
+                renderTsFromSchema(emitted, {
                     scalars: config.scalars,
                     immutableTypes: config.immutableTypes === true,
                     includeGraphqlTypeComments: config.debug?.includeGraphqlTypeComments === true,
@@ -775,6 +821,10 @@ export async function runTypegen(args: RunTypegenArgs): Promise<void> {
                 '',
                 `export type ${viewTypeName} = ${v.rowTypeName};`,
                 `export const ${rowTypeConstName} = DTV.rowType<${viewTypeName}>();`,
+                ...(aggregateFieldsType === null ? [] : [
+                    `export type ${aggregateTypeName} = ${aggregateFieldsType.name};`,
+                    `export const ${aggregateTypeName}Type = DTV.rowType<${aggregateTypeName}>();`
+                ]),
                 ''
             ].join('\n');
 

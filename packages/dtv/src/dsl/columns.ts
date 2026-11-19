@@ -25,8 +25,10 @@ import {
     type VirtualColumnDefinition,
     type CellRenderer,
     type CellRendererProps,
+    type FooterRenderer,
     type TableColumnDefinitionFooter,
 } from "../framework/column-definition";
+import type { AggregateDefinitions, AggregateStates } from "../framework/aggregates";
 import * as Orderable from "../framework/orderable";
 import type {
     ColumnFieldValue,
@@ -51,6 +53,8 @@ function tableColumn(args: {
     name: string;
     data: readonly FieldQuery[];
     footer?: TableColumnDefinitionFooter;
+    aggregates?: AggregateDefinitions;
+    footerRenderer?: FooterRenderer;
     orderBy?: string | Orderable.NotOrderable;
     cellRenderer: CellRenderer;
 }): TableColumnDefinition {
@@ -64,6 +68,8 @@ function tableColumn(args: {
         name: args.name,
         data: args.data,
         ...(args.footer !== undefined ? { footer: args.footer } : {}),
+        ...(args.aggregates !== undefined ? { aggregates: args.aggregates } : {}),
+        ...(args.footerRenderer !== undefined ? { footerRenderer: args.footerRenderer } : {}),
         ...(args.orderBy !== undefined ? { orderBy: args.orderBy } : {}),
         cellRenderer: args.cellRenderer,
     };
@@ -72,27 +78,39 @@ function tableColumn(args: {
 /**
  * Creates a renderable table column definition for a view over `Row`.
  * Convenience wrapper around the underlying TableColumnDefinition type.
+ *
+ * `aggregates` are the view's aggregates the column reads, under the names the view gives
+ * them (`aggregates: { totals }`); its `cellRenderer` and `footerRenderer` get their states.
  */
-export function column<Row, const FieldQueries extends readonly FieldQuery[]>(args: {
+export function column<
+    Row,
+    const FieldQueries extends readonly FieldQuery[],
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- no aggregates
+    const Aggregates extends AggregateDefinitions = {},
+>(args: {
     // Phantom type-only field used for inference; not included in the returned column definition.
     rowType: Row;
     id: string;
     name: string;
     data: FieldQueries & readonly FieldQueryForRowSafe<Row>[];
     footer?: TableColumnDefinitionFooter;
+    aggregates?: Aggregates;
+    footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
     orderBy?: Orderable.OrderableFieldPath<FieldQueries> | Orderable.NotOrderable;
-    cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
-}): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>>;
+    cellRenderer: CellRenderer<DataFromFieldQueriesForRowSafe<Row, FieldQueries>, AggregateStates<Aggregates>>;
+}): TableColumnDefinition<FieldQueries, DataFromFieldQueriesForRowSafe<Row, FieldQueries>, Aggregates>;
 export function column(args: Parameters<typeof tableColumn>[0] & { rowType: unknown }): TableColumnDefinition {
     return tableColumn(args);
 }
 
 /** The props a `fieldColumn` renderer gets: the usual ones, plus the field's value. */
-export type FieldCellRendererProps<Value> = CellRendererProps & { value: Value };
+export type FieldCellRendererProps<Value, Aggregates extends object = AggregateStates> =
+    CellRendererProps<Record<string, unknown>, Aggregates> & { value: Value };
 
 // Not bivariant like `CellRenderer`: `fieldColumn` wraps the renderer, so it never has to fit a
 // wider container, and bivariance would let a renderer that ignores null take a nullable field.
-type FieldCellRenderer<Value> = (props: FieldCellRendererProps<Value>) => ReactNode;
+type FieldCellRenderer<Value, Aggregates extends object = AggregateStates> =
+    (props: FieldCellRendererProps<Value, Aggregates>) => ReactNode;
 
 const readPath = (data: Record<string, unknown>, path: readonly string[]): unknown => {
     let value: unknown = data;
@@ -138,7 +156,13 @@ const readPath = (data: Record<string, unknown>, path: readonly string[]): unkno
  *
  * See ./columnTyping for how a helper's own field is checked.
  */
-export function fieldColumn<Row, const Field extends string, Value = ColumnFieldValue<Row, Field>>(
+export function fieldColumn<
+    Row,
+    const Field extends string,
+    Value = ColumnFieldValue<Row, Field>,
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- no aggregates
+    const Aggregates extends AggregateDefinitions = {},
+>(
     args: {
         rowType: Row;
         // Value comes from the renderer, else from the brand of a field a helper hands on, else
@@ -147,11 +171,13 @@ export function fieldColumn<Row, const Field extends string, Value = ColumnField
         id?: string;
         name: string;
         footer?: TableColumnDefinitionFooter;
+        aggregates?: Aggregates;
+        footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
         orderBy?: NoInfer<FieldColumnOrderBy<Field, Value>> | Orderable.NotOrderable;
-        cellRenderer: FieldCellRenderer<Value>;
+        cellRenderer: FieldCellRenderer<Value, AggregateStates<NoInfer<Aggregates>>>;
     } & NoInfer<FieldColumnSelect<Value>>,
     // NoInfer: Value is decided by the arguments, never by where the column goes
-): TableColumnDefinition<readonly FieldQuery[], FieldColumnData<Row, Field, NoInfer<Value>>> {
+): TableColumnDefinition<readonly FieldQuery[], FieldColumnData<Row, Field, NoInfer<Value>>, Aggregates> {
     const field: string = args.field;
     const path = field.split('.');
     const leafField = path[path.length - 1];
@@ -176,10 +202,16 @@ export function fieldColumn<Row, const Field extends string, Value = ColumnField
         name: args.name,
         data: [query],
         ...(args.footer !== undefined ? { footer: args.footer } : {}),
+        ...(args.aggregates !== undefined ? { aggregates: args.aggregates } : {}),
+        ...(args.footerRenderer !== undefined ? { footerRenderer: args.footerRenderer as FooterRenderer } : {}),
         ...(args.orderBy !== undefined ? { orderBy: args.orderBy } : {}),
         // The query above selects exactly the checked path, so the value read back is a `Value`.
-        cellRenderer: props => render({ ...props, value: readPath(props.data, path) as Value }),
-    });
+        cellRenderer: props => render({
+            ...props,
+            aggregates: props.aggregates as AggregateStates<Aggregates>,
+            value: readPath(props.data, path) as Value
+        }),
+    }) as TableColumnDefinition<readonly FieldQuery[], FieldColumnData<Row, Field, NoInfer<Value>>, Aggregates>;
 }
 
 /**

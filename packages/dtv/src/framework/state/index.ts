@@ -7,5 +7,9 @@ export {
     noRows, paginationState, pendingRequest, receiveRows, shownPage,
     type Cursor, type DataRequest, type Page, type PaginationState, type Query, type RequestId, type TableState
 } from './table';
+export {
+    aggregateStates, aggregatesQuery, pendingAggregatesRequest,
+    type AggregatesQuery, type AggregatesRequest, type AggregatesState
+} from './aggregates';
 export * from './app-state';
 export * from './use-app-state';

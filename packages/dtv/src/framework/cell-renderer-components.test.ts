@@ -36,6 +36,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -70,6 +71,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -104,6 +106,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -141,6 +144,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -177,6 +181,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -215,6 +220,7 @@ describe('Cell Renderer Components', () => {
                     Link
                 },
                 currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+                aggregates: {},
                 columnDefinition: dummyColumn
             };
 
@@ -248,6 +254,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -280,6 +287,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -316,6 +324,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 
@@ -352,6 +361,7 @@ describe('Cell Renderer Components', () => {
                 Link
             },
             currency: { majorToMinor: jest.fn(), minorToMajor: jest.fn() },
+            aggregates: {},
             columnDefinition: dummyColumn
         };
 

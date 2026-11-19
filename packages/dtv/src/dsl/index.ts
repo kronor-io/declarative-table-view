@@ -11,5 +11,6 @@ export type { DslTypeError } from './typeErrors';
 export * from './hasura';
 export * from './queryForRow';
 export * from './view';
+export * from './aggregates';
 export * from './rowExpansion';
 export * from './migrations';

@@ -1,8 +1,9 @@
 import type { ColumnDefinition } from '../framework/column-definition';
-import type { View, SimplifiedRow } from '../framework/view';
+import type { View, SimplifiedRow, AggregateStatesOf } from '../framework/view';
+import { assertValidAggregates, type AggregateDefinitions } from '../framework/aggregates';
 import { assertUniqueStringKeys } from './assertUniqueKeys';
 
-export type { View, SimplifiedRow };
+export type { View, SimplifiedRow, AggregateStatesOf };
 
 /**
  * Identity helper for `View`.
@@ -11,7 +12,11 @@ export type { View, SimplifiedRow };
  * types of its columns (the `[]` in the bound makes TypeScript infer a tuple instead of
  * merging them into one array element type), so `SimplifiedRow` can tell what its rows hold.
  */
-export function view<Columns extends [] | ColumnDefinition[]>(view: View<Columns>): View<Columns> {
+export function view<
+    Columns extends [] | ColumnDefinition[],
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- no aggregates
+    const Aggregates extends AggregateDefinitions = {},
+>(view: View<Columns, Aggregates>): View<Columns, Aggregates> {
     assertUniqueStringKeys(view.columnDefinitions, column => column.id, {
         context: `view("${view.id}") columnDefinitions`,
         keyName: 'id'
@@ -22,6 +27,8 @@ export function view<Columns extends [] | ColumnDefinition[]>(view: View<Columns
         context: `view("${view.id}") filterGroups.filters`,
         keyName: 'id'
     });
+
+    assertValidAggregates(view as View);
 
     return view;
 }

@@ -8,7 +8,8 @@ export type { AppProps, DTVAPI } from '../App';
 export type { AIIntegration, ModifyAiFilterPromptFn, RequestAiFilterFn } from '../components/aiAssistant';
 
 // Re-export selected framework types that are useful to consumers.
-export type { View, SimplifiedRow } from '../framework/view';
+export type { View, SimplifiedRow, AggregateStatesOf } from '../framework/view';
+export type { AggregateDefinition, AggregateState, AggregateStates, AggregateData } from '../framework/aggregates';
 export { getViewRootFieldName, getViewStaticArgs } from '../framework/view';
 export type { ViewJson, ColumnDefinitionJson } from '../framework/view';
 export type { ViewProjection, FilterProjection, ColumnProjection, ControlProjection } from '../framework/view-projection';
@@ -26,7 +27,7 @@ export type {
     RowExpansionRuntimeEntry,
 } from '../framework/view';
 export type { Runtime } from '../framework/runtime';
-export type { ColumnDefinition } from '../framework/column-definition';
+export type { ColumnDefinition, FooterRenderer, FooterRendererProps } from '../framework/column-definition';
 export type { FieldQuery } from '../framework/column-definition';
 export type { FilterState } from '../framework/state';
 export type { CustomOperatorOption, FilterSchema, FilterField, FilterValueFormatter, FilterValueFormatContext, QueryTransformContext, SuggestionFetcher, TransformConditionResult } from '../framework/filters';

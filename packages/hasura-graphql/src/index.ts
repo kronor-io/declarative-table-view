@@ -112,6 +112,8 @@ export {
     ensureSelectionPath,
 } from './query/document.js';
 
+export { aggregateRootField, defaultAggregateFieldName } from './query/aggregate.js';
+
 export type { SelectionSetInput, SelectionSetMergeOptions } from './query/selection-set.js';
 export {
     buildSelectionSet,
@@ -127,3 +129,5 @@ export type { HasuraForRow } from './dsl/hasura-dsl.js';
 export { hasuraDSLforRowType } from './dsl/hasura-dsl.js';
 export type { QueryBuilder } from './dsl/query-builder.js';
 export { queryForRowType, rowType } from './dsl/query-builder.js';
+export type { AggregateQueryBuilder, AggregateFunctionColumn, AggregateFunctionQuery } from './dsl/aggregate-builder.js';
+export { aggregateQueryForType } from './dsl/aggregate-builder.js';

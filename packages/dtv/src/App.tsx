@@ -29,7 +29,9 @@ import { buildInitialFormState, FilterState, FormStateInitMode, noRows, setFilte
 import * as State from './framework/state';
 import { parseViewJson } from './framework/view-parser';
 import * as Orderable from './framework/orderable';
-import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, viewWithQuery, type SimplifiedRow } from './framework/view';
+import { getAllFilters, getViewQuery, getViewRootFieldName, getViewStaticArgs, View, viewWithQuery, type AggregateStatesOf, type SimplifiedRow } from './framework/view';
+import { fetchAggregates, generateAggregatesQuery } from './framework/aggregates-data';
+import type { AggregateStates } from './framework/aggregates';
 import { generateGraphQLQuery, generateGraphQLQueryAST, Hasura, hasuraFilterExpressionToObject, renderGraphQLQuery } from './framework/graphql';
 import { generateColumnAliasedGraphQLQueryAST } from './framework/graphql/query';
 import { SavedFilter } from './framework/saved-filters';
@@ -109,6 +111,13 @@ export interface AppProps<V extends View = View> {
     apiRef?: React.RefObject<DTVAPI | null>;
 
     /**
+     * Called with the states of the selected view's aggregates (`View.aggregates`), by name,
+     * whenever one changes: when they are asked for, arrive or fail, and when another view is
+     * selected. Not called for a view without aggregates.
+     */
+    onAggregatesChange?: (viewId: string, aggregates: AggregateStatesOf<V>) => void;
+
+    /**
         * Optional hook to modify the AI prompt template (built from schema + user prompt)
         * before it is sent to the AI provider.
      */
@@ -157,6 +166,12 @@ export type DTVAPI = {
      * own, e.g. with the toolbar hidden. Does nothing, with a warning, for an id no action has.
      */
     runAction: (id: string) => void;
+
+    /**
+     * The states of the selected view's aggregates, by name, as `onAggregatesChange` last
+     * reported them.
+     */
+    getAggregates: () => { viewId: string; aggregates: AggregateStates };
 };
 
 const builtInRuntime: Runtime = nativeRuntime
@@ -187,6 +202,19 @@ function dataQueryFor(view: View): string {
     dataQueries.set(view, query)
     return query
 }
+
+// The aggregates query of each view, generated when its aggregates are first fetched
+const aggregatesQueries = new WeakMap<View, string | null>()
+
+function aggregatesQueryFor(view: View): string | null {
+    if (aggregatesQueries.has(view)) return aggregatesQueries.get(view) ?? null
+
+    const query = generateAggregatesQuery(view)
+    aggregatesQueries.set(view, query)
+    return query
+}
+
+const noAggregateNames: readonly string[] = []
 
 // The query of each lazily expanded view's row expansion, generated when a row is first expanded
 const lazyRowExpansionQueries = new WeakMap<View, string>()
@@ -231,7 +259,8 @@ function App<V extends View = View>({
     userData,
     analytics,
     modifyAiFilterPrompt,
-    apiRef
+    apiRef,
+    onAggregatesChange
 }: AppProps<V>) {
     const views = useMemo(() => {
         if (viewsFromProps) {
@@ -256,6 +285,11 @@ function App<V extends View = View>({
     }, [views]);
 
     const viewsById = useMemo(() => new Map(views.map(view => [view.id, view] as const)), [views]);
+
+    const aggregateNamesByViewId = useMemo(
+        () => new Map(views.map(view => [view.id, Object.keys(view.aggregates ?? {})] as const)),
+        [views]
+    );
 
     // Determine the initial view and filter state (shared param precedence) BEFORE initializing app state
     const initialFromUrl = useMemo((): { viewId: string; filterState: FilterState; synced: boolean; definitionRevision: number } | undefined => {
@@ -317,8 +351,9 @@ function App<V extends View = View>({
             const view = viewsById.get(viewId);
             return view ? getViewQuery(view) : null;
         },
-        action: id => actionStates.get(id) ?? null
-    }), [actionStates, migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
+        action: id => actionStates.get(id) ?? null,
+        aggregateNames: viewId => aggregateNamesByViewId.get(viewId) ?? noAggregateNames
+    }), [aggregateNamesByViewId, actionStates, migrationsByViewId, orderableFieldsByViewId, rowsPerPageOptions, viewsById]);
 
     // The state of the table, and the effects it asks for: see framework/state/app-state.ts.
     // Table behaviour goes there as messages and commands before it becomes an effect or a ref
@@ -356,6 +391,14 @@ function App<V extends View = View>({
                     signal
                 });
             },
+            fetchAggregates: ({ query }, signal) => {
+                const latestView = viewsById.get(query.viewId);
+                if (!latestView) return Promise.reject(new Error(`Unknown view: ${query.viewId}`));
+                const view = viewWithQuery(latestView, query.viewQuery);
+                const aggregatesQuery = aggregatesQueryFor(view);
+                if (aggregatesQuery === null) return Promise.reject(new Error(`View ${query.viewId} has no aggregates`));
+                return fetchAggregates({ client, view, query: aggregatesQuery, filterState: query.filters, signal });
+            },
             runCommand: command => {
                 switch (command.tag) {
                     case 'persistFilterState':
@@ -389,6 +432,18 @@ function App<V extends View = View>({
     const shownRows: FetchDataResult = shownPage?.rows ?? noRows;
     const rowsPerPage = state.rowsPerPage;
     const activeOrdering = state.orderingByViewId[selectedView.id] ?? null;
+
+    // The states of the selected view's aggregates, by name: what its columns, the pager and the host read
+    const selectedAggregateNames = aggregateNamesByViewId.get(selectedView.id) ?? noAggregateNames;
+    const aggregates = useMemo(
+        () => State.aggregateStates(state.aggregates, selectedAggregateNames),
+        [selectedAggregateNames, state.aggregates]
+    );
+    const totalCount = useMemo(() => {
+        const counted = selectedView.totalCount === undefined ? undefined : aggregates[selectedView.totalCount];
+        const count = counted?.state === 'ready' ? counted.data.count : undefined;
+        return typeof count === 'number' ? count : null;
+    }, [aggregates, selectedView.totalCount]);
 
     const setSearchQuery = useCallback((searchQuery: string) => dispatch({ tag: 'searchQueryChanged', searchQuery }), [dispatch]);
 
@@ -483,8 +538,19 @@ function App<V extends View = View>({
             collapseAll: () => undefined,
             expandAll: () => undefined
         },
-        runAction: id => dispatch({ tag: 'actionRequested', id })
+        runAction: id => dispatch({ tag: 'actionRequested', id }),
+        getAggregates: () => ({ viewId: '', aggregates: {} })
     });
+
+    // The host hears of the aggregates of the selected view as they change
+    const latestOnAggregatesChange = useRef(onAggregatesChange);
+    latestOnAggregatesChange.current = onAggregatesChange;
+    useEffect(() => {
+        const viewId = selectedView.id;
+        dtvApi.current.getAggregates = () => ({ viewId, aggregates });
+        if (selectedAggregateNames.length === 0) return;
+        latestOnAggregatesChange.current?.(viewId, aggregates as AggregateStatesOf<V>);
+    }, [aggregates, selectedAggregateNames, selectedView.id]);
 
     const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
         const collapseAll = () => api?.collapseAll();
@@ -1044,6 +1110,7 @@ function App<V extends View = View>({
                         onRowExpansionApiChange={handleRowExpansionApiChange}
                         ordering={activeOrdering}
                         onOrderingChange={handleOrderingChange}
+                        aggregates={aggregates}
                     />
                 </div>
                 {
@@ -1056,6 +1123,7 @@ function App<V extends View = View>({
                             currentPage={paginationState.page}
                             rowsPerPage={rowsPerPage}
                             actualRows={shownRows.rows.length}
+                            totalCount={totalCount}
                             onRowsPerPageChange={handleRowsPerPageChange}
                             rowsPerPageOptions={rowsPerPageOptions}
                         />

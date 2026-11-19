@@ -16,6 +16,7 @@ import type { FilterId } from "./filters";
 import type * as Orderable from "./orderable";
 import type { FieldQuery } from "@kronor/hasura-graphql";
 import type { DataFromFieldQueriesSafe } from "@kronor/hasura-graphql";
+import type { AggregateDefinitions, AggregateStates } from "./aggregates";
 
 // The query AST and its row-typed derivations are shared with other
 // declarative, GraphQL-driven UIs; only the table/rendering layer lives here.
@@ -50,16 +51,10 @@ export type {
 
 export { fieldAlias } from "@kronor/hasura-graphql";
 
-export type CellRendererProps<
-    Data extends object = Record<string, unknown>,
-> = {
-    data: Data;
-    setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
-    applyFilters: () => void; // Function to trigger data fetch with current filter state
-    updateFilterById: (
-        filterId: FilterId,
-        updater: (currentValue: FilterFormState) => FilterFormState,
-    ) => void; // Narrow helper to update a specific filter by id
+/** What a cell renderer and a footer renderer get, whatever their column. */
+type RendererBaseProps<Aggregates extends object> = {
+    /** The states of the aggregates the column declares (`aggregates`), by name. */
+    aggregates: Aggregates;
     createElement: typeof createElement; // React createElement function
     components: {
         Badge: typeof Tag; // PrimeReact Tag component exposed as Badge for user convenience
@@ -75,37 +70,72 @@ export type CellRendererProps<
         majorToMinor: typeof majorToMinor;
     };
     /**
-     * The full column definition for the current cell. Allows renderers to
-     * introspect the FieldQuery definitions to derive display output generically.
+     * The full column definition. Allows renderers to introspect the FieldQuery
+     * definitions to derive display output generically.
      */
     columnDefinition: TableColumnDefinition;
+};
+
+export type CellRendererProps<
+    Data extends object = Record<string, unknown>,
+    Aggregates extends object = AggregateStates,
+> = RendererBaseProps<Aggregates> & {
+    data: Data;
+    setFilterState: (updater: (currentState: FilterState) => FilterState) => void; // Function to update filter state
+    applyFilters: () => void; // Function to trigger data fetch with current filter state
+    updateFilterById: (
+        filterId: FilterId,
+        updater: (currentValue: FilterFormState) => FilterFormState,
+    ) => void; // Narrow helper to update a specific filter by id
 };
 
 // Intentionally bivariant so strongly-typed cell renderers remain assignable
 // to framework-level column containers (e.g. `ColumnDefinition[]`).
 export type CellRenderer<
     Data extends object = Record<string, unknown>,
+    Aggregates extends object = AggregateStates,
 > = {
-    bivarianceHack(props: CellRendererProps<Data>): ReactNode;
+    bivarianceHack(props: CellRendererProps<Data, Aggregates>): ReactNode;
 }["bivarianceHack"];
 
 export type TableColumnDefinitionFooter = ColumnProps["footer"];
+
+/** What a footer renderer gets: the states of the aggregates its column declares. */
+export type FooterRendererProps<
+    Aggregates extends object = AggregateStates,
+> = RendererBaseProps<Aggregates>;
+
+// Bivariant, like `CellRenderer`
+export type FooterRenderer<
+    Aggregates extends object = AggregateStates,
+> = {
+    bivarianceHack(props: FooterRendererProps<Aggregates>): ReactNode;
+}["bivarianceHack"];
 
 export type ColumnId = string;
 
 export type TableColumnDefinition<
     FieldQueries extends readonly FieldQuery[] = readonly FieldQuery[],
     CellData extends object = DataFromFieldQueriesSafe<FieldQueries>,
+    Aggregates extends AggregateDefinitions = AggregateDefinitions,
 > = {
     type: "tableColumn";
     id: ColumnId;
     data: FieldQueries;
     name: string; // column display name
+    /** A static footer. A footer showing aggregates is a `footerRenderer`. */
     footer?: TableColumnDefinitionFooter;
+    /**
+     * The view's aggregates the column reads, by the names the view gives them. Its cell
+     * and footer renderers get their states as `aggregates`.
+     */
+    aggregates?: Aggregates;
+    /** Renders the column's footer. Takes the place of `footer`. */
+    footerRenderer?: FooterRenderer<AggregateStates<Aggregates>>;
     // GraphQL field to order by when the header is sorted, or `Orderable.notOrderable` for a
     // column that cannot be sorted. Left out, it is the column's field when its data is a single scalar.
     orderBy?: Orderable.OrderableFieldPath<FieldQueries> | Orderable.NotOrderable;
-    cellRenderer: CellRenderer<CellData>;
+    cellRenderer: CellRenderer<CellData, AggregateStates<Aggregates>>;
 };
 
 // data-only column included in the GraphQL selection set but not rendered.

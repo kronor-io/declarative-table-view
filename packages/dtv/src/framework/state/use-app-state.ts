@@ -6,6 +6,8 @@ import type { FetchDataResult } from '../data';
 import { toFetchError } from '../fetch-error';
 import { initAppState, initialCommands, updateAppState, type AppState, type AppStateEnv, type AppStateInit, type Command, type Msg } from './app-state';
 import { nextPageCursor, noRows, pendingRequest, type DataRequest } from './table';
+import { pendingAggregatesRequest, type AggregatesRequest } from './aggregates';
+import type { AggregatesResult } from '../aggregates-data';
 
 /*
  * The interpreter of the app state: holds it, and carries out the effects
@@ -20,6 +22,8 @@ export type HostCommand = Exclude<Command, { tag: 'track' | 'cancelTrack' }>;
 export interface AppStateEffects {
     /** Fetches the rows `request` asks for. Rejects with an AbortError once `signal` aborts. */
     readonly fetchRows: (request: DataRequest, signal: AbortSignal) => Promise<FetchDataResult>;
+    /** Fetches the aggregates `request` asks for. Rejects with an AbortError once `signal` aborts. */
+    readonly fetchAggregates: (request: AggregatesRequest, signal: AbortSignal) => Promise<AggregatesResult>;
     readonly runCommand: (command: HostCommand) => void;
     /** Receives the table's analytics events. */
     readonly onEvent?: (event: DTVAnalyticsEvent) => void;
@@ -229,6 +233,27 @@ export function useAppState(
         );
         return () => controller.abort();
     }, [emitter, request]);
+
+    const aggregatesRequest = pendingAggregatesRequest(state.aggregates);
+    useEffect(() => {
+        if (!aggregatesRequest) return;
+
+        const controller = new AbortController();
+        latest.current.effects.fetchAggregates(aggregatesRequest, controller.signal).then(
+            result => {
+                // Arrived as the request was superseded: the aggregates are not wanted
+                if (controller.signal.aborted) return;
+                dispatch({ tag: 'aggregatesArrived', requestId: aggregatesRequest.id, result });
+            },
+            (error: unknown) => {
+                if (controller.signal.aborted) return;
+                // The rows do not depend on the aggregates: only their readers see the failure
+                console.error('Error fetching aggregates:', error);
+                dispatch({ tag: 'aggregatesArrived', requestId: aggregatesRequest.id, result: null });
+            }
+        );
+        return () => controller.abort();
+    }, [aggregatesRequest]);
 
     return [state, dispatch, report];
 }

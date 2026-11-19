@@ -47,6 +47,8 @@ Key props you can pass to `App` (or via `dtv.renderTableView` in `main.tsx`):
   - `rowSelection.reset()`: clears the row selection.
   - `rowExpansion.collapseAll()` / `expandAll()` / `reset()`: collapses or expands the rows on the current page; `reset` collapses them.
   - `runAction(id)`: runs the action with that `id` as a click on its button would, for a host that starts an action from a control of its own, e.g. with the toolbar hidden. The button shows it running, a run while it is running or disabled does nothing, and it reports the same analytics and failure toast. Does nothing, with a warning, for an id no action has.
+  - `getAggregates()`: the states of the selected view's aggregates, by name (see `docs/aggregates.md`).
+- `onAggregatesChange(viewId, aggregates)`: called with the states of the selected view's aggregates whenever one changes (see `docs/aggregates.md`).
 
 Example:
 ```ts
@@ -145,6 +147,12 @@ DTV ships a CLI command for generating TypeScript types from a Hasura GraphQL sc
 - See `docs/typegen.md`
 - Once a view has its generated row type, its columns and filters are checked against it —
   see `docs/api/row-typed-views.md`
+
+## Aggregates
+
+A view can declare named Hasura aggregates over the rows its filters match (`aggregates`), for
+totals in column footers, shares of a total in cells, the row count in the pager and the host.
+See `docs/aggregates.md`.
 
 ## View Migrations (CLI)
 

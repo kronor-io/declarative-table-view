@@ -1,5 +1,5 @@
 import React from "react";
-import { CellRenderer, TableColumnDefinitionFooter } from "./column-definition";
+import { CellRenderer, FooterRenderer, TableColumnDefinitionFooter } from "./column-definition";
 import { NoRowsComponent, RowExpansionRuntimeEntry } from "./view";
 import { QueryTransformContext, TransformResult, SuggestionFetcher, FilterValueFormatter } from "./filters";
 import type { ViewMigrationChain } from "./view-migrations";
@@ -17,6 +17,8 @@ export type Runtime = {
     noRowsComponents: Record<string, NoRowsComponent>;
     rowExpansions?: Record<string, RowExpansionRuntimeEntry>;
     columnFooters?: Record<string, TableColumnDefinitionFooter>;
+    // Footers showing a column's aggregates, referenced by a column's `footerRenderer`
+    footerRenderers?: Record<string, FooterRenderer>;
     customFilterComponents: Record<string, React.ComponentType<any>>;
     initialValues: Record<string, any>;
     // New runtime section for dynamic suggestion fetchers used by autocomplete filter controls

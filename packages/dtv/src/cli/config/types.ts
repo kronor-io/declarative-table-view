@@ -54,6 +54,8 @@ export type DtvTypegenConfig = {
 export type ViewInfo = {
     viewId: string;
     rootFieldName: string;
+    /** `source.aggregateName`, when the view renames its aggregate root field. */
+    aggregateName?: string;
     sourceFile: string;
 };
 

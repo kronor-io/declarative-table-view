@@ -1,7 +1,8 @@
 // Parser functions for view JSON schema types
 // Separated from view.ts to avoid React import issues in tests
 
-import { type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type TableColumnDefinitionFooter } from './column-definition';
+import { type FieldQuery, type FieldAlias, type ColumnDefinition, type CellRenderer, type FooterRenderer, type Query, type TableColumnDefinitionFooter } from './column-definition';
+import { assertValidAggregates, type AggregateDefinition, type AggregateDefinitions } from './aggregates';
 import * as Orderable from './orderable';
 import type { FilterControl, FilterExpr, FilterField, FilterFieldGroup, FilterSchema, FilterGroups } from './filters';
 import { CollectionViewSource, FunctionViewSource, RowExpansionRuntimeEntry, View, ViewSource } from './view';
@@ -12,7 +13,7 @@ import type { ViewMigrationChain } from './view-migrations';
 
 // Runtime reference type for referencing components/functions from runtime
 export type RuntimeReference = {
-    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'customFilterComponents' | 'queryTransforms' | 'valueFormatters' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
+    section: 'cellRenderers' | 'noRowsComponents' | 'rowExpansions' | 'columnFooters' | 'footerRenderers' | 'customFilterComponents' | 'queryTransforms' | 'valueFormatters' | 'initialValues' | 'suggestionFetchers' | 'viewMigrations';
     key: string;
 };
 
@@ -106,6 +107,10 @@ export type TableColumnDefinitionJson = {
     data: FieldQueryJson[];
     name: string;
     footer?: RuntimeReference;
+    /** Names of the view's aggregates the column reads. */
+    aggregates?: string[];
+    /** Renders the footer with the aggregates the column reads (section "footerRenderers"). */
+    footerRenderer?: RuntimeReference;
     // A field to sort by, or { "type": "notOrderable" } for a column that cannot be sorted
     orderBy?: string | Orderable.NotOrderable;
     cellRenderer: RuntimeReference;
@@ -122,12 +127,20 @@ export type ColumnDefinitionJson = TableColumnDefinitionJson | VirtualColumnDefi
 export type CollectionViewSourceJson = {
     type: 'collection';
     collectionName: string;
+    aggregateName?: string;
 };
 
 export type FunctionViewSourceJson = {
     type: 'function';
     functionName: string;
     args?: Record<string, unknown>;
+    aggregateName?: string;
+};
+
+/** An aggregate of a view: what to select inside `aggregate`, and a `where` of its own. */
+export type AggregateDefinitionJson = {
+    select: FieldQueryJson[];
+    where?: HasuraFilterExpression;
 };
 
 export type ViewSourceJson = CollectionViewSourceJson | FunctionViewSourceJson;
@@ -155,6 +168,9 @@ export type ViewJson = {
         mode: 'single' | 'multiple';
         lazy?: boolean;
     };
+    aggregates?: Record<string, AggregateDefinitionJson>;
+    /** The aggregate whose `count` the pager shows as the number of rows. */
+    totalCount?: string;
 };
 
 // Conversion functions from JSON types to actual types
@@ -173,7 +189,7 @@ export function parseRuntimeReference(json: unknown): RuntimeReference {
         throw new Error('Invalid RuntimeReference: "key" must be a string');
     }
 
-    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'customFilterComponents', 'queryTransforms', 'valueFormatters', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
+    const validSections: RuntimeReference['section'][] = ['cellRenderers', 'noRowsComponents', 'rowExpansions', 'columnFooters', 'footerRenderers', 'customFilterComponents', 'queryTransforms', 'valueFormatters', 'initialValues', 'suggestionFetchers', 'viewMigrations'];
     if (!validSections.includes(obj.section as RuntimeReference['section'])) {
         throw new Error(`Invalid RuntimeReference: "section" must be one of: ${validSections.join(', ')}`);
     }
@@ -337,6 +353,27 @@ export function parseColumnDefinitionJson(
                     throw new Error(`Invalid footer reference: "${footer.key}". Valid keys are: ${allFooterKeys.join(', ')}`);
                 }
             }
+            let aggregates: string[] | undefined;
+            if (obj.aggregates !== undefined) {
+                if (!Array.isArray(obj.aggregates) || obj.aggregates.some(name => typeof name !== 'string')) {
+                    throw new Error('Invalid JSON: "aggregates" field must be an array of aggregate names for tableColumn');
+                }
+                aggregates = obj.aggregates as string[];
+            }
+            let footerRenderer: RuntimeReference | undefined;
+            if (obj.footerRenderer !== undefined) {
+                footerRenderer = parseRuntimeReference(obj.footerRenderer);
+                if (footerRenderer.section !== 'footerRenderers') {
+                    throw new Error('Invalid footerRenderer: section must be "footerRenderers"');
+                }
+                const allFooterRendererKeys = [...new Set([
+                    ...Object.keys(externalRuntime?.footerRenderers ?? {}),
+                    ...Object.keys(builtInRuntime.footerRenderers ?? {})
+                ])];
+                if (!allFooterRendererKeys.includes(footerRenderer.key)) {
+                    throw new Error(`Invalid footerRenderer reference: "${footerRenderer.key}". Valid keys are: ${allFooterRendererKeys.join(', ')}`);
+                }
+            }
             const cellRenderer = parseRuntimeReference(obj.cellRenderer);
             if (cellRenderer.section !== 'cellRenderers') {
                 throw new Error('Invalid cellRenderer: section must be "cellRenderers"');
@@ -367,6 +404,8 @@ export function parseColumnDefinitionJson(
                 data: parsedData,
                 name: obj.name,
                 ...(footer !== undefined ? { footer } : {}),
+                ...(aggregates !== undefined ? { aggregates } : {}),
+                ...(footerRenderer !== undefined ? { footerRenderer } : {}),
                 ...(orderBy !== undefined ? { orderBy } : {}),
                 cellRenderer
             };
@@ -790,6 +829,11 @@ export function parseViewJson(
         throw new Error('View "source.type" must be "collection" or "function"');
     }
 
+    if (sourceObject.aggregateName !== undefined && typeof sourceObject.aggregateName !== 'string') {
+        throw new Error('View "source.aggregateName" must be a string when provided');
+    }
+    const aggregateName = sourceObject.aggregateName === undefined ? {} : { aggregateName: sourceObject.aggregateName as string };
+
     if (sourceObject.type === 'collection') {
         if (typeof sourceObject.collectionName !== 'string') {
             throw new Error('View "source.collectionName" must be a string');
@@ -815,12 +859,14 @@ export function parseViewJson(
     const parsedSource: ViewSource = sourceObject.type === 'collection'
         ? {
             type: 'collection',
-            collectionName: sourceObject.collectionName as CollectionViewSource['collectionName']
+            collectionName: sourceObject.collectionName as CollectionViewSource['collectionName'],
+            ...aggregateName
         }
         : {
             type: 'function',
             functionName: sourceObject.functionName as FunctionViewSource['functionName'],
-            args: sourceObject.args as FunctionViewSource['args']
+            args: sourceObject.args as FunctionViewSource['args'],
+            ...aggregateName
         };
 
     if (typeof view.paginationKey !== 'string') {
@@ -862,6 +908,12 @@ export function parseViewJson(
         throw new Error('View "filterSchema" is required');
     }
 
+    const aggregates = view.aggregates === undefined ? undefined : parseAggregatesJson(view.aggregates);
+
+    if (view.totalCount !== undefined && typeof view.totalCount !== 'string') {
+        throw new Error('View "totalCount" must be the name of an aggregate when provided');
+    }
+
     // Parse columns with runtime resolution
     const columnDefinitions: ColumnDefinition[] = view.columns.map((col, index) => {
         let columnJson: ColumnDefinitionJson;
@@ -891,12 +943,26 @@ export function parseViewJson(
                         builtInRuntime
                     )
                     : undefined;
+                const footerRenderer = columnJson.footerRenderer !== undefined
+                    ? resolveRuntimeReference<FooterRenderer>(columnJson.footerRenderer, externalRuntime, builtInRuntime)
+                    : undefined;
+                const columnAggregates = columnJson.aggregates === undefined
+                    ? undefined
+                    : Object.fromEntries(columnJson.aggregates.map(name => {
+                        const aggregate = aggregates?.[name];
+                        if (aggregate === undefined) {
+                            throw new Error(`Invalid column[${index}]: it reads aggregate "${name}", which the view does not have`);
+                        }
+                        return [name, aggregate];
+                    }));
                 return {
                     type: 'tableColumn',
                     id: columnJson.id,
                     data: columnJson.data,
                     name: columnJson.name,
                     ...(footer !== undefined ? { footer } : {}),
+                    ...(columnAggregates !== undefined ? { aggregates: columnAggregates } : {}),
+                    ...(footerRenderer !== undefined ? { footerRenderer } : {}),
                     ...(columnJson.orderBy !== undefined ? { orderBy: columnJson.orderBy } : {}),
                     cellRenderer
                 };
@@ -1049,18 +1115,44 @@ export function parseViewJson(
         noRowsComponent,
         staticConditions,
         staticOrdering,
-        ...(migrations === undefined ? {} : { migrations })
+        ...(migrations === undefined ? {} : { migrations }),
+        ...(aggregates === undefined ? {} : { aggregates }),
+        ...(view.totalCount === undefined ? {} : { totalCount: view.totalCount as string })
     };
 
-    if (parsedSource.type === 'collection') {
-        return {
-            ...baseView,
-            source: parsedSource
-        };
+    const parsedView: View = parsedSource.type === 'collection'
+        ? { ...baseView, source: parsedSource }
+        : { ...baseView, source: parsedSource };
+    assertValidAggregates(parsedView);
+    return parsedView;
+}
+
+function parseAggregatesJson(json: unknown): AggregateDefinitions {
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('View "aggregates" must be an object of aggregates by name when provided');
     }
-
-    return {
-        ...baseView,
-        source: parsedSource
-    };
+    return Object.fromEntries(Object.entries(json).map(([name, value]): [string, AggregateDefinition] => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            throw new Error(`View aggregate "${name}" must be an object`);
+        }
+        const aggregate = value as Record<string, unknown>;
+        if (!Array.isArray(aggregate.select)) {
+            throw new Error(`View aggregate "${name}": "select" must be an array of Query objects`);
+        }
+        const selectionSet = aggregate.select.map((item, index) => {
+            try {
+                return parseQueryJson(item) as Query;
+            } catch (error) {
+                throw new Error(`View aggregate "${name}": invalid select[${index}]: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
+            }
+        });
+        if (aggregate.where !== undefined && (typeof aggregate.where !== 'object' || aggregate.where === null || Array.isArray(aggregate.where))) {
+            throw new Error(`View aggregate "${name}": "where" must be a non-null object when provided`);
+        }
+        return [name, {
+            type: 'aggregate',
+            selectionSet,
+            ...(aggregate.where !== undefined ? { where: aggregate.where as HasuraFilterExpression } : {})
+        }];
+    }));
 }

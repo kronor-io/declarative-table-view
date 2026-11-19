@@ -13,6 +13,12 @@ import {
     currentPageQuery, currentQuery, nextPageCursor, nextRequestId, noRequestId, receiveRows, shownPage,
     type Page, type Query, type RequestId, type TableState
 } from './table';
+import {
+    aggregatesQueriesEqual, aggregatesQuery, aggregatesQueryOf, noAggregates, receiveAggregates,
+    type AggregatesState
+} from './aggregates';
+import type { AggregatesResult } from '../aggregates-data';
+import type { AggregateName } from '../aggregates';
 
 /*
  * The state of a table view, and its transitions.
@@ -20,7 +26,8 @@ import {
  * `updateAppState` is pure. Its effects leave it as data: the request the table waits on is
  * read off the state with `pendingRequest`, and writes to user data are returned as
  * `Command`s, and so are the analytics events transitions report (`track`) and the toolbar
- * actions to run. `useAppState` runs both and feeds what comes back in as messages, in the
+ * actions to run. The aggregates request is read off the state as well
+ * (`pendingAggregatesRequest`). `useAppState` runs both and feeds what comes back in as messages, in the
  * order they are sent: applying the draft right after changing it applies the changed draft,
  * whatever renders happen in between.
  */
@@ -42,6 +49,8 @@ export type Panel = 'filters' | 'savedFilters' | 'preferences';
 export interface AppState {
     readonly selectedViewId: ViewId;
     readonly table: TableState;
+    /** The aggregates of the rows the table last asked for, over all their pages. */
+    readonly aggregates: AggregatesState;
     /** The draft filter state: the one being edited. Applying it starts a request; editing it does not. */
     readonly filterState: FilterState;
     /** The search through the selected view's filters, and which of their groups are expanded. */
@@ -82,6 +91,8 @@ export interface AppStateEnv {
     readonly viewQuery: (viewId: ViewId) => ViewQuery | null;
     /** The toolbar action with this id; `null` for an id no action has. */
     readonly action: (id: string) => { readonly disabled: boolean } | null;
+    /** The names of a view's aggregates; empty for a view without any. */
+    readonly aggregateNames: (viewId: ViewId) => readonly AggregateName[];
 }
 
 /** What applies filters by a message. The table opening with filters is told by the state. */
@@ -117,6 +128,8 @@ export type Msg =
      */
     | { readonly tag: 'envChanged' }
     | { readonly tag: 'rowsArrived'; readonly requestId: RequestId; readonly rows: FetchDataResult }
+    /** The aggregates of `requestId` arrived, or their request failed (`null`). */
+    | { readonly tag: 'aggregatesArrived'; readonly requestId: RequestId; readonly result: AggregatesResult | null }
     /** Show `panel`, or hide it when it is the one shown. */
     | { readonly tag: 'panelToggled'; readonly panel: Panel }
     | { readonly tag: 'filterPanelShown'; readonly shown: boolean }
@@ -172,6 +185,7 @@ export function initAppState(env: AppStateEnv, init: AppStateInit): AppState {
     return {
         selectedViewId: init.viewId,
         table: { tag: 'hydrating', initialFilterState },
+        aggregates: noAggregates,
         filterState: initialFilterState ?? createDefaultFilterState(filterGroups),
         searchQuery: '',
         filterDisplayState: createFilterDisplayState(filterGroups, ''),
@@ -195,6 +209,30 @@ export function initialCommands(env: AppStateEnv, init: AppStateInit): Command[]
 }
 
 export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [AppState, Command[]] {
+    const [next, commands] = updateTable(env, state, msg);
+    return [syncAggregates(env, next, msg.tag === 'refreshRequested'), commands];
+}
+
+/**
+ * Asks for the aggregates of the rows `state`'s table last asked for, unless they are asked
+ * for already, or `refresh` says to ask again. No query, or a view without aggregates, has
+ * none.
+ */
+function syncAggregates(env: AppStateEnv, state: AppState, refresh: boolean): AppState {
+    const query = currentQuery(state.table);
+    if (query === null || env.aggregateNames(query.viewId).length === 0) {
+        return state.aggregates.tag === 'none' ? state : { ...state, aggregates: noAggregates };
+    }
+
+    const wanted = aggregatesQueryOf(query);
+    const current = aggregatesQuery(state.aggregates);
+    if (!refresh && current !== null && aggregatesQueriesEqual(current, wanted)) return state;
+
+    const id = nextRequestId(state.lastRequestId);
+    return { ...state, lastRequestId: id, aggregates: { tag: 'loading', request: { id, query: wanted } } };
+}
+
+function updateTable(env: AppStateEnv, state: AppState, msg: Msg): [AppState, Command[]] {
     switch (msg.tag) {
         case 'userDataChanged': {
             // Sent for a view this table no longer shows, or with nothing new
@@ -395,6 +433,11 @@ export function updateAppState(env: AppStateEnv, state: AppState, msg: Msg): [Ap
         case 'rowsArrived': {
             const table = receiveRows(state.table, msg.requestId, msg.rows);
             return [table === state.table ? state : { ...state, table }, []];
+        }
+
+        case 'aggregatesArrived': {
+            const aggregates = receiveAggregates(state.aggregates, msg.requestId, msg.result);
+            return [aggregates === state.aggregates ? state : { ...state, aggregates }, []];
         }
 
         case 'panelToggled': {

@@ -11,13 +11,15 @@ interface TablePaginationProps {
     currentPage: number; // 0-based
     rowsPerPage: number;
     actualRows: number; // number of rows in the current page
+    /** How many rows the filters match, when the view counts them (`View.totalCount`) and the count has arrived. */
+    totalCount?: number | null;
     onRowsPerPageChange?: (value: number) => void; // invoked when user selects a different page size
     rowsPerPageOptions: number[]; // selectable page size options (must be provided by parent)
 }
 /**
  * Pagination footer including previous/next buttons and a rows-per-page selector.
  */
-function TablePagination({ onPageChange, onPrevPage, hasNextPage, hasPrevPage, currentPage, rowsPerPage, actualRows, onRowsPerPageChange, rowsPerPageOptions }: TablePaginationProps) {
+function TablePagination({ onPageChange, onPrevPage, hasNextPage, hasPrevPage, currentPage, rowsPerPage, actualRows, totalCount, onRowsPerPageChange, rowsPerPageOptions }: TablePaginationProps) {
     const start = currentPage * rowsPerPage + 1;
     const end = start + actualRows - 1;
     const singleOption = rowsPerPageOptions.length === 1 ? rowsPerPageOptions[0] : null;
@@ -51,7 +53,7 @@ function TablePagination({ onPageChange, onPrevPage, hasNextPage, hasPrevPage, c
                     className="p-button-sm"
                     data-testid="pagination-prev"
                 />
-                <span className="tw:text-s tw:text-gray-600 tw:mx-3" data-testid="pagination-page">{start}-{end}</span>
+                <span className="tw:text-s tw:text-gray-600 tw:mx-3" data-testid="pagination-page">{start}-{end}{typeof totalCount === 'number' && <> of <span data-testid="pagination-total">{totalCount.toLocaleString()}</span></>}</span>
                 <Button
                     rounded
                     icon="pi pi-angle-right"

@@ -1,4 +1,4 @@
-import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy } from '../framework/graphql';
+import { buildHasuraConditions, Hasura, hasuraFilterExpressionToObject, HasuraOrderBy, type HasuraFilterExpression } from '../framework/graphql';
 import { getViewRootFieldName, View } from '../framework/view';
 import type { ColumnDefinition, ColumnId, FieldQuery, Query } from '../framework/column-definition';
 import { FilterState } from './state';
@@ -195,6 +195,15 @@ export function getPaginationOrderFieldQueries(view: View): FieldQuery[] {
     return Array.from(fields).map(field => fieldPathToFieldQuery(field));
 }
 
+/** The rows `filterState` matches in `view`: the user's filters and the view's static conditions. */
+export function buildConditionsExpression(view: View, filterState: FilterState): HasuraFilterExpression {
+    const conditionsExpr = buildHasuraConditions(filterState, view.filterGroups);
+
+    return view.staticConditions && view.staticConditions.length > 0
+        ? Hasura.and(conditionsExpr, ...view.staticConditions)
+        : conditionsExpr;
+}
+
 export const buildGraphQLQueryVariables = (
     view: View,
     filterState: FilterState,
@@ -202,11 +211,7 @@ export const buildGraphQLQueryVariables = (
     cursor: PaginationCursor,
     ordering?: DataOrdering | null
 ) => {
-    let conditionsExpr = buildHasuraConditions(filterState, view.filterGroups);
-
-    if (view.staticConditions && view.staticConditions.length > 0) {
-        conditionsExpr = Hasura.and(conditionsExpr, ...view.staticConditions);
-    }
+    const conditionsExpr = buildConditionsExpression(view, filterState);
 
     const paginationConditionExpr = buildPaginationCondition(view, cursor, ordering);
     const orderBy = buildOrderBy(view, ordering);

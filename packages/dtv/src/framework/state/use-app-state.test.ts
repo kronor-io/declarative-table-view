@@ -18,6 +18,7 @@ const env: AppStateEnv = {
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
     snapshotDiff: () => null,
     viewQuery: () => null,
+    aggregateNames: () => [],
     action: () => null
 }
 
@@ -48,6 +49,7 @@ const effects: AppStateEffects = {
         effectLog.push(`fetch ${reason}`)
         fetches.push({ query, signal, resolve })
     }),
+    fetchAggregates: () => new Promise(() => {}),
     runCommand: command => {
         commands.push(command)
     },
@@ -116,6 +118,37 @@ describe('useAppState', () => {
         expect(latest.model.table.tag).toBe('loaded')
         expect(latest.model.table.tag === 'loaded' && latest.model.table.page.rows).toEqual(rows(1, 2))
         await act(async () => { root.unmount() })
+    })
+
+    it('fetches the aggregates beside the rows, aborts a superseded request and fails without the rows', async () => {
+        const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+        const aggregateFetches: { signal: AbortSignal; resolve: (result: Record<string, Record<string, unknown>>) => void; reject: (error: unknown) => void }[] = []
+        const withAggregates: AppStateEffects = {
+            ...effects,
+            fetchAggregates: (_request, signal) => new Promise((resolve, reject) => { aggregateFetches.push({ signal, resolve, reject }) })
+        }
+        const aggregatesEnv: AppStateEnv = { ...env, aggregateNames: () => ['totals'] }
+        function AggregatesHarness() {
+            const [model, dispatch, report] = useAppState(aggregatesEnv, { viewId: 'payments', rowsPerPage: 2 }, withAggregates)
+            latest = { model, dispatch, report }
+            return null
+        }
+        await act(async () => { root.render(React.createElement(AggregatesHarness)) })
+
+        await send(userDataLoaded)
+        await send({ tag: 'refreshRequested' })
+        expect(aggregateFetches.map(f => f.signal.aborted)).toEqual([true, false])
+
+        await act(async () => { aggregateFetches[0].resolve({ totals: { count: 9 } }) })
+        expect(latest.model.aggregates.tag).toBe('loading')
+
+        await act(async () => { aggregateFetches[1].reject(new Error('offline')) })
+        expect(latest.model.aggregates.tag).toBe('failed')
+        await act(async () => { fetches[1].resolve(rows(1, 2)) })
+        expect(latest.model.table.tag).toBe('loaded')
+
+        await act(async () => { root.unmount() })
+        error.mockRestore()
     })
 
     it('aborts the pending request on unmount', async () => {

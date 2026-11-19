@@ -1,4 +1,5 @@
 import type { ReactNode, createElement } from 'react';
+import { defaultAggregateFieldName } from "@kronor/hasura-graphql";
 import type { CellRenderer, CellRendererProps, DataFromFieldQueriesSafe, FieldQuery } from './column-definition';
 import { ColumnDefinition } from "./column-definition";
 import { FilterGroups, FilterSchema } from "./filters";
@@ -9,6 +10,7 @@ import type { OrderDirection } from "./order-direction";
 import { valuesEqual } from "./equality";
 import type { ViewMigrationChain } from "./view-migrations";
 import type { Simplify, UnionToIntersection } from "./typelevel";
+import type { AggregateDefinitions, AggregateStates } from "./aggregates";
 
 export type NoRowsComponentProps = {
     setFilterState: (updater: (currentState: FilterState) => FilterState) => void;
@@ -101,17 +103,21 @@ export type ViewId = string;
 export type CollectionViewSource = {
     type: 'collection';
     collectionName: string;
+    /** The aggregate root field of the collection, when the schema renames it from `<collectionName>_aggregate`. */
+    aggregateName?: string;
 };
 
 export type FunctionViewSource = {
     type: 'function';
     functionName: string;
     args?: Record<string, unknown>;
+    /** The aggregate root field of the function, when the schema renames it from `<functionName>_aggregate`. */
+    aggregateName?: string;
 };
 
 export type ViewSource = CollectionViewSource | FunctionViewSource;
 
-type ViewBase<Columns extends ColumnDefinition[]> = {
+type ViewBase<Columns extends ColumnDefinition[], Aggregates extends AggregateDefinitions> = {
     title: string;
     id: ViewId;
     source: ViewSource;
@@ -143,6 +149,16 @@ type ViewBase<Columns extends ColumnDefinition[]> = {
      * `dtv definitions snapshot`.
      */
     migrations?: ViewMigrationChain;
+    /**
+     * Aggregates of the rows the user's filters match, by name, fetched alongside the rows.
+     * Columns declare the ones they read; the host gets all of them (`onAggregatesChange`).
+     */
+    aggregates?: Aggregates;
+    /**
+     * The aggregate whose `count` is the number of rows the filters match, which the pager
+     * shows ("1–20 of 345").
+     */
+    totalCount?: keyof Aggregates & string;
 };
 
 /*
@@ -150,22 +166,40 @@ type ViewBase<Columns extends ColumnDefinition[]> = {
  * `ColumnDefinition[]` otherwise (a view parsed from JSON, or annotated as `View`). Only
  * `SimplifiedRow` reads it.
  */
-export type CollectionView<Columns extends ColumnDefinition[] = ColumnDefinition[]> = ViewBase<Columns> & {
+export type CollectionView<
+    Columns extends ColumnDefinition[] = ColumnDefinition[],
+    Aggregates extends AggregateDefinitions = AggregateDefinitions,
+> = ViewBase<Columns, Aggregates> & {
     source: CollectionViewSource;
 };
 
-export type FunctionView<Columns extends ColumnDefinition[] = ColumnDefinition[]> = ViewBase<Columns> & {
+export type FunctionView<
+    Columns extends ColumnDefinition[] = ColumnDefinition[],
+    Aggregates extends AggregateDefinitions = AggregateDefinitions,
+> = ViewBase<Columns, Aggregates> & {
     source: FunctionViewSource;
 };
 
-export type View<Columns extends ColumnDefinition[] = ColumnDefinition[]> =
-    | CollectionView<Columns>
-    | FunctionView<Columns>;
+/*
+ * `Aggregates` is the view's aggregates when `view()` built it from typed ones, and plain
+ * `AggregateDefinitions` otherwise. `AggregateStatesOf` reads it.
+ */
+export type View<
+    Columns extends ColumnDefinition[] = ColumnDefinition[],
+    Aggregates extends AggregateDefinitions = AggregateDefinitions,
+> =
+    | CollectionView<Columns, Aggregates>
+    | FunctionView<Columns, Aggregates>;
+
+/** The states of `V`'s aggregates, by name, as the host gets them. A union of views gives a union. */
+export type AggregateStatesOf<V extends View = View> = V extends View<ColumnDefinition[], infer Aggregates>
+    ? AggregateStates<Aggregates>
+    : never;
 
 // What a column adds to its row. A column that is not typed (its data is `Record<string, any>`)
 // adds fields it does not name, so they are `unknown`, never `any`.
 type ColumnRowData<Column> =
-    Column extends { type: 'tableColumn'; cellRenderer: CellRenderer<infer CellData> }
+    Column extends { type: 'tableColumn'; cellRenderer: CellRenderer<infer CellData, any> }
     ? KnownFields<CellData>
     : Column extends { type: 'virtualColumn'; rowData?: infer Data }
     ? KnownFields<Exclude<Data, undefined>>
@@ -186,7 +220,7 @@ export type SimplifiedRow<V extends View = View> = V extends View<infer Columns>
     ? Simplify<UnionToIntersection<ColumnRowData<Columns[number]>>>
     : never;
 
-export function getViewRootFieldName(view: View): string {
+export function getViewRootFieldName(view: Pick<View, 'source'>): string {
     return view.source.type === 'function'
         ? view.source.functionName
         : view.source.collectionName;
@@ -202,6 +236,11 @@ export function getViewStaticArgs(view: View): Record<string, unknown> | undefin
  * scope the view to another record.
  */
 export type ViewQuery = Pick<View, 'source' | 'staticConditions' | 'staticOrdering'>;
+
+/** The aggregate root field `view`'s aggregates are selected from. */
+export function getViewAggregateFieldName(view: Pick<View, 'source'>): string {
+    return view.source.aggregateName ?? defaultAggregateFieldName(getViewRootFieldName(view));
+}
 
 export function getViewQuery(view: View): ViewQuery {
     return { source: view.source, staticConditions: view.staticConditions, staticOrdering: view.staticOrdering };

@@ -3,6 +3,7 @@ import { describe, it, expect } from '@jest/globals'
 import type { FetchDataResult } from '../data'
 import * as FilterValue from '../filterValue'
 import {
+    aggregateStates, pendingAggregatesRequest, type AggregatesRequest,
     currentQuery, hasNextPage, hasPreviousPage, initAppState, initialCommands, isLoading, pendingRequest, shownPage, updateAppState,
     type AppState, type AppStateEnv, type AppStateInit, type Command, type FilterState, type DataRequest, type Msg, type RequestId, type ViewUserData
 } from '.'
@@ -16,6 +17,7 @@ const env: AppStateEnv = {
     definition: viewId => ({ definition: viewId, definitionRevision: 1 }),
     snapshotDiff: () => null,
     viewQuery: () => null,
+    aggregateNames: () => [],
     action: id => (id === 'export' ? { disabled: false } : id === 'archive' ? { disabled: true } : null)
 }
 
@@ -922,5 +924,126 @@ describe('analytics', () => {
             { tag: 'track', viewId: 'payments', event: { type: 'filterSearch', query: 'amo' }, debounce: { key: 'filterSearch', ms: 1000 } }
         ])
         expect(commands).toEqual([{ tag: 'cancelTrack', key: 'filterSearch' }])
+    })
+})
+
+describe('aggregates', () => {
+    const withTotals: AppStateEnv = { ...env, aggregateNames: viewId => (viewId === 'payments' ? ['totals'] : []) }
+    const withTotalsOn = (invoiceId: string): AppStateEnv => ({
+        ...withTotals,
+        viewQuery: () => ({ source: { type: 'function', functionName: 'invoiceLines', args: { invoiceId } } })
+    })
+
+    /** Runs a program, also recording every aggregates request that becomes pending (once). */
+    function runAggregates(initial: AppState, steps: readonly Step[], runEnv: AppStateEnv = withTotals) {
+        let model = initial
+        const aggregatesRequests: AggregatesRequest[] = []
+        const observe = () => {
+            const request = pendingAggregatesRequest(model.aggregates)
+            if (request && aggregatesRequests.at(-1)?.id !== request.id) aggregatesRequests.push(request)
+        }
+        observe()
+        for (const step of steps) {
+            model = updateAppState(runEnv, model, typeof step === 'function' ? step(model) : step)[0]
+            observe()
+        }
+        return { model, aggregatesRequests }
+    }
+    const startWithTotals = (...steps: Step[]) => runAggregates(initAppState(withTotals, options()), steps)
+
+    const answerAggregates = (result: Record<string, Record<string, unknown>> | null) => (model: AppState): Msg => {
+        const request = pendingAggregatesRequest(model.aggregates)
+        if (!request) throw new Error('No aggregates request is pending')
+        return { tag: 'aggregatesArrived', requestId: request.id, result }
+    }
+    const totals = (model: AppState) => aggregateStates(model.aggregates, ['totals']).totals
+
+    it('asks for nothing while hydrating, then for the aggregates of the filters the view settles with', () => {
+        expect(startWithTotals(userDataArrives()).aggregatesRequests).toEqual([])
+
+        const { aggregatesRequests, model } = startWithTotals(loaded({ persistedFilterState: emailFilter('a') }))
+        expect(aggregatesRequests).toHaveLength(1)
+        expect(aggregatesRequests[0]?.query.viewId).toBe('payments')
+        expect(emailOf(aggregatesRequests[0]?.query.filters)).toBe('a')
+        expect(totals(model)).toEqual({ state: 'loading' })
+    })
+
+    it('asks for nothing for a view without aggregates', () => {
+        const { aggregatesRequests, model } = runAggregates(initAppState(env, options()), [loaded()], env)
+        expect(aggregatesRequests).toEqual([])
+        expect(model.aggregates).toEqual({ tag: 'none' })
+    })
+
+    it('keeps them while paging, sorting or changing rows per page', () => {
+        const { aggregatesRequests, model } = startWithTotals(
+            loaded(),
+            answerAggregates({ totals: { count: 5 } }),
+            answer(rows(1, 2)),
+            { tag: 'nextPageRequested' }, answer(rows(3, 4)),
+            { tag: 'previousPageRequested' },
+            { tag: 'orderingChanged', ordering: { field: 'amount', direction: 'ASC' } },
+            { tag: 'rowsPerPageChanged', rowsPerPage: 3 }
+        )
+
+        expect(aggregatesRequests).toHaveLength(1)
+        expect(totals(model)).toEqual({ state: 'ready', data: { count: 5 } })
+    })
+
+    it('asks again for other filters, and shows the ones on their way as loading', () => {
+        const { aggregatesRequests, model } = startWithTotals(
+            loaded(),
+            answerAggregates({ totals: { count: 5 } }),
+            { tag: 'filtersApplied', filters: emailFilter('b'), trigger: 'submit' }
+        )
+
+        expect(aggregatesRequests).toHaveLength(2)
+        expect(emailOf(aggregatesRequests[1]?.query.filters)).toBe('b')
+        expect(totals(model)).toEqual({ state: 'loading' })
+    })
+
+    it('does not ask again for the same filters applied again', () => {
+        const { aggregatesRequests } = startWithTotals(
+            loaded(),
+            { tag: 'filtersApplied', filters: emailFilter('b'), trigger: 'submit' },
+            { tag: 'filtersApplied', filters: emailFilter('b'), trigger: 'submit' }
+        )
+
+        expect(aggregatesRequests).toHaveLength(2)
+    })
+
+    it('asks again on refresh, and for another view query', () => {
+        const { aggregatesRequests: refreshed } = startWithTotals(
+            loaded(), answerAggregates({ totals: { count: 5 } }), { tag: 'refreshRequested' }
+        )
+        expect(refreshed).toHaveLength(2)
+
+        const { model } = runAggregates(initAppState(withTotals, options()), [loaded(), answerAggregates({ totals: {} })], withTotalsOn('A'))
+        const { aggregatesRequests } = runAggregates(model, [{ tag: 'envChanged' }], withTotalsOn('B'))
+        expect(aggregatesRequests).toHaveLength(1)
+        expect(aggregatesRequests[0]?.query.viewQuery).toEqual(withTotalsOn('B').viewQuery('payments'))
+    })
+
+    it('ignores the answer to a superseded request, and shows a failure as an error', () => {
+        const { model: first } = startWithTotals(loaded())
+        const firstId = pendingAggregatesRequest(first.aggregates)!.id
+
+        const { model } = runAggregates(first, [
+            { tag: 'filtersApplied', filters: emailFilter('b'), trigger: 'submit' },
+            { tag: 'aggregatesArrived', requestId: firstId, result: { totals: { count: 5 } } }
+        ])
+        expect(totals(model)).toEqual({ state: 'loading' })
+
+        expect(totals(runAggregates(model, [answerAggregates(null)]).model)).toEqual({ state: 'error' })
+    })
+
+    it('has none once another view is selected, until it settles', () => {
+        const { model } = startWithTotals(loaded(), { tag: 'viewSelected', viewId: 'refunds' })
+        expect(model.aggregates).toEqual({ tag: 'none' })
+    })
+
+    it('does not change the rows the table asks for', () => {
+        const withoutAggregates = start(loaded(), answer(rows(1, 2)), { tag: 'nextPageRequested' })
+        const { model } = startWithTotals(loaded(), answer(rows(1, 2)), { tag: 'nextPageRequested' })
+        expect(pendingRequest(model.table)?.query).toEqual(pendingRequest(withoutAggregates.model.table)?.query)
     })
 })
