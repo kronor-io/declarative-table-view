@@ -5,6 +5,7 @@ import { ErrorGroupsListRowType } from './dtv.generated-types.error-groups-list'
 /** What failed, by the event DTV reported it with. */
 export const ERROR_TYPES = [
     { label: 'Requests for rows', value: 'fetch' },
+    { label: 'Requests for aggregates', value: 'aggregatesFetch' },
     { label: 'Actions', value: 'action' },
     { label: 'Row expansions', value: 'rowExpansionLoad' },
     { label: 'AI assistant', value: 'aiFilter' },

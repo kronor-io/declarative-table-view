@@ -1,4 +1,5 @@
 import type { AggregatesResult } from '../aggregates-data';
+import type { FetchReason } from '../analytics';
 import type { AggregateName, AggregateState, AggregateStates } from '../aggregates';
 import { valuesEqual } from '../equality';
 import type { ViewId, ViewQuery } from '../view';
@@ -24,6 +25,8 @@ export interface AggregatesQuery {
 export interface AggregatesRequest {
     readonly id: RequestId;
     readonly query: AggregatesQuery;
+    /** Why the aggregates are requested: the reason the rows were. Reported, not acted on. */
+    readonly reason: FetchReason;
 }
 
 export type AggregatesState =

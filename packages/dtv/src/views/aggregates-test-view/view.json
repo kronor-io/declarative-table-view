@@ -1,0 +1,58 @@
+{
+    "title": "Aggregates Test View",
+    "id": "aggregates-test-view",
+    "source": {
+        "type": "collection",
+        "collectionName": "simpleTestDataCollection"
+    },
+    "paginationKey": "id",
+    "boolExpType": "SimpleTestBoolExp",
+    "orderByType": "[SimpleTestOrderBy!]",
+    "aggregates": {
+        "totals": {
+            "select": [
+                { "type": "valueQuery", "field": "count" },
+                { "type": "objectQuery", "field": "sum", "selectionSet": [{ "type": "valueQuery", "field": "amount" }] }
+            ]
+        },
+        "large": {
+            "select": [
+                { "type": "valueQuery", "field": "count" }
+            ],
+            "where": { "kind": "where", "path": ["amount"], "operator": { "_gt": 200 } }
+        }
+    },
+    "totalCount": "totals",
+    "columns": [
+        {
+            "type": "tableColumn",
+            "id": "test-field",
+            "data": [{ "type": "valueQuery", "field": "testField" }],
+            "name": "Test Field",
+            "aggregates": ["large"],
+            "footerRenderer": { "section": "footerRenderers", "key": "largeCount" },
+            "cellRenderer": { "section": "cellRenderers", "key": "text" }
+        },
+        {
+            "type": "tableColumn",
+            "id": "amount",
+            "data": [{ "type": "valueQuery", "field": "amount" }],
+            "name": "Amount",
+            "aggregates": ["totals"],
+            "footerRenderer": { "section": "footerRenderers", "key": "amountTotal" },
+            "cellRenderer": { "section": "cellRenderers", "key": "amountShare" }
+        }
+    ],
+    "filterSchema": {
+        "groups": [{ "name": "default", "label": "Default Filters" }],
+        "filters": [
+            {
+                "id": "amount-gte",
+                "label": "Amount",
+                "expression": { "type": "greaterThanOrEqual", "field": "amount", "value": { "type": "number" } },
+                "group": "default",
+                "aiGenerated": false
+            }
+        ]
+    }
+}

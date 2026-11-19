@@ -238,22 +238,40 @@ export function useAppState(
     useEffect(() => {
         if (!aggregatesRequest) return;
 
+        const { query } = aggregatesRequest;
+        const end = startSpan();
+        const span = {
+            type: 'aggregatesFetch',
+            reason: aggregatesRequest.reason,
+            aggregates: latest.current.env.aggregateNames(query.viewId),
+            // Commands ran first: the event of the request's filters is reported already
+            filtersSeq: emitter.lastFiltersAppliedSeq()
+        } as const;
+
         const controller = new AbortController();
         latest.current.effects.fetchAggregates(aggregatesRequest, controller.signal).then(
             result => {
                 // Arrived as the request was superseded: the aggregates are not wanted
-                if (controller.signal.aborted) return;
+                if (controller.signal.aborted) {
+                    emitter.emit(query.viewId, { ...span, ...end(), outcome: 'aborted' });
+                    return;
+                }
+                emitter.emit(query.viewId, { ...span, ...end(), outcome: 'succeeded' });
                 dispatch({ tag: 'aggregatesArrived', requestId: aggregatesRequest.id, result });
             },
             (error: unknown) => {
-                if (controller.signal.aborted) return;
+                if (controller.signal.aborted) {
+                    emitter.emit(query.viewId, { ...span, ...end(), outcome: 'aborted' });
+                    return;
+                }
+                emitter.emit(query.viewId, { ...span, ...end(), outcome: 'failed', error: toFetchError(error).info });
                 // The rows do not depend on the aggregates: only their readers see the failure
                 console.error('Error fetching aggregates:', error);
                 dispatch({ tag: 'aggregatesArrived', requestId: aggregatesRequest.id, result: null });
             }
         );
         return () => controller.abort();
-    }, [aggregatesRequest]);
+    }, [aggregatesRequest, emitter]);
 
     return [state, dispatch, report];
 }

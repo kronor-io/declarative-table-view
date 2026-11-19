@@ -82,6 +82,12 @@ if (import.meta.env.DEV) {
                         await import('./views/simple-test-view/runtime')
                     );
                     break;
+                case 'aggregates-test-view':
+                    await loadView(
+                        await import('./views/aggregates-test-view/view.json?raw'),
+                        await import('./views/aggregates-test-view/runtime')
+                    );
+                    break;
                 case 'row-expansion-test-view':
                     await loadView(
                         await import('./views/row-expansion-test-view/view.json?raw'),

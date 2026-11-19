@@ -1015,11 +1015,12 @@ describe('aggregates', () => {
         const { aggregatesRequests: refreshed } = startWithTotals(
             loaded(), answerAggregates({ totals: { count: 5 } }), { tag: 'refreshRequested' }
         )
-        expect(refreshed).toHaveLength(2)
+        expect(refreshed.map(request => request.reason)).toEqual(['filters', 'refresh'])
 
         const { model } = runAggregates(initAppState(withTotals, options()), [loaded(), answerAggregates({ totals: {} })], withTotalsOn('A'))
         const { aggregatesRequests } = runAggregates(model, [{ tag: 'envChanged' }], withTotalsOn('B'))
         expect(aggregatesRequests).toHaveLength(1)
+        expect(aggregatesRequests[0]?.reason).toBe('viewQuery')
         expect(aggregatesRequests[0]?.query.viewQuery).toEqual(withTotalsOn('B').viewQuery('payments'))
     })
 

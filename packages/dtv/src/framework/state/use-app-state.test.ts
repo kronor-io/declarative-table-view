@@ -7,7 +7,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import type { FetchDataResult } from '../data'
-import type { ReportedEvent } from '../analytics'
+import type { DTVAnalyticsEvent, ReportedEvent } from '../analytics'
 import { startPageSession } from '../analytics-emitter'
 import { useAppState, type AppState, type AppStateEffects, type AppStateEnv, type HostCommand, type Msg, type Query } from '.'
 
@@ -123,8 +123,10 @@ describe('useAppState', () => {
     it('fetches the aggregates beside the rows, aborts a superseded request and fails without the rows', async () => {
         const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
         const aggregateFetches: { signal: AbortSignal; resolve: (result: Record<string, Record<string, unknown>>) => void; reject: (error: unknown) => void }[] = []
+        const spans: DTVAnalyticsEvent[] = []
         const withAggregates: AppStateEffects = {
             ...effects,
+            onEvent: event => { if (event.type === 'aggregatesFetch') spans.push(event) },
             fetchAggregates: (_request, signal) => new Promise((resolve, reject) => { aggregateFetches.push({ signal, resolve, reject }) })
         }
         const aggregatesEnv: AppStateEnv = { ...env, aggregateNames: () => ['totals'] }
@@ -142,8 +144,13 @@ describe('useAppState', () => {
         await act(async () => { aggregateFetches[0].resolve({ totals: { count: 9 } }) })
         expect(latest.model.aggregates.tag).toBe('loading')
 
-        await act(async () => { aggregateFetches[1].reject(new Error('offline')) })
+        await act(async () => { aggregateFetches[1].reject(new TypeError('Failed to fetch')) })
         expect(latest.model.aggregates.tag).toBe('failed')
+        expect(spans).toMatchObject([
+            { type: 'aggregatesFetch', reason: 'filters', aggregates: ['totals'], outcome: 'aborted' },
+            { type: 'aggregatesFetch', reason: 'refresh', aggregates: ['totals'], outcome: 'failed', error: { kind: 'network' } }
+        ])
+        expect(spans[1]).toMatchObject({ filtersSeq: expect.any(Number), durationMs: expect.any(Number) })
         await act(async () => { fetches[1].resolve(rows(1, 2)) })
         expect(latest.model.table.tag).toBe('loaded')
 

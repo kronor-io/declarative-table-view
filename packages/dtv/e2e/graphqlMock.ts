@@ -16,6 +16,69 @@ const allRows = Array.from({ length: 30 }, (_, i) => ({
         }
 }));
 
+// Apply additional filters (e.g. by amount, email)
+function applyFilters<Row>(rows: Row[], conditions: any): Row[] {
+    if (!conditions) return rows;
+
+    return rows.filter(row => evaluateCondition(row, conditions));
+}
+
+// Recursively evaluate a condition against a row
+function evaluateCondition(row: any, condition: any): boolean {
+    // Handle logical operators
+    if (condition._and) {
+        return condition._and.every((subCondition: any) => evaluateCondition(row, subCondition));
+    }
+    if (condition._or) {
+        return condition._or.some((subCondition: any) => evaluateCondition(row, subCondition));
+    }
+    if (condition._not) {
+        return !evaluateCondition(row, condition._not);
+    }
+
+    // Handle field conditions
+    let pass = true;
+
+    // Check each field in the condition
+    for (const [fieldName, fieldCondition] of Object.entries(condition)) {
+        if (fieldName.startsWith('_')) continue; // Skip logical operators
+
+        const fieldValue = row[fieldName];
+        const ops = fieldCondition as any;
+
+        if (ops._eq !== undefined) {
+            if (fieldName === 'transformedField') {
+                // Special handling for transformedField - convert back to testField
+                const expectedValue = ops._eq.replace('prefix_', 'Test ');
+                pass = pass && row.testField === expectedValue;
+            } else {
+                pass = pass && fieldValue === ops._eq;
+            }
+        }
+        if (ops._neq !== undefined) pass = pass && fieldValue !== ops._neq;
+        if (ops._gt !== undefined) pass = pass && fieldValue > ops._gt;
+        if (ops._lt !== undefined) pass = pass && fieldValue < ops._lt;
+        if (ops._gte !== undefined) pass = pass && fieldValue >= ops._gte;
+        if (ops._lte !== undefined) pass = pass && fieldValue <= ops._lte;
+        if (ops._in !== undefined) pass = pass && Array.isArray(ops._in) && ops._in.includes(fieldValue);
+        if (ops._nin !== undefined) pass = pass && (!Array.isArray(ops._nin) || !ops._nin.includes(fieldValue));
+        if (ops._like !== undefined) {
+            // Convert SQL LIKE pattern to regex
+            const pattern = ops._like.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
+            const regex = new RegExp(`^${pattern}$`);
+            pass = pass && regex.test(String(fieldValue));
+        }
+        if (ops._ilike !== undefined) {
+            // Convert SQL ILIKE pattern to case-insensitive regex
+            const pattern = ops._ilike.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
+            const regex = new RegExp(`^${pattern}$`, 'i');
+            pass = pass && regex.test(String(fieldValue));
+        }
+        if (ops._isNull !== undefined) pass = pass && ((fieldValue == null) === ops._isNull);
+    }
+
+    return pass;
+}
 export async function mockPaginationGraphQL(route: Route) {
     const request = route.request();
     const postData = request.postDataJSON?.();
@@ -62,69 +125,6 @@ export async function mockPaginationGraphQL(route: Route) {
         }
         return undefined;
     }
-    // Apply additional filters (e.g. by amount, email)
-    function applyFilters(rows: typeof allRows, conditions: any): typeof allRows {
-        if (!conditions) return rows;
-
-        return rows.filter(row => evaluateCondition(row, conditions));
-    }
-
-    // Recursively evaluate a condition against a row
-    function evaluateCondition(row: any, condition: any): boolean {
-        // Handle logical operators
-        if (condition._and) {
-            return condition._and.every((subCondition: any) => evaluateCondition(row, subCondition));
-        }
-        if (condition._or) {
-            return condition._or.some((subCondition: any) => evaluateCondition(row, subCondition));
-        }
-        if (condition._not) {
-            return !evaluateCondition(row, condition._not);
-        }
-
-        // Handle field conditions
-        let pass = true;
-
-        // Check each field in the condition
-        for (const [fieldName, fieldCondition] of Object.entries(condition)) {
-            if (fieldName.startsWith('_')) continue; // Skip logical operators
-
-            const fieldValue = row[fieldName];
-            const ops = fieldCondition as any;
-
-            if (ops._eq !== undefined) {
-                if (fieldName === 'transformedField') {
-                    // Special handling for transformedField - convert back to testField
-                    const expectedValue = ops._eq.replace('prefix_', 'Test ');
-                    pass = pass && row.testField === expectedValue;
-                } else {
-                    pass = pass && fieldValue === ops._eq;
-                }
-            }
-            if (ops._neq !== undefined) pass = pass && fieldValue !== ops._neq;
-            if (ops._gt !== undefined) pass = pass && fieldValue > ops._gt;
-            if (ops._lt !== undefined) pass = pass && fieldValue < ops._lt;
-            if (ops._gte !== undefined) pass = pass && fieldValue >= ops._gte;
-            if (ops._lte !== undefined) pass = pass && fieldValue <= ops._lte;
-            if (ops._in !== undefined) pass = pass && Array.isArray(ops._in) && ops._in.includes(fieldValue);
-            if (ops._nin !== undefined) pass = pass && (!Array.isArray(ops._nin) || !ops._nin.includes(fieldValue));
-            if (ops._like !== undefined) {
-                // Convert SQL LIKE pattern to regex
-                const pattern = ops._like.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
-                const regex = new RegExp(`^${pattern}$`);
-                pass = pass && regex.test(String(fieldValue));
-            }
-            if (ops._ilike !== undefined) {
-                // Convert SQL ILIKE pattern to case-insensitive regex
-                const pattern = ops._ilike.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
-                const regex = new RegExp(`^${pattern}$`, 'i');
-                pass = pass && regex.test(String(fieldValue));
-            }
-            if (ops._isNull !== undefined) pass = pass && ((fieldValue == null) === ops._isNull);
-        }
-
-        return pass;
-    }
     // Pagination: use _gt for asc, _lt for desc, recursively
     let cursorValue: number | undefined = undefined;
     let filteredRows = sortedRows;
@@ -161,4 +161,32 @@ export async function mockPaginationGraphQL(route: Route) {
             }
         })
     });
+}
+
+/**
+ * Answers the aggregates query of the aggregates test view: each aliased
+ * `simpleTestDataCollection_aggregate` root field, over the rows `$conditions` match and,
+ * for an aggregate with a `where` of its own, the `amount` bound it adds. Other queries
+ * are answered by `mockPaginationGraphQL`.
+ */
+export async function mockAggregatesGraphQL(route: Route) {
+    const postData = route.request().postDataJSON?.();
+    const query: string = postData?.query ?? '';
+    if (!query.includes('simpleTestDataCollection_aggregate')) {
+        return mockPaginationGraphQL(route);
+    }
+
+    const matching = applyFilters(allRows, postData.variables?.conditions);
+    const data: Record<string, unknown> = {};
+    for (const [, alias, args] of query.matchAll(/(\w+): simpleTestDataCollection_aggregate\(([^)]*)\)/g)) {
+        const above = args.match(/amount: \{_gt: (\d+)\}/);
+        const rows = above ? matching.filter(row => row.amount > Number(above[1])) : matching;
+        data[alias] = {
+            aggregate: {
+                count: rows.length,
+                sum: { amount: rows.reduce((total, row) => total + row.amount, 0) }
+            }
+        };
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data }) });
 }

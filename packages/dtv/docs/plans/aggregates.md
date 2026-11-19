@@ -124,16 +124,16 @@ JSON views:
 
 ## Status (2026-11-19, branch `aggregates`)
 
-- Steps 1–7 done, with tests.
-- Step 8: `docs/aggregates.md`, the README and `docs/typegen.md` are done. An aggregate on the
-  example view, with e2e coverage through `e2e/graphqlMock.ts`, is not.
+- Steps 1–8 done, with tests. The example is `src/views/aggregates-test-view`
+  (`?test-view=aggregates-test-view`), with e2e coverage in `e2e/aggregates.spec.ts`.
+- The popout passes `onAggregatesChange` on; closing it reports the table's own aggregates again.
+- The aggregates request is reported as an `aggregatesFetch` span. dtv-analytics lists its
+  failures among the errors (migration 0004).
 - Step 9 waits for a release.
-- Open: the popout overlay's `App` does not pass on `onAggregatesChange`.
 
 ## Not now
 
 - Aggregates over a relationship in each row (`lines_aggregate` inside a row), sorting by
   them, and `count(columns:, distinct:)`.
-- Analytics events for the aggregates request. That needs a new event type in dtv-analytics.
 - Totals of the selected rows. Those are computed in the browser, a different feature.
 - Typegen inserting `aggregateType:` into `DSL.aggregate` calls, as it does for `rowType`.

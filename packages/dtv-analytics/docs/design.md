@@ -235,6 +235,7 @@ How events are put together follows
   over time. The slowest filter combinations, through `filtersSeq` to the `filtersApplied` that
   made the request. Outcomes, error kinds and messages, and row counts.
 - `userDataLoad`, `action` (per action), `rowExpansionLoad`, `aiFilter`: durations and outcomes.
+- `aggregatesFetch`: its failures, among the errors (error kinds and messages, as for `fetch`).
 - Problems: `userDataSaveFailed`, `userDataConflict`, `userDataReadOnly`,
   `filtersChangedSinceSnapshot`, `suggestionsFailed`, per definition and over time.
 - Each of these by `appVersion` and DTV version, so a release that made something slower or

@@ -172,6 +172,22 @@ export type DTVAnalyticsEventPayload =
         readonly error?: FetchErrorInfo;
     })
     /**
+     * A request for the view's aggregates ended. It is made alongside the first page of rows
+     * for filters, and again on refresh; paging and sorting make none.
+     */
+    | (DTVAnalyticsSpan & {
+        readonly type: 'aggregatesFetch';
+        /** Why: the rows were requested for this reason when the aggregates were. */
+        readonly reason: FetchReason;
+        /** The names of the aggregates requested. */
+        readonly aggregates: readonly string[];
+        /** The `seq` of the `filtersApplied` event the request's filters come from. */
+        readonly filtersSeq: number | null;
+        /** `aborted`: superseded by another request, or the table unmounted. */
+        readonly outcome: 'succeeded' | 'failed' | 'aborted';
+        readonly error?: FetchErrorInfo;
+    })
+    /**
      * The user's data was loaded and read, migrations to the views' current revisions
      * included. `failed`: the host's loader failed, and the table goes on with the local copy.
      */

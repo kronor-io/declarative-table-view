@@ -12,6 +12,8 @@ import type { DTVAPI } from './App';
 
 const requests: { document: string; variables: any }[] = [];
 let failAggregates = false;
+// While set, the aggregates answer once the test releases them
+let holdAggregates: Promise<void> | null = null;
 
 // Five orders, paged two at a time; the aggregates sum all five
 jest.mock('./framework/graphql-client', () => {
@@ -22,6 +24,7 @@ jest.mock('./framework/graphql-client', () => {
                 requests.push({ document, variables });
                 if (document.includes('orders_aggregate')) {
                     if (failAggregates) throw new Error('aggregates are not allowed');
+                    if (holdAggregates) await holdAggregates;
                     return { totals: { aggregate: { count: 5, sum: { amount: 150 } } } };
                 }
                 const cursor = JSON.stringify(variables.paginationCondition).match(/"_lt":(\d+)/);
@@ -108,6 +111,7 @@ describe('App with aggregates', () => {
     beforeEach(() => {
         requests.length = 0;
         failAggregates = false;
+        holdAggregates = null;
         localStorage.clear();
     });
 
@@ -135,6 +139,44 @@ describe('App with aggregates', () => {
         // Refreshing asks for the aggregates again
         await act(async () => { apiRef.current?.fetchData(); });
         await waitUntil(() => aggregateRequests().length === 2, { description: 'the aggregates asked for again' });
+
+        await unmount();
+    });
+
+    it("tells the host of the popout's aggregates while it is open, and of the table's once it closes", async () => {
+        const onAggregatesChange = jest.fn<(viewId: string, aggregates: AggregateStates) => void>();
+        const { container, render, unmount } = mount(onAggregatesChange);
+        const button = (label: string) => Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
+            .find(candidate => candidate.textContent?.trim() === label);
+
+        await render([ordersView]);
+        await waitUntil(() => text(container).includes('total 150'), { description: 'the total in the footer' });
+
+        await act(async () => { button('Popout')?.click(); });
+        await waitUntil(() => aggregateRequests().length === 2, { description: 'the popout asking for its aggregates' });
+        await waitUntil(() => onAggregatesChange.mock.calls.at(-1)?.[1].totals?.state === 'ready', { description: "the popout's aggregates" });
+        const callsWhileOpen = onAggregatesChange.mock.calls.length;
+
+        await act(async () => { button('Close Popout')?.click(); });
+        expect(onAggregatesChange.mock.calls.length).toBe(callsWhileOpen + 1);
+        expect(onAggregatesChange).toHaveBeenLastCalledWith('orders', { totals: { state: 'ready', data: { count: 5, sum: { amount: 150 } } } });
+
+        await unmount();
+    });
+
+    it('renders the cells reading aggregates again when the aggregates arrive after the rows', async () => {
+        let release: () => void = () => undefined;
+        holdAggregates = new Promise(resolve => { release = resolve; });
+        const { container, render, unmount } = mount();
+
+        await render([ordersView]);
+        await waitUntil(() => text(container).includes('amount 50'), { description: 'the rows' });
+        expect(text(container)).toContain('total loading');
+        expect(text(container)).not.toContain('%)');
+
+        await act(async () => { release(); });
+        await waitUntil(() => text(container).includes('total 150'), { description: 'the total in the footer' });
+        expect(text(container)).toContain('amount 50 (33.33333333333333%)');
 
         await unmount();
     });

@@ -10,7 +10,7 @@ fails. DTV only reports. Storing the events and analysing them is up to the app.
   - [Filters](#filters): `filtersApplied`, `filterSearch`
   - [The table](#the-table): `orderingChanged`, `rowsPerPageChanged`, `hiddenColumnsChanged`, `panelShown`, `rowExpansionToggled`
   - [Saved filters and links](#saved-filters-and-links): `savedFilterSaved`, `savedFilterDeleted`, `shareLinkCreated`
-  - [Spans](#spans): `fetch`, `userDataLoad`, `action`, `rowExpansionLoad`, `aiFilter`
+  - [Spans](#spans): `fetch`, `aggregatesFetch`, `userDataLoad`, `action`, `rowExpansionLoad`, `aiFilter`
   - [Problems](#problems): `userDataSaveFailed`, `userDataConflict`, `userDataReadOnly`, `filtersChangedSinceSnapshot`, `suggestionsFailed`
 - [Shared types](#shared-types)
 - [Order and guarantees](#order-and-guarantees)
@@ -380,6 +380,32 @@ A request for the table's rows ended.
 
 A failed request still shows the table empty, as before analytics; only the event tells it apart
 from a request that found no rows.
+
+#### `aggregatesFetch`
+
+A request for the view's [aggregates](aggregates.md) ended. Only a view with aggregates makes
+one. It goes out alongside the first page of rows for the filters, and again on refresh; paging,
+sorting and changing rows per page make none.
+
+| Field | Type | |
+|---|---|---|
+| `reason` | [`FetchReason`](#fetchreason) | Why: the reason the rows were requested for when the aggregates were. |
+| `aggregates` | string[] | The names of the aggregates requested. |
+| `filtersSeq` | number \| `null` | As for `fetch`. |
+| `outcome` | `'succeeded'` \| `'failed'` \| `'aborted'` | As for `fetch`. A failure leaves the rows on screen; the aggregates' readers see it as an error. |
+| `error` | [`FetchErrorInfo`](#fetcherrorinfo), *optional* | When `failed`: what went wrong. |
+
+```json
+{
+    "type": "aggregatesFetch",
+    "startedAt": 1793875300000,
+    "durationMs": 840,
+    "reason": "filters",
+    "aggregates": ["totals", "overdue"],
+    "filtersSeq": 7,
+    "outcome": "succeeded"
+}
+```
 
 #### `userDataLoad`
 

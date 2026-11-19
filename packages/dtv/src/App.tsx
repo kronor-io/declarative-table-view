@@ -542,15 +542,16 @@ function App<V extends View = View>({
         getAggregates: () => ({ viewId: '', aggregates: {} })
     });
 
-    // The host hears of the aggregates of the selected view as they change
+    // The host hears of the aggregates of the selected view as they change. While the popout
+    // is open, it hears of the popout's; once it closes, of this table's again.
     const latestOnAggregatesChange = useRef(onAggregatesChange);
     latestOnAggregatesChange.current = onAggregatesChange;
     useEffect(() => {
         const viewId = selectedView.id;
         dtvApi.current.getAggregates = () => ({ viewId, aggregates });
-        if (selectedAggregateNames.length === 0) return;
+        if (selectedAggregateNames.length === 0 || state.showPopout) return;
         latestOnAggregatesChange.current?.(viewId, aggregates as AggregateStatesOf<V>);
-    }, [aggregates, selectedAggregateNames, selectedView.id]);
+    }, [aggregates, selectedAggregateNames, selectedView.id, state.showPopout]);
 
     const handleRowExpansionApiChange = useCallback((api: RowExpansionApi | null) => {
         const collapseAll = () => api?.collapseAll();
@@ -1152,6 +1153,7 @@ function App<V extends View = View>({
                         rowsPerPageOptions={rowsPerPageOptions}
                         modifyAiFilterPrompt={modifyAiFilterPrompt}
                         analytics={analytics}
+                        onAggregatesChange={onAggregatesChange}
                     />
                 </div>,
                 document.body

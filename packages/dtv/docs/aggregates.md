@@ -137,7 +137,9 @@ reads an aggregate that the view does not have under that name.
 ```
 
 `onAggregatesChange` is called with every change: when the aggregates are asked for, arrive or
-fail, and when another view is selected. It is not called for a view without aggregates.
+fail, and when another view is selected. It is not called for a view without aggregates. While
+the popout is open, it reports the popout's aggregates. Once the popout closes, it reports the
+table's own aggregates again.
 
 ## JSON views
 
@@ -167,4 +169,6 @@ Footer renderers come from the runtime's `footerRenderers` section.
 
 - Aggregates of a relationship inside each row (`lines_aggregate`), sorting by them, and
   `count(columns:, distinct:)`.
-- Analytics events for the aggregates request.
+
+The aggregates request is reported to analytics as an `aggregatesFetch` span (see
+[analytics.md](analytics.md)).

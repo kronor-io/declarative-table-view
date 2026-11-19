@@ -10,7 +10,7 @@ import { isSnapshotDiffEmpty, type SnapshotDiff } from '../view-migrations';
 import type { ViewId, ViewQuery } from '../view';
 import { createDefaultFilterState, filterStatesEqual, type FilterState } from './filter-state';
 import {
-    currentPageQuery, currentQuery, nextPageCursor, nextRequestId, noRequestId, receiveRows, shownPage,
+    currentPageQuery, currentQuery, nextPageCursor, nextRequestId, noRequestId, pendingRequest, receiveRows, shownPage,
     type Page, type Query, type RequestId, type TableState
 } from './table';
 import {
@@ -229,7 +229,8 @@ function syncAggregates(env: AppStateEnv, state: AppState, refresh: boolean): Ap
     if (!refresh && current !== null && aggregatesQueriesEqual(current, wanted)) return state;
 
     const id = nextRequestId(state.lastRequestId);
-    return { ...state, lastRequestId: id, aggregates: { tag: 'loading', request: { id, query: wanted } } };
+    const reason = refresh ? 'refresh' : pendingRequest(state.table)?.reason ?? 'filters';
+    return { ...state, lastRequestId: id, aggregates: { tag: 'loading', request: { id, query: wanted, reason } } };
 }
 
 function updateTable(env: AppStateEnv, state: AppState, msg: Msg): [AppState, Command[]] {

@@ -78,6 +78,17 @@ function columnAggregates(column: TableColumnDefinition, aggregates: AggregateSt
     return Object.fromEntries(Object.keys(column.aggregates).map(name => [name, aggregates[name] ?? { state: 'loading' }]));
 }
 
+/*
+ * PrimeReact memoizes body cells and renders one again only when its row data changes. The
+ * aggregates usually arrive after the rows, so cells reading them get them from this context:
+ * React renders a consumer again when the value changes, whatever its parents memoize.
+ */
+const AggregatesContext = React.createContext<AggregateStates>(noAggregates);
+
+function AggregatesCell({ render }: { render: (aggregates: AggregateStates) => React.ReactNode }) {
+    return <>{render(React.useContext(AggregatesContext))}</>;
+}
+
 function Table<Row extends object = SimplifiedRow>({
     viewId,
     columns,
@@ -418,80 +429,91 @@ function Table<Row extends object = SimplifiedRow>({
     };
 
     return (
-        <DataTable
-            ref={ref}
-            value={tableData}
-            tableStyle={{ minWidth: '50rem' }}
-            lazy
-            showGridlines
-            stripedRows
-            size='small'
-            emptyMessage={noDataRowsComponent}
-            exportFunction={exportFunction}
-            exportFilename={viewId}
-            selectionPageOnly={true}
-            selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
-            // The rows this table handed out, so PrimeReact finds them among the rows on screen
-            selection={selectionType === 'multiple' ? selectedRows as TableDataRow[] : null}
-            onSelectionChange={selectionType === 'multiple' ? (e: DataTableSelectionMultipleChangeEvent<TableDataRow[]>) => handleSelectionChange(e.value) : undefined}
-            expandedRows={rowExpansion ? expandedRows : undefined}
-            onRowToggle={rowExpansion ? (e: any) => {
-                const nextExpandedRows = Array.isArray(e.data) ? e.data as TableDataRow[] : [];
-                // PrimeReact toggles one row per call
-                const toggled = [...nextExpandedRows, ...expandedRowsRef.current]
-                    .find(row => nextExpandedRows.some(next => isSameRow(next, row)) !== expandedRowsRef.current.some(shown => isSameRow(shown, row)));
-                if (toggled) reportToggle(toggled, nextExpandedRows.some(next => isSameRow(next, toggled)));
-                // From the ref, not this render: PrimeReact memoizes the row cells, so this handler
-                // can be from a render before new rows came, when another row at the same index
-                // was still expanded, and the row the user expands would then load nothing
-                nextExpandedRows
-                    .filter(rowData => !expandedRowsRef.current.some(expandedRow => isSameRow(expandedRow, rowData)))
-                    .forEach(ensureLazyRowExpansionData);
-                setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
-            } : undefined}
-            rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
-            rowClassName={rowClassFunction ? (row: TableDataRow) => rowClassFunction(toRow(row)) : undefined}
-            sortMode="single"
-            removableSort
-            sortField={ordering?.field ?? undefined}
-            sortOrder={ordering?.direction === 'ASC' ? 1 : ordering?.direction === 'DESC' ? -1 : null}
-            onSort={handleSortChange}
-            scrollable
-            scrollHeight='flex'
-        >
-            {selectionType === 'multiple' && <Column selectionMode="multiple" />}
-            {rowExpansion && <Column expander={(rowData: TableDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
-            {renderableColumns
-                .map(column => {
-                    const orderBy = Orderable.getColumnOrderBy(column);
-                    const aggregatesOfColumn = columnAggregates(column, aggregates);
+        <AggregatesContext.Provider value={aggregates}>
+            <DataTable
+                ref={ref}
+                value={tableData}
+                tableStyle={{ minWidth: '50rem' }}
+                lazy
+                showGridlines
+                stripedRows
+                size='small'
+                emptyMessage={noDataRowsComponent}
+                exportFunction={exportFunction}
+                exportFilename={viewId}
+                selectionPageOnly={true}
+                selectionMode={selectionType === 'multiple' ? 'checkbox' : null}
+                // The rows this table handed out, so PrimeReact finds them among the rows on screen
+                selection={selectionType === 'multiple' ? selectedRows as TableDataRow[] : null}
+                onSelectionChange={selectionType === 'multiple' ? (e: DataTableSelectionMultipleChangeEvent<TableDataRow[]>) => handleSelectionChange(e.value) : undefined}
+                expandedRows={rowExpansion ? expandedRows : undefined}
+                onRowToggle={rowExpansion ? (e: any) => {
+                    const nextExpandedRows = Array.isArray(e.data) ? e.data as TableDataRow[] : [];
+                    // PrimeReact toggles one row per call
+                    const toggled = [...nextExpandedRows, ...expandedRowsRef.current]
+                        .find(row => nextExpandedRows.some(next => isSameRow(next, row)) !== expandedRowsRef.current.some(shown => isSameRow(shown, row)));
+                    if (toggled) reportToggle(toggled, nextExpandedRows.some(next => isSameRow(next, toggled)));
+                    // From the ref, not this render: PrimeReact memoizes the row cells, so this handler
+                    // can be from a render before new rows came, when another row at the same index
+                    // was still expanded, and the row the user expands would then load nothing
+                    nextExpandedRows
+                        .filter(rowData => !expandedRowsRef.current.some(expandedRow => isSameRow(expandedRow, rowData)))
+                        .forEach(ensureLazyRowExpansionData);
+                    setExpandedRows(rowExpansion.mode === 'single' ? nextExpandedRows.slice(-1) : nextExpandedRows);
+                } : undefined}
+                rowExpansionTemplate={rowExpansion ? rowExpansionTemplate : undefined}
+                rowClassName={rowClassFunction ? (row: TableDataRow) => rowClassFunction(toRow(row)) : undefined}
+                sortMode="single"
+                removableSort
+                sortField={ordering?.field ?? undefined}
+                sortOrder={ordering?.direction === 'ASC' ? 1 : ordering?.direction === 'DESC' ? -1 : null}
+                onSort={handleSortChange}
+                scrollable
+                scrollHeight='flex'
+            >
+                {selectionType === 'multiple' && <Column selectionMode="multiple" />}
+                {rowExpansion && <Column expander={(rowData: TableDataRow) => canExpandRow(rowData)} style={{ width: '3rem' }} />}
+                {renderableColumns
+                    .map(column => {
+                        const orderBy = Orderable.getColumnOrderBy(column);
+                        const aggregatesOfColumn = columnAggregates(column, aggregates);
 
-                    return (
-                        <Column
-                            key={column.id}
-                            field={column.id}
-                            header={column.name}
-                            footer={column.footerRenderer
-                                ? column.footerRenderer({
-                                    aggregates: aggregatesOfColumn,
-                                    createElement: sharedRendererProps.createElement,
-                                    components: sharedRendererProps.components,
-                                    currency: sharedRendererProps.currency,
-                                    columnDefinition: column
-                                })
-                                : column.footer}
-                            sortable={orderBy !== undefined}
-                            sortField={orderBy}
-                            body={(rowData: TableDataRow) => column.cellRenderer({
-                                data: rowData[column.id],
-                                ...sharedRendererProps,
-                                aggregates: aggregatesOfColumn,
-                                columnDefinition: column
-                            })}
-                        />
-                    );
-                })}
-        </DataTable>
+                        return (
+                            <Column
+                                key={column.id}
+                                field={column.id}
+                                header={column.name}
+                                footer={column.footerRenderer
+                                    ? column.footerRenderer({
+                                        aggregates: aggregatesOfColumn,
+                                        createElement: sharedRendererProps.createElement,
+                                        components: sharedRendererProps.components,
+                                        currency: sharedRendererProps.currency,
+                                        columnDefinition: column
+                                    })
+                                    : column.footer}
+                                sortable={orderBy !== undefined}
+                                sortField={orderBy}
+                                body={column.aggregates === undefined
+                                    ? (rowData: TableDataRow) => column.cellRenderer({
+                                        data: rowData[column.id],
+                                        ...sharedRendererProps,
+                                        aggregates: noAggregates,
+                                        columnDefinition: column
+                                    })
+                                    : (rowData: TableDataRow) => (
+                                        <AggregatesCell render={current => column.cellRenderer({
+                                            data: rowData[column.id],
+                                            ...sharedRendererProps,
+                                            aggregates: columnAggregates(column, current),
+                                            columnDefinition: column
+                                        })} />
+                                    )}
+                            />
+                        );
+                    })}
+            </DataTable>
+        </AggregatesContext.Provider>
     );
 }
 
