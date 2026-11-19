@@ -42,9 +42,9 @@ The script lints, builds and tests the whole workspace, then bumps, tags,
 pushes and publishes the selected package. Because `@kronor/dtv` depends on
 `@kronor/hasura-graphql`, a dtv release refuses to proceed unless its declared
 dependency range already resolves to a published version — so release the core
-package first whenever you have changed it. When the core's new version falls
-outside dtv's range, the core's release commit moves dtv's range to it as well,
-so dtv keeps building and testing against the workspace sources.
+package first whenever you have changed it. The core's release commit also
+moves dtv's dependency to `^<new version>`, so dtv keeps building and testing
+against the workspace sources.
 
 Use `--dry` to run the validations without publishing. See
 [`scripts/release.mjs`](scripts/release.mjs) for all flags.
