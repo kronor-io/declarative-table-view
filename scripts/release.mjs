@@ -15,7 +15,8 @@
  *  6. Publish that package to npm
  *
  * Because @kronor/dtv depends on @kronor/hasura-graphql, a dtv release checks
- * that its declared range resolves to a version already on the registry.
+ * that its declared range resolves to a version already on the registry, and
+ * that the core's sources have not changed since that version was released.
  * Release the core package first when you have changed it: its release commit
  * also moves dtv's dependency to `^<new version>`.
  *
@@ -114,7 +115,41 @@ function ensureCoreDependencyPublished() {
         );
         process.exit(1);
     }
-    log('CHECK', `Resolves to ${resolved.split('\n').pop()}`);
+    // With several matches npm prints `<name>@<version> '<version>'` per line; the last is the newest
+    const version = resolved.split('\n').pop().match(/(\d+\.\d+\.\d+[^'\s]*)'?\s*$/)?.[1];
+    log('CHECK', `Resolves to ${version}`);
+    ensureCoreReleased(version);
+}
+
+// The core's sources dtv is built and tested against must be the ones of the core version
+// installs of dtv get: dtv's library bundles the workspace sources, but its CLI and type
+// declarations import the published core. A core change still unreleased (14.0.0 went out
+// needing exports of 0.4.0 while depending on ^0.3.0) makes dtv fail where it imports them.
+// Tests do not count, nor anything else outside what the core publishes.
+function ensureCoreReleased(version) {
+    const tag = PACKAGES['hasura-graphql'].tag(version);
+    try {
+        execSync(`git rev-parse --verify --quiet "refs/tags/${tag}"`, { cwd: repoRoot, stdio: 'ignore' });
+    } catch {
+        console.error(`\nThere is no tag ${tag} to compare @kronor/hasura-graphql with. Fetch the tags (git fetch --tags) and try again.`);
+        process.exit(1);
+    }
+
+    const coreDir = PACKAGES['hasura-graphql'].dir;
+    const changed = execSync(`git diff --name-only ${tag} HEAD -- "${coreDir}/src" "${coreDir}/package.json"`, { cwd: repoRoot })
+        .toString()
+        .split('\n')
+        .filter(file => file !== '' && !/\.test\.ts$/.test(file));
+
+    if (changed.length > 0) {
+        console.error(
+            `\n@kronor/hasura-graphql changed since ${version} (${tag}), which installs of dtv would get:\n` +
+            changed.map(file => `  ${file}`).join('\n') +
+            `\nRelease it first:  npm run release -- --package=hasura-graphql`
+        );
+        process.exit(1);
+    }
+    log('CHECK', `@kronor/hasura-graphql has not changed since ${tag}`);
 }
 
 async function promptReleaseType() {

@@ -41,8 +41,9 @@ npm run release -- --package=dtv              # tags v<version>, the default
 The script lints, builds and tests the whole workspace, then bumps, tags,
 pushes and publishes the selected package. Because `@kronor/dtv` depends on
 `@kronor/hasura-graphql`, a dtv release refuses to proceed unless its declared
-dependency range already resolves to a published version — so release the core
-package first whenever you have changed it. The core's release commit also
+dependency range already resolves to a published version, and the core has not
+changed since that version was released — so release the core package first
+whenever you have changed it. The core's release commit also
 moves dtv's dependency to `^<new version>`, so dtv keeps building and testing
 against the workspace sources.
 
