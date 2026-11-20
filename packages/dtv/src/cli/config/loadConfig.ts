@@ -172,6 +172,11 @@ export async function loadConfig(configPath: string): Promise<DtvTypegenConfig> 
     if (cfg.output.fileNamePattern.includes('/') || cfg.output.fileNamePattern.includes('\\')) {
         throw new Error('Config.output.fileNamePattern must be a file name (no path separators)');
     }
+    if (cfg.output.typesDir === undefined) {
+        throw new Error('Config.output.typesDir is required: the directory typegen writes each Hasura type into once, '
+            + "for the modules next to the views to import (e.g. 'src/generated/dtv-types').");
+    }
+    assertString(cfg.output.typesDir, 'Config.output.typesDir');
 
     if (cfg.scalars !== undefined && !isRecord(cfg.scalars)) {
         throw new Error('Config.scalars must be an object when provided');

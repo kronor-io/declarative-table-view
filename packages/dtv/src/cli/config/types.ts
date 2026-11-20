@@ -22,6 +22,11 @@ export type DtvTypegenConfig = {
     output: {
         /** Output file name pattern, written next to each view source file (required). */
         fileNamePattern: string;
+        /**
+         * The directory (relative to the working directory) each GraphQL type the views reach is
+         * written into once, as `<TypeName>.ts`, for the view modules to import (required).
+         */
+        typesDir: string;
     };
 
     /** Optional scalar overrides: GraphQL scalar name -> TS type expression (e.g. "DateTime": "string"). */
@@ -56,6 +61,8 @@ export type ViewInfo = {
     rootFieldName: string;
     /** `source.aggregateName`, when the view renames its aggregate root field. */
     aggregateName?: string;
+    /** Whether the view declares `aggregates`, which typegen emits the aggregate type for. */
+    hasAggregates?: boolean;
     sourceFile: string;
 };
 

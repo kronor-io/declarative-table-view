@@ -28,6 +28,14 @@ export type DtvTypegenConfig = {
          * - `{collectionName}`
          */
         fileNamePattern: string;
+
+        /**
+         * The directory, relative to the working directory, every GraphQL type the views reach is
+         * written into once, one module per type (`<TypeName>.ts`). The module next to each view
+         * imports its row type from there. Typegen keeps the directory to what the views reach: it
+         * removes the modules it wrote that no view reaches any more.
+         */
+        typesDir: string;
     };
 
     scalars?: Record<string, string>;

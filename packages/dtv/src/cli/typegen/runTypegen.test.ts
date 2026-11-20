@@ -65,7 +65,8 @@ module.exports = {
         dtvImport: '@kronor/dtv'
     },
     output: {
-        fileNamePattern: '{viewId}.typegen.ts'
+        fileNamePattern: '{viewId}.typegen.ts',
+        typesDir: ${JSON.stringify(path.join(tempRoot, 'types'))}
     }
 };
 `, 'utf8');
@@ -207,7 +208,8 @@ module.exports = {
         dtvImport: '@kronor/dtv'
     },
     output: {
-        fileNamePattern: '{viewId}.typegen.ts'
+        fileNamePattern: '{viewId}.typegen.ts',
+        typesDir: ${JSON.stringify(path.join(tempRoot, 'types'))}
     }
 };
 `, 'utf8');

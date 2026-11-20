@@ -19,6 +19,7 @@ async function fileExists(filePath: string): Promise<boolean> {
 function renderDefaultConfigTs(options: {
     endpoint: string;
     fileNamePattern: string;
+    typesDir: string;
     include: string[];
     exclude: string[];
     dtvImport: string;
@@ -57,7 +58,10 @@ ${outerIndent}]`;
         '',
         '    output: {',
         '        // File name written next to each view module that calls DSL.view(...)',
-        `        fileNamePattern: ${JSON.stringify(options.fileNamePattern)}`,
+        `        fileNamePattern: ${JSON.stringify(options.fileNamePattern)},`,
+        '',
+        '        // Directory every Hasura type the views reach is written into once, for those files to import',
+        `        typesDir: ${JSON.stringify(options.typesDir)}`,
         '    },',
         '',
         '    scalars: {',
@@ -78,6 +82,7 @@ ${outerIndent}]`;
 async function runInitConfig(outPath: string, force: boolean, overrides?: Partial<{
     endpoint: string;
     fileNamePattern: string;
+    typesDir: string;
     dtvImport: string;
 }>) {
     const absOut = path.isAbsolute(outPath) ? outPath : path.resolve(process.cwd(), outPath);
@@ -88,6 +93,7 @@ async function runInitConfig(outPath: string, force: boolean, overrides?: Partia
     const content = renderDefaultConfigTs({
         endpoint: overrides?.endpoint ?? 'https://my-hasura.example.com/v1/graphql',
         fileNamePattern: overrides?.fileNamePattern ?? 'dtv.generated.{viewId}.ts',
+        typesDir: overrides?.typesDir ?? 'src/generated/dtv-types',
         include: ['src/**/*.{ts,tsx}'],
         exclude: ['**/*.test.*', '**/node_modules/**'],
         dtvImport: overrides?.dtvImport ?? '@kronor/dtv'
@@ -105,12 +111,14 @@ export function registerInitCommand(program: Command) {
         .option('--force', 'Overwrite if the file already exists', false)
         .option('--endpoint <url>', 'Hasura GraphQL endpoint to prefill', 'https://my-hasura.example.com/v1/graphql')
         .option('--file-pattern <pattern>', 'Output file name pattern written next to each view module', 'dtv.generated.{viewId}.ts')
+        .option('--types-dir <path>', 'Directory every Hasura type the views reach is written into once', 'src/generated/dtv-types')
         .option('--dtv-import <specifier>', 'Module specifier used by views to import DSL', '@kronor/dtv')
-        .action(async (opts: { out: string; force: boolean; endpoint: string; filePattern: string; dtvImport: string }) => {
+        .action(async (opts: { out: string; force: boolean; endpoint: string; filePattern: string; typesDir: string; dtvImport: string }) => {
             try {
                 await runInitConfig(opts.out, opts.force, {
                     endpoint: opts.endpoint,
                     fileNamePattern: opts.filePattern,
+                    typesDir: opts.typesDir,
                     dtvImport: opts.dtvImport
                 });
             } catch (e) {

@@ -10,6 +10,7 @@ const config: DtvTypegenConfig = {
     },
     output: {
         fileNamePattern: 'dtv.generated-types.{viewId}.ts',
+        typesDir: 'app/src/views/dtv-types',
     },
     scalars: {
         jsonb: 'unknown',

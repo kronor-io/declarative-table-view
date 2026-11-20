@@ -54,7 +54,11 @@ const config: DtvTypegenConfig = {
     output: {
         // File name written next to each view module that calls DSL.view(...)
         // Supported placeholders: {viewId}, {collectionName}
-        fileNamePattern: 'dtv.generated.{viewId}.ts'
+        fileNamePattern: 'dtv.generated.{viewId}.ts',
+
+        // Directory (relative to the working directory) every GraphQL type the views reach is
+        // written into once, one module per type; the files next to the views import from it.
+        typesDir: 'src/generated/dtv-types'
     },
 
     // Optional scalar overrides: GraphQL scalar name -> TS type
@@ -91,18 +95,58 @@ schema: () => {
 
 ## Output
 
-For each discovered `DSL.view({ id, collectionName, ... })` call, the generator writes one file next to the view source file, named by `output.fileNamePattern`.
+The generator writes two kinds of modules.
 
-That file contains:
+**One module per type, in `output.typesDir`.** Every GraphQL output type a view's row reaches is
+written once, into `<typesDir>/<TypeName>.ts`, and imports the types it refers to:
 
-- TypeScript types for GraphQL output types reachable from the view’s `collectionName` row type (not exported)
-- Two exported members:
-    - `<ViewIdPascal>Row` – the inferred row type for that view’s `collectionName`
-    - `<ViewIdPascal>RowType` – a phantom value of that type, produced by `DSL.rowType<…>()`, which
-      the DSL helpers take as `rowType`
-    - For a view with `aggregates`, also `<ViewIdPascal>Aggregate` – the type of its
-      `<root>_aggregate.aggregate` field – and `<ViewIdPascal>AggregateType`, which `DSL.aggregate`
-      takes as `aggregateType` (see [aggregates.md](aggregates.md))
+```ts
+// <typesDir>/Order.ts
+import type { Customer } from './Customer';
+import type { Line } from './Line';
+
+export type Order = {
+    readonly id: string;
+    readonly customer: Customer;
+    readonly lines: ReadonlyArray<Line>;
+};
+```
+
+A type reached by many views (a currency, a subsidiary, a user) is therefore declared once, and a
+change to it in the schema changes one module.
+
+**One module per view, next to it**, named by `output.fileNamePattern`. It imports its row type
+from the types directory and exports:
+
+- `<ViewIdPascal>Row` – the row type for that view's `collectionName` or `functionName`
+- `<ViewIdPascal>RowType` – a phantom value of that type, produced by `DSL.rowType<…>()`, which
+  the DSL helpers take as `rowType`
+- For a view with `aggregates`, also `<ViewIdPascal>Aggregate` – the type of its
+  `<root>_aggregate.aggregate` field – and `<ViewIdPascal>AggregateType`, which `DSL.aggregate`
+  takes as `aggregateType` (see [aggregates.md](aggregates.md))
+
+```ts
+import { DSL as DTV } from '@kronor/dtv';
+import type { Order } from '../../generated/dtv-types/Order';
+
+export type OrdersRow = Order;
+export const OrdersRowType = DTV.rowType<OrdersRow>();
+```
+
+The types directory holds what all views reach, also when `dtv typegen <view-id>` generates a
+single view: every run writes the types of every view it finds (with the aggregate types of views
+that have `aggregates`), and removes the modules it wrote that no view reaches any more. Files in
+the directory that the generator did not write are left alone, and a module whose content did not
+change is not rewritten. Types are read with the same schema and options for every view, so one
+directory serves them all. Two type names that differ only in case fail the run, since they would
+be one file on a case-insensitive file system.
+
+### Upgrading from per-view copies
+
+Before `typesDir`, each view module declared its own copy of every type its row reaches. Set
+`output.typesDir` and run `dtv typegen` once: the view modules are rewritten to import from the
+directory, with the same types. A view whose id or source the scanner cannot read keeps the module
+committed next to it, which still declares its own copies and keeps compiling.
 
 The generator also edits the view module itself, as a convenience: it imports
 `<ViewIdPascal>RowType` and adds `rowType:` to the `DSL.column(...)`,

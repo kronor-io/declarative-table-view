@@ -1,0 +1,216 @@
+/**
+ * @jest-environment node
+ */
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import ts from 'typescript';
+import { buildSchema, getIntrospectionQuery, graphqlSync } from 'graphql';
+
+jest.mock('fast-glob', () => ({
+    __esModule: true,
+    default: jest.fn(async (patterns: string | string[]) => Array.isArray(patterns) ? patterns : [patterns])
+}), { virtual: true });
+
+import { runTypegen } from './runTypegen';
+
+const unsorted = async () => ({ columnsOf: () => ({}), close: async () => undefined });
+
+// Orders and customers both reach Customer; Order and Line reach each other.
+const schema = buildSchema(`
+    type Query {
+        orders: [Order!]!
+        orders_aggregate: OrderAggregate!
+        customers: [Customer!]!
+    }
+
+    type Order {
+        id: ID!
+        customer: Customer!
+        lines: [Line!]!
+    }
+
+    type Line {
+        order: Order!
+        amount: Int!
+    }
+
+    type Customer {
+        name: String!
+    }
+
+    type OrderAggregate {
+        aggregate: OrderAggregateFields
+        nodes: [Order!]!
+    }
+
+    type OrderAggregateFields {
+        count: Int!
+    }
+`);
+
+const ordersView = (aggregates: boolean) => `
+import { DSL } from '@kronor/dtv';
+${aggregates ? "const totals = DSL.aggregate({ select: a => [a.count()] });" : ''}
+export const view = DSL.view({
+    id: 'orders',
+    source: { type: 'collection', collectionName: 'orders' },
+    columnDefinitions: [DSL.column({ id: 'id', data: [{ field: 'id' }] })],
+    ${aggregates ? 'aggregates: { totals },' : ''}
+});
+`;
+
+const customersView = `
+import { DSL } from '@kronor/dtv';
+export const view = DSL.view({
+    id: 'customers',
+    source: { type: 'collection', collectionName: 'customers' },
+    columnDefinitions: [DSL.column({ id: 'name', data: [{ field: 'name' }] })],
+});
+`;
+
+describe('cli/typegen/runTypegen types directory', () => {
+    let root: string;
+    let typesDir: string;
+    let ordersPath: string;
+    let customersPath: string;
+    let configPath: string;
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(path.join(os.tmpdir(), 'dtv-typegen-types-dir-'));
+        typesDir = path.join(root, 'generated', 'types');
+        ordersPath = path.join(root, 'pages', 'orders', 'orders.ts');
+        customersPath = path.join(root, 'pages', 'customers', 'list', 'customers.ts');
+        configPath = path.join(root, 'dtv.config.cjs');
+        await fs.mkdir(path.dirname(ordersPath), { recursive: true });
+        await fs.mkdir(path.dirname(customersPath), { recursive: true });
+
+        const introspection = graphqlSync({ schema, source: getIntrospectionQuery({ descriptions: true }) });
+        originalFetch = globalThis.fetch;
+        (globalThis as any).fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: introspection.data }) }));
+    });
+
+    afterEach(async () => {
+        (globalThis as any).fetch = originalFetch;
+        jest.restoreAllMocks();
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    async function generate(options: { aggregates?: boolean; onlyViewId?: string } = {}) {
+        await fs.writeFile(configPath, `
+module.exports = {
+    schema: { endpoint: 'https://example.test/graphql' },
+    scan: { include: [${JSON.stringify(ordersPath)}, ${JSON.stringify(customersPath)}], dtvImport: '@kronor/dtv' },
+    output: { fileNamePattern: '{viewId}.typegen.ts', typesDir: ${JSON.stringify(typesDir)} },
+    immutableTypes: true
+};
+`, 'utf8');
+        await fs.writeFile(ordersPath, ordersView(options.aggregates === true), 'utf8');
+        await fs.writeFile(customersPath, customersView, 'utf8');
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        await runTypegen({ configPath, loadColumnOrdering: unsorted, ...(options.onlyViewId ? { onlyViewId: options.onlyViewId } : {}) });
+    }
+
+    const typeModules = async () => (await fs.readdir(typesDir)).sort();
+    const read = (file: string) => fs.readFile(file, 'utf8');
+
+    it('requires a types directory', async () => {
+        await fs.writeFile(configPath, `
+module.exports = {
+    schema: { endpoint: 'https://example.test/graphql' },
+    scan: { include: [${JSON.stringify(ordersPath)}], dtvImport: '@kronor/dtv' },
+    output: { fileNamePattern: '{viewId}.typegen.ts' }
+};
+`, 'utf8');
+
+        await expect(runTypegen({ configPath, loadColumnOrdering: unsorted })).rejects.toThrow('Config.output.typesDir is required');
+    });
+
+    it('writes each type once and lets the view modules import their row types', async () => {
+        await generate();
+
+        expect(await typeModules()).toEqual(['Customer.ts', 'Line.ts', 'Order.ts']);
+        expect(await read(path.join(typesDir, 'Order.ts'))).toBe([
+            '// This file is auto-generated by `dtv typegen`.',
+            '// Do not edit manually.',
+            '',
+            "import type { Customer } from './Customer';",
+            "import type { Line } from './Line';",
+            '',
+            'export type Order = {',
+            '    readonly id: string;',
+            '    readonly customer: Customer;',
+            '    readonly lines: ReadonlyArray<Line>;',
+            '};',
+            ''
+        ].join('\n'));
+
+        expect(await read(path.join(root, 'pages', 'orders', 'orders.typegen.ts'))).toBe([
+            '// This file is auto-generated by `dtv typegen`.',
+            '// Do not edit manually.',
+            '',
+            "import { DSL as DTV } from '@kronor/dtv';",
+            "import type { Order } from '../../generated/types/Order';",
+            '',
+            'export type OrdersRow = Order;',
+            'export const OrdersRowType = DTV.rowType<OrdersRow>();',
+            ''
+        ].join('\n'));
+
+        const customers = await read(path.join(root, 'pages', 'customers', 'list', 'customers.typegen.ts'));
+        expect(customers).toContain("import type { Customer } from '../../../generated/types/Customer';");
+        expect(customers).toContain('export type CustomersRow = Customer;');
+    });
+
+    it('writes the aggregate types of a view with aggregates there too', async () => {
+        await generate({ aggregates: true });
+
+        expect(await typeModules()).toEqual(['Customer.ts', 'Line.ts', 'Order.ts', 'OrderAggregateFields.ts']);
+        const orders = await read(path.join(root, 'pages', 'orders', 'orders.typegen.ts'));
+        expect(orders).toContain("import type { OrderAggregateFields } from '../../generated/types/OrderAggregateFields';");
+        expect(orders).toContain('export type OrdersAggregate = OrderAggregateFields;');
+    });
+
+    it('writes the types of every view when it generates one', async () => {
+        await generate({ aggregates: true, onlyViewId: 'customers' });
+
+        expect(await typeModules()).toEqual(['Customer.ts', 'Line.ts', 'Order.ts', 'OrderAggregateFields.ts']);
+        await expect(fs.access(path.join(root, 'pages', 'orders', 'orders.typegen.ts'))).rejects.toThrow();
+    });
+
+    it('removes the type modules it wrote that no view reaches any more, and leaves other files alone', async () => {
+        await fs.mkdir(typesDir, { recursive: true });
+        await fs.writeFile(path.join(typesDir, 'Gone.ts'), '// This file is auto-generated by `dtv typegen`.\nexport type Gone = {};\n');
+        await fs.writeFile(path.join(typesDir, 'index.ts'), "export type { Order } from './Order';\n");
+
+        await generate();
+
+        expect(await typeModules()).toEqual(['Customer.ts', 'Line.ts', 'Order.ts', 'index.ts']);
+    });
+
+    it('generates modules that compile, with the types referring to each other', async () => {
+        await generate({ aggregates: true });
+
+        const stub = path.join(root, 'dtv-stub.d.ts');
+        await fs.writeFile(stub, "declare module '@kronor/dtv' { export const DSL: { rowType<T>(): T } }\n");
+        const ordersModule = path.join(root, 'pages', 'orders', 'orders.typegen.ts');
+        const usage = path.join(root, 'usage.ts');
+        await fs.writeFile(usage, `
+import type { OrdersRow } from './pages/orders/orders.typegen';
+export const amount = (row: OrdersRow): number => row.lines[0].order.lines[0].amount;
+export const name = (row: OrdersRow): string => row.customer.name;
+`);
+        const program = ts.createProgram([stub, ordersModule, usage], {
+            noEmit: true,
+            strict: true,
+            module: ts.ModuleKind.ESNext,
+            moduleResolution: ts.ModuleResolutionKind.Bundler,
+            target: ts.ScriptTarget.ES2022,
+            skipLibCheck: true
+        });
+        const diagnostics = ts.getPreEmitDiagnostics(program).map(d => ts.flattenDiagnosticMessageText(d.messageText, '\n'));
+        expect(diagnostics).toEqual([]);
+    });
+});

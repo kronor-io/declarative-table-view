@@ -38,7 +38,7 @@ async function project(viewSource: string) {
 module.exports = {
     schema: { endpoint: 'https://example.test/graphql' },
     scan: { include: [${JSON.stringify(viewPath)}], dtvImport: '@kronor/dtv' },
-    output: { fileNamePattern: '{viewId}.typegen.ts' }
+    output: { fileNamePattern: '{viewId}.typegen.ts', typesDir: ${JSON.stringify(path.join(root, 'types'))} }
 };
 `, 'utf8');
     await fs.writeFile(viewPath, viewSource, 'utf8');
