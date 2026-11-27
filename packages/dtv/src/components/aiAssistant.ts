@@ -1,6 +1,6 @@
 // src/components/aiAssistant.ts
-import type { CustomOperatorOption, FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
-import { customOperatorTakesValue, defaultCustomOperator } from '../framework/filters';
+import type { CustomOperatorOption, FilterControl, FilterExpr, FilterExprFieldNode, FilterGroups } from '../framework/filters';
+import { customOperatorTakesValue, defaultCustomOperator, isLeaf } from '../framework/filters';
 import type { FilterFormState } from '../framework/filter-form-state';
 import { buildInitialFormState, createDefaultFilterState, FormStateInitMode, FilterState } from '../framework/state';
 import * as FilterValue from '../framework/filterValue';
@@ -110,6 +110,7 @@ function buildAiPrompt(
         `User request: ${userPrompt}`,
         '',
         `For date filters, always send the value as a plain string in standard date-time string format. Skip filters that are not relevant to the user request.`,
+        `For dropdown and multiselect filters, the leaf value is an item's \`value\` (a list of them for a multiselect), never the item object.`,
         `Output only the object mapping filter IDs to FilterFormState, like: {"filter-id": {...filterFormState...}}`
     ].join('\n');
 
@@ -221,33 +222,66 @@ function normalizeCustomOperatorValue(
     return FilterValue.value({ operator, value: innerValue });
 }
 
-type SelectItem = { label: string; value: any };
+type SelectControl = Extract<FilterControl, { type: 'dropdown' | 'multiselect' }>;
+type SelectItem = SelectControl['items'][number];
+
+function selectControlOf(schema: FilterExpr): SelectControl | undefined {
+    if (!isLeaf(schema)) return undefined;
+    const control = schema.value;
+    return control.type === 'dropdown' || control.type === 'multiselect' ? control : undefined;
+}
+
+// Sort object keys so {b: 2, a: 1} and {a: 1, b: 2} compare equal.
+function canonical(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+        const record = value as Record<string, unknown>;
+        return Object.fromEntries(Object.keys(record).sort().map((key) => [key, canonical(record[key])]));
+    }
+    return value;
+}
 
 function sameItemValue(a: unknown, b: unknown): boolean {
     if (a === b) return true;
     if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
     try {
-        return JSON.stringify(a) === JSON.stringify(b);
+        return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
     } catch {
         return false;
     }
 }
 
-function findSelectItem(items: readonly SelectItem[], raw: unknown): SelectItem | undefined {
-    const byValue = items.find((item) => sameItemValue(item.value, raw));
-    if (byValue) return byValue;
+// 'card' for 'CARD', '5' for 5, 'false' for false.
+function looseKey(value: unknown): string | undefined {
+    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+        ? String(value).trim().toLowerCase()
+        : undefined;
+}
 
+function findSelectItem(items: readonly SelectItem[], raw: unknown): SelectItem | undefined {
     // The prompt shows the model each item as {label, value}, and it sometimes
     // hands the whole item back instead of its value.
+    const candidates = [raw];
     if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && 'value' in raw) {
-        const inner = (raw as { value: unknown }).value;
-        const byInner = items.find((item) => sameItemValue(item.value, inner));
-        if (byInner) return byInner;
+        candidates.push((raw as { value: unknown }).value);
+    }
+
+    for (const candidate of candidates) {
+        const byValue = items.find((item) => sameItemValue(item.value, candidate));
+        if (byValue) return byValue;
     }
 
     if (typeof raw === 'string') {
         const wanted = raw.trim().toLowerCase();
-        return items.find((item) => typeof item.label === 'string' && item.label.trim().toLowerCase() === wanted);
+        const byLabel = items.find((item) => typeof item.label === 'string' && item.label.trim().toLowerCase() === wanted);
+        if (byLabel) return byLabel;
+    }
+
+    for (const candidate of candidates) {
+        const wanted = looseKey(candidate);
+        if (wanted === undefined) continue;
+        const byLooseValue = items.find((item) => looseKey(item.value) === wanted);
+        if (byLooseValue) return byLooseValue;
     }
 
     return undefined;
@@ -258,27 +292,38 @@ function findSelectItem(items: readonly SelectItem[], raw: unknown): SelectItem 
  * the control's items, dropping anything that matches no item. Without this an
  * item object like {label: 'DKK', value: 'DKK'} reached the GraphQL query and
  * the server rejected it.
+ *
+ * A list is first tried as one item value, since item values can be lists, and
+ * only then split; one level of nested lists is flattened.
  */
-function toSelectItemValues(items: readonly SelectItem[], raw: unknown): any[] {
-    const rawValues = Array.isArray(raw) ? raw : [raw];
+function toSelectItemValues(items: readonly SelectItem[], raw: unknown, field: unknown): any[] {
     const matched: SelectItem[] = [];
-    for (const r of rawValues) {
-        if (r === undefined || r === null || r === '') continue;
-        const item = findSelectItem(items, r);
-        if (item && !matched.includes(item)) {
-            matched.push(item);
+    const dropped: unknown[] = [];
+
+    const add = (value: unknown, depth: number) => {
+        if (value === undefined || value === null || value === '') return;
+        const item = findSelectItem(items, value);
+        if (item) {
+            if (!matched.includes(item)) matched.push(item);
+        } else if (Array.isArray(value) && depth < 2) {
+            value.forEach((element) => add(element, depth + 1));
+        } else {
+            dropped.push(value);
         }
+    };
+    add(raw, 0);
+
+    if (dropped.length > 0) {
+        console.warn('AI filter: dropped values that match no item of the control for field', field, dropped);
     }
     return matched.map((item) => item.value);
 }
 
-function selectControlItems(schema: FilterExpr): readonly SelectItem[] | undefined {
-    if (schema.type === 'and' || schema.type === 'or' || schema.type === 'not') return undefined;
-    const control = schema.value;
-    if (control.type === 'dropdown' || control.type === 'multiselect') {
-        return control.items ?? [];
-    }
-    return undefined;
+// A dropdown holds one item value, whatever the comparison; a multiselect a list.
+function selectFilterValue(control: SelectControl, raw: unknown, field: unknown): FilterValue.FilterValue {
+    const values = toSelectItemValues(control.items ?? [], raw, field);
+    if (values.length === 0) return FilterValue.empty;
+    return FilterValue.value(control.type === 'multiselect' ? values : values[0]);
 }
 
 // Recursively merge AI state into existing FilterFormState using schema-guided traversal
@@ -311,10 +356,15 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             return acc;
         };
         const collected = collectValues(aiState, []);
-        const items = selectControlItems(schema);
-        const values = items
-            ? toSelectItemValues(items, collected)
-            : Array.from(new Set(collected));
+        const selectControl = selectControlOf(schema);
+        if (selectControl) {
+            return {
+                ...currentState,
+                type: 'leaf',
+                value: selectFilterValue(selectControl, collected, schema.field)
+            };
+        }
+        const values = Array.from(new Set(collected));
         return {
             ...currentState,
             type: 'leaf',
@@ -368,15 +418,9 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
         }
 
         // Keep only values that are items of the control, as the control itself would
-        if (control.type === 'dropdown' || control.type === 'multiselect') {
-            const values = toSelectItemValues(control.items ?? [], value);
-            if (values.length === 0) {
-                return { ...currentState, value: FilterValue.empty };
-            }
-            return {
-                ...currentState,
-                value: FilterValue.value(control.type === 'multiselect' || schemaField.type === 'in' || schemaField.type === 'notIn' ? values : values[0])
-            };
+        const selectControl = selectControlOf(schemaField);
+        if (selectControl) {
+            return { ...currentState, value: selectFilterValue(selectControl, aiState.value, schemaField.field) };
         }
 
         // Create Date objects from ISO strings for date fields
