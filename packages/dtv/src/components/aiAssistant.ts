@@ -221,6 +221,66 @@ function normalizeCustomOperatorValue(
     return FilterValue.value({ operator, value: innerValue });
 }
 
+type SelectItem = { label: string; value: any };
+
+function sameItemValue(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+    try {
+        return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+        return false;
+    }
+}
+
+function findSelectItem(items: readonly SelectItem[], raw: unknown): SelectItem | undefined {
+    const byValue = items.find((item) => sameItemValue(item.value, raw));
+    if (byValue) return byValue;
+
+    // The prompt shows the model each item as {label, value}, and it sometimes
+    // hands the whole item back instead of its value.
+    if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && 'value' in raw) {
+        const inner = (raw as { value: unknown }).value;
+        const byInner = items.find((item) => sameItemValue(item.value, inner));
+        if (byInner) return byInner;
+    }
+
+    if (typeof raw === 'string') {
+        const wanted = raw.trim().toLowerCase();
+        return items.find((item) => typeof item.label === 'string' && item.label.trim().toLowerCase() === wanted);
+    }
+
+    return undefined;
+}
+
+/**
+ * Map whatever the model returned for a dropdown/multiselect to the values of
+ * the control's items, dropping anything that matches no item. Without this an
+ * item object like {label: 'DKK', value: 'DKK'} reached the GraphQL query and
+ * the server rejected it.
+ */
+function toSelectItemValues(items: readonly SelectItem[], raw: unknown): any[] {
+    const rawValues = Array.isArray(raw) ? raw : [raw];
+    const matched: SelectItem[] = [];
+    for (const r of rawValues) {
+        if (r === undefined || r === null || r === '') continue;
+        const item = findSelectItem(items, r);
+        if (item && !matched.includes(item)) {
+            matched.push(item);
+        }
+    }
+    return matched.map((item) => item.value);
+}
+
+function selectControlItems(schema: FilterExpr): readonly SelectItem[] | undefined {
+    if (schema.type === 'and' || schema.type === 'or' || schema.type === 'not') return undefined;
+    const control = schema.value;
+    if (control.type === 'dropdown' || control.type === 'multiselect') {
+        return control.items ?? [];
+    }
+    return undefined;
+}
+
 // Recursively merge AI state into existing FilterFormState using schema-guided traversal
 export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFormState, aiState: any): FilterFormState {
     if (!aiState) return currentState;
@@ -250,7 +310,11 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             }
             return acc;
         };
-        const values = Array.from(new Set(collectValues(aiState, [])));
+        const collected = collectValues(aiState, []);
+        const items = selectControlItems(schema);
+        const values = items
+            ? toSelectItemValues(items, collected)
+            : Array.from(new Set(collected));
         return {
             ...currentState,
             type: 'leaf',
@@ -300,6 +364,18 @@ export function mergeFilterFormState(schema: FilterExpr, currentState: FilterFor
             return {
                 ...currentState,
                 value: normalizeCustomOperatorValue(control.operators ?? [], defaultOperator, value)
+            };
+        }
+
+        // Keep only values that are items of the control, as the control itself would
+        if (control.type === 'dropdown' || control.type === 'multiselect') {
+            const values = toSelectItemValues(control.items ?? [], value);
+            if (values.length === 0) {
+                return { ...currentState, value: FilterValue.empty };
+            }
+            return {
+                ...currentState,
+                value: FilterValue.value(control.type === 'multiselect' || schemaField.type === 'in' || schemaField.type === 'notIn' ? values : values[0])
             };
         }
 
